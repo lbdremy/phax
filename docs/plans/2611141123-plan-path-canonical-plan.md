@@ -1,0 +1,691 @@
+---
+status: Draft
+source-spec: docs/specs/2611141103-plan-path-canonical.md
+completes-spec: true
+---
+# One canonical form for a plan's paths
+
+Make every plan path canonical where the plan is decoded, and refuse a path that has no canonical form there. Canonical means repository-relative, with `/` separators, no empty, `.` or `..` segment, no leading or trailing `/`, and no backslash. Every reader (reconciliation, lint, assignment bounds, overlap, staleness, the skill-edit grant) then compares the strings git reports, without normalizing anything itself. phax rewrites a plannable non-canonical path when it reads a plan.md, through the deterministic reading or the extraction answer, and refuses one in a plan document (q-rewrite, decided rewrite-reading). phax-plan, plan-document and phax-plan-extraction move to the opened release's stamp (0.38.0, through `next` snapshots), each with a frozen 0.33.0 decoder. An earlier-shape phax-plan.json is displayed and never run. An earlier-shape sidecar holding a non-canonical path is a refused lift.
+
+Order: the pure rule and its two schemas (phase-01). Then today's outputs for canonical plans, recorded before anything changes (phase-02). Then the three formats with their frozen decoders, persisted readers, schemas package, snapshots and corpus cases (phase-03). Then the acceptance tests for the readers' and the plan.md route's criteria (phase-04), and the plan.md route that passes them (phase-05). Then the skill-edit grant (phase-06), migrate-documents end to end (phase-07), and the docs (phase-08).
+
+phase-08 edits `.claude/skills/phax-planning/SKILL.md`, so run this plan with `phax run --allow-skill-edits`. Runs on this repository use the installed phax (0.37.0), so the run itself is not affected by the format change. After merging, the operator runs `phax artifact migrate-documents` once on main: every live plan sidecar is stamped 0.33.0, and approve, reopen, decide and revise refuse until it has run.
+
+## Required commands
+
+- `pnpm exec tsx`
+
+`pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phase-03. It writes the three `next` snapshots and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts`, `packages/schemas/shipped-json.json` and `packages/schemas/history.lock.json`, and its check mode then verifies them. It is already an entry of `security.agentCommands` in phax.json, so phax.json needs no change.
+
+## Technical arbitrations
+
+- Where the rule and its schema live, and how one rule gives two behaviours. The rule is one pure function, `readPlanPath` in `src/domain/plan/planPath.ts` (phase-01). It reads a path as canonical, as rewritable (with its canonical form), or as unplannable (with one of five reasons). `src/schemas/planPath.ts` holds two schemas built on it. `PlanPath` is a refinement that accepts a canonical path and refuses any other, naming the canonical form or the reason. It goes on `ExtractedPhaseFields`' three lists, so it covers phax-plan.json, the plan document and the extracted-plan cache. `PlanPathFromWritten` is a transformation from any string to `PlanPath` that rewrites a rewritable path and refuses an unplannable one. It goes on the extraction answer's three lists only (`answerPhaseFields`). The deterministic plan.md walk applies `readPlanPath` to each list item itself, because only the walk knows the section title a refusal names, and it hands canonical strings to the strict decode. `PlanPath`'s type is an unbranded string. Losses accepted: the plan.md route rewrites in the walk, not through a schema transformation (one rule, two call sites); and the type system does not prove a reader's string canonical, only the decode does. A brand was rejected because it would retype every fixture and test that builds a plan from literals.
+- Refusal wording (spec §10 leaves it open; the content is normative). The reasons are `is empty`, `is absolute`, `leaves the repository`, `names a directory` and `contains a backslash`. A rewritable path where only a canonical one is admitted gets `is not canonical: write "<canonical>"`. The checks run in this order: the empty string; a backslash; a leading `/`; then the segments are resolved (a `..` above the root leaves the repository, and an empty result is empty); then a trailing `/` names a directory. Each route has its own frame. Plan document: `phases[i].<list>[k]: <phase> plans "<written>", which <reason>`, as in spec §6. plan.md: `<phase>: <section title>: "<written>" <reason>`, reported by lint as a `structure` error on the phase. Sidecar lift and migrate-documents: `<phase> <list> "<written>" <reason>`. Loss accepted: one rule has three sentence frames, each fitted to where the operator reads it.
+- The frozen 0.33.0 decoders and their lifts (§5.8, §5.9). Each of the three formats gets a frozen 0.33.0 module, an exact copy of today's shape that imports only effect. phax-plan: a file stamped 0.33.0, or later but below the current stamp, reads as shape `0.33.0`. It is displayed with its paths as written and never run: loadPlan refuses it as it refuses every older shape. plan-document: the 0.33.0 lift, and every older shape's lift, check the paths after their existing checks. A canonical document lifts unchanged. The first path in plan order (phase, then create, edit, optional, then item) that is not canonical makes the lift refused, naming the phase, the list, the written path and why; the path is never rewritten. phax-plan-extraction: phax reads only the current answer stamp, so its frozen module serves the schemas package and the corpus. The schemas package's `toLatest*` keeps an older shape's paths as written. Loss accepted: a package consumer's latest value read from an older document may hold a non-canonical spelling. Marking those lists `Unknown` would retype them for every consumer, and the package only reads plans, it never runs one.
+- The extracted-plan cache (§10 leaves it open). EXTRACTOR_VERSION goes from 5 to 6. A cache entry's `extracted` already decodes through `ExtractedPhaxPlanSchema`, which is now strict, so an entry written before the change is a miss either way. Loss accepted: a cached plan that had fallen back to the model is extracted once more after the upgrade. A plan read deterministically never uses the cache.
+- The JSON Schemas (§5.10 and the §10 constraint). `PlanPath`'s JSON Schema carries a description of the rule and a pattern without lookaround that accepts exactly the canonical paths, so a headless planner's strict structured output cannot emit another spelling. `PlanPathFromWritten`'s JSON Schema carries only a description of what phax rewrites and refuses, with no pattern, so the extraction model may still answer `./src/x.ts`. Loss accepted: the pattern is a long alternation, harder to read than the description beside it.
+- Phase order and the acceptance pair. Canonical plans' outputs are recorded first (phase-02, ac-additive), before anything changes. The three formats move in one phase (phase-03): they share ExtractedPhaseFields' lists, and the package cannot list a 0.33.0 release while 0.33.0 is still the current shape's name. The readers' cross-spelling criteria and the plan.md route's criteria are acceptance tests (phase-04), passed by the plan.md route (phase-05). The plan-document, extraction-answer, older-shape and schema criteria are tested in phase-03, which makes them true. Loss accepted: between phase-03 and phase-05, on the run branch only, a plan.md listing a non-canonical path fails the strict deterministic decode and falls back to the extraction model.
+- The readers do not change. Reconciliation, lint, assignment bounds, overlap and staleness compare the strings they are given; their cross-spelling criteria pass because the decoded plan is canonical. Pull request #205's two tests are not in this repository. phase-04 restates its case (one file edited under two spellings) against plans read through the deterministic reader, and `buildFootprint` and `computePlanOverlap` stay untouched.
+- The skill-edit grant (phase-06) drops its private normaliser and grants only the paths `readPlanPath` reads as canonical. Its output is unchanged on every path a decoded plan can hold. A non-canonical spelling, which a decoded plan no longer holds, is never granted. This narrows the grant and never widens it.
+- Stamps in tests. The corpus cases of the new shapes name `https://docs.phax.run/schemas/<id>/0.38.0.json` literally and record shape `next`. The cut renames the snapshot to 0.38.0 and the next opening keeps it, so these cases hold on both sides of `scripts/release.sh --rehearse`. No other assertion names 0.38.0 or `PHAX_RELEASE`: tests compare with `currentSchemaUrl(...)` and, where a change must show, with the 0.33.0 URL it must differ from.
+- Live sidecars after the merge. Every live plan sidecar in docs/plans is stamped 0.33.0, so once this lands each one is an older shape, and approve, reopen, decide and revise refuse until `phax artifact migrate-documents` rewrites it. No phase may run that command, and the run itself uses the installed phax 0.37.0. The operator runs it once after merging, and the 0.38.0 upgrading entry says so. Loss accepted: one migration commit on main.
+
+## Open questions
+
+### q-corpus-stamp — Four corpus case files give documents stamped 0.33.0 to a reader whose `$schema` is a const at the format's current stamp. `tests/behaviourCorpus/cases/encode/plan-document.json` and `encode/phax-plan-extraction.json` are round trips through the current file decoder, and their input must decode. `answers/plan-extraction.json` and the plan cases of `answers/authoring-answer.json` go through the answer readers. Once plan-document and phax-plan-extraction move to the next stamp (0.38.0), those inputs are refused at `$schema`, so their recorded answers no longer replay. CONTRIBUTING says a recorded expectation is never changed. What do these cases become in phase-03?
+
+- restamp — Change only the stamp: in those cases' inputs and expected values, replace the plan-document and phax-plan-extraction 0.33.0 URLs with the 0.38.0 URLs and keep every other byte. The handoff lists every case touched. — abandons: The corpus rule that a recorded case is never edited by hand. A reviewer must check by diff that the stamp is the only change, and the corpus no longer shows what the encode and answer readers answered for a 0.33.0 document.
+- retarget — Keep each case's input byte for byte, move it into its format's case file as a case of `frozen:<id>/0.33.0` whose expectation is what the frozen decoder answers, and add new encode and answer cases stamped 0.38.0. — abandons: These cases' recorded answers: an encode round trip or an answer reading becomes a frozen decoder's answer, so the expectations are rewritten anyway. The encode and answer subjects also lose every case that showed what they answered, and the corpus grows by a duplicated set of documents.
+
+Recommendation: restamp — The stamp names the shape, not the content. These documents hold only canonical paths, so they should decode identically under the new shape: that is the guarantee §5.7 asks for, and restamping lets the existing cases prove it. A diff that only replaces a URL is easy to review. Retargeting rewrites the expectations anyway and drops what these cases test.
+
+---
+
+## phase-01 — The plan-path rule and its two schemas {#phase-01-plan-path-rule}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Give phax one pure rule that reads a written plan path as canonical, rewritable to its canonical form, or unplannable for a named reason. Build two Effect schemas on it: a strict `PlanPath` and a rewriting `PlanPathFromWritten`. Later phases put them on the plan formats and the plan.md reader without deciding the rule again.
+
+### Detailed instructions
+
+- Create `src/domain/plan/planPath.ts`, pure, with no I/O and no `node:` import. Export the following.
+- - `type UnplannableReason = "empty" | "absolute" | "leaves-repository" | "directory" | "backslash"`.
+- - `type PlanPathReading = { kind: "canonical"; path: string } | { kind: "rewritable"; written: string; canonical: string } | { kind: "unplannable"; written: string; reason: UnplannableReason }`.
+- - `readPlanPath(written: string): PlanPathReading`. It checks, in this order: the empty string is `empty`; a string containing `\` is `backslash`; a string starting with `/` is `absolute`. Then it splits on `/` and walks the segments, dropping empty and `.` segments; each `..` removes the segment before it, and a `..` with nothing before it is `leaves-repository`. If no segment is left, the path is `empty` (this covers `.`, `./` and `a/..`). A written path ending with `/` is then `directory` (so `src/` and `src//` are, but `./` is `empty`). Otherwise the joined segments are the canonical form: `canonical` when it equals the written path, `rewritable` otherwise. Glob characters (`*`, `?`, `[`) are ordinary characters, with no meaning.
+- - `isCanonicalPlanPath(s: string): boolean`.
+- - `describeUnplannable(reason)`, returning exactly `is empty`, `is absolute`, `leaves the repository`, `names a directory` or `contains a backslash`.
+- - `describeNotCanonical(canonical)`, returning `is not canonical: write "<canonical>"`. Quote with `JSON.stringify`.
+- - `describePlanPathProblem(reading)`, for a non-canonical reading: the not-canonical text for a rewritable one, the reason text for an unplannable one. These words are normative: phase-04's frozen acceptance tests look for `empty`, `absolute`, `leaves the repository`, `names a directory` and `backslash`.
+- Create `src/schemas/planPath.ts` and export the following.
+- - `PlanPath`: `Schema.String` with one filter built on `readPlanPath`. It accepts a canonical path. For any other path, its refusal message is `describePlanPathProblem`'s text, worded through phax's refusal adapter (`refusalMessage` from `./refusal/adapter.js`, as `src/schemas/testLine.ts` does), never Effect's generic pattern text. Its JSON Schema carries a description stating the rule: 'A file path relative to the repository root, in canonical form: `/` separators, no empty, `.` or `..` segment, no leading or trailing `/`, no backslash, e.g. `src/widget.ts`. phax refuses any other spelling, naming the canonical one when it exists.' It also carries an exported pattern without lookaround that matches exactly the canonical paths: segments separated by single `/`, each segment one or more characters other than `/` and `\`, and neither `.` nor `..`. One way to write a segment is `[^/\\.][^/\\]*|\.[^/\\.][^/\\]*|\.\.[^/\\]+`. Export the pattern as `PLAN_PATH_PATTERN`. Make the refusal come from the filter, not the pattern: see how `testLine.ts` sets `toJsonSchema` on a filter.
+- - `PlanPathFromWritten`: a transformation from `Schema.String` (the encoded side) to `PlanPath`. Decoding returns a canonical path as is, returns the canonical form of a rewritable one, and fails an unplannable one with `describeUnplannable`'s text. Encoding is the identity. Its encoded JSON Schema is a plain string with a description and no pattern: 'A file path relative to the repository root. phax rewrites `./`, empty and `.` segments and resolves `..` segments; it refuses an empty, absolute or directory path, one that leaves the repository, and one with a backslash.'
+- Check the transformation and filter APIs against the installed Effect 4 (the `effect` version in package.json, its types under node_modules, or `ctx7`), and copy an existing transformation in `src/schemas/` if there is one (grep for `decodeTo`).
+- Do not wire either schema into any plan format: that is phase-03. Both modules are exercised by this phase's tests, which keeps knip green.
+- Write the tests listed in the test strategy, in `tests/unit/planPath.test.ts` (the rule) and `tests/unit/schemas/planPath.test.ts` (the schemas, their messages and their JSON Schemas).
+
+### Planned files to create
+
+- `src/domain/plan/planPath.ts`
+- `src/schemas/planPath.ts`
+- `tests/unit/planPath.test.ts`
+- `tests/unit/schemas/planPath.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+Producer: the domain rule `readPlanPath` with its reason vocabulary and message words, and the two schemas in src/schemas/planPath.ts. Consumers: phase-03 (ExtractedPhaseFields, the extraction answer, the sidecar lifts and migrate-documents), phase-05 (the plan.md walk) and phase-06 (the skill-edit grant). Contract: one pure function decides the reading of a written path. The schemas hold no rule of their own, only how a decode reacts to each reading: refuse anything non-canonical (`PlanPath`), or rewrite a rewritable path and refuse an unplannable one (`PlanPathFromWritten`).
+
+### Test strategy
+
+- every spelling of spec §4 reads as its kind, canonical form or reason: src/widget.ts canonical; ./src/x.ts, src//x.ts and src/a/../x.ts rewritable to src/x.ts; "", ., ./ and a/.. empty; /src/x.ts absolute; ../x.ts and src/../../x.ts leaving; src/ a directory; src\x.ts a backslash — small · table · a table of (written path, expected reading) taken from spec §4 · in-phase
+- edge spellings are read correctly at each limit: x, .claude/skills/a/SKILL.md, ..a/b, a/.b, ..., /, a//, ./a/./b/, a/b/.., a/../../b and a path holding * — small · boundary · the expected reading of each case, written by hand · in-phase
+- a canonical form reads as canonical with the same path, and prefixing ./ or doubling a separator never changes a plannable path's canonical form — small · metamorphic · readPlanPath of the canonical form and of the varied spelling, over every plannable case of the two tables · in-phase
+- PlanPath accepts only canonical paths and refuses a rewritable one naming its canonical form, and an unplannable one naming its reason — small · table · the refusal texts is not canonical: write "src/x.ts", is empty, is absolute, leaves the repository, names a directory and contains a backslash · in-phase
+- PlanPathFromWritten decodes a rewritable path to its canonical form, keeps a canonical one, and refuses an unplannable one with its reason — small · table · the same table, its canonical forms and reason texts · in-phase
+- PlanPath's JSON Schema states the rule and its pattern accepts exactly what isCanonicalPlanPath accepts, while PlanPathFromWritten's JSON Schema admits ./src/x.ts — small · table · isCanonicalPlanPath over every case of both tables against the rendered pattern, and the rendered descriptions · in-phase
+
+### Implementation order
+
+1. src/domain/plan/planPath.ts and tests/unit/planPath.test.ts
+2. PlanPath and its JSON Schema
+3. PlanPathFromWritten
+4. tests/unit/schemas/planPath.test.ts
+
+### Excluded scope
+
+- Putting either schema on ExtractedPhaseFields, the extraction answer or any persisted format (phase-03).
+- The plan.md walk (phase-05) and the skill-edit grant (phase-06).
+- Any symlink, case or Unicode handling (spec §7).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exact exports of `src/domain/plan/planPath.ts` and `src/schemas/planPath.ts`, with their signatures. The reason vocabulary and the exact message words. `PLAN_PATH_PATTERN` as written. How the refusal message is attached (the refusal adapter annotation used) and how the transformation is built in the installed Effect version. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(plan): add the canonical plan-path rule and its schemas`
+
+### Commit body
+
+Add readPlanPath, the one pure rule that reads a written plan path as canonical, rewritable to its canonical form, or unplannable (empty, absolute, leaving the repository, naming a directory, or holding a backslash), with the message words every route uses. Add PlanPath, which admits only a canonical path and whose JSON Schema states the rule with a pattern, and PlanPathFromWritten, which rewrites a plannable spelling and refuses an unplannable one. Nothing uses them yet.
+
+---
+
+## phase-02 — Record canonical plans' outputs before the change {#phase-02-canonical-baseline}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Record today's `phax plans lint`, `phax plans overlap` and `phax plans status` outputs for the hello-world example plan and two of the repository's archived canonical plans, in a test that every later phase's gate replays. A canonical plan then gives the same output after the change as before it (§5.7).
+
+### Detailed instructions
+
+- Create `tests/integration/canonicalPlansUnchanged.test.ts`. It uses three plans: `examples/hello-world/plan.md`, `docs/plans/archive/2611131401-artifact-revise-plan.md` and `docs/plans/archive/2611050752-command-contracts-plan.md`, read from where they are (archived plans no longer change). First, a guard test reads each plan deterministically (`extractPlanDeterministic`, then `finalizeExtractedPlan`) and asserts that every one of its plan paths reads canonical under phase-01's `readPlanPath`. If one of the two archived plans holds a non-canonical path, replace it with another archived plan whose paths are all canonical, and say so in the handoff.
+- Lint: for each plan, copy its text to `plan.md` at the root of a fresh temporary repository (a loose plan, so artifact validation and lineage are skipped). Run `lintPlan` with a fixed config, built the way `tests/integration/lintPlan.test.ts` builds one, with the phax home isolated the way that file isolates it. Render the report with the same function `phax plans lint` uses for its text (read `src/cli/definitions/plansLint.ts`).
+- Overlap: build each plan's `PlanInput` with `planInputFromPhaxPlan` from its deterministic reading, run `computePlanOverlap` over the three, and render the result with the renderer `phax plans overlap` uses for its text (read `src/cli/definitions/plansOverlap.ts`).
+- Status: for each plan, build the staleness verdict as `computePlanStaleness` composes it: the footprint from `buildFootprint`, then `computeStaleness` from `src/domain/artifact/lineage.ts`. Use a fixed approval record (fixed baseline string, fingerprints and source spec) and a fixed list of changed files that meets one plan's footprint and misses the others. Render the report with `renderStalenessReport`.
+- Each output is compared with a string literal in the test. Write each literal by running the test's own code once on this phase's base and pasting what it printed. No literal may contain a temporary path, a date or a commit hash: inject fixed values wherever the code would read one.
+- These literals are the ac-additive baseline. No later phase of this plan edits this file, and every later gate must keep it green as written.
+
+### Planned files to create
+
+- `tests/integration/canonicalPlansUnchanged.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Test strategy
+
+- the hello-world plan and two archived canonical plans give the same lint, overlap and staleness outputs before and after the change — medium · example · the outputs today's code gives, recorded as string literals in the test · in-phase · ac-additive
+- every plan path of the three plans is canonical, so the baseline covers only canonical plans — small · example · readPlanPath reads each path as canonical · in-phase
+
+### Implementation order
+
+1. the guard test over the three plans
+2. lint outputs
+3. overlap output
+4. staleness outputs
+5. record the literals by running the code once
+
+### Excluded scope
+
+- Any change to source code.
+- Live plans under docs/plans/ (their status and sidecars change over time).
+- The cross-spelling criteria (phase-04).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The three plans used and why, any replacement made by the guard, the functions used for each output and their rendering, the fixed inputs injected (config, approval record, changed files), and a note that the literals must never be edited by a later phase. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(plan): record canonical plans' lint, overlap and staleness outputs`
+
+### Commit body
+
+Record what phax plans lint, phax plans overlap and phax plans status print today for the hello-world example plan and two archived canonical plans, as literals the gate replays. The canonical-path change that follows must leave these outputs byte-identical (spec §5.7).
+
+---
+
+## phase-03 — Canonical paths in phax-plan, plan-document and phax-plan-extraction {#phase-03-canonical-formats}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+**Assignment reason:** The broadest change of the plan: it moves three persisted formats at once across src/schemas, the persisted readers and lifts, the schemas package, generated snapshots and the behaviour corpus, under the corpus's rule that no recorded case moves. No earlier shape change of an existing format has been made under the corpus, so there is no pattern to copy.
+
+Move the three plan formats to the opened release's stamp with canonical file lists. The phax-plan.json, the plan document and the extracted-plan cache hold only canonical paths, and the extraction answer rewrites a plannable spelling. A plan document holding a non-canonical path is refused, naming the spelling to write. Each format keeps a frozen 0.33.0 decoder: an earlier phax-plan.json is displayed and never run, and an earlier sidecar with a non-canonical path is a refused lift. The schemas package, the published JSON Schemas and the behaviour corpus follow.
+
+### Detailed instructions
+
+- Read first: `src/schemas/phaxPlan.ts`, `planDocument.ts`, `planExtraction.ts`, `persisted.ts`, `formatError.ts` and `acceptanceLift.ts`; the frozen 0.32.0 modules under `src/schemas/history/`; `packages/schemas/src/formats/runDirectory.ts`, `repository.ts` and `answers.ts`; `scripts/schemas-check.ts`; CONTRIBUTING's 'The behaviour corpus'; `tests/behaviourCorpus/corpus.ts` (`shapeAt`) and `subjects.ts`. Also read how the 0.32.0 phax-plan-extraction release was added (it is the most recent frozen module of these three formats).
+- Step 1, freeze, before anything else changes. Create `src/schemas/history/phax-plan/0.33.0.ts`, `src/schemas/history/plan-document/0.33.0.ts` and `src/schemas/history/phax-plan-extraction/0.33.0.ts`, exact copies of today's `PhaxPlanFileSchema`, `PlanDocumentFileSchema` (with its lineage and question checks) and `PlanExtractionAnswerSchema`. They import only `effect` and carry their own copies of the strict string, the test line, the questions and the refusal annotations, written out as the 0.32.0 modules do. `$schema` is a release pattern for phax-plan, as today, and a const of the 0.33.0 URL for the other two. Export `PhaxPlanV0_33_0Schema`, `decodePhaxPlanV0_33_0`, `PhaxPlanV0_33_0`, and likewise `PlanDocumentV0_33_0…` and `PhaxPlanExtractionV0_33_0…`. Write a header comment like the 0.32.0 modules'. Check, before step 2, that each module renders its committed `packages/schemas/snapshots/<id>/0.33.0.schema.json` and answers every existing corpus document of its format as today's decoder does: they must refuse with the same texts.
+- Step 2, the lists. In `ExtractedPhaseFields` (`src/schemas/phaxPlan.ts`), the three lists become `Schema.Array(PlanPath)`. `answerPhaseFields` overrides the same three with `Schema.Array(PlanPathFromWritten)`, so the extraction answer rewrites (`src/schemas/planExtraction.ts` imports them unchanged). Nothing else in these schemas changes.
+- Step 3, the refusal text. In `formatPlanDocumentViolation` (`src/schemas/formatError.ts`), a first refusal at `phases[i].<list>[k]` for one of the three lists renders as `phases[i].<list>[k]: <phase id> plans "<written>", which <rule message>`, with a bracketed path. For example: `phases[1].plannedFilesToEdit[0]: phase-02 plans "./src/x.ts", which is not canonical: write "src/x.ts"`, and `phases[1].plannedFilesToEdit[1]: phase-02 plans "../shared/y.ts", which leaves the repository` (spec §6, normative). Test-line refusals keep their text. Check that a refused extraction answer names `plan.phases[i].<list>[k]`, the written path and the reason through `formatAnswerViolations`; adjust it only if it does not.
+- Step 4, the stamps. Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/{phax-plan,plan-document,phax-plan-extraction}/next.schema.json`, moves the three `CURRENT_STAMPS` to `PHAX_RELEASE` in `src/schemas/release.ts`, and updates the history lock, the generated index and the shipped JSON. Never edit those files by hand. Then run `pnpm exec tsx scripts/schemas-check.ts` with no flag and make it pass.
+- Step 5, phax's readers (`src/schemas/persisted.ts`). (a) `readPhaxPlanFile`: a file stamped 0.33.0 or later and below the current stamp is read by the frozen 0.33.0 decoder. Its shape is `0.33.0` (add it to `PhaxPlanShape`), and its plan is an `AnyShapePhaxPlan` with its paths as written and no `testLines`. `loadPlan` refuses it with `olderPhaxPlanMessage`, unchanged. (b) `readPlanDocumentSidecar`: the same range is read by the frozen 0.33.0 decoder as shape `0.33.0`, with `older` and `lift`; add the shape to `PlanDocumentSidecar`. (c) Every plan-document lift (0.33.0 and every older shape) checks the paths after its existing checks. A canonical document lifts unchanged. The first path in plan order (phases in order, lists in create, edit, optional order, items in order) whose `readPlanPath` reading is not canonical refuses the lift, naming the phase, the list key, the written path and `describePlanPathProblem`'s text. Add this as a refused-lift variant beside the test-line one, whose fields and messages stay as they are. `readPlanDocumentFile` reports it as `<file>: <phase> <list> "<written>" <problem>`. (d) Check that `olderDocumentStamp` and `describeStampedShape` name 0.33.0 correctly.
+- Step 6, `src/domain/artifact/documentMigration.ts`. `renderOwnShape` for a `0.33.0` sidecar is the current rendering of its older value, because the 0.33.0 body is the current body. A path-refused lift is refused with the problem `<phase> <list> "<written>" <problem>`, e.g. `phase-02 plannedFilesToEdit "./src/x.ts" is not canonical: write "src/x.ts"`. Its remedy, in the style of the existing remedies, says to edit the path in the plan and re-approve it. The test-line refusal keeps its text.
+- Step 7, the cache. In `src/domain/planCache/key.ts`, set `EXTRACTOR_VERSION` to 6 and add the comment line `6: plan paths are canonical (PlanPath).`.
+- Step 8, the schemas package. List `0.33.0` as a release in `phaxPlanFormat`, `planDocumentFormat` and `phaxPlanExtractionFormat`. Extend their shape maps, parsed unions and the `isCurrent…` guards. Their `toLatest…` lifts a 0.33.0 value like the current one and keeps an older shape's paths as written; say so in each doc comment. Export the frozen schemas and types from `packages/schemas/src/index.ts` as the 0.32.0 ones are. Update `tests/type/schemasPackage.ts` and the package tests the compiler or a failure names (current shapes, parity, documents, snapshots, frozen history, exports).
+- Step 9, the behaviour corpus. Register `frozen:phax-plan/0.33.0`, `frozen:plan-document/0.33.0` and `frozen:phax-plan-extraction/0.33.0` in `tests/behaviourCorpus/subjects.ts`, each rendering as the persisted reader renders that module's refusals (plan-document through `formatPlanDocumentViolation`; follow the 0.32.0 entries). In each format's case file, add new frozen cases for these modules, as many as the coverage test asks for. Add new `next`-shaped cases stamped `https://docs.phax.run/schemas/<id>/0.38.0.json` literally, with expected shape `next`. For phax-plan and plan-document: a valid document with canonical paths, each of the seven unplannable spellings refused, and `./src/x.ts` refused naming `src/x.ts`. For the extraction answer: `./src/x.ts`, `src//y.ts` and `src/a/../z.ts` accepted and rewritten, and each unplannable spelling refused. Add 0.38.0 encode cases as the coverage test requires. Handle the four const-stamp case files (encode/plan-document, encode/phax-plan-extraction, answers/plan-extraction and the plan cases of answers/authoring-answer) as q-corpus-stamp is decided. If it is decided `restamp`, replace only the 0.33.0 URL of those two formats with the 0.38.0 URL and list every case touched in the handoff. Never edit any other recorded expectation: a case that disagrees means the change is wrong. Update `tests/behaviourCorpus/baseline/snapshot-digests.json` only if its check asks for it.
+- Step 10, other tests. Add the three frozen modules to `tests/unit/architecturalGuards.test.ts`'s lists. A test that writes one of these formats at the literal 0.33.0 stamp and expects the current reading uses `currentSchemaUrl(...)` instead. No assertion outside the corpus names 0.38.0 or `PHAX_RELEASE`: every check must hold on both sides of the release cut and the next opening (`scripts/release.sh --rehearse`). Fix any fixture whose plan paths are not canonical, and explain each one in the handoff.
+- Step 11, this phase's tests, from the test strategy. Put the decode, lift, migration-decision, JSON Schema and cache tests in `tests/unit/planPathFormats.test.ts`, `tests/unit/artifact/documentMigration.test.ts` and `tests/unit/planCacheKey.test.ts`. Put the file and authoring tests in `tests/integration/planPathPersisted.test.ts`. The authoring test: find how headless plan authoring handles an answer that fails `decodeAuthoredPlanDocument` (any corrective retry included), answer `./src/x.ts` under plannedFilesToEdit on every turn through the test backend the existing authoring tests use, and assert the refusal text and that no file was written under docs/plans. The schema test reads the JSON Schema `phax artifact schema plan` prints (find the function behind it) and the phax-plan JSON Schema the package ships, and checks each list's `items`.
+
+### Planned files to create
+
+- `src/schemas/history/phax-plan/0.33.0.ts`
+- `src/schemas/history/plan-document/0.33.0.ts`
+- `src/schemas/history/phax-plan-extraction/0.33.0.ts`
+- `packages/schemas/snapshots/phax-plan/next.schema.json`
+- `packages/schemas/snapshots/plan-document/next.schema.json`
+- `packages/schemas/snapshots/phax-plan-extraction/next.schema.json`
+- `tests/unit/planPathFormats.test.ts`
+- `tests/integration/planPathPersisted.test.ts`
+
+### Planned files to edit
+
+- `src/schemas/phaxPlan.ts`
+- `src/schemas/formatError.ts`
+- `src/schemas/persisted.ts`
+- `src/schemas/release.ts`
+- `src/domain/artifact/documentMigration.ts`
+- `src/domain/planCache/key.ts`
+- `packages/schemas/src/formats/runDirectory.ts`
+- `packages/schemas/src/formats/repository.ts`
+- `packages/schemas/src/formats/answers.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/shipped-json.json`
+- `packages/schemas/history.lock.json`
+- `tests/behaviourCorpus/subjects.ts`
+- `tests/behaviourCorpus/cases/formats/phax-plan.json`
+- `tests/behaviourCorpus/cases/formats/plan-document.json`
+- `tests/behaviourCorpus/cases/formats/phax-plan-extraction.json`
+- `tests/behaviourCorpus/cases/encode/plan-document.json`
+- `tests/behaviourCorpus/cases/encode/phax-plan-extraction.json`
+- `tests/behaviourCorpus/cases/answers/plan-extraction.json`
+- `tests/behaviourCorpus/cases/answers/authoring-answer.json`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/type/schemasPackage.ts`
+- `tests/unit/artifact/documentMigration.test.ts`
+- `tests/unit/planCacheKey.test.ts`
+
+### Optional files that may be edited
+
+- `src/schemas/planExtraction.ts`
+- `src/schemas/planDocument.ts`
+- `src/schemas/acceptanceLift.ts`
+- `src/domain/artifact/sidecar.ts`
+- `src/domain/artifact/render.ts`
+- `src/app/loadPlan.ts`
+- `packages/schemas/build/jsonSchemas.ts`
+- `tests/behaviourCorpus/cases/encode/phax-plan.json`
+- `tests/behaviourCorpus/baseline/snapshot-digests.json`
+- `tests/unit/behaviourCorpus/coverage.test.ts`
+- `tests/unit/schemasPackage/documents.ts`
+- `tests/unit/schemasPackage/documents.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
+- `tests/unit/schemasPackage/frozenHistory.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/snapshots.test.ts`
+- `tests/unit/schemasPackage/repositoryFormats.test.ts`
+- `tests/unit/schemaUrl.test.ts`
+- `tests/unit/planDocument.test.ts`
+- `tests/unit/extractPlan.test.ts`
+- `tests/unit/extractedPlanCacheEntry.test.ts`
+- `tests/unit/schemas/refusal/adapterOrder.test.ts`
+- `tests/integration/acceptancePreflight.test.ts`
+- `tests/integration/planCacheStore.test.ts`
+
+### Boundary contracts
+
+Producer: src/schemas, through the file decoders, the frozen 0.33.0 decoders and the persisted readers. Consumers: every reader of a PhaxPlan or PlanDocument (run, resume, lint, overlap, staleness, decide, revise, migrate-documents), the schemas package's users, the extraction model (shown the answer's JSON Schema) and headless planners (shown the plan document's). Contract: a current-shape plan holds only canonical paths. The extraction answer admits any plannable spelling and hands phax its canonical form. A plan document admits only canonical paths and names the spelling to write. An older phax-plan.json is display-only, with its paths as written. An older sidecar lifts unchanged when canonical and is a refused lift otherwise.
+
+### Test strategy
+
+- a headless planner's answer listing ./src/x.ts under phase-02's plannedFilesToEdit is refused at phases[1].plannedFilesToEdit[0] naming phase-02, ./src/x.ts and src/x.ts — small · example · the literal refusal line of spec §6 from decodeAuthoredPlanDocument · in-phase · ac-document-refuses
+- headless plan authoring that keeps answering a non-canonical path writes no plan file — medium · example · no file under docs/plans in the temporary repository, and the refusal naming the path · in-phase · ac-document-refuses
+- each of the seven unplannable spellings under a plan document's plannedFilesToEdit is refused naming phase-02, the list, the written path and its reason — small · table · seven rows of (written path, reason words empty, absolute, leaves the repository, names a directory, backslash) · in-phase · ac-unplannable
+- the plan document JSON Schema phax artifact schema plan prints and the published phax-plan JSON Schema carry the canonical-path rule on each of the three file lists' items — small · example · the description and pattern under each list's items in the rendered schemas · in-phase · ac-schema
+- an extraction answer listing ./src/x.ts, src//y.ts and src/a/../z.ts reaches the run's phax-plan.json as src/x.ts, src/y.ts and src/z.ts, stamped with phax-plan's current stamp, which is not the 0.33.0 one — medium · example · the file createRunFolder writes, read back, against currentSchemaUrl and the 0.33.0 URL · in-phase · ac-persisted-canonical
+- the extraction answer's JSON Schema still admits a plannable non-canonical path — small · example · no pattern on the answer's list items, and readPlanExtractionAnswer accepting ./src/x.ts · in-phase
+- a phax-plan.json stamped 0.33.0 listing ./src/x.ts is displayed with the path as written, and resuming from it is refused as an older shape — medium · example · readPhaxPlanFile's shape 0.33.0 and plan, and loadPlan's olderPhaxPlanMessage · in-phase · ac-older-phax-plan
+- a plan sidecar stamped 0.33.0 lifts unchanged when canonical and is a refused lift, which migrate-documents refuses naming phase-02, plannedFilesToEdit and ./src/x.ts, when not — small · example · the lift result and decideDocumentMigration's problem and remedy · in-phase · ac-older-sidecar
+- the frozen 0.33.0 decoders accept and refuse every 0.33.0 document exactly as today's decoders did — small · contract · the corpus's existing 0.33.0 cases and the committed 0.33.0 snapshots · in-phase
+- phax's readers and the schemas package agree on every next-shaped plan document, phax-plan and extraction answer — small · contract · the behaviour corpus replayed against both readers · in-phase
+- an extracted-plan cache entry written before the change is a miss — small · example · planCacheKey differing at extractor version 6, and an entry holding ./src/x.ts failing to decode · in-phase
+
+### Implementation order
+
+1. the three frozen 0.33.0 modules, checked against today's decoders
+2. PlanPath on ExtractedPhaseFields and PlanPathFromWritten on answerPhaseFields
+3. formatPlanDocumentViolation
+4. schemas-check --write, then the check
+5. persisted readers and lifts
+6. documentMigration and the cache version
+7. the schemas package
+8. the behaviour corpus
+9. the remaining tests and this phase's own tests
+
+### Excluded scope
+
+- The deterministic plan.md walk and loadOrExtractPlan's refusal before the model (phase-05).
+- Any change to a reader: reconcile, lint's file checks, assignment bounds, overlap, staleness (they stay as they are).
+- The skill-edit grant (phase-06).
+- End-to-end migrate-documents tests through the CLI (phase-07), and the docs (phase-08).
+- Lifting an earlier phax-plan.json so a run can continue (spec §7).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exports of the three frozen modules. The new PlanDocumentLift variant and the exact texts of the plan-document, sidecar-lift and migrate-documents refusals. The `PhaxPlanShape` and `PlanDocumentSidecar` additions. The current stamps after schemas-check --write. How the four const-stamp corpus files were handled under q-corpus-stamp, with every case touched. Every new corpus case. Every test fixture changed and why. Whether authoring retries a refused answer. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(schemas): hold only canonical paths in the three plan formats`
+
+### Commit body
+
+phax-plan, plan-document and phax-plan-extraction move to the opened release's stamp. Their three file lists decode through PlanPath, except the extraction answer's, which decode through PlanPathFromWritten, so the extraction model's ./src/x.ts reaches phax as src/x.ts. A plan document holding a non-canonical path is refused at its path, naming the spelling to write; an unplannable path is refused with its reason. Each format keeps a frozen 0.33.0 decoder: an earlier phax-plan.json is shown with its paths as written and never run, and an earlier plan sidecar lifts unchanged when canonical and is a refused lift otherwise, which migrate-documents reports. The extractor version moves to 6. The schemas package lists the 0.33.0 shapes, the published JSON Schemas state the rule, and the behaviour corpus gains the next-shaped and frozen cases.
+
+---
+
+## phase-04 — Acceptance tests: plan paths across spellings {#phase-04-acceptance-tests}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Assignment reason:** Acceptance tests are frozen once committed, and the passing phase cannot repair them. Each must go through a stable entry, fail today on its own assertion rather than an error, and assert something only a full reading produces. That takes more care than the default effort.
+**Acceptance phase:** passed by phase-05
+**Acceptance test files:** `tests/unit/planPathReaders.test.ts`, `tests/integration/planPathCanonical.test.ts`
+
+Write the acceptance tests for the criteria the plan.md route decides: every reader gives the same answer for a plan.md that writes `./src/x.ts` as for one that writes `src/x.ts`; an unplannable path in a plan.md is refused by name; it never reaches the model; and phax-plan.json holds the canonical form. Each test carries Vitest's `.fails` marker and fails today on its own assertion. phase-05 passes them.
+
+### Detailed instructions
+
+- Create two files. `tests/unit/planPathReaders.test.ts` (small, pure entries) covers ac-reconcile, ac-overlap and ac-staleness. `tests/integration/planPathCanonical.test.ts` (medium, temporary directories) covers ac-lint-collision, ac-lint-already-created, ac-lint-probe, ac-bounds, ac-unplannable (plan.md half), ac-no-fallback and ac-persisted-canonical (deterministic half). Name each test after its §8 criterion title and id. Mark every test `it.fails` (the marker the configured Vitest acceptance provider reads).
+- Build every plan.md inline in these two files: a small local function writing the frontmatter-free form `# Title`, `## Required commands` with `- (none)`, and per phase the heading with its anchor, the model and effort lines, the three planned-file sections with backticked items, and the commit subject and body. Do not import `tests/helpers/planMarkdown.ts` or any other helper a later phase could change: what a test judges with is frozen with it. Use only entries that exist today and that phase-05 does not change in signature: `extractPlanDeterministic`, `finalizeExtractedPlan`, `reconcile`, `planInputFromPhaxPlan`, `buildFootprint`, `computePlanOverlap`, `computeStaleness`, `lintPlan`, `loadOrExtractPlan` and `createRunFolder`.
+- Every test must fail today on an assertion, never on a thrown error, a missing export or a type error. Run each use case through `Effect.result`/`Effect.exit` and assert on the value. Every test also asserts something only a full reading of the plan can produce, so it cannot pass just because a plan was skipped. After phase-03 the deterministic decode refuses `./src/x.ts`, which is why each test fails. For each test, say in the handoff the assertion it fails on.
+- ac-reconcile: read the plan writing `./src/x.ts` under Planned files to edit, assert that the reading succeeded, reconcile phase-01 against a name-status diff that modifies `src/x.ts` only, and assert that `src/x.ts` is edited as planned, with no missing planned edit, no unplanned edit and no deviation. Also assert that the result equals the one for the same plan written `src/x.ts`. Read `src/domain/reconciliation/reconcile.ts` and `tests/helpers/reconciliationFixture.ts` for the input shape, and inline what you need.
+- ac-overlap: plan A edits `./src/x.ts` and plan B edits `src/x.ts`; both are read deterministically, and `computePlanOverlap` over their `PlanInput`s reports both sharing `src/x.ts`. Pull request #205's case, restated: two tests named after it. One has plan A edit `./src/x.ts` and plan B edit `src//x.ts`; the other has one plan create `src/a/../x.ts` while another edits `src/x.ts`. Both assert one shared file, `src/x.ts`. `buildFootprint` and `computePlanOverlap` must stay untouched; the tests go through the deterministic reading.
+- ac-staleness: with a fixed approval record and `src/x.ts` among the files changed since the baseline, the verdict `computeStaleness` gives for the footprint of the plan written `./src/x.ts` equals the verdict for the plan written `src/x.ts`. That verdict is stale with ground-changed evidence naming `src/x.ts`; assert this too.
+- ac-lint-collision: in a temporary repository, `lintPlan` on a plan.md whose phase-01 creates `./src/x.ts` and edits `src/x.ts` reports the error `create and edit both list src/x.ts` (check `files`) on phase-01. ac-lint-already-created: phase-01 creates `src//x.ts`, phase-02 creates `src/x.ts`, and the tree holds no `src/x.ts`. Lint reports `create src/x.ts: already created by phase-01` on phase-02. ac-lint-probe: the tree holds `src/x.ts`, and phase-01 edits `./src/x.ts` and `src/missing.ts`. Lint reports no `does not exist` finding for `src/x.ts`, does report one for `src/missing.ts` (proof that the file check ran), and its findings equal those for the same plan written `src/x.ts`. Build the config and isolate the phax home as `tests/integration/lintPlan.test.ts` does.
+- ac-bounds: a config with an assignment bound governing `src/**` (find the config key and an `outside` finding in the existing assignment-bound tests). phase-01 lists only `./src/x.ts`, with a model outside the bound and no `**Assignment reason:**` line. Lint reports the `outside` error naming that bound on phase-01, and its findings equal those for the plan written `src/x.ts`.
+- ac-unplannable, plan.md half: one table test over `./`, `/src/x.ts`, `../x.ts`, `src/../../x.ts`, `src/` and `src\x.ts`, each written in backticks under phase-02's Planned files to edit. For each, lint reports a `structure` error on phase-02 whose message contains `Planned files to edit`, the written path in JSON quotes, and its reason word: `empty` for `./`, `absolute`, `leaves the repository`, `names a directory`, `backslash`. Do not assert the rest of the wording (spec §10 leaves it open). `""` is not covered here: an empty list item is not read as an entry, and phase-03 covers `""` on the plan-document route.
+- ac-no-fallback: a well-formed plan.md whose phase-02 lists `../x.ts`. Lint reports a `structure` error naming phase-02 and `../x.ts`. `loadOrExtractPlan` with a stub `Backend` that records every call fails with an error whose message names phase-02 and `../x.ts`, and the stub holds no call. See `tests/unit/loadOrExtractPlan.test.ts` for how its Backend and FileSystem are provided.
+- ac-persisted-canonical, deterministic half: a plan.md listing `./src/x.ts`, `src//y.ts` and `src/a/../z.ts`. `loadOrExtractPlan` with the recording stub succeeds with no backend call, `createRunFolder` writes the run, and the `phax-plan.json` read back lists `src/x.ts`, `src/y.ts` and `src/z.ts` and is stamped `currentSchemaUrl("phax-plan")`, which differs from the 0.33.0 URL. Never write 0.38.0 or `PHAX_RELEASE` in an assertion.
+- Randomness: none. Every input is written by hand.
+
+### Planned files to create
+
+- `tests/unit/planPathReaders.test.ts`
+- `tests/integration/planPathCanonical.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+Consumer: these acceptance tests. Producers: the plan.md reading (`extractPlanDeterministic`, `finalizeExtractedPlan`, `loadOrExtractPlan`), the readers (`reconcile`, `computePlanOverlap` over `planInputFromPhaxPlan`, `computeStaleness` over `buildFootprint`, `lintPlan`) and the run folder (`createRunFolder`). Contract: entries and signatures as they are today. phase-05 changes what the reading returns for a non-canonical or unplannable path, never how these entries are called.
+
+### Test strategy
+
+- a phase that plans ./src/x.ts and changes src/x.ts is reconciled as having edited a planned file, with no missing, unplanned or deviating entry, exactly as the plan written src/x.ts — small · metamorphic · reconcile's result for the same plan written src/x.ts · acceptance · ac-reconcile
+- two plans editing ./src/x.ts and src/x.ts are reported as sharing src/x.ts, and pull request #205's two cases share one file — small · example · computePlanOverlap's shared file src/x.ts · acceptance · ac-overlap
+- a change to src/x.ts since approval gives the plan written ./src/x.ts the staleness verdict of the plan written src/x.ts — small · metamorphic · computeStaleness's verdict for the canonical plan, stale with ground-changed evidence naming src/x.ts · acceptance · ac-staleness
+- lint reports create and edit both list src/x.ts on phase-01 when one list writes ./src/x.ts — medium · example · the files error on phase-01 · acceptance · ac-lint-collision
+- lint reports create src/x.ts: already created by phase-01 on phase-02 when phase-01 created src//x.ts — medium · example · the files error on phase-02 · acceptance · ac-lint-already-created
+- lint's working-tree probe finds src/x.ts for a plan editing ./src/x.ts — medium · metamorphic · no does-not-exist finding for src/x.ts, one for src/missing.ts, and the findings of the plan written src/x.ts · acceptance · ac-lint-probe
+- an assignment bound on src/** governs a phase listing only ./src/x.ts — medium · metamorphic · the outside error naming the bound, equal to the canonical plan's findings · acceptance · ac-bounds
+- each unplannable spelling under a plan.md's Planned files to edit is refused naming phase-02, the section, the written path and its reason — medium · table · six rows of (written path, reason word) against lint's structure errors · acceptance · ac-unplannable
+- a plan.md listing ../x.ts is refused naming phase-02 and ../x.ts, and the extraction backend is never called — medium · example · lint's structure error, loadOrExtractPlan's error and a recording stub holding no call · acceptance · ac-no-fallback
+- a plan.md listing ./src/x.ts, src//y.ts and src/a/../z.ts gives a phax-plan.json listing src/x.ts, src/y.ts and src/z.ts at the current stamp, read without the model — medium · example · the file createRunFolder writes, read back, against currentSchemaUrl and the 0.33.0 URL · acceptance · ac-persisted-canonical
+
+### Implementation order
+
+1. the inline plan.md builder in each file
+2. tests/unit/planPathReaders.test.ts
+3. tests/integration/planPathCanonical.test.ts
+4. confirm each test fails on its assertion, then add the markers
+
+### Excluded scope
+
+- Any change to source code.
+- The plan-document, extraction-answer, older-shape and schema criteria (tested in phase-03).
+- ac-additive (phase-02) and ac-older-sidecar end to end (phase-07).
+
+### Verification
+
+The `standard` gate profile in phax.json, with the acceptance provider's `authored` verdict on the two acceptance test files.
+
+### Expected handoff content
+
+Every acceptance test's name, its criterion, and the assertion it fails on today. The entries each test calls and how Backend and FileSystem are provided. The exact reason words asserted. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(plan): add acceptance tests for plan paths across spellings`
+
+### Commit body
+
+Add the acceptance tests for the plan.md route: reconciliation, overlap (pull request #205's case restated), staleness, lint's collision, already-created and probe checks, and the assignment bounds each give a plan writing ./src/x.ts the answer they give a plan writing src/x.ts; an unplannable path in a plan.md is refused by phase, section, path and reason without reaching the extraction model; and phax-plan.json holds the canonical form. Each is marked as expected to fail until the plan.md reading is made canonical.
+
+---
+
+## phase-05 — Read a plan.md's paths in canonical form {#phase-05-plan-md-route}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The deterministic plan.md reading rewrites each plannable non-canonical path to its canonical form. It reports each unplannable path as a structure error naming the phase, the section, the written path and why, and `phax run` refuses such a plan before the cache and any model call. This passes phase-04's acceptance tests.
+
+### Detailed instructions
+
+- In `src/domain/plan/parsePlanMarkdown.ts`, `walkPlan` maps every item of the three lists through `readPlanPath` (phase-01) after `extractPlannedList`. A canonical item is kept, and a rewritable one becomes its canonical form. An unplannable one adds an error `{ phase: id, message: "<id>: <section title>: <JSON-quoted written path> <describeUnplannable(reason)>" }`, e.g. `phase-02: Planned files to edit: "../shared/y.ts" leaves the repository`. The section title is exactly the heading the reader matched (`Planned files to create`, `Planned files to edit`, `Optional files that may be edited`). Every unplannable item of a phase is reported, in list order, and that phase's candidate is not built. `collectPlanStructureErrors` then reports them, and lint shows them as `structure` errors on the phase without other changes.
+- Mark unplannable-path errors so a caller can tell them from other structure errors: give `RawStructureError` a kind, or export a reader such as `readPlanUnplannablePaths(planMd)`. Choose the smaller change and name it in the handoff.
+- In `src/app/loadOrExtractPlan.ts`, right after the departing-test-line check and before the deterministic attempt, the cache and any model call, refuse a plan.md whose deterministic reading meets an unplannable path. Fail with `PlanValidationError` and the message `<plan path>: <phase>: <section title>: "<written>" <reason> — run phax plans lint <plan path>` for the first one in plan order (§5.3). Nothing else in the fallback changes.
+- Leave the readers alone: reconcile, lint's file checks, the assignment bounds, overlap and staleness pass because the reading is now canonical. `estimatePlan` and `planOverview` read through the same functions and need no change; check that their tests stay green.
+- Remove the `.fails` markers from `tests/unit/planPathReaders.test.ts` and `tests/integration/planPathCanonical.test.ts`. That is the only change allowed to these two files. If an acceptance test still fails after the code is right, do not edit it: stop and explain in the handoff.
+- Add in-phase tests to `tests/unit/parsePlanMarkdown.test.ts` and `tests/unit/loadOrExtractPlan.test.ts` from the test strategy.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/app/loadOrExtractPlan.ts`
+- `tests/unit/planPathReaders.test.ts`
+- `tests/integration/planPathCanonical.test.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/loadOrExtractPlan.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/plan/lint.ts`
+- `src/app/lintPlan.ts`
+- `tests/integration/lintPlan.test.ts`
+- `tests/integration/loadOrExtractPlan.test.ts`
+
+### Boundary contracts
+
+Producer: the deterministic plan.md reader and `loadOrExtractPlan`. Consumers: `phax run` and `phax resume` (through the run folder), `phax plans lint`, `phax plans overlap`, `phax plans status`, `phax plans estimate` and `phax plans overview`. Contract: a plan read from a plan.md holds only canonical paths. An unplannable path is a structure error naming the phase, the section title, the written path and the reason, and `loadOrExtractPlan` refuses it before the cache and the model.
+
+### Test strategy
+
+- every list item of a plan.md is read as its canonical form, and a plan whose items are all canonical reads exactly as before — small · metamorphic · the reading of the same plan written in canonical form · in-phase · ac-persisted-canonical
+- an unplannable item in each of the three sections is a structure error naming the phase, that section's title, the written path and its reason, all of a phase's unplannable items reported in list order — small · table · collectPlanStructureErrors' messages for one item per (section, reason) pair · in-phase · ac-unplannable
+- loadOrExtractPlan refuses an unplannable path before reading the cache, even when a cached entry exists for the same body — small · example · the PlanValidationError message and a cache store and backend that record no read and no call · in-phase · ac-no-fallback
+
+### Implementation order
+
+1. walkPlan's rewrite and unplannable errors
+2. the marker that tells an unplannable-path error apart
+3. loadOrExtractPlan's early refusal
+4. in-phase tests
+5. remove the acceptance markers and run the gate
+
+### Excluded scope
+
+- Any change to reconcile, lint's file checks, assignment bounds, overlap or staleness.
+- Any change to the acceptance test files other than removing their markers.
+- The skill-edit grant (phase-06).
+
+### Verification
+
+The `standard` gate profile in phax.json, with the acceptance provider's `passed` verdict on phase-04's acceptance test files.
+
+### Expected handoff content
+
+How unplannable-path errors are told apart (a kind field or an exported reader) and its exact signature. The exact lint and `phax run` refusal texts. Confirmation that every phase-04 acceptance test passes with only its marker removed. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`feat(plan): read plan.md paths in canonical form`
+
+### Commit body
+
+The deterministic plan.md reading rewrites each planned path to its canonical form, so ./src/x.ts is read as src/x.ts by every reader: reconciliation, lint, assignment bounds, overlap and staleness now agree across spellings without normalizing themselves. A path with no canonical form is a structure error naming the phase, the section, the path and why, and phax run refuses such a plan before the cache and any model call. The acceptance tests for these criteria now pass.
+
+---
+
+## phase-06 — Grant skill edits on canonical plan paths only {#phase-06-skill-edit-grant}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The skill-edit grant drops its private path normaliser and relies on the decode's canonical paths. It grants exactly what it grants today for every path a decoded plan can hold, and never grants a non-canonical spelling.
+
+### Detailed instructions
+
+- In `src/domain/security/skillEditGrants.ts`, remove `normaliseRepoRelative`. `resolveSkillEditGrants` considers only paths that phase-01's `readPlanPath` reads as `canonical`. Any other path is skipped, never rewritten. Keep every other rule as it is: the `.claude/skills/` prefix, the bare-prefix exclusion, the rule metacharacters, de-duplication and input order.
+- Update the doc comment: plan paths reach the grant canonical, because the decode makes them so (src/schemas/planPath.ts), and a non-canonical path is never granted.
+- In `tests/unit/security/skillEditGrants.test.ts`, keep every case that feeds canonical paths, with its expectation unchanged. A case that fed a non-canonical spelling (a leading `./`, an empty or `.` segment) and expected a grant now feeds the canonical form a decoded plan would hold, with the same expected grant. Add a table showing that each non-canonical spelling of a skill file (`./.claude/skills/a/SKILL.md`, `.claude//skills/a/SKILL.md`, `.claude/skills/a/../b/SKILL.md`, `/.claude/skills/a/SKILL.md`) is never granted.
+- This only narrows the grant: no path that was not granted before becomes granted. If any change would grant a path that was not granted before, stop and say so in the handoff.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `src/domain/security/skillEditGrants.ts`
+- `tests/unit/security/skillEditGrants.test.ts`
+
+### Optional files that may be edited
+
+- `tests/unit/runPreflight.test.ts`
+
+### Boundary contracts
+
+Producer: the plan decode, which guarantees canonical paths in a PhaxPlan. Consumer: the skill-edit grant in the run's security preflight (`executePlan`, `dryRun`, `skillEditConsent`). Contract: the grant reads paths as given and grants only canonical `.claude/skills/` files. It never widens what a phase may write.
+
+### Test strategy
+
+- the grant for every canonical list of planned paths is what it was before the normaliser was removed — small · table · the existing grant cases on canonical inputs, their expectations unchanged · in-phase
+- a non-canonical spelling of a skill file is never granted — small · table · an empty grant for each spelling · in-phase
+
+### Implementation order
+
+1. skillEditGrants.ts
+2. its tests
+
+### Excluded scope
+
+- Any change to the consent or protected-path checks beyond the path filter.
+- Protected-path globs (they already match canonical paths).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The new path filter in `resolveSkillEditGrants`. Every test case changed, with why its expected grant is the same for the canonical input. Confirmation that no path is granted that was not before. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`refactor(security): grant skill edits on canonical plan paths only`
+
+### Commit body
+
+Drop the skill-edit grant's private normaliser: plan paths reach it canonical since the decode makes them so, so the grant reads them as given and skips any other spelling. Every path a decoded plan can hold is granted exactly as before, and a non-canonical spelling is never granted, which narrows the grant and never widens it.
+
+---
+
+## phase-07 — migrate-documents on 0.33.0 plan sidecars, end to end {#phase-07-migrate-documents}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+`phax artifact migrate-documents` refuses, by name, a plan sidecar stamped 0.33.0 whose path is not canonical, and leaves both its files unchanged. A canonical 0.33.0 sidecar migrates to the current stamp with its Markdown untouched.
+
+### Detailed instructions
+
+- Read `tests/integration/documentMigrationRefusal.test.ts` and `tests/integration/migrateDocuments.test.ts` and extend them the way they build their temporary repositories and run the command. A test that starts the phax CLI as a process gets its own temporary repository as its working directory: phases run inside a phase worktree, where lifecycle commands are refused.
+- Refusal: a live plan whose sidecar is stamped `https://docs.phax.run/schemas/plan-document/0.33.0.json`, with phase-02's plannedFilesToEdit holding `./src/x.ts`, and whose .md is that document's rendering. `phax artifact migrate-documents` refuses as today's refusals do (same exit code). Its output names the plan path, `phase-02`, `plannedFilesToEdit` and `./src/x.ts`, says `src/x.ts` is the spelling to write, and gives the remedy phase-03 wrote. Both the .md and the .json are byte-identical afterwards, and no commit is made.
+- Migration: the same plan with `src/x.ts` migrates. Its sidecar is restamped to `currentSchemaUrl("plan-document")`, its .md is byte-identical, and the migration commit's body names it. Compare stamps with `currentSchemaUrl`, never a literal 0.38.0.
+- If the CLI's rendering of the refusal does not show the problem and remedy as phase-03 wrote them, fix the rendering in `src/domain/artifact/render.ts` (optional file) and say so. Change no wording phase-03 decided.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `tests/integration/documentMigrationRefusal.test.ts`
+- `tests/integration/migrateDocuments.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/artifact/render.ts`
+- `src/domain/artifact/documentMigration.ts`
+
+### Boundary contracts
+
+Consumer: the operator running `phax artifact migrate-documents`. Producer: `decideDocumentMigration` and the plan-document lift (phase-03), rendered by the command's refusal output. Contract: an older sidecar with a non-canonical path is refused by plan, phase, list and path, with nothing written. A canonical one is restamped with its Markdown unchanged.
+
+### Test strategy
+
+- migrate-documents refuses a 0.33.0 sidecar listing ./src/x.ts, naming phase-02, plannedFilesToEdit and ./src/x.ts, and leaves its .md and .json unchanged — medium · smoke · the command's exit code and output, and both files' bytes before and after · in-phase · ac-older-sidecar
+- a canonical 0.33.0 plan sidecar migrates to the current stamp with its Markdown byte-identical — medium · smoke · the sidecar's $schema against currentSchemaUrl, the .md bytes, and the commit body · in-phase
+
+### Implementation order
+
+1. the refusal test
+2. the migration test
+3. any rendering fix
+
+### Excluded scope
+
+- Any change to the lift or the refusal wording (phase-03).
+- Running migrate-documents on this repository's own docs/plans (the operator does it after merging).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exact refusal output the command prints, the exit code, and whether any rendering changed. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(artifact): cover migrate-documents on 0.33.0 plan sidecars`
+
+### Commit body
+
+phax artifact migrate-documents refuses an earlier-shape plan sidecar holding a non-canonical path, naming the plan, the phase, the list and the path, and writes nothing; a canonical 0.33.0 sidecar migrates to the current stamp with its Markdown untouched. End-to-end tests through the command.
+
+---
+
+## phase-08 — Docs: the planning skill and the 0.38.0 upgrade {#phase-08-docs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+The phax-planning skill tells planners to write each path in canonical form, and the 0.38.0 upgrading entry tells operators, planners and schema readers what changes and what to do.
+
+### Detailed instructions
+
+- In `.claude/skills/phax-planning/SKILL.md`, under 'Planned files and end-of-phase reconciliation', replace the bullet 'Use repo-relative POSIX paths, exactly as they appear in `git`.' with one bullet: write each path in canonical form, repository-relative with `/` separators, no `./`, empty, `.` or `..` segment, no leading or trailing `/` and no backslash (`src/widget.ts`). phax rewrites another spelling it reads from a plan.md, refuses it in a plan document, and refuses everywhere a path that is empty, absolute, leaves the repository or names a directory. Make no other change to the skill (spec §11 allows one line). This file is protected: the run needs `--allow-skill-edits`.
+- In `docs/upgrading.md`, under `### 0.38.0` and after the existing entry, add bullets in the existing style. (1) Plan paths in one canonical form: a plan.md's `./src/x.ts` is read as `src/x.ts`; an unplannable path is a lint error and `phax run` refuses it; a headless planner's or a sidecar's non-canonical path is refused, naming the spelling to write. (2) phax-plan, plan-document and phax-plan-extraction move to 0.38.0 shapes. An `@lbdremy/phax-schemas` before 0.38.0 refuses documents of those shapes, so upgrade the package; the package reads the 0.33.0 shapes as a release and keeps their paths as written. (3) Run `phax artifact migrate-documents` once in each repository: live plan sidecars stamped 0.33.0 are an older shape, and approve, reopen, decide and revise refuse until they are migrated. A sidecar holding a non-canonical path is refused: edit the path in the plan, then re-approve it. (4) A run started by 0.37.0 or earlier cannot be resumed: finish it with that release, or archive it with `phax archive <run> --force` and run its plan again. (5) A plan whose extraction fell back to the model is extracted once more, because the extractor version changed.
+- Check the docs site still builds (`pnpm site:build` runs at the terminal gate) and that formatting passes.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `.claude/skills/phax-planning/SKILL.md`
+- `docs/upgrading.md`
+
+### Optional files that may be edited
+
+- `README.md`
+- `docs/plan-extraction-model.md`
+- `packages/schemas/README.md`
+
+### Test strategy
+
+- (none)
+
+### Implementation order
+
+1. the skill line
+2. the upgrading entry
+3. format and site build
+
+### Excluded scope
+
+- Any code change.
+- Any other change to the planning skill, including its generated blocks.
+- A new docs page (spec §11: none).
+
+### Verification
+
+The `standard` gate profile in phax.json, including the terminal `pnpm site:build`.
+
+### Expected handoff content
+
+The skill bullet as written, the upgrading bullets as written, and any optional doc touched with why. Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`docs: canonical plan paths in the planning skill and the 0.38.0 upgrade`
+
+### Commit body
+
+The phax-planning skill asks for each planned path in canonical form and says what phax rewrites and refuses. The 0.38.0 upgrading entry covers the canonical-path rule on each route, the three plan formats' new shapes and the schemas package, the one migrate-documents run each repository needs, runs in flight from 0.37.0, and the one-time re-extraction of model-extracted plans.
