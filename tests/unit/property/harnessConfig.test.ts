@@ -167,6 +167,19 @@ describe("replay line", () => {
     }
   });
 
+  it("is the line docs/property-tests.md shows", () => {
+    const docs = readFileSync(join(process.cwd(), "docs/property-tests.md"), "utf8");
+    const shown = [
+      ...docs.matchAll(/^ *(PHAX_PROPERTY_SEED=(-?\d+) PHAX_PROPERTY_PATH=(\S+) .*)$/gm),
+    ];
+    expect(shown.length).toBeGreaterThan(0);
+    const name = "run-status > reads its written encoding back";
+    expect(names).toContain(name);
+    for (const [, line, seed, path] of shown) {
+      expect(line).toBe(replayCommand(Number(seed), path!, { file, name }));
+    }
+  });
+
   it("runs the failing test's file alone", () => {
     const own = "tests/unit/property/harnessConfig.test.ts";
     const replay = replayCommand(1, "0", { file: own, name: "replay line > it's here" });

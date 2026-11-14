@@ -23,7 +23,7 @@ For each persisted format, the suite in `tests/unit/property/persistedFormats.pr
 - `reaches the schemas package's verdict`: phax's reader and the schemas package accept and refuse the same documents.
 - `registers a frozen shape for every module of its history`: each module under `src/schemas/history/<id>/` has a frozen entry.
 
-A failure reads `persistedFormats.property.test.ts > run-status > reads its written encoding back`.
+Vitest reports a failure as `tests/unit/property/persistedFormats.property.test.ts > run-status > reads its written encoding back`: the file, then the test's full name, `run-status > reads its written encoding back` (the `describe`, then the `it`).
 
 ## Where the files live
 
@@ -59,7 +59,7 @@ Counter-example:
   {"$schema":"https://…","state":"awaiting_review","stop":{"status":"running"}}
 read back differs at /state
 Replay:
-  PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts -t 'persistedFormats.property.test.ts > run-status > reads its written encoding back'
+  PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts -t '^run-status > reads its written encoding back$'
 ```
 
 (The counter-example above is illustrative.) The counter-example is a JSON literal when the value is JSON-carryable.
@@ -71,8 +71,10 @@ Values derived from a schema shrink by size and seed, so the counter-example is 
 Run the replay line as printed:
 
 ```bash
-PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts -t 'persistedFormats.property.test.ts > run-status > reads its written encoding back'
+PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts -t '^run-status > reads its written encoding back$'
 ```
+
+The `-t` value is the test's full name without the file: vitest matches `-t` as a regular expression against each test's `describe > it` name, so the harness escapes the name and anchors it (`^…$`) to select that test alone. A `-t` value that also names the file matches no test, and the run passes without checking anything. `pnpm test:unit` runs the unit project, so the file path is the only file filter.
 
 The seed and path run only that failing input again. Without the path, the seed replays the whole run. A daily deep pass prints its seeds in the log, one per property file, so a failure there replays the same way: its replay line names the seed it ran from.
 
