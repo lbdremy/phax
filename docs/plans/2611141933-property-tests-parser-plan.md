@@ -1,0 +1,523 @@
+---
+status: Draft
+source-spec: docs/specs/2611131320-property-tests.md
+completes-spec: false
+---
+# Property tests over the plan parser
+
+The second plan of the property-tests spec takes the plan-parser slice, §5.7 to §5.10: a rendered plan parses back to its projection (ac-plan-roundtrip), any text yields a plan or structure errors (ac-plan-total), parsing finishes within 2 seconds on any text of at most 64 KiB (ac-plan-bounded), and the structure check agrees with extraction (ac-plan-lint-agrees). The reducer and the CLI arguments (§5.11 to §5.16) are left to the third plan.
+
+Plan 1 already built the harness (`tests/helpers/property/harness.ts`: `checkProperty`, `runProperty`, `propertyTimeout`, the three PHAX_PROPERTY_* variables and the anchored replay line), the bridge (`tests/helpers/property/fromEffect.ts`, which honours `PlanPath`), the format registry and JSON inputs, the daily deep pass (`property-tests` job of `.github/workflows/security.yml`) and the CI budget step (`.github/workflows/ci.yml`, 60 s for `tests/unit/property`). Every new property goes through `checkProperty`; `tests/unit/property/harnessConfig.test.ts` refuses a bare `fc.assert` or `fc.check` in any `.test.ts` of `tests/unit/property/`, so every test file there must call `checkProperty`. New property files under `tests/unit/property/` join the deep pass and the budget step with no workflow change.
+
+Order: generators first, each with its own sanity tests (the plan-document generator, then the text generator). Then the round trip, then totality and bounded time, then lint agreement. The docs come last. The four parser properties share one file, `tests/unit/property/planParser.property.test.ts`, under `describe("plan parser")`, with one named `it` per criterion:
+
+- `parses a rendered plan back to its projection` (ac-plan-roundtrip)
+- `yields a plan or structure errors for any text` (ac-plan-total)
+- `parses any text up to 64 KiB within 2 seconds` (ac-plan-bounded)
+- `the structure check agrees with extraction` (ac-plan-lint-agrees)
+
+Rules every phase follows:
+
+- **A counter-example a property finds is a parser, finalizer or renderer bug unless the generator made it.** Fix it in `src/domain/plan/` or `src/domain/authoring/renderPlan.ts`, never in a format's shape or stamp. In the same commit, add the counter-example as a hand-written case in that code's existing suite: `tests/unit/parsePlanMarkdown.test.ts`, `tests/unit/renderPlan.test.ts`, `tests/unit/phaseHeader.test.ts`, `tests/unit/testLineGrammar.test.ts` or `tests/unit/planLint.test.ts`. Say so in the handoff. If the cause is the Markdown library itself (mdast-util-from-markdown or micromark), and phax cannot bound it without changing what the parser accepts, do not narrow the generator. Report it and leave the property failing, so the run stops for the operator.
+- **knip runs at every phase's gate.** Export a helper only where a test of the same phase uses it.
+- **Never name the opened version or a `next` shape literally.** Take stamps from `currentSchemaUrl` and `src/schemas/release.ts`.
+- **Before handing off, run each property file the phase creates or changes once at 2,000 runs from a random seed:** `PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random pnpm test <file>`. Use `pnpm test` with a file filter, because `pnpm test:unit` is in neither the gate profile nor `security.agentCommands`. Report the printed seed and the outcome. If the session refuses the command, record it as not run and say why; never ask for a wider grant.
+- **Keep the existing hand-written test titles unchanged.**
+
+## Required commands
+
+- (none)
+
+No command beyond the `standard` gate profile. The 2,000-run check each phase runs before it hands off is `pnpm test <file>` with the PHAX_PROPERTY_* variables set, inside the gate's own `pnpm test` grant.
+
+## Technical arbitrations
+
+- **No acceptance pair: every test line is in-phase.** The properties check code that already exists, so an acceptance test marked as an expected failure would turn the gate red as soon as it passes. And a generator stubbed out for a later phase to write is exactly what the skill says must be frozen with its test. Accepted loss: the phase that writes a property also writes its generator, so it could narrow the generator to dodge a bug. Two things counter this: every generator has sanity tests that check its reach (each shape, mutation and large kind is reached), and every exclusion is a named restriction with a test showing it is needed.
+- **The plan-document generator is hand-built, with the bridge for the leaf schemas.** It is assembled from fast-check records, with ids, anchors, lists and prose chosen by hand. `PlanPath`, the test lines (`TestLineSchema`) and the effort enum come through `fromSchema` from their own schemas. A sanity property decodes every generated document through `decodePlanDocumentFile`. Accepted loss: the generator does not follow `PlanDocumentSchema` automatically. A new field fails the sanity property until someone adds it by hand. The alternative was deriving the whole document through the registry's plan-document entry. It would need repairs that re-implement Markdown's block grammar, it shrinks only by (seed, size), so counter-examples come out unreadable, and its whole-document sampling already runs out of discards as the size grows. q-generators (derive-effect) governs the 41-format ledger, which this plan does not touch.
+- **The text generator has three families, mutated at the line level.** They are: arbitrary text (any Unicode, and runs of Markdown tokens), rendered valid plans with one named line-level mutation applied, and large pathological texts up to 65,536 UTF-8 bytes. The mutations are heading removed, inserted or swapped; line removed, inserted or swapped; fence inserted or removed; section duplicated; list item emptied; and path made non-canonical. The large kinds are deeply nested lists and blockquotes, long runs of `#`, `*`, `_`, a backtick, `~` or `[`, a rendered plan padded to the limit, and one long line of near-miss phase headings. Accepted loss: line-level mutations do not target the Markdown tree, so many land in prose and change no structure. Mutating at the tree level would need a Markdown serializer, which would be a new dependency.
+- **"Within 2 seconds" is checked with real wall-clock time, taking the best of three attempts.** Each call is timed with `performance.now()` against 2,000 ms. Only a call over the limit is timed again, up to two more times, and it fails only if every attempt is over. A loaded machine slows one attempt, while a superlinear parse slows all three. The limit is the spec's own 2 seconds, not a lower one. Accepted loss: a call that is slow only some of the time (a GC pause, a cold JIT) passes. The helper takes an injected clock, so the pass and fail cases are tested without timing anything.
+- **The lint agreement checks an exact inner equivalence and an outer one with named exceptions.** Inner, with no exception: `structureFindings(text)` is empty exactly when `readPlanDeterministic(text)` succeeds. Outer: the lint's structure check reports no error exactly when a run's extraction reads a plan, apart from each listed exception. The structure check is `structureFindings` and `sequenceGapFindings` of `src/domain/plan/lint.ts`, plus a `finalizeExtractedPlan` failure, as `src/app/lintPlan.ts` composes them. A run's extraction is `extractPlanDeterministic` and then `finalizeExtractedPlan`, as `src/app/loadOrExtractPlan.ts` does. Each exception is `{ name, reason, matches(text) }` with a hand-written example, as in plan 1's agreement exceptions. Two are expected. `departing-test-line`: lint reports it under `tests`, and extraction refuses it. `phase-numbering-gap`: lint's structure check reports the gap, and extraction reads the plan. Accepted loss: an exception hides every disagreement it matches, so each `matches` is as narrow as its rule. The literal reading (structure errors empty exactly when extraction succeeds, no exceptions) was rejected: it fails by design on both cases and could only be met by changing what lint or extraction reports.
+- **The round-trip comparison becomes one shared helper.** It moves into `tests/helpers/property/planRoundTrip.ts`: render, extract, finalize, then compare with the finalized projection and require no warning. Both the property and `tests/unit/renderPlan.test.ts` use it, so a hand-written case and the property mean the same thing by "reads back". Accepted loss: `renderPlan.test.ts` loses its private helper, and its titles and expectations stay as they are.
+
+## Open questions
+
+### q-unrenderable — The plan-document decoder accepts some values that a rendered plan.md cannot carry back. Examples: a line break in a field rendered on one line (the run title, a model, a required command, a commit subject), and a prose line that opens one of the parser's own headings (`## phase-NN`, `### Commit body`, a setext underline). What does the round trip do when it meets one?
+
+- fix-or-restrict — Fix the renderer, parser or finalizer wherever the value can be carried without changing how any value that reads back today renders. Exclude the rest from the generator under named restrictions, each with a test showing it is needed and listed in docs/property-tests.md as a known gap. — abandons: The spec's full definition of a valid value. §5.7 then holds over a narrower set than the decoder accepts, and an agent's document in a gap still renders to a plan.md that deterministic extraction cannot read. The run then falls back to the LLM extraction with a warning.
+- refuse-at-authoring — Add a check to plan authoring that refuses an answer whose rendering does not read back to its projection. phax's writer then never produces such a document, so the generator excludes it legitimately. — abandons: This plan's scope and the authoring contract. A new refusal in `phax artifact new plan --headless` (and in decide and revise if they write sidecars), with its own app-layer tests, lands inside a test-only plan, and answers phax accepted before are now refused.
+- carry-everything — Change the renderer and the parser until every value the decoder accepts reads back. — abandons: plan.md's current rendering. Fields rendered on one line need a new Markdown form, which changes every rendered plan, so an approved plan rendered again goes stale. The parser changes with it.
+
+Recommendation: fix-or-restrict — Every value the Markdown can carry still gets fixed, so the property keeps finding real parser bugs. A restriction is admitted only where carrying the value would need a new Markdown form, and each restriction is named, tested as needed, and documented as a gap. The gap's cost is bounded: the run's extraction falls back to the LLM with a warning and does not break. Closing the gaps (by refusing at authoring, or with a new form) is a product decision for a later spec, not this test-only plan.
+
+---
+
+## phase-01 — Plan-document generator and its sanity tests {#phase-01-plan-document-generator}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+**Assignment reason:** The generator's domain is defined by the renderer's and the parser's Markdown grammar, a design no existing generator shows, and a domain drawn too narrow silently weakens every later property of this plan.
+
+Add `validPlanDocuments()`, a fast-check generator of plan documents that decode through the plan-document sidecar decoder and are meant to read back from their rendered plan.md. It comes with the named restrictions that define its domain and sanity tests that prove its reach. The round-trip property of a later phase runs on this generator.
+
+### Detailed instructions
+
+- Read first: `src/schemas/planDocument.ts` (the document, `decodePlanDocumentFile`, `projectExtractedPlan`), `src/schemas/phaxPlan.ts` (`ExtractedPhaseFields`, the phase id pattern, `PlanEffortSchema`, the acceptance field), `src/schemas/testLine.ts`, `src/schemas/planPath.ts` and `src/schemas/questions.ts`. Then the renderer: `src/domain/authoring/renderPlan.ts`, `markdown.ts` and `renderQuestions.ts`. Then the readers: `src/domain/plan/parsePlanMarkdown.ts` (the walk, the section, list, commit subject and commit body readers), `phaseHeader.ts`, `testLineGrammar.ts` and `finalize.ts`. Then the fixture and `roundTrip` in `tests/unit/renderPlan.test.ts`, and how `tests/helpers/property/formatRegistry.ts` rebuilds plain objects and names its repairs.
+- Create `tests/helpers/property/planDocuments.ts`. It exports `validPlanDocuments(): fc.Arbitrary<PlanDocumentFile>`, each document stamped `$schema: currentSchemaUrl("plan-document")` first. It also exports `PLAN_DOCUMENT_RESTRICTIONS: ReadonlyArray<PlanDocumentRestriction>`. A restriction is `{ name, reason, violatedBy(doc): boolean, apply(doc): doc }`. The `name` is kebab-case and states the Markdown rule (for example `one-line-commit-subject`). The `reason` is one line naming the renderer or parser code that cannot carry the value. `apply` puts one excluded value into a document. Use no `src/` change in this phase.
+- Build the skeleton by hand with `fc.record`, `fc.tuple` and `fc.array`, so it shrinks structurally. Use 1 to 4 phases with ids `phase-01` … `phase-NN` in order. Anchors are `#phase-NN-<slug>`, with a lowercase-and-hyphen slug. Keep each list at 0 to 4 entries and each test strategy at 0 to 3 lines, so rendering and parsing stay cheap at 100 runs.
+- Take the leaves whose own schema defines validity through the bridge: `fromSchema("plan path", PlanPath)` for the three file lists and the acceptance files, and `fromSchema("test line", TestLineSchema)` for test lines. Mix the test lines with hand-built ones that put ` — `, ` · `, backticks and a criterion id into the guarantee and the oracle within the oracle's rules. Draw the effort from the schema's literals. Rebuild every bridged value as a plain object (`Object.fromEntries`, own keys only), because effect/Arbitrary builds objects with a null prototype.
+- Extracted one-line fields: the run title, the required commands, the model, the commit subject and the acceptance file names. Draw them from text that includes Markdown-significant characters (a backtick, `*`, `_`, `#`, `[`, `]`, `<`, `&`, `\\`, `{#`, ` — `) and astral characters. The model mixes catalog ids with such text. Set `run.shortName` to the run title: finalize slugifies the document's short name, and the parser's short name is the title, so both slugify alike. Say so in a comment.
+- Draw `mode` as headless or interactive. Draw `acceptance` as null or `{ passedBy: <an id of this document's phases>, files }`. Draw `boundaryContracts` as null or prose. The commit body is block Markdown: paragraphs, a bullet list, and a fenced code block that may contain a `## phase-NN — x {#y}` line.
+- Draw informational prose (summary, requiredCommandsNote, technicalArbitrations, objective, detailed instructions, implementation order, excluded scope, verification, expected handoff, question labels and rationales) from an inline vocabulary. That means words plus the parser's own markers written mid-line (`## phase-02`, `**Recommended model:**`, `### Commit subject`, `{#x}`) and inline Markdown (emphasis, code spans, links, `<tag>`, `&amp;`). Lines are joined by single and blank line breaks, and each line starts with a letter.
+- Draw questions as 0 to 2 open questions and 0 to 1 arbitrated question. They must pass the question checks: unique ids, no option `other`, a recommendation naming one of the options, and a decided verdict whose `phase` names one of the document's phases. Their text uses the same prose vocabulary.
+- Restrictions follow the decision recorded for q-unrenderable in the plan preamble. Under fix-or-restrict, restrict only a value the rendered Markdown cannot carry in its present form, such as a line break inside a field rendered on one line, or a prose line that opens a heading. Leave in the generator everything you merely suspect the parser mishandles: a raw-text regex in `finalize.ts` seeing a heading inside a code fence, an anchor written without its `#`, an empty required command, a commit body with leading or trailing whitespace. The round-trip property of the next phases must find those. If the decision is another option, the plan is revised before this phase runs.
+- Create `tests/unit/property/planDocuments.test.ts` with `describe("validPlanDocuments")`. Its tests: `decodes through the plan-document sidecar decoder` (`checkProperty`, `propertyTimeout()`), and `never carries a value a restriction excludes` (`checkProperty`: no restriction's `violatedBy` holds). `reaches every shape of the document` is an example over `fc.sample` with a fixed seed and 200 samples. It must reach: 1 and 4 phases; an interactive phase; an acceptance; a null and a non-null boundary contract; an empty and a non-empty list in each file list; a test line with and without a criterion; an open and an arbitrated question; and each Markdown-significant character in the title, a path, a required command and the commit subject.
+- In the same file, `describe("restrictions")` with `it.each(PLAN_DOCUMENT_RESTRICTIONS)("$name is needed", …)`. It applies the restriction to a fixed hand-written document and asserts that the rendered plan then does not read back: `extractPlanDeterministic` or `finalizeExtractedPlan` fails, or the result differs from `finalizeExtractedPlan(projectExtractedPlan(doc), md)`, or it warns. A restriction that is not needed is a convenience, which is not allowed.
+- Run `PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random pnpm test tests/unit/property/planDocuments.test.ts` once before handing off.
+
+### Planned files to create
+
+- `tests/helpers/property/planDocuments.ts`
+- `tests/unit/property/planDocuments.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+Consumer: the round-trip, totality and lint-agreement properties (`tests/unit/property/planParser.property.test.ts`) and the text generator (`tests/helpers/property/planTexts.ts`). Producer: this phase's `validPlanDocuments()`, which yields documents that `decodePlanDocumentFile` accepts and `renderPlanBody` renders. `PLAN_DOCUMENT_RESTRICTIONS` names every value it deliberately leaves out. The generator imports only from `src/schemas`, `src/domain` and `tests/helpers/property/`.
+
+### Test strategy
+
+- every generated plan document decodes through the plan-document sidecar decoder — small · property · decodePlanDocumentFile's success · in-phase
+- no generated document carries a value a named restriction excludes — small · property · each restriction's violatedBy predicate · in-phase
+- the generator reaches every mode, an acceptance, both boundary-contract forms, empty and full file lists, both kinds of test line, both kinds of question and Markdown-significant characters in every extracted one-line field — small · example · reach counts over a fixed-seed sample of 200 · in-phase
+- every restriction is needed: the value it excludes, in a fixed document, stops the rendered plan from reading back — small · example · extraction, finalize and the finalized projection of the fixed document · in-phase
+
+### Implementation order
+
+1. Read the schemas, the renderer and the parser's readers, and note per extracted field what the rendered Markdown can carry.
+2. Write the leaf generators (bridged and hand-built), then the phase, then the document.
+3. Write the restrictions allowed by the q-unrenderable decision.
+4. Write the sanity tests, then run them at 100 and once at 2,000 runs.
+
+### Excluded scope
+
+- The round-trip property and the shared round-trip helper (phase-03).
+- Any change under `src/`: a suspected parser bug stays in the generator for the round trip to find.
+- The text generator (phase-02).
+- `tests/helpers/property/formatRegistry.ts` and the persisted-format properties.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exported names and signatures of `tests/helpers/property/planDocuments.ts`. Every restriction, with its name, its reason, and why the value cannot be carried in the present Markdown form. Every value you suspect the parser mishandles but left in the generator for phase-03. The 2,000-run check's seed and outcome, and the file's time at 100 runs. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`test(property): plan-document generator for the plan-parser properties`
+
+### Commit body
+
+Add validPlanDocuments, a hand-built generator of plan documents with
+the bridge for its leaf schemas (PlanPath, test lines), and the named
+restrictions that define its domain. Sanity tests decode every document
+through the sidecar decoder, check the generator's reach, and show each
+restriction is needed.
+
+Spec property-tests, plan 2 (the plan-parser slice).
+
+---
+
+## phase-02 — Plan-text generator and its sanity tests {#phase-02-plan-text-generator}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Add the text generator that the totality, bounded-time and lint-agreement properties run on. It has three families: arbitrary text, rendered valid plans with one named Markdown-level mutation, and large pathological texts of at most 64 KiB. Each family comes with sanity tests proving it reaches what the spec's criteria name.
+
+### Detailed instructions
+
+- Read `tests/helpers/property/planDocuments.ts`, which exports `validPlanDocuments()` and `PLAN_DOCUMENT_RESTRICTIONS`. Also read `src/domain/authoring/renderPlan.ts`, the readers in `src/domain/plan/parsePlanMarkdown.ts` and the regexes in `src/domain/plan/finalize.ts`, and `tests/helpers/property/jsonInputs.ts` for how plan 1 names and tests its mutations.
+- Create `tests/helpers/property/planTexts.ts`. It exports: `MAX_PLAN_TEXT_BYTES = 65_536`; `arbitraryTexts(): fc.Arbitrary<string>`; `PLAN_TEXT_MUTATIONS`, a list of `{ name, … }`; `mutatedPlans(): fc.Arbitrary<{ source: string; mutation: string; text: string }>`; `largeTexts(): fc.Arbitrary<{ kind: string; text: string }>`; and `planTexts(): fc.Arbitrary<string>`.
+- `arbitraryTexts`: a mix of `fc.string` over full Unicode (unit `binary` and `grapheme`) and arrays of Markdown tokens joined together. The tokens include `#`, `##`, `###`, `- `, `1. `, `>`, three backticks, `~~~`, `---`, `===`, `{#a}`, `**Recommended model:**`, `## phase-01 — t {#phase-01-t}`, `### Commit subject`, a code span, `\n` and `\n\n`, so arbitrary text reaches Markdown structure.
+- `PLAN_TEXT_MUTATIONS`, each applied to the lines of `renderPlanBody` of a `validPlanDocuments()` value. The mutations are: `heading-removed`, `heading-inserted`, `headings-swapped`, `line-removed`, `line-inserted`, `lines-swapped`, `fence-inserted` (an unclosed fence), `fence-removed` (it falls back to inserting a fence when the plan has none), `section-duplicated` (a `###` section and its body, repeated), `list-item-emptied` (a `- ` item reduced to `-`), and `path-made-non-canonical`. The last rewrites one planned path code span with `./`, a `..` segment, a doubled `/`, a trailing `/` or a backslash. Positions come from fast-check integers, so they shrink.
+- `largeTexts`, each kind cut to at most `MAX_PLAN_TEXT_BYTES` UTF-8 bytes without splitting a surrogate pair. The kinds are: `nested-list` (each item one level deeper), `nested-blockquote`, `heading-run` (one line of `#`, and many `## phase-NN` heading lines), `emphasis-run` (unclosed runs of `*` and `_`), `fence-run` (runs of backticks and `~`, unclosed fences), `bracket-run` (runs of `[`), `padded-plan` (a rendered valid plan padded with prose to the limit) and `long-line` (one line of near-miss phase headings, `## phase-01 — ` with no `{#`, which aims at the regexes in `finalize.ts`). Weight the sizes so every kind reaches at least half the limit within a 100-run sample.
+- `planTexts`: `fc.oneof` over rendered valid plans as they are, the same plans with a frontmatter block prepended (a well-formed one and an unterminated one), `mutatedPlans`, `arbitraryTexts` and `largeTexts` (the text only). Weight it so rendered and mutated plans make up about half the draws: the lint-agreement property needs texts that read as well as texts that do not.
+- Create `tests/unit/property/planTexts.test.ts`. Its tests: `every text is at most 64 KiB` (`checkProperty` over `planTexts()` and over `largeTexts()`, measured with `TextEncoder`), and `every mutation changes the plan it starts from` (`checkProperty` over `mutatedPlans()`: `text !== source`). It also has two examples over `fc.sample` with a fixed seed. `reaches every mutation`: each name of `PLAN_TEXT_MUTATIONS` is drawn. `reaches every large kind near the limit`: each kind is drawn at least once at 32,768 bytes or more.
+- Use every export of `planTexts.ts` in this phase's tests (knip). Use no `src/` change in this phase.
+- Run `PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random pnpm test tests/unit/property/planTexts.test.ts` once before handing off.
+
+### Planned files to create
+
+- `tests/helpers/property/planTexts.ts`
+- `tests/unit/property/planTexts.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- `tests/helpers/property/planDocuments.ts`
+
+### Boundary contracts
+
+Consumer: the totality, bounded-time and lint-agreement properties in `tests/unit/property/planParser.property.test.ts`. Producer: `tests/helpers/property/planTexts.ts`, which supplies strings of at most 65,536 UTF-8 bytes, including texts that read as plans and texts that do not. It reads rendered plans through `validPlanDocuments()` from `tests/helpers/property/planDocuments.ts`.
+
+### Test strategy
+
+- every generated text, from every family, is at most 65,536 UTF-8 bytes — small · boundary · TextEncoder byte length against MAX_PLAN_TEXT_BYTES · in-phase
+- every mutation changes the rendered plan it starts from — small · property · inequality of the mutated text and its source · in-phase
+- every named mutation is reached — small · example · the set of mutation names over a fixed-seed sample · in-phase
+- every large kind (nested lists, runs of heading, emphasis and fence characters, padded plan, long line) reaches at least half the 64 KiB limit — small · example · kind and byte-length counts over a fixed-seed sample · in-phase
+
+### Implementation order
+
+1. The byte cap, then `arbitraryTexts`.
+2. The mutations and `mutatedPlans`.
+3. `largeTexts`, then the `planTexts` union.
+4. The sanity tests, at 100 runs and once at 2,000.
+
+### Excluded scope
+
+- Any parser property (phases 03 to 05).
+- Any change under `src/`.
+- Mutations at the Markdown tree level, which would need a new serializer dependency.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The exported names and signatures of `tests/helpers/property/planTexts.ts`. The mutation names and large kinds, with the largest size each reached. The 2,000-run check's seed and outcome, and the file's time at 100 runs. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`test(property): plan-text generator for parser totality, time and lint agreement`
+
+### Commit body
+
+Add the plan-text generator: arbitrary text, rendered valid plans with
+one named line-level mutation, and large pathological texts capped at
+64 KiB. Sanity tests check the byte cap, that every mutation changes its
+source, and that every mutation and large kind is reached.
+
+Spec property-tests, plan 2 (the plan-parser slice).
+
+---
+
+## phase-03 — Round-trip property: a rendered plan parses back {#phase-03-round-trip-property}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Assignment reason:** This phase is the likeliest to surface real counter-examples in the parser, finalizer or renderer, each of which needs a correct fix and a classification against the q-unrenderable decision.
+
+Check §5.7 in general. Every generated valid plan document, rendered to plan.md, must extract and finalize to the finalized projection of the document, with no warning. The comparison lives in one shared helper that the hand-written renderPlan suite also uses. Any counter-example found is fixed in the parser, finalizer or renderer, and kept as a hand-written case.
+
+### Detailed instructions
+
+- Read `tests/unit/renderPlan.test.ts` (its `roundTrip` and the assertions of `parses back to exactly the document's projection`), `tests/helpers/property/planDocuments.ts`, `src/domain/plan/finalize.ts`, `src/schemas/planDocument.ts` (`projectExtractedPlan`) and `src/domain/authoring/renderPlan.ts`.
+- Create `tests/helpers/property/planRoundTrip.ts`. It exports `readBack(doc, md = renderPlanBody(doc))`, which returns `{ ok: true, parsed, fromMarkdown, fromDocument }` or `{ ok: false, reason }`. It extracts with `extractPlanDeterministic(md)`, then finalizes both the extraction and `projectExtractedPlan(doc)` against `md`. It is `ok` only when all of the following hold: `parsed.phases` deep-equals the projection's phases; `parsed.run.title` equals the projection's title and `parsed.run.requiredCommands` its required commands; `fromMarkdown.plan` deep-equals `fromDocument.plan`; and `fromMarkdown.warnings` is empty. `reason` names the first failure: does not parse (with the message), finalize failed, differs at a JSON path, or warns (with the warning).
+- Edit `tests/unit/renderPlan.test.ts` so its `roundTrip` uses `readBack` (a thin wrapper that throws the reason). Keep every test title and expectation unchanged.
+- Create `tests/unit/property/planParser.property.test.ts` with `describe("plan parser")` and `it("parses a rendered plan back to its projection", …, propertyTimeout())`, running `checkProperty(validPlanDocuments(), …)`. The predicate throws `readBack`'s reason when it is not `ok`, so the harness report shows it.
+- Run the property at 100 runs, then once at 2,000 runs from a random seed. Classify every counter-example. A value the Markdown can carry in its present form that does not read back is a bug. Fix it in `src/domain/plan/parsePlanMarkdown.ts`, `finalize.ts`, `phaseHeader.ts`, `testLineGrammar.ts` or `src/domain/authoring/renderPlan.ts`. Add the counter-example as a hand-written case in that code's existing suite, in the same commit. Likely candidates: `finalize.ts` reads titles and anchors from the raw text with regexes, so a heading line inside a fenced commit body counts. An anchor written without its `#` reads back with one.
+- Change `src/domain/authoring/markdown.ts` only if no other fix works. It is shared with the spec renderer, so say so in the handoff.
+- A value that needs a new Markdown form to be carried becomes a new restriction in `tests/helpers/property/planDocuments.ts` only as the q-unrenderable decision allows. Give it a name, a reason and its `is needed` case in `tests/unit/property/planDocuments.test.ts`.
+- Never narrow the generator to dodge a value it can carry, and never change the plan document's shape or stamp.
+
+### Planned files to create
+
+- `tests/helpers/property/planRoundTrip.ts`
+- `tests/unit/property/planParser.property.test.ts`
+
+### Planned files to edit
+
+- `tests/unit/renderPlan.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/domain/plan/finalize.ts`
+- `src/domain/plan/phaseHeader.ts`
+- `src/domain/plan/testLineGrammar.ts`
+- `src/domain/authoring/renderPlan.ts`
+- `src/domain/authoring/markdown.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/phaseHeader.test.ts`
+- `tests/unit/testLineGrammar.test.ts`
+- `tests/helpers/property/planDocuments.ts`
+- `tests/unit/property/planDocuments.test.ts`
+
+### Boundary contracts
+
+Consumer: the round-trip property and the hand-written suite `tests/unit/renderPlan.test.ts`. Producer: `tests/helpers/property/planRoundTrip.ts`, whose `readBack` gives one verdict, read back or not, with the first difference. It sits on the domain's `renderPlanBody`, `extractPlanDeterministic`, `finalizeExtractedPlan` and `projectExtractedPlan`, whose signatures stay as they are. A fix may change their behaviour on a counter-example, never the plan document's shape.
+
+### Test strategy
+
+- every generated valid plan document, rendered, extracts and finalizes to its finalized projection with no warning — small · property · finalizeExtractedPlan of projectExtractedPlan, and an empty warning list · in-phase · ac-plan-roundtrip
+- the hand-written round-trip cases keep their expectations through the shared helper — small · example · the existing expectations of tests/unit/renderPlan.test.ts · in-phase
+
+### Implementation order
+
+1. `readBack` in the shared helper.
+2. `renderPlan.test.ts` on the helper, green before the property.
+3. The round-trip property.
+4. Counter-examples: classify, fix with a hand-written case, or restrict as the decision allows.
+5. The 2,000-run check.
+
+### Excluded scope
+
+- Totality, bounded time and lint agreement (phases 04 and 05).
+- Any change to the plan document's shape or stamp, and the frozen renderers (`renderPlanBodyV0_*`).
+- Refusing documents at authoring, unless the q-unrenderable decision is refuse-at-authoring (the plan is then revised first).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The signature of `readBack` in `tests/helpers/property/planRoundTrip.ts`. Every counter-example found, each with its fix (file and function) and the hand-written case added (suite and title), or the restriction added and why. The 2,000-run check's seed and outcome. The time of `pnpm test tests/unit/property` at 100 runs, against the 60 s budget. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`test(property): a rendered plan parses back to its projection`
+
+### Commit body
+
+Add the round-trip property of the plan parser (spec property-tests
+§5.7): every generated valid plan document, rendered to plan.md,
+extracts and finalizes to its finalized projection with no warning. The
+comparison moves into a shared readBack helper that renderPlan.test.ts
+now uses too. Any counter-example found is fixed in the parser and kept
+as a hand-written case.
+
+---
+
+## phase-04 — Totality and bounded-time properties of the plan parser {#phase-04-totality-and-bounded-time}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Check §5.8 and §5.9 in general. Any generated text yields a plan or at least one structure error, and no parser entry point throws. Any generated text of at most 64 KiB is parsed within 2 seconds, timed as the best of three attempts so a loaded machine does not fail the suite.
+
+### Detailed instructions
+
+- Read `tests/helpers/property/planTexts.ts`, `tests/unit/property/planParser.property.test.ts`, and the exported entry points of `src/domain/plan/parsePlanMarkdown.ts` (`readPlanDeterministic`, `extractPlanDeterministic`, `collectPlanStructureErrors`, `readPlanTestStrategies`, `readPlanUnplannablePaths`) and `src/domain/plan/finalize.ts`.
+- Create `tests/helpers/property/timing.ts`. It exports `withinTimeLimit(call, { limitMs, attempts, now })`, returning `{ withinLimit: boolean; timings: number[] }`. It times `call` once with `now` (default `() => performance.now()`). If that attempt is over `limitMs`, it times it again, up to `attempts` in total, stopping at the first attempt within the limit.
+- In `tests/unit/property/planParser.property.test.ts`, add `describe("time limit")` with two examples on an injected clock. `passes a call slow on one attempt only`, and `fails a call slow on every attempt, with its timings`.
+- Add to `describe("plan parser")`: `yields a plan or structure errors for any text` (`checkProperty(planTexts(), …)`, `propertyTimeout()`). For each text, call every entry point above inside try/catch and fail with the entry point's name if one throws. When extraction succeeds, also call `finalizeExtractedPlan` the same way. Then assert that `readPlanDeterministic(text)` succeeds or `collectPlanStructureErrors(text)` is non-empty. Assert that `extractPlanDeterministic(text)` is a Result whose failure message, if any, is non-empty. Assert that every structure error has a non-empty message.
+- Add `parses any text up to 64 KiB within 2 seconds` (`checkProperty` over `fc.oneof` weighted toward `largeTexts()` texts, with `planTexts()` beside them, `propertyTimeout()`). For each text, assert `withinTimeLimit` with `limitMs: 2_000` and `attempts: 3`, once for `extractPlanDeterministic(text)` and once for `collectPlanStructureErrors(text)`. On a miss, name the entry point and the timings.
+- Keep the file's time at 100 runs low enough that `pnpm test tests/unit/property` stays well within its 60 s CI budget; measure it. Reduce the large texts' share if needed, never the run count and never the 64 KiB cap.
+- A throw or a slow parse is a bug. Fix it in `src/domain/plan/` and add the counter-example as a hand-written case in that code's existing suite, in the same commit. A regex in `finalize.ts` that backtracks on a long line is a likely candidate. If the time is spent inside mdast-util-from-markdown or micromark, and phax cannot bound it without changing what the parser accepts, report it and leave the property failing (see the preamble).
+- Run `PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random pnpm test tests/unit/property/planParser.property.test.ts` once before handing off.
+
+### Planned files to create
+
+- `tests/helpers/property/timing.ts`
+
+### Planned files to edit
+
+- `tests/unit/property/planParser.property.test.ts`
+
+### Optional files that may be edited
+
+- `tests/helpers/property/planTexts.ts`
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/domain/plan/finalize.ts`
+- `src/domain/plan/phaseHeader.ts`
+- `src/domain/plan/testLineGrammar.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/phaseHeader.test.ts`
+- `tests/unit/testLineGrammar.test.ts`
+
+### Test strategy
+
+- any generated text yields a plan or at least one structure error, and no parser entry point throws — small · fuzz · a Result or a structure-error list from every entry point, never an exception · in-phase · ac-plan-total
+- extraction and the structure check each return within 2 seconds on any generated text of at most 64 KiB, deeply nested lists and long character runs included — small · fuzz · the best of three wall-clock timings against 2,000 ms · in-phase · ac-plan-bounded
+- the time-limit check passes a call slow on one attempt only and fails a call slow on every attempt — small · example · an injected clock's timings · in-phase
+
+### Implementation order
+
+1. `withinTimeLimit` and its two examples.
+2. The totality property.
+3. The bounded-time property.
+4. Counter-examples: fix with a hand-written case, then the 2,000-run check and the budget measurement.
+
+### Excluded scope
+
+- Lint agreement (phase-05).
+- Raising the 2-second limit or lowering the 64 KiB cap.
+- Changes to `.github/workflows/ci.yml` or `.github/workflows/security.yml`.
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The signature of `withinTimeLimit` in `tests/helpers/property/timing.ts`. The slowest call seen at 100 and at 2,000 runs, with its kind and size. Every counter-example found, each with its fix and hand-written case, or a Markdown-library cause reported for the operator. The 2,000-run check's seed and outcome. The time of `pnpm test tests/unit/property` at 100 runs against the 60 s budget. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`test(property): the plan parser is total and bounded in time`
+
+### Commit body
+
+Add the totality and bounded-time properties of the plan parser (spec
+property-tests §5.8, §5.9): any generated text yields a plan or
+structure errors and no entry point throws, and any text up to 64 KiB is
+parsed within 2 seconds. Time is the best of three wall-clock attempts,
+so a loaded machine slows one attempt without failing the suite, while a
+superlinear parse fails all three.
+
+---
+
+## phase-05 — Lint-agreement property: the structure check agrees with extraction {#phase-05-lint-agreement}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Check §5.10 in general. On the totality property's generated text, the lint's structure check reports no error exactly when a run's deterministic extraction reads a plan. Each disagreement that exists by design is a named exception with a hand-written example, as in plan 1's agreement exceptions.
+
+### Detailed instructions
+
+- Read `src/app/lintPlan.ts` (how lint composes `structureFindings`, `sequenceGapFindings` and a finalize failure into its structure check), `src/domain/plan/lint.ts`, `src/app/loadOrExtractPlan.ts` (extraction then finalize), `src/domain/plan/parsePlanMarkdown.ts`, and the `AGREEMENT_EXCEPTIONS` pattern in `tests/unit/property/persistedFormats.property.test.ts`.
+- In `tests/unit/property/planParser.property.test.ts`, define two local functions with a comment naming the app code each mirrors. `structureClean(text)`: `structureFindings(text)` and `sequenceGapFindings(text)` are empty, and when `readPlanDeterministic(text)` succeeds, `finalizeExtractedPlan` succeeds on its plan. `extractionReads(text)`: `extractPlanDeterministic(text)` succeeds and `finalizeExtractedPlan` succeeds on its plan. Import only from `src/domain` and `src/schemas`, with no port.
+- Define `LINT_AGREEMENT_EXCEPTIONS: ReadonlyArray<{ name, reason, matches(text) }>` and `LINT_AGREEMENT_EXAMPLES`, one hand-written plan.md per exception. Expected entries: `departing-test-line` and `phase-numbering-gap`. `departing-test-line` matches when `readPlanDeterministic` succeeds and `readPlanTestStrategies` reports a departure; lint reports it under `tests`, and extraction refuses it. `phase-numbering-gap` matches when `sequenceGapFindings` is non-empty and every other part of the structure check is clean; lint's structure check reports the gap, and extraction reads the plan. Keep each `matches` as narrow as its rule.
+- Add to `describe("plan parser")`: `the structure check agrees with extraction` (`checkProperty(planTexts(), …)`, `propertyTimeout()`). First, with no exception, `structureFindings(text)` is empty exactly when `readPlanDeterministic(text)` succeeds. Then, unless an exception matches, `structureClean(text) === extractionReads(text)`. On a mismatch, name both verdicts and the first structure finding or extraction message.
+- Add `describe("lint agreement exceptions")` with three tests. `every exception has an example, and every example an exception`. `it.each` over the exceptions, `$name: $reason`, showing that its example matches only that exception and that the two verdicts differ on it. `reaches both verdicts`: over `fc.sample(planTexts())` with a fixed seed and 200 samples, at least one text that extraction reads and one it does not.
+- A disagreement no exception explains is a bug. Fix it in `src/domain/plan/` with a hand-written case in `tests/unit/parsePlanMarkdown.test.ts` or `tests/unit/planLint.test.ts`, in the same commit. Add a new exception only for a disagreement the code makes by design, with the code that makes it named in its reason.
+- Run `PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random pnpm test tests/unit/property/planParser.property.test.ts` once before handing off.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `tests/unit/property/planParser.property.test.ts`
+
+### Optional files that may be edited
+
+- `src/domain/plan/parsePlanMarkdown.ts`
+- `src/domain/plan/finalize.ts`
+- `src/domain/plan/lint.ts`
+- `tests/unit/parsePlanMarkdown.test.ts`
+- `tests/unit/planLint.test.ts`
+- `tests/helpers/property/planTexts.ts`
+
+### Test strategy
+
+- on any generated text, the lint's structure check reports no error exactly when a run's deterministic extraction reads a plan, apart from the named exceptions — small · property · equality of the structure check's and extraction's verdicts · in-phase · ac-plan-lint-agrees
+- structureFindings is empty exactly when readPlanDeterministic reads a plan, with no exception — small · property · equality of the two verdicts · in-phase · ac-plan-lint-agrees
+- every exception has a hand-written example on which the two verdicts differ, and every example an exception — small · example · the example's two verdicts · in-phase
+- the generated text reaches both verdicts, texts extraction reads and texts it does not — small · example · verdict counts over a fixed-seed sample of 200 · in-phase
+
+### Implementation order
+
+1. `structureClean` and `extractionReads`, mirroring the app's composition.
+2. The exceptions and their examples, with their tests.
+3. The agreement property and the reach example.
+4. Counter-examples: fix with a hand-written case, or a by-design exception. Then the 2,000-run check.
+
+### Excluded scope
+
+- Calling `src/app/lintPlan.ts` or any port from a property test.
+- Changing what lint or extraction reports to remove a by-design disagreement.
+- The reducer and the CLI arguments (the third plan).
+
+### Verification
+
+The `standard` gate profile in phax.json.
+
+### Expected handoff content
+
+The final list of lint agreement exceptions, each with its name, its reason and the code that makes the disagreement. Every counter-example found, with its fix and hand-written case. The 2,000-run check's seed and outcome. The time of `pnpm test tests/unit/property` at 100 runs against the 60 s budget. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`test(property): the plan structure check agrees with extraction`
+
+### Commit body
+
+Add the lint-agreement property of the plan parser (spec property-tests
+§5.10): on any generated text, lint's structure check reports no error
+exactly when deterministic extraction reads a plan. Two disagreements
+are by design and named with hand-written examples: a departing test
+line (reported under tests) and a phase numbering gap (reported by the
+structure check, read by extraction).
+
+---
+
+## phase-06 — Plan-parser section of the property-tests docs {#phase-06-docs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Document the plan-parser slice in `docs/property-tests.md` for a contributor whose run shows a failing parser property, or who changes the plan document, the renderer or the parser. The section covers what is checked, where the generators live, what each restriction and agreement exception means, how time is measured, and where a counter-example's hand-written case goes.
+
+### Detailed instructions
+
+- Read `docs/property-tests.md`, the handoffs of phases 01 to 05, `tests/helpers/property/planDocuments.ts`, `planTexts.ts`, `planRoundTrip.ts` and `timing.ts`, and `tests/unit/property/planParser.property.test.ts`.
+- Update `What is covered`: the persisted formats and the plan parser are written, and the state machine and CLI arguments follow in a later plan. Update `Where the files live` with the four new helpers and the three new test files.
+- Add a section `The plan parser`. It lists the four tests of `describe("plan parser")` by their exact titles, each with the promise it checks, and gives one replay line for one of them in the harness's form (`pnpm test:unit <file> -t '^plan parser > …$'`). It describes `validPlanDocuments()` and every entry of `PLAN_DOCUMENT_RESTRICTIONS` by name. Under the q-unrenderable decision, it states that each restriction is a known gap: a document holding that value renders to a plan.md that extraction does not read, and the run falls back to the LLM extraction with a warning. It describes the three families of `planTexts()`, the mutation names and the large kinds. It explains the best-of-three timing against 2 seconds and why the limit is not lowered. It lists the lint agreement exceptions by name and reason, and the rule for adding one.
+- Extend `What to do with a counter-example`: a parser counter-example goes into `tests/unit/parsePlanMarkdown.test.ts`, `tests/unit/renderPlan.test.ts`, `tests/unit/phaseHeader.test.ts`, `tests/unit/testLineGrammar.test.ts` or `tests/unit/planLint.test.ts`, in the same commit as its fix. A generator is never narrowed to dodge one.
+- Keep the existing replay example and its line unchanged: `tests/unit/property/harnessConfig.test.ts` checks it against the harness. Name no opened version.
+- Touch `CONTRIBUTING.md` only if its Tests section no longer points to the page correctly.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `docs/property-tests.md`
+
+### Optional files that may be edited
+
+- `CONTRIBUTING.md`
+
+### Test strategy
+
+- (none)
+
+### Implementation order
+
+1. Update the overview and file list.
+2. Write the plan-parser section.
+3. Extend the counter-example section.
+
+### Excluded scope
+
+- Any code or test change.
+- Docs for the state machine and CLI slices (the third plan).
+
+### Verification
+
+The `standard` gate profile in phax.json (format check and the harness's docs check).
+
+### Expected handoff content
+
+The headings added or changed in `docs/property-tests.md`, and whether `CONTRIBUTING.md` changed. Any deviation from the planned files, with the reason.
+
+### Commit subject
+
+`docs(property): the plan-parser properties, generators and exceptions`
+
+### Commit body
+
+Document the plan-parser slice of the property tests: the four
+properties and their replay, the plan-document generator and its named
+restrictions as known gaps, the plan-text families, the best-of-three
+time check against 2 seconds, the lint agreement exceptions, and where a
+parser counter-example's hand-written case goes.
