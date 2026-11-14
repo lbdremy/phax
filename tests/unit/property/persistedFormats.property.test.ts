@@ -51,6 +51,35 @@ const isVerdict = (value: unknown): boolean => {
   return ok === true ? "value" in value : ok === false && typeof message === "string";
 };
 
+// ── agreement exceptions ────────────────────────────────────────────────────
+
+interface AgreementException {
+  readonly format: FormatId;
+  /** Kebab-case, stating the rule. */
+  readonly name: string;
+  /** Which reader enforces the rule, and why the other does not. */
+  readonly reason: string;
+  readonly matches: (document: unknown) => boolean;
+}
+
+const isDocument = (value: unknown): value is Readonly<Record<string, unknown>> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+// The deliberate disagreements, each as narrow as the rule it names. A disagreement that is a
+// reader bug is fixed in the reader instead of listed here.
+const AGREEMENT_EXCEPTIONS: ReadonlyArray<AgreementException> = [
+  {
+    format: "phase-status",
+    name: "awaiting-review-records-a-waiting-stop",
+    reason:
+      "readPhaseStatusFile refuses a phase awaiting review whose stop is not waiting: a phase enters that state only with its waiting stop recorded. The schema alone holds no such rule, so the package reads it",
+    matches: (document) =>
+      isDocument(document) &&
+      document["state"] === "awaiting_review" &&
+      !(isDocument(document["stop"]) && document["stop"]["status"] === "waiting"),
+  },
+];
+
 describe.each(FORMAT_IDS)("%s", (id) => {
   it("has a generator", () => {
     expect(missingGenerators([id], FORMAT_REGISTRY), `no generator registered for ${id}`).toEqual(
@@ -146,6 +175,33 @@ describe.each(FORMAT_IDS)("%s", (id) => {
           }
         }
         return true;
+      });
+    },
+    propertyTimeout(),
+  );
+
+  it.skipIf(FORMAT_REGISTRY[id].phax === null)(
+    "reaches the schemas package's verdict",
+    () => {
+      const entry = FORMAT_REGISTRY[id];
+      const phax = entry.phax?.read;
+      if (phax === undefined) return;
+      const documents = fc.oneof(
+        entry.valid().map(entry.write),
+        anyJson(),
+        stampedObject(id),
+        mutatedValid(entry),
+      );
+      checkProperty(documents, (document) => {
+        const packaged = entry.parse(document);
+        const read = phax(document);
+        if (read.ok === packaged.ok) return true;
+        if (AGREEMENT_EXCEPTIONS.some((e) => e.format === id && e.matches(document))) return true;
+        const refusal = read.ok ? packaged : read;
+        const who = read.ok
+          ? "phax read it and the package refused"
+          : "the package read it and phax refused";
+        throw new Error(`${who}: ${refusal.ok ? "" : refusal.message}`);
       });
     },
     propertyTimeout(),
@@ -366,6 +422,49 @@ describe("repairs", () => {
       { ...planDocument, sourceSpec: "docs/specs/demo.md", completesSpec: null },
       "completesSpec is a boolean beside a sourceSpec path",
     );
+  });
+});
+
+// ── agreement exceptions ────────────────────────────────────────────────────
+// A hand-written document each exception matches, and the verdicts that differ as its reason says.
+
+const AGREEMENT_EXAMPLES: Readonly<
+  Record<string, { readonly document: unknown; readonly phaxRefuses: string }>
+> = {
+  "awaiting-review-records-a-waiting-stop": {
+    document: FORMAT_REGISTRY["phase-status"].write(phaseStatus),
+    phaxRefuses: "a phase awaiting review records no waiting stop",
+  },
+};
+
+describe("agreement exceptions", () => {
+  it("every exception has an example, and every example an exception", () => {
+    expect(Object.keys(AGREEMENT_EXAMPLES).toSorted()).toEqual(
+      AGREEMENT_EXCEPTIONS.map((exception) => exception.name).toSorted(),
+    );
+  });
+
+  it.each(AGREEMENT_EXCEPTIONS)("$format $name: $reason", (exception) => {
+    const entry = FORMAT_REGISTRY[exception.format];
+    const example = AGREEMENT_EXAMPLES[exception.name];
+    if (example === undefined) throw new Error(`no example for ${exception.name}`);
+    expect(exception.matches(example.document)).toBe(true);
+    const phax = entry.phax?.read(example.document);
+    const packaged = entry.parse(example.document);
+    expect(phax?.ok).toBe(false);
+    expect(phax?.ok === false ? phax.message : "").toContain(example.phaxRefuses);
+    expect(packaged.ok).toBe(true);
+  });
+
+  it("awaiting-review-records-a-waiting-stop: a waiting stop is no exception, and both read it", () => {
+    const entry = FORMAT_REGISTRY["phase-status"];
+    const waiting = entry.write({ ...phaseStatus, stop: { cause: "held", status: "waiting" } });
+    const exception = AGREEMENT_EXCEPTIONS.find(
+      ({ name }) => name === "awaiting-review-records-a-waiting-stop",
+    );
+    expect(exception?.matches(waiting)).toBe(false);
+    expect(entry.phax?.read(waiting).ok).toBe(true);
+    expect(entry.parse(waiting).ok).toBe(true);
   });
 });
 
