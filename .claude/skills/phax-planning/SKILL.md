@@ -267,7 +267,7 @@ Write the file lists to make this signal useful:
   implementation details (test factories, barrel/`index` files, route tables).
 - Tests are files — list them in the create/edit sections too.
 - Do not list files you only read. Reconciliation is about writes.
-- Use repo-relative POSIX paths, exactly as they appear in `git`.
+- Write each path in canonical form: repository-relative with `/` separators, no `./`, empty, `.` or `..` segment, no leading or trailing `/` and no backslash (`src/widget.ts`). phax rewrites another spelling it reads from a plan.md, refuses it in a plan document, and refuses everywhere a path that is empty, absolute, leaves the repository or names a directory.
 
 The planned files to create and edit (not the optional list) also leave phax as
 facts. A gate step that declares `"input": "gate-request"` receives every phase's
