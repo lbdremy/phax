@@ -922,3 +922,62 @@ describe("test lines, read from each phase's ### Test strategy", () => {
     ]);
   });
 });
+
+describe("plan paths, read in canonical form", () => {
+  it("reads each item of the three lists as its canonical form", () => {
+    const written = makePlan({
+      phases: [
+        makePhase({
+          create: "- ./src/a.ts",
+          edit: "- src//b.ts\n- src/c/../d.ts",
+          optional: "- ./docs/e.md",
+        }),
+      ],
+    });
+    const canonical = makePlan({
+      phases: [
+        makePhase({
+          create: "- src/a.ts",
+          edit: "- src/b.ts\n- src/d.ts",
+          optional: "- docs/e.md",
+        }),
+      ],
+    });
+    expect(Result.isSuccess(extractPlanDeterministic(written))).toBe(true);
+    expect(extractPlanDeterministic(written)).toEqual(extractPlanDeterministic(canonical));
+  });
+
+  const sections = [
+    ["Planned files to create", "create"],
+    ["Planned files to edit", "edit"],
+    ["Optional files that may be edited", "optional"],
+  ] as const;
+  const reasons = [
+    ["/src/x.ts", "is absolute"],
+    ["../x.ts", "leaves the repository"],
+    ["src/", "names a directory"],
+    ["./", "is empty"],
+    ["src\\x.ts", "contains a backslash"],
+  ] as const;
+
+  for (const [title, key] of sections) {
+    for (const [written, reason] of reasons) {
+      it(`reports ${JSON.stringify(written)} under ${title}: ${reason}`, () => {
+        const md = makePlan({ phases: [makePhase({ [key]: `- \`${written}\`` })] });
+        expect(collectPlanStructureErrors(md)).toEqual([
+          { phase: "phase-01", message: `${title}: ${JSON.stringify(written)} ${reason}` },
+        ]);
+      });
+    }
+  }
+
+  it("reports every unplannable item of a phase in list order", () => {
+    const md = makePlan({
+      phases: [makePhase({ edit: "- `../a.ts`\n- src/ok.ts\n- `/b.ts`" })],
+    });
+    expect(collectPlanStructureErrors(md).map((e) => e.message)).toEqual([
+      `Planned files to edit: "../a.ts" leaves the repository`,
+      `Planned files to edit: "/b.ts" is absolute`,
+    ]);
+  });
+});

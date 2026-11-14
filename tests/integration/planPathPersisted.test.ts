@@ -206,12 +206,15 @@ describe("ac-persisted-canonical: an extraction answer writing ./src/x.ts, src//
       join(import.meta.dirname, "..", "..", "examples", "hello-world", "plan.md"),
       "utf8",
     );
-    // phase-01 lists the three spellings under Planned files to edit, so the
-    // strict deterministic reading refuses it and the extraction model answers.
-    const planMd = helloWorld.replace(
-      "### Planned files to edit\n\n- (none)",
-      `### Planned files to edit\n\n${SPELLINGS.map((p) => `- ${p}`).join("\n")}`,
-    );
+    // phase-01 lists the three spellings under Planned files to edit. The
+    // deterministic reading rewrites them itself, so the plan is made
+    // non-conforming (no "## Required commands") to reach the extraction model.
+    const planMd = helloWorld
+      .replace(
+        "### Planned files to edit\n\n- (none)",
+        `### Planned files to edit\n\n${SPELLINGS.map((p) => `- ${p}`).join("\n")}`,
+      )
+      .replace("## Required commands", "## Commands");
     expect(planMd).not.toBe(helloWorld);
     expect(Result.isFailure(extractPlanDeterministic(planMd))).toBe(true);
 

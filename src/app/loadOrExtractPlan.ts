@@ -8,6 +8,7 @@ import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import {
   extractPlanDeterministic,
   readPlanTestStrategies,
+  readPlanUnplannablePaths,
 } from "../domain/plan/parsePlanMarkdown.js";
 import { departureMessage } from "../domain/plan/testLineGrammar.js";
 import { extractPlanLlm, type ExtractPlanError } from "./extractPlan.js";
@@ -45,6 +46,17 @@ export function loadOrExtractPlan(
       return yield* Effect.fail(
         new PlanValidationError({
           message: `${opts.planMdPath}: ${departure.phase} ${departureMessage(departure.departures[0]!)} — run phax plans lint ${opts.planMdPath}`,
+          path: opts.planMdPath,
+        }),
+      );
+    }
+
+    // A path with no canonical form is refused before the cache and any model call.
+    const unplannable = readPlanUnplannablePaths(planMd)[0];
+    if (unplannable !== undefined) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `${opts.planMdPath}: ${unplannable.message} — run phax plans lint ${opts.planMdPath}`,
           path: opts.planMdPath,
         }),
       );
