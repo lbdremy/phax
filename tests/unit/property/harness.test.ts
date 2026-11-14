@@ -33,7 +33,7 @@ const numberLists = fc.array(fc.integer({ min: 0, max: 20 }));
 
 describe("harness", () => {
   const printTitle = "prints the seed, the path, the shrunk literal and a replay line";
-  it.fails(printTitle, () => {
+  it(printTitle, () => {
     const outcome = runProperty(numberLists, dedupesToSortedDistinct, {
       env: {},
       location: locationOf(printTitle),
@@ -53,7 +53,7 @@ describe("harness", () => {
   });
 
   const rerunTitle = "replays the same shrunk counter-example from the printed seed and path";
-  it.fails(rerunTitle, () => {
+  it(rerunTitle, () => {
     const first = runProperty(numberLists, dedupesToSortedDistinct, {
       env: {},
       location: locationOf(rerunTitle),
@@ -72,7 +72,7 @@ describe("harness", () => {
   });
 
   const seedTitle = "generates the same inputs on every run while the seed is unset";
-  it.fails(seedTitle, () => {
+  it(seedTitle, () => {
     const recordedRun = () => {
       const inputs: Array<ReadonlyArray<number>> = [];
       const outcome = runProperty(
@@ -107,7 +107,7 @@ describe("harness", () => {
   });
 
   const budgetTitle = "checks 100 inputs unless PHAX_PROPERTY_RUNS sets another count";
-  it.fails(budgetTitle, () => {
+  it(budgetTitle, () => {
     expect(readPropertyParameters({}).runs).toBe(100);
     expect(readPropertyParameters({}).runs).toBe(DEFAULT_PROPERTY_RUNS);
     expect(readPropertyParameters({ PHAX_PROPERTY_RUNS: "2000" }).runs).toBe(2000);
