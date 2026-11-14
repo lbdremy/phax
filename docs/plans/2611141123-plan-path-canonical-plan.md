@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611141103-plan-path-canonical.md
 completes-spec: true
+approved:
+  date: 2026-11-14
+  baseline: 58d256f
 ---
 # One canonical form for a plan's paths
 
