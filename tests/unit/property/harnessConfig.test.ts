@@ -5,11 +5,13 @@ import { join, matchesGlob } from "node:path";
 import * as fc from "fast-check";
 import { describe, expect, it, vi } from "vitest";
 import config from "../../../vitest.config.js";
+import { FORMAT_IDS } from "../../../src/schemas/schemaUrl.js";
 import {
   checkProperty,
   PropertyConfigError,
   propertyTimeout,
   readPropertyParameters,
+  replayCommand,
 } from "../../helpers/property/harness.js";
 
 const refusal = (env: Record<string, string>, variable: string) => {
@@ -129,6 +131,47 @@ describe("checkProperty", () => {
     });
     expect(first).toEqual(replayed);
     expect(second).toEqual(replayed);
+  });
+});
+
+describe("replay line", () => {
+  const file = "tests/unit/property/persistedFormats.property.test.ts";
+
+  // The `-t` value of a replay line, unquoted as a shell would.
+  const testNameOf = (replay: string): RegExp => {
+    const quoted = / -t '((?:[^']|'\\'')*)'$/.exec(replay)?.[1];
+    expect(quoted, replay).toBeDefined();
+    return new RegExp(quoted!.replaceAll("'\\''", "'"));
+  };
+
+  // Every full name the persisted-format properties run under: `<format id> > <title>`.
+  const source = readFileSync(join(process.cwd(), file), "utf8");
+  const perFormat = source.slice(source.indexOf("describe.each(FORMAT_IDS)"));
+  const titles = [
+    ...perFormat
+      .slice(0, perFormat.indexOf("\n});\n"))
+      .matchAll(/^ {2}it(?:\.skipIf\(.*\))?\(\s*"([^"]+)"/gm),
+  ].map((match) => match[1]!);
+  const names = FORMAT_IDS.flatMap((id) => titles.map((title) => `${id} > ${title}`));
+
+  it("selects exactly the failing test among the persisted-format test names", () => {
+    expect(titles).toContain("reads its written encoding back");
+    expect(names).toContain("plan-hand-decision-answer > has a generator");
+    for (const name of names) {
+      const pattern = testNameOf(replayCommand(1, "0", { file, name }));
+      expect(
+        names.filter((other) => pattern.test(other)),
+        name,
+      ).toEqual([name]);
+    }
+  });
+
+  it("escapes a name's regular-expression syntax and its quotes", () => {
+    const name = "a.b > it's (x) [y]+";
+    const pattern = testNameOf(replayCommand(1, "0", { file, name }));
+    expect(pattern.test(name)).toBe(true);
+    expect(pattern.test("aXb > it's (x) [y]+")).toBe(false);
+    expect(pattern.test(`${name} more`)).toBe(false);
   });
 });
 

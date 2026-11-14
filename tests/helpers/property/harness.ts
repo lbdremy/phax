@@ -135,9 +135,20 @@ const literalOf = (value: unknown): string => {
   return fc.stringify(value);
 };
 
+// The characters with a meaning in a regular expression.
+const REGEXP_SYNTAX = /[.*+?^${}()|[\]\\]/g;
+
+/**
+ * The `-t` pattern that selects exactly the test named `name`. Vitest matches `-t` as a regular
+ * expression against each test's full name (`describe > it`, without the file), so the name is
+ * escaped and anchored: unanchored, `hand-decision-answer > …` would also select
+ * `plan-hand-decision-answer > …`.
+ */
+const testNamePattern = (name: string): string => `^${name.replaceAll(REGEXP_SYNTAX, "\\$&")}$`;
+
 /** The command line that replays the failure at `seed` and `path` of the test at `location`. */
-const replayCommand = (seed: number, path: string, location: PropertyLocation): string =>
-  `PHAX_PROPERTY_SEED=${seed} PHAX_PROPERTY_PATH=${path} pnpm test:unit ${location.file} -t ${shellQuote(location.name)}`;
+export const replayCommand = (seed: number, path: string, location: PropertyLocation): string =>
+  `PHAX_PROPERTY_SEED=${seed} PHAX_PROPERTY_PATH=${path} pnpm test:unit ${location.file} -t ${shellQuote(testNamePattern(location.name))}`;
 
 const runWith = <T>(
   { seed, path, runs }: PropertyParameters,
