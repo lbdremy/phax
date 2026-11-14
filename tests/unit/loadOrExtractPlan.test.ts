@@ -184,3 +184,28 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(backend.completeCalls).toHaveLength(0);
   });
 });
+
+describe("loadOrExtractPlan — a path with no canonical form", () => {
+  it("is refused before the cache and any model call", async () => {
+    const { impl: fs, layer: fsLayer } = makeFakeFileSystem();
+    const { impl: backend, layer: backendLayer } = makeFakeBackend();
+    fs.setFile(
+      BASE_OPTS.planMdPath,
+      CONFORMING_PLAN.replace(
+        "### Planned files to edit\n\n- (none)",
+        "### Planned files to edit\n\n- `../x.ts`",
+      ),
+    );
+
+    const result = await runEffect(
+      loadOrExtractPlan(BASE_OPTS).pipe(Effect.provide(Layer.merge(fsLayer, backendLayer))),
+    );
+
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure.message).toBe(
+      `/project/plan.md: phase-01: Planned files to edit: "../x.ts" leaves the repository — run phax plans lint /project/plan.md`,
+    );
+    expect(backend.completeCalls).toHaveLength(0);
+  });
+});

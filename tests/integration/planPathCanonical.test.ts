@@ -138,14 +138,14 @@ const messagesOf = (report: LintReport, check: string, phase: string): string[] 
   report.findings.filter((f) => f.check === check && f.phase === phase).map((f) => f.message);
 
 describe("ac-lint-collision: Lint sees a create/edit collision across spellings", () => {
-  it.fails("phase-01 creating ./src/x.ts and editing src/x.ts both list src/x.ts", async () => {
+  it("phase-01 creating ./src/x.ts and editing src/x.ts both list src/x.ts", async () => {
     const report = await lint(planMd([{ create: ["./src/x.ts"], edit: ["src/x.ts"] }]));
     expect(messagesOf(report, "files", "phase-01")).toContain("create and edit both list src/x.ts");
   });
 });
 
 describe("ac-lint-already-created: Lint sees a file already created under another spelling", () => {
-  it.fails("phase-02 creating src/x.ts after phase-01 created src//x.ts is already created", async () => {
+  it("phase-02 creating src/x.ts after phase-01 created src//x.ts is already created", async () => {
     const report = await lint(planMd([{ create: ["src//x.ts"] }, { create: ["src/x.ts"] }]));
     expect(messagesOf(report, "files", "phase-02")).toEqual([
       "create src/x.ts: already created by phase-01",
@@ -154,7 +154,7 @@ describe("ac-lint-already-created: Lint sees a file already created under anothe
 });
 
 describe("ac-lint-probe: Lint's working-tree probe finds a non-canonical path", () => {
-  it.fails("a plan editing ./src/x.ts finds src/x.ts, and the findings are those of the plan written src/x.ts", async () => {
+  it("a plan editing ./src/x.ts finds src/x.ts, and the findings are those of the plan written src/x.ts", async () => {
     const tree = ["src/x.ts"];
     const dotted = await lint(planMd([{ edit: ["./src/x.ts", "src/missing.ts"] }]), tree);
     const canonical = await lint(planMd([{ edit: ["src/x.ts", "src/missing.ts"] }]), tree);
@@ -170,7 +170,7 @@ describe("ac-lint-probe: Lint's working-tree probe finds a non-canonical path", 
 });
 
 describe("ac-bounds: Assignment bounds govern a non-canonical path", () => {
-  it.fails("a bound on src/** governs a phase listing only ./src/x.ts, as it does one listing src/x.ts", async () => {
+  it("a bound on src/** governs a phase listing only ./src/x.ts, as it does one listing src/x.ts", async () => {
     const tree = ["src/x.ts"];
     const dotted = await lint(planMd([{ edit: ["./src/x.ts"] }]), tree, boundedConfig);
     const canonical = await lint(planMd([{ edit: ["src/x.ts"] }]), tree, boundedConfig);
@@ -195,7 +195,7 @@ describe("ac-unplannable: Each kind of unplannable path is refused", () => {
   ];
 
   for (const [written, reason] of rows) {
-    it.fails(`a plan.md listing ${JSON.stringify(written)} under Planned files to edit is refused: ${reason}`, async () => {
+    it(`a plan.md listing ${JSON.stringify(written)} under Planned files to edit is refused: ${reason}`, async () => {
       const report = await lint(planMd([{ create: ["src/a.ts"] }, { edit: [written] }]));
       const refusal = messagesOf(report, "structure", "phase-02").find((m) =>
         m.includes(JSON.stringify(written)),
@@ -211,7 +211,7 @@ describe("ac-unplannable: Each kind of unplannable path is refused", () => {
 });
 
 describe("ac-no-fallback: An unplannable path in plan.md never reaches the model", () => {
-  it.fails("a plan.md listing ../x.ts is refused by lint and by loadOrExtractPlan, and the backend holds no call", async () => {
+  it("a plan.md listing ../x.ts is refused by lint and by loadOrExtractPlan, and the backend holds no call", async () => {
     const md = planMd([{ create: ["src/a.ts"] }, { edit: ["../x.ts"] }]);
 
     const report = await lint(md);
@@ -245,7 +245,7 @@ describe("ac-no-fallback: An unplannable path in plan.md never reaches the model
 });
 
 describe("ac-persisted-canonical: phax-plan.json holds the canonical form", () => {
-  it.fails("a plan.md listing ./src/x.ts, src//y.ts and src/a/../z.ts gives a phax-plan.json at the current stamp listing src/x.ts, src/y.ts and src/z.ts, without the model", async () => {
+  it("a plan.md listing ./src/x.ts, src//y.ts and src/a/../z.ts gives a phax-plan.json at the current stamp listing src/x.ts, src/y.ts and src/z.ts, without the model", async () => {
     const md = planMd([{ edit: ["./src/x.ts", "src//y.ts", "src/a/../z.ts"] }]);
     const fs = makeFakeFileSystem();
     const backend = makeFakeBackend();

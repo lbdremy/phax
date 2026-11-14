@@ -75,7 +75,7 @@ function planWriting(edit: string, create?: string): string {
 const input = (plan: PhaxPlan, id: string) => planInputFromPhaxPlan(plan, id, id);
 
 describe("ac-reconcile: Reconciliation matches a non-canonical planned path", () => {
-  it.fails("a phase that plans ./src/x.ts and changes src/x.ts edited a planned file, as the plan written src/x.ts did", () => {
+  it("a phase that plans ./src/x.ts and changes src/x.ts edited a planned file, as the plan written src/x.ts did", () => {
     const dotted = readPlan(planWriting("./src/x.ts"));
     const canonical = readPlan(planWriting("src/x.ts"));
     expect(Result.isSuccess(canonical)).toBe(true);
@@ -113,23 +113,23 @@ describe("ac-overlap: Overlap sees one file under two spellings", () => {
     return result.edges[0]!.shared.map((s) => s.path);
   };
 
-  it.fails("a plan editing ./src/x.ts and one editing src/x.ts share src/x.ts", () => {
+  it("a plan editing ./src/x.ts and one editing src/x.ts share src/x.ts", () => {
     expect(sharedPaths(planWriting("./src/x.ts"), planWriting("src/x.ts"))).toEqual(["src/x.ts"]);
   });
 
   // Pull request #205's case, restated against plans read through the deterministic reader.
-  it.fails("pull request #205: ./src/x.ts and src//x.ts share one file, src/x.ts", () => {
+  it("pull request #205: ./src/x.ts and src//x.ts share one file, src/x.ts", () => {
     expect(sharedPaths(planWriting("./src/x.ts"), planWriting("src//x.ts"))).toEqual(["src/x.ts"]);
   });
 
-  it.fails("pull request #205: creating src/a/../x.ts and editing src/x.ts share one file, src/x.ts", () => {
+  it("pull request #205: creating src/a/../x.ts and editing src/x.ts share one file, src/x.ts", () => {
     const creating = planMd([{ create: ["src/a/../x.ts"] }]);
     expect(sharedPaths(creating, planWriting("src/x.ts"))).toEqual(["src/x.ts"]);
   });
 });
 
 describe("ac-staleness: Staleness sees a change to a non-canonical planned file", () => {
-  it.fails("a change to src/x.ts gives the plan written ./src/x.ts the verdict of the plan written src/x.ts", () => {
+  it("a change to src/x.ts gives the plan written ./src/x.ts the verdict of the plan written src/x.ts", () => {
     const dotted = readPlan(planWriting("./src/x.ts"));
     const canonical = readPlan(planWriting("src/x.ts"));
     expect(Result.isSuccess(canonical)).toBe(true);

@@ -6,6 +6,7 @@ import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
+import { describeUnplannable, readPlanPath } from "./planPath.js";
 import {
   departureMessage,
   readTestStrategyText,
@@ -347,6 +348,34 @@ export interface StructureError {
 interface RawStructureError {
   readonly phase: string | null;
   readonly message: string;
+  /** Set on a path with no canonical form, so a caller can tell it apart. */
+  readonly unplannablePath?: true;
+}
+
+// Reads each item of one planned list as its canonical form. A path with no
+// canonical form is reported (in list order) and the list is left out.
+function canonicalList(
+  items: readonly string[],
+  phase: string,
+  section: string,
+  errors: RawStructureError[],
+): string[] | null {
+  const out: string[] = [];
+  let ok = true;
+  for (const written of items) {
+    const reading = readPlanPath(written);
+    if (reading.kind === "canonical") out.push(reading.path);
+    else if (reading.kind === "rewritable") out.push(reading.canonical);
+    else {
+      ok = false;
+      errors.push({
+        phase,
+        message: `${phase}: ${section}: ${JSON.stringify(written)} ${describeUnplannable(reading.reason)}`,
+        unplannablePath: true,
+      });
+    }
+  }
+  return ok ? out : null;
 }
 
 function stripPhasePrefix(message: string, phase: string): string {
@@ -452,20 +481,35 @@ function walkPlan(planMd: string): PlanWalkResult {
     }
 
     const createE = extractPlannedList(pb.body, "Planned files to create", id);
+    let createList: string[] | null = null;
     if (Result.isFailure(createE)) {
       errors.push({ phase: id, message: createE.failure.message });
       phaseOk = false;
+    } else {
+      createList = canonicalList(createE.success, id, "Planned files to create", errors);
     }
     const editE = extractPlannedList(pb.body, "Planned files to edit", id);
+    let editList: string[] | null = null;
     if (Result.isFailure(editE)) {
       errors.push({ phase: id, message: editE.failure.message });
       phaseOk = false;
+    } else {
+      editList = canonicalList(editE.success, id, "Planned files to edit", errors);
     }
     const optionalE = extractPlannedList(pb.body, "Optional files that may be edited", id);
+    let optionalList: string[] | null = null;
     if (Result.isFailure(optionalE)) {
       errors.push({ phase: id, message: optionalE.failure.message });
       phaseOk = false;
+    } else {
+      optionalList = canonicalList(
+        optionalE.success,
+        id,
+        "Optional files that may be edited",
+        errors,
+      );
     }
+    if (createList === null || editList === null || optionalList === null) phaseOk = false;
 
     const subjectE = extractCommitSubject(pb.body, id);
     if (Result.isFailure(subjectE)) {
@@ -503,9 +547,9 @@ function walkPlan(planMd: string): PlanWalkResult {
         model,
         effort: decodedEffort,
         planMarkdownAnchor: anchor,
-        plannedFilesToCreate: createE.success,
-        plannedFilesToEdit: editE.success,
-        optionalFilesToEdit: optionalE.success,
+        plannedFilesToCreate: createList,
+        plannedFilesToEdit: editList,
+        optionalFilesToEdit: optionalList,
         mode: kinds.mode,
         acceptance: kinds.acceptance,
         testLines: strategy.lines.map(({ line }) => line),
@@ -541,6 +585,18 @@ export function collectPlanStructureErrors(planMd: string): readonly StructureEr
     phase: e.phase,
     message: e.phase ? stripPhasePrefix(e.message, e.phase) : e.message,
   }));
+}
+
+/**
+ * Every path of a plan.md that has no canonical form, in plan order. `message`
+ * is `<phase>: <section title>: "<written>" <reason>`.
+ */
+export function readPlanUnplannablePaths(
+  planMd: string,
+): readonly { readonly phase: string; readonly message: string }[] {
+  return walkPlan(planMd).errors.flatMap((e) =>
+    e.unplannablePath === true && e.phase !== null ? [{ phase: e.phase, message: e.message }] : [],
+  );
 }
 
 /** A departing test line of a phase. */
