@@ -167,14 +167,22 @@ function authoringOf(sidecar: Sidecar | null): ArtifactAuthoring {
 
 // The question arrays of a sidecar as read: a spec's, a current plan's or a
 // lifted plan's preamble. A plan whose lift is refused keeps the questions
-// its frozen value recorded: 0.25.0 and 0.26.0 carry them, older shapes none.
+// its frozen value recorded: 0.25.0 to 0.33.0 carry them, older shapes none.
 type QuestionArrays = Parameters<typeof summarizeDocumentQuestions>[0];
 
 function questionArrays(read: DocumentSidecar): QuestionArrays {
   if (read.kind === "spec") return read.document;
   if (read.shape === "current") return read.document.preamble;
   if (read.lift.kind === "lifted") return read.lift.document.preamble;
-  if (read.shape === "0.26.0" || read.shape === "0.25.0") return read.older.preamble;
+  if (
+    read.shape === "0.33.0" ||
+    read.shape === "0.32.0" ||
+    read.shape === "0.28.0" ||
+    read.shape === "0.26.0" ||
+    read.shape === "0.25.0"
+  ) {
+    return read.older.preamble;
+  }
   return { openQuestions: [], arbitratedQuestions: [] };
 }
 
