@@ -2,9 +2,8 @@
 // lint, the assignment bounds, the unplannable refusals, the absence of any model fallback and the
 // run's phax-plan.json. Every plan is made up, built inline here, and read without a model; each test
 // asserts that something only a full reading of the plan produces (a finding on a later phase, a
-// finding for a file after the one a path spells, a written plan) before it compares anything. They
-// are marked `it.fails` until the plan.md reading rewrites a plannable path and refuses an
-// unplannable one; what they judge with is frozen with them, so no shared helper is imported.
+// finding for a file after the one a path spells, a written plan) before it compares anything. What
+// they judge with is frozen with them, so no shared helper is imported.
 import { Effect, Layer, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
