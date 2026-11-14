@@ -2,8 +2,9 @@
 // valid-value generator derived from its file schema through effect/Arbitrary, the named repairs
 // that mirror the rules its reader enforces beyond the schema, its written encoding, phax's reader
 // (or why phax has none) and the schemas package's reader, each answering one ReadVerdict.
+import { readFileSync } from "node:fs";
 import { Result, Schema } from "effect";
-import type fc from "fast-check";
+import fc from "fast-check";
 import {
   AcceptanceRequestSchema,
   ArchitectureReportSchema,
@@ -91,6 +92,71 @@ import {
   parseSpecHandDecisionAnswer,
 } from "../../../packages/schemas/src/index.js";
 import { decodeHandAnswer } from "../../../src/domain/decide/handAuthored.js";
+import { AuthoringRecordManifestV0_17_0Schema } from "../../../src/schemas/history/authoring-record-manifest/0.17.0.js";
+import { AuthoringRecordManifestV0_23_0Schema } from "../../../src/schemas/history/authoring-record-manifest/0.23.0.js";
+import { AuthoringRecordManifestPreSchemaSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
+import { BriefRecordV0_20_0Schema } from "../../../src/schemas/history/brief-record/0.20.0.js";
+import { CodeReviewV0_29_0Schema } from "../../../src/schemas/history/code-review/0.29.0.js";
+import { ComplianceReviewV0_17_0Schema } from "../../../src/schemas/history/compliance-review/0.17.0.js";
+import { ComplianceReviewPreSchemaSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
+import { CostLedgerV0_25_0Schema } from "../../../src/schemas/history/cost-ledger/0.25.0.js";
+import { CostLedgerV0_26_0Schema } from "../../../src/schemas/history/cost-ledger/0.26.0.js";
+import { DecisionRecordManifestV0_25_0Schema } from "../../../src/schemas/history/decision-record-manifest/0.25.0.js";
+import { DecisionRecordManifestV0_28_0Schema } from "../../../src/schemas/history/decision-record-manifest/0.28.0.js";
+import { DecisionRecordManifestV0_30_0Schema } from "../../../src/schemas/history/decision-record-manifest/0.30.0.js";
+import { FirstReadingV0_26_0Schema } from "../../../src/schemas/history/first-reading/0.26.0.js";
+import { GateAttributionV0_17_0Schema } from "../../../src/schemas/history/gate-attribution/0.17.0.js";
+import { GateAttributionV0_20_0Schema } from "../../../src/schemas/history/gate-attribution/0.20.0.js";
+import { GateAttributionV0_21_0Schema } from "../../../src/schemas/history/gate-attribution/0.21.0.js";
+import { GateAttributionV0_26_0Schema } from "../../../src/schemas/history/gate-attribution/0.26.0.js";
+import { GateAttributionV0_31_0Schema } from "../../../src/schemas/history/gate-attribution/0.31.0.js";
+import { GateAttributionPreSchemaSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
+import { HandDecisionAnswerV0_25_0Schema } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
+import { InteractiveHandoffV0_26_0Schema } from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
+import { InteractiveSessionV0_26_0Schema } from "../../../src/schemas/history/interactive-session/0.26.0.js";
+import { PhaseFileReconciliationV0_17_0Schema } from "../../../src/schemas/history/phase-file-reconciliation/0.17.0.js";
+import { PhaseFileReconciliationPreSchemaSchema } from "../../../src/schemas/history/phase-file-reconciliation/pre-schema.js";
+import { PhaseRecordManifestV0_17_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";
+import { PhaseRecordManifestV0_26_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.26.0.js";
+import { PhaseRecordManifestV0_30_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.30.0.js";
+import { PhaseRecordManifestV0_33_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.33.0.js";
+import { PhaseRecordManifestPreSchemaSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
+import { PhaseStatusV0_17_0Schema } from "../../../src/schemas/history/phase-status/0.17.0.js";
+import { PhaseStatusV0_20_0Schema } from "../../../src/schemas/history/phase-status/0.20.0.js";
+import { PhaseStatusV0_26_0Schema } from "../../../src/schemas/history/phase-status/0.26.0.js";
+import { PhaseStatusPreSchemaSchema } from "../../../src/schemas/history/phase-status/pre-schema.js";
+import { PhaxPlanExtractionV0_32_0Schema } from "../../../src/schemas/history/phax-plan-extraction/0.32.0.js";
+import { PhaxPlanExtractionV0_33_0Schema } from "../../../src/schemas/history/phax-plan-extraction/0.33.0.js";
+import { PhaxPlanV0_17_0Schema } from "../../../src/schemas/history/phax-plan/0.17.0.js";
+import { PhaxPlanV0_26_0Schema } from "../../../src/schemas/history/phax-plan/0.26.0.js";
+import { PhaxPlanV0_28_0Schema } from "../../../src/schemas/history/phax-plan/0.28.0.js";
+import { PhaxPlanV0_32_0Schema } from "../../../src/schemas/history/phax-plan/0.32.0.js";
+import { PhaxPlanV0_33_0Schema } from "../../../src/schemas/history/phax-plan/0.33.0.js";
+import { PhaxPlanPreSchemaSchema } from "../../../src/schemas/history/phax-plan/pre-schema.js";
+import { PlanApprovalRecordV0_19_0Schema } from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+import { PlanApprovalsPreSchemaSchema } from "../../../src/schemas/history/plan-approvals/pre-schema.js";
+import { PlanDocumentV0_17_0Schema } from "../../../src/schemas/history/plan-document/0.17.0.js";
+import { PlanDocumentV0_20_0Schema } from "../../../src/schemas/history/plan-document/0.20.0.js";
+import { PlanDocumentV0_25_0Schema } from "../../../src/schemas/history/plan-document/0.25.0.js";
+import { PlanDocumentV0_26_0Schema } from "../../../src/schemas/history/plan-document/0.26.0.js";
+import { PlanDocumentV0_28_0Schema } from "../../../src/schemas/history/plan-document/0.28.0.js";
+import { PlanDocumentV0_32_0Schema } from "../../../src/schemas/history/plan-document/0.32.0.js";
+import { PlanDocumentV0_33_0Schema } from "../../../src/schemas/history/plan-document/0.33.0.js";
+import { PlanDocumentPreSchemaSchema } from "../../../src/schemas/history/plan-document/pre-schema.js";
+import { RegistryV0_17_0Schema } from "../../../src/schemas/history/registry/0.17.0.js";
+import { RegistryPreSchemaSchema } from "../../../src/schemas/history/registry/pre-schema.js";
+import { ReviewStopV0_26_0Schema } from "../../../src/schemas/history/review-stop/0.26.0.js";
+import { RunListV0_26_0Schema } from "../../../src/schemas/history/run-list/0.26.0.js";
+import { RunListV0_30_0Schema } from "../../../src/schemas/history/run-list/0.30.0.js";
+import { RunStatusV0_17_0Schema } from "../../../src/schemas/history/run-status/0.17.0.js";
+import { RunStatusV0_26_0Schema } from "../../../src/schemas/history/run-status/0.26.0.js";
+import { RunStatusPreSchemaSchema } from "../../../src/schemas/history/run-status/pre-schema.js";
+import { SpecApprovalRecordV0_19_0Schema } from "../../../src/schemas/history/spec-approval-record/0.19.0.js";
+import { SpecApprovalsPreSchemaSchema } from "../../../src/schemas/history/spec-approvals/pre-schema.js";
+import { SpecDocumentV0_17_0Schema } from "../../../src/schemas/history/spec-document/0.17.0.js";
+import { SpecDocumentV0_25_0Schema } from "../../../src/schemas/history/spec-document/0.25.0.js";
+import { SpecDocumentV0_27_0Schema } from "../../../src/schemas/history/spec-document/0.27.0.js";
+import { SpecDocumentPreSchemaSchema } from "../../../src/schemas/history/spec-document/pre-schema.js";
 import { parseVerdictsFile } from "../../../src/domain/decide/verdicts.js";
 import {
   describeReportError,
@@ -125,7 +191,8 @@ import {
 } from "../../../src/schemas/persisted.js";
 import { readPlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { OTHER_OPTION_ID } from "../../../src/schemas/questions.js";
-import type { FormatId } from "../../../src/schemas/schemaUrl.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { compareReleases, schemaUrl, type FormatId } from "../../../src/schemas/schemaUrl.js";
 import { fromSchema } from "./fromEffect.js";
 
 /** A JSON document as a generator produces it and a repair takes it. */
@@ -155,11 +222,44 @@ interface Derivation {
 }
 
 type PhaxReader =
-  | { readonly phax: { readonly read: Reader }; readonly writeOnly?: never }
+  | {
+      readonly phax: {
+        readonly read: Reader;
+        /**
+         * Whether the file reads, apart from a later step that may refuse the value read (a plan
+         * document's lift: "a refused lift is not a read error"). `read` when absent.
+         */
+        readonly readFile?: Reader;
+      };
+      readonly writeOnly?: never;
+    }
   | { readonly phax: null; readonly writeOnly: string };
+
+/** A frozen shape's document as written: its stamp (`null` when pre-schema) and its JSON. */
+interface StampedDocument {
+  readonly release: string | null;
+  readonly document: unknown;
+}
+
+/** One older shape of a format: a module of src/schemas/history/<id>/. */
+type FrozenShape = {
+  /** `pre-schema`, or the X.Y.Z of the module. */
+  readonly shape: string;
+  /** Valid documents of the shape, without `$schema`; derived on first call. */
+  readonly valid: () => fc.Arbitrary<Document>;
+  /** The releases whose stamp names this shape; empty when pre-schema. */
+  readonly releases: ReadonlyArray<string>;
+  /** `valid` documents encoded through the frozen schema, stamped with one of `releases`. */
+  readonly stamped: () => fc.Arbitrary<StampedDocument>;
+} & (
+  | { readonly readers: "both"; readonly packageOnly?: never }
+  | { readonly readers: "package"; readonly packageOnly: string }
+);
 
 export type FormatEntry = {
   readonly id: FormatId;
+  /** The frozen shapes, oldest first: one per module under src/schemas/history/<id>/. */
+  readonly frozen: ReadonlyArray<FrozenShape>;
   /** Valid current-shape documents, `$schema` first; derived on first call. */
   readonly valid: () => fc.Arbitrary<Document>;
   readonly repairs: ReadonlyArray<Repair>;
@@ -256,6 +356,15 @@ const readPlanSidecar: Reader = (input) => {
   return sidecar.lift.kind === "lifted"
     ? ok(sidecar.lift.document, sidecar.shape)
     : refused(`${sidecar.shape} lift refused: ${sidecar.lift.kind}`);
+};
+
+// The plan sidecar as the file reads: a refused lift still reads, with the value its frozen
+// decoder read.
+const readPlanSidecarFile: Reader = (input) => {
+  const result = readDocumentSidecar("plan", FILE, input);
+  if (Result.isFailure(result)) return refused(result.failure.message);
+  const sidecar = result.success;
+  return ok(sidecar.shape === "current" ? sidecar.document : sidecar.older, sidecar.shape);
 };
 
 const readPlanExtraction: Reader = (input) => {
@@ -525,6 +634,106 @@ const awaitingReviewRecordsAWaitingStop: Repair = {
   },
 };
 
+// ── frozen shapes ─────────────────────────────────────────────────────────
+
+/** The releases of packages/schemas/releases.json, oldest first. */
+export const RELEASE_LEDGER: ReadonlyArray<string> = (
+  JSON.parse(
+    readFileSync(new URL("../../../packages/schemas/releases.json", import.meta.url), "utf8"),
+  ) as { readonly releases: ReadonlyArray<string> }
+).releases;
+
+const PRE_SCHEMA = "pre-schema";
+
+interface FrozenSpec {
+  /** `pre-schema`, or the X.Y.Z of the module. */
+  readonly shape: string;
+  /** The module's exported schema. */
+  readonly schema: Schema.Top;
+  readonly repairs?: ReadonlyArray<Repair>;
+  readonly derivation?: Derivation;
+  /** Why phax's reader refuses this shape by design; absent when phax reads it. */
+  readonly packageOnly?: string;
+  /**
+   * Why only the shape's own release stamps it, when its `$schema` is a const (an answer's): the
+   * package maps a later stamp to this shape, which then refuses it at `$schema`.
+   */
+  readonly ownStampOnly?: string;
+}
+
+const frozenOrder = (a: FrozenSpec, b: FrozenSpec): number =>
+  a.shape === b.shape
+    ? 0
+    : a.shape === PRE_SCHEMA
+      ? -1
+      : b.shape === PRE_SCHEMA
+        ? 1
+        : compareReleases(a.shape, b.shape);
+
+/**
+ * The releases that stamp a shape: from its own release up to, not including, the next shape's
+ * release, or the format's current stamp for the last frozen shape. A shape no later one replaces
+ * and the current stamp names (a retired format's) is stamped by its own release alone.
+ */
+const stampRange = (
+  id: FormatId,
+  shape: string,
+  next: string | undefined,
+): ReadonlyArray<string> => {
+  if (shape === PRE_SCHEMA) return [];
+  const until = next ?? CURRENT_STAMPS[id];
+  const range = RELEASE_LEDGER.filter(
+    (release) => compareReleases(release, shape) >= 0 && compareReleases(release, until) < 0,
+  );
+  return range.length === 0 ? [shape] : range;
+};
+
+function frozenShapes(
+  id: FormatId,
+  specs: ReadonlyArray<FrozenSpec>,
+  writeOnly: string | null,
+): ReadonlyArray<FrozenShape> {
+  const ordered = specs.toSorted(frozenOrder);
+  return ordered.map((spec, index) => {
+    const repairs = [numbersAreJsonNumbers, ...(spec.repairs ?? [])];
+    const label = `${id} ${spec.shape} (frozen)`;
+    const encode = Schema.encodeUnknownSync(spec.schema as Schema.Codec<unknown, unknown>);
+    const releases =
+      spec.ownStampOnly === undefined
+        ? stampRange(id, spec.shape, ordered[index + 1]?.shape)
+        : [spec.shape];
+    let derived: fc.Arbitrary<Document> | undefined;
+    const valid = (): fc.Arbitrary<Document> => {
+      derived ??= fromSchema(
+        spec.derivation === undefined ? label : `${label} (${spec.derivation.name})`,
+        spec.derivation?.schema ?? spec.schema,
+      ).map((value) =>
+        repairs.reduce(
+          (current, { repair }) => repair(current),
+          withoutSchema(plain(value)) as Document,
+        ),
+      );
+      return derived;
+    };
+    const stamped = (): fc.Arbitrary<StampedDocument> =>
+      fc
+        .tuple(valid(), releases.length === 0 ? fc.constant(null) : fc.constantFrom(...releases))
+        .map(([value, release]) => ({
+          release,
+          document: JSON.parse(
+            JSON.stringify(
+              encode(release === null ? value : { $schema: schemaUrl(id, release), ...value }),
+            ),
+          ) as unknown,
+        }));
+    const base = { shape: spec.shape, valid, releases, stamped };
+    const packageOnly = writeOnly ?? spec.packageOnly;
+    return packageOnly === undefined
+      ? { ...base, readers: "both" as const }
+      : { ...base, readers: "package" as const, packageOnly };
+  });
+}
+
 // ── entries ───────────────────────────────────────────────────────────────
 
 interface EntrySpec {
@@ -563,6 +772,7 @@ function entry<F extends FormatId>(
     spec.phax === null ? { phax: null, writeOnly: spec.writeOnly } : { phax: spec.phax };
   return {
     id,
+    frozen: frozenShapes(id, FROZEN_SPECS[id] ?? [], spec.phax === null ? spec.writeOnly : null),
     valid,
     repairs,
     ...(derivation === undefined ? {} : { derivation }),
@@ -573,6 +783,157 @@ function entry<F extends FormatId>(
 }
 
 const read = (reader: Reader) => ({ read: reader });
+
+const NEVER_RECORDED_BASE =
+  "readPhaseStatusFile refuses a pre-schema phase status: it never recorded `base`, the commit its branch was created from, and phax does not re-derive one from git";
+
+const ANSWER_READS_THE_CURRENT_STAMP =
+  "readReport (src/schemas/persisted.ts) refuses an answer stamped below the format's current stamp as an older shape: the provider is told the stamp it must write";
+
+const EXTRACTION_READS_ITS_STAMP =
+  "readPlanExtractionAnswer (src/schemas/planExtraction.ts) decodes a const `$schema` that reads only the current stamp: the extraction model is told it, and no file of the answer is kept";
+
+const ANSWER_STAMP_IS_A_CONST =
+  "the shape's `$schema` is a const (answerSchemaUrlField) naming its own release, so the package refuses it at `$schema` under any later stamp";
+
+/** An older attribution is read only when every step has a result: a pending step has none. */
+const stepsPassOrFail: Repair = {
+  name: "older-steps-pass-or-fail",
+  reason:
+    "readGateAttributionFile refuses an older attribution with a pending step, which has no result for phax to record (isPassOrFail, and the 0.26.0 decoder)",
+  repair: (value) => ({
+    ...value,
+    steps: (value["steps"] as ReadonlyArray<Document>).map((step) =>
+      step["result"] === "pending" ? { ...step, result: "fail" } : step,
+    ),
+  }),
+};
+
+/** A pre-schema plan never recorded `completesSpec`, so it is read only beside no source spec. */
+const preSchemaPlanHasNoSourceSpec: Repair = {
+  name: "pre-schema-plan-has-no-source-spec",
+  reason:
+    "readPlanDocumentSidecar refuses a pre-schema plan document beside a source spec: it never recorded completesSpec",
+  repair: (value) => ({ ...value, sourceSpec: null }),
+};
+
+const shape = (
+  name: string,
+  schema: Schema.Top,
+  more: Omit<FrozenSpec, "shape" | "schema"> = {},
+): FrozenSpec => ({ shape: name, schema, ...more });
+
+/** Each format's modules under src/schemas/history/<id>/, in any order. */
+const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
+  registry: [shape("pre-schema", RegistryPreSchemaSchema), shape("0.17.0", RegistryV0_17_0Schema)],
+  "run-status": [
+    shape("pre-schema", RunStatusPreSchemaSchema),
+    shape("0.17.0", RunStatusV0_17_0Schema),
+    shape("0.26.0", RunStatusV0_26_0Schema),
+  ],
+  "phase-status": [
+    shape("pre-schema", PhaseStatusPreSchemaSchema, { packageOnly: NEVER_RECORDED_BASE }),
+    shape("0.17.0", PhaseStatusV0_17_0Schema, {
+      packageOnly:
+        "readPhaseStatusFile reads a stamp below 0.26.0 with the 0.20.0 decoder, which requires `base`; 0.17.0 to 0.19.x never recorded it",
+    }),
+    shape("0.20.0", PhaseStatusV0_20_0Schema),
+    shape("0.26.0", PhaseStatusV0_26_0Schema, { repairs: [awaitingReviewRecordsAWaitingStop] }),
+  ],
+  "phax-plan": [
+    shape("pre-schema", PhaxPlanPreSchemaSchema),
+    shape("0.17.0", PhaxPlanV0_17_0Schema),
+    shape("0.26.0", PhaxPlanV0_26_0Schema),
+    shape("0.28.0", PhaxPlanV0_28_0Schema),
+    shape("0.32.0", PhaxPlanV0_32_0Schema),
+    shape("0.33.0", PhaxPlanV0_33_0Schema),
+  ],
+  "compliance-review": [
+    shape("pre-schema", ComplianceReviewPreSchemaSchema),
+    shape("0.17.0", ComplianceReviewV0_17_0Schema),
+  ],
+  "plan-approvals": [shape("pre-schema", PlanApprovalsPreSchemaSchema)],
+  "spec-approvals": [shape("pre-schema", SpecApprovalsPreSchemaSchema)],
+  "phase-record-manifest": [
+    shape("pre-schema", PhaseRecordManifestPreSchemaSchema),
+    shape("0.17.0", PhaseRecordManifestV0_17_0Schema),
+    shape("0.26.0", PhaseRecordManifestV0_26_0Schema),
+    shape("0.30.0", PhaseRecordManifestV0_30_0Schema),
+    shape("0.33.0", PhaseRecordManifestV0_33_0Schema),
+  ],
+  "authoring-record-manifest": [
+    shape("pre-schema", AuthoringRecordManifestPreSchemaSchema),
+    shape("0.17.0", AuthoringRecordManifestV0_17_0Schema),
+    shape("0.23.0", AuthoringRecordManifestV0_23_0Schema),
+  ],
+  "gate-attribution": [
+    shape("pre-schema", GateAttributionPreSchemaSchema, { repairs: [stepsPassOrFail] }),
+    shape("0.17.0", GateAttributionV0_17_0Schema, { repairs: [stepsPassOrFail] }),
+    shape("0.20.0", GateAttributionV0_20_0Schema),
+    shape("0.21.0", GateAttributionV0_21_0Schema),
+    shape("0.26.0", GateAttributionV0_26_0Schema),
+    shape("0.31.0", GateAttributionV0_31_0Schema),
+  ],
+  "phase-file-reconciliation": [
+    shape("pre-schema", PhaseFileReconciliationPreSchemaSchema),
+    shape("0.17.0", PhaseFileReconciliationV0_17_0Schema),
+  ],
+  "spec-document": [
+    shape("pre-schema", SpecDocumentPreSchemaSchema),
+    shape("0.17.0", SpecDocumentV0_17_0Schema),
+    shape("0.25.0", SpecDocumentV0_25_0Schema),
+    shape("0.27.0", SpecDocumentV0_27_0Schema),
+  ],
+  "plan-document": [
+    shape("pre-schema", PlanDocumentPreSchemaSchema, { repairs: [preSchemaPlanHasNoSourceSpec] }),
+    shape("0.17.0", PlanDocumentV0_17_0Schema, {
+      packageOnly:
+        "readPlanDocumentSidecar reads a stamp below 0.25.0 with the 0.20.0 decoder, which requires `completesSpec`; 0.17.0 to 0.19.x never recorded it",
+    }),
+    shape("0.20.0", PlanDocumentV0_20_0Schema),
+    shape("0.25.0", PlanDocumentV0_25_0Schema),
+    shape("0.26.0", PlanDocumentV0_26_0Schema),
+    shape("0.28.0", PlanDocumentV0_28_0Schema),
+    shape("0.32.0", PlanDocumentV0_32_0Schema),
+    shape("0.33.0", PlanDocumentV0_33_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
+  ],
+  "plan-approval-record": [shape("0.19.0", PlanApprovalRecordV0_19_0Schema)],
+  "spec-approval-record": [shape("0.19.0", SpecApprovalRecordV0_19_0Schema)],
+  "brief-record": [shape("0.20.0", BriefRecordV0_20_0Schema)],
+  "hand-decision-answer": [shape("0.25.0", HandDecisionAnswerV0_25_0Schema)],
+  "decision-record-manifest": [
+    shape("0.25.0", DecisionRecordManifestV0_25_0Schema),
+    shape("0.28.0", DecisionRecordManifestV0_28_0Schema),
+    shape("0.30.0", DecisionRecordManifestV0_30_0Schema),
+  ],
+  "cost-ledger": [
+    shape("0.25.0", CostLedgerV0_25_0Schema),
+    shape("0.26.0", CostLedgerV0_26_0Schema),
+  ],
+  "oracle-request": [shape("0.26.0", OracleRequestV0_26_0Schema)],
+  "first-reading": [
+    shape("0.26.0", FirstReadingV0_26_0Schema, { packageOnly: ANSWER_READS_THE_CURRENT_STAMP }),
+  ],
+  "interactive-handoff": [
+    shape("0.26.0", InteractiveHandoffV0_26_0Schema, {
+      packageOnly: ANSWER_READS_THE_CURRENT_STAMP,
+    }),
+  ],
+  "interactive-session": [shape("0.26.0", InteractiveSessionV0_26_0Schema)],
+  "review-stop": [shape("0.26.0", ReviewStopV0_26_0Schema)],
+  "run-list": [shape("0.26.0", RunListV0_26_0Schema), shape("0.30.0", RunListV0_30_0Schema)],
+  "code-review": [shape("0.29.0", CodeReviewV0_29_0Schema)],
+  "phax-plan-extraction": [
+    shape("0.32.0", PhaxPlanExtractionV0_32_0Schema, {
+      packageOnly: EXTRACTION_READS_ITS_STAMP,
+      ownStampOnly: ANSWER_STAMP_IS_A_CONST,
+    }),
+    shape("0.33.0", PhaxPlanExtractionV0_33_0Schema, {
+      packageOnly: EXTRACTION_READS_ITS_STAMP,
+      ownStampOnly: ANSWER_STAMP_IS_A_CONST,
+    }),
+  ],
+};
 
 /** Every ledger format's entry; typed over every FormatId, so a missing one fails the typecheck. */
 export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readonly id: F } } = {
@@ -643,7 +1004,7 @@ export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readon
     schema: PlanDocumentSchema,
     derivation: planDocumentFields,
     repairs: [lineagePairsSpecAndCompletion, planQuestionsPassTheQuestionChecks],
-    phax: read(readPlanSidecar),
+    phax: { read: readPlanSidecar, readFile: readPlanSidecarFile },
     parse: fromPackage(parsePlanDocument),
   }),
   "plan-approval-record": entry("plan-approval-record", {
