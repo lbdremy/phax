@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/plan-document/0.33.0.json",
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
   "kind": "plan",
   "sourceSpec": "docs/specs/2611131320-property-tests.md",
   "completesSpec": false,
