@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611131320-property-tests.md
 completes-spec: false
+approved:
+  date: 2026-11-14
+  baseline: c4b3f91
 ---
 # Property tests over the persisted formats
 
