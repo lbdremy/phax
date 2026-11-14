@@ -46,6 +46,21 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # The property tests' budget (spec property-tests, ac-budget): at the
+      # default 100 inputs per property, the property files together take at
+      # most 60 seconds on CI. Timed alone, so the time is theirs and not a
+      # loaded suite's; the Test step above already ran them.
+      - name: Property tests budget
+        run: |
+          start=$(date +%s)
+          pnpm test:unit tests/unit/property
+          elapsed=$(( $(date +%s) - start ))
+          echo "The property tests took ${elapsed} s of their 60 s budget"
+          if [ "$elapsed" -gt 60 ]; then
+            echo "::error::The property tests took ${elapsed} s, over their 60 s budget (docs/property-tests.md)"
+            exit 1
+          fi
+
       - name: Lint
         run: pnpm lint
 
