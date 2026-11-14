@@ -186,6 +186,7 @@ describe("ac-bounds: Assignment bounds govern a non-canonical path", () => {
 
 describe("ac-unplannable: Each kind of unplannable path is refused", () => {
   const rows: readonly (readonly [written: string, reason: string])[] = [
+    ["", "empty"],
     ["./", "empty"],
     ["/src/x.ts", "absolute"],
     ["../x.ts", "leaves the repository"],
@@ -206,6 +207,24 @@ describe("ac-unplannable: Each kind of unplannable path is refused", () => {
       expect(report.findings.some((f) => f.severity === "error" && f.phase === "phase-01")).toBe(
         false,
       );
+    });
+  }
+});
+
+describe("ac-unplannable: an empty item is an empty path", () => {
+  for (const [label, item] of [
+    ["a bare bullet", "-"],
+    ["a code span of spaces", "- `   `"],
+  ] as const) {
+    it(`a plan.md whose Planned files to edit holds ${label} is refused: empty`, async () => {
+      const md = planMd([{ create: ["src/a.ts"] }, { edit: ["src/b.ts"] }]).replace(
+        "- `src/b.ts`",
+        `- \`src/b.ts\`\n${item}`,
+      );
+      const report = await lint(md);
+      expect(messagesOf(report, "structure", "phase-02")).toEqual([
+        'Planned files to edit: "" is empty',
+      ]);
     });
   }
 });

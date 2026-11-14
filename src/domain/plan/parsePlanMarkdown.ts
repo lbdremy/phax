@@ -51,6 +51,18 @@ function listItemTexts(list: List): string[] {
   return list.children.map((item) => toString(item).trim()).filter((s) => s.length > 0);
 }
 
+// A planned-file item keeps its place even when it writes no path: an empty
+// bullet, a code span holding only spaces, or a lone backtick run (`` is an
+// empty code span to the author, literal text to CommonMark) reads as the
+// empty path, which the canonical-path rule refuses.
+const BACKTICK_RUN_RE = /^`+$/;
+function plannedItemTexts(list: List): string[] {
+  return list.children.map((item) => {
+    const text = toString(item).trim();
+    return BACKTICK_RUN_RE.test(text) ? "" : text;
+  });
+}
+
 function normalizeItems(items: string[]): string[] {
   if (items.length === 1 && NONE_ITEM_RE.test(items[0]!)) return [];
   return items;
@@ -133,7 +145,7 @@ function extractPlannedList(
       }),
     );
   }
-  return Result.succeed(normalizeItems(listItemTexts(list)));
+  return Result.succeed(normalizeItems(plannedItemTexts(list)));
 }
 
 // Strip a leading/trailing backtick wrap: `foo` → foo. Also handles the case
