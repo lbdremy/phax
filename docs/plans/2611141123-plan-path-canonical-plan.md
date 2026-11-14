@@ -30,7 +30,7 @@ phase-08 edits `.claude/skills/phax-planning/SKILL.md`, so run this plan with `p
 - Stamps in tests. The corpus cases of the new shapes name `https://docs.phax.run/schemas/<id>/0.38.0.json` literally and record shape `next`. The cut renames the snapshot to 0.38.0 and the next opening keeps it, so these cases hold on both sides of `scripts/release.sh --rehearse`. No other assertion names 0.38.0 or `PHAX_RELEASE`: tests compare with `currentSchemaUrl(...)` and, where a change must show, with the 0.33.0 URL it must differ from.
 - Live sidecars after the merge. Every live plan sidecar in docs/plans is stamped 0.33.0, so once this lands each one is an older shape, and approve, reopen, decide and revise refuse until `phax artifact migrate-documents` rewrites it. No phase may run that command, and the run itself uses the installed phax 0.37.0. The operator runs it once after merging, and the 0.38.0 upgrading entry says so. Loss accepted: one migration commit on main.
 
-## Open questions
+## Arbitrated questions
 
 ### q-corpus-stamp — Four corpus case files give documents stamped 0.33.0 to a reader whose `$schema` is a const at the format's current stamp. `tests/behaviourCorpus/cases/encode/plan-document.json` and `encode/phax-plan-extraction.json` are round trips through the current file decoder, and their input must decode. `answers/plan-extraction.json` and the plan cases of `answers/authoring-answer.json` go through the answer readers. Once plan-document and phax-plan-extraction move to the next stamp (0.38.0), those inputs are refused at `$schema`, so their recorded answers no longer replay. CONTRIBUTING says a recorded expectation is never changed. What do these cases become in phase-03?
 
@@ -38,6 +38,13 @@ phase-08 edits `.claude/skills/phax-planning/SKILL.md`, so run this plan with `p
 - retarget — Keep each case's input byte for byte, move it into its format's case file as a case of `frozen:<id>/0.33.0` whose expectation is what the frozen decoder answers, and add new encode and answer cases stamped 0.38.0. — abandons: These cases' recorded answers: an encode round trip or an answer reading becomes a frozen decoder's answer, so the expectations are rewritten anyway. The encode and answer subjects also lose every case that showed what they answered, and the corpus grows by a duplicated set of documents.
 
 Recommendation: restamp — The stamp names the shape, not the content. These documents hold only canonical paths, so they should decode identically under the new shape: that is the guarantee §5.7 asks for, and restamping lets the existing cases prove it. A diff that only replaces a URL is easy to review. Retargeting rewrites the expectations anyway and drops what these cases test.
+
+Decision: restamp — by operator (Rémy Loubradou), 2026-11-14
+Why: The stamp names the shape, not the content. These documents hold only canonical paths, so they should decode identically under the new shape: that is the guarantee §5.7 asks for, and restamping lets the existing cases prove it. A diff that only replaces a URL is easy to review. Retargeting rewrites the expectations anyway and drops what these cases test. Advocate: The strongest case for retarget: CONTRIBUTING says a recorded expectation is never changed, and retarget keeps every recorded input byte for byte as a frozen-decoder case, so the corpus rule holds without exception and no reviewer has to verify by diff that a URL was the only edit. Principles: C1, C3, E0. Reversibility: cheap. Revised: none. Phase: phase-03.
+
+## Decision log
+
+- 2026-11-14 q-corpus-stamp decided restamp — operator (Rémy Loubradou)
 
 ---
 
