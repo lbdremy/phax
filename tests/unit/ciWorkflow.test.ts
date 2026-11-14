@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
+import { vitestSelection } from "../helpers/vitestSelection.js";
 
 const workflowPath = join(import.meta.dirname, "../../.github/workflows/ci.yml");
 const workflow = readFileSync(workflowPath, "utf-8");
@@ -154,7 +155,14 @@ describe("Security workflow", () => {
     const job = security.jobs["property-tests"]!;
     const step = job.steps.find((s) => s.name === "Property tests, deep pass")!;
     expect(step.env).toEqual({ PHAX_PROPERTY_RUNS: "2000", PHAX_PROPERTY_SEED: "random" });
-    expect(step.run).toBe("pnpm test:unit tests/unit/property");
+    // The step runs every property file and nothing else, whatever the script it calls holds.
+    const root = join(import.meta.dirname, "../..");
+    const propertyFiles = readdirSync(join(root, "tests/unit/property"))
+      .filter((name) => name.endsWith(".test.ts"))
+      .map((name) => `tests/unit/property/${name}`)
+      .toSorted();
+    expect(propertyFiles.length).toBeGreaterThan(0);
+    expect(vitestSelection(step.run!, root)).toEqual(propertyFiles);
   });
 
   it("sets up the property-tests job with the same pinned actions as security-audit", () => {

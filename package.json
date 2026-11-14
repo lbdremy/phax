@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/cli/main.ts",
     "test": "vitest run",
-    "test:unit": "vitest run tests/unit",
+    "test:unit": "vitest run --project unit",
     "test:integration": "vitest run tests/integration",
     "test:type": "tsc --noEmit -p tsconfig.test.json",
     "lint": "oxlint .",

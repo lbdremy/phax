@@ -13,6 +13,7 @@ import {
   readPropertyParameters,
   replayCommand,
 } from "../../helpers/property/harness.js";
+import { vitestSelection } from "../../helpers/vitestSelection.js";
 
 const refusal = (env: Record<string, string>, variable: string) => {
   let thrown: unknown;
@@ -164,6 +165,12 @@ describe("replay line", () => {
         name,
       ).toEqual([name]);
     }
+  });
+
+  it("runs the failing test's file alone", () => {
+    const own = "tests/unit/property/harnessConfig.test.ts";
+    const replay = replayCommand(1, "0", { file: own, name: "replay line > it's here" });
+    expect(vitestSelection(replay, process.cwd())).toEqual([own]);
   });
 
   it("escapes a name's regular-expression syntax and its quotes", () => {
