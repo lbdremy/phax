@@ -60,6 +60,28 @@ describe("CI workflow invariants", () => {
   it("runs pnpm deno:compile", () => {
     expect(workflow).toContain("pnpm deno:compile");
   });
+
+  it("times the property files alone against their 60-second budget", () => {
+    const steps = (
+      parse(workflow) as {
+        readonly jobs: Readonly<
+          Record<string, { readonly steps: readonly { name?: string; run?: string }[] }>
+        >;
+      }
+    ).jobs["ci"]!.steps;
+    const step = steps.find((s) => s.name === "Property tests budget");
+    expect(step?.run).toBeDefined();
+    const lines = step!.run!.split("\n").map((line) => line.trim());
+    const command = lines.find((line) => line.startsWith("pnpm "))!;
+    const root = join(import.meta.dirname, "../..");
+    const propertyFiles = readdirSync(join(root, "tests/unit/property"))
+      .filter((name) => name.endsWith(".test.ts"))
+      .map((name) => `tests/unit/property/${name}`)
+      .toSorted();
+    expect(vitestSelection(command, root)).toEqual(propertyFiles);
+    expect(lines).toContain('if [ "$elapsed" -gt 60 ]; then');
+    expect(lines).toContain("exit 1");
+  });
 });
 
 // GitHub substitutes `${{ … }}` into a step's script text before the shell

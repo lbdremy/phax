@@ -39,6 +39,8 @@ Property tests import only from `src/domain`, `src/schemas`, `packages/schemas` 
 
 On a pull request and locally, each property runs 100 inputs from a fixed seed (`20261113`), so a run is repeatable: the same code gives the same inputs. Each property finishes within the unit tier's 30-second timeout at that count.
 
+At that count the property files together take at most 60 seconds on CI. The `Property tests budget` step of `.github/workflows/ci.yml` checks it: after the full test run, it runs `pnpm test:unit tests/unit/property` alone and fails if that takes over 60 seconds. The check times the files alone, outside the suite: within `pnpm test` they share the machine with every other test file, so their time there measures the load as much as the properties, and a bound on it would fail at random.
+
 ## The three environment variables
 
 | Variable              | Meaning                                                                                                                              |
