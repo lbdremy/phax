@@ -11,38 +11,36 @@ queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-par
 mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
 Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-13
+## The queue, as of 2026-11-14
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
 
 ### 1. Revise a Draft artifact
 
-- [ ] **`artifact-revise`** — `docs/specs/2610271505-artifact-revise.md`, Draft with 2 open
-      questions: revise an authored spec or plan through its kept session. Moved up 2026-11-10
-      (operator): revising an authored artifact is needed often. 2026-11-13: first, check the
-      spec against today's code (it predates the command library's runner), then decide its two
-      questions. The `property-tests` plan below is its first use.
+- [x] **`artifact-revise`** — landed in 0.38.0 (#229): `phax artifact revise` revises a Draft
+      headless spec or plan from an amendment through its kept session. Its PR also fixed the
+      release tooling for a format born in a release (the shipped-JSON check and the behaviour
+      corpus's `next` shape across a cut). First real use 2026-11-14: the `property-tests` plan.
 
 ### 2. One canonical form for a plan's paths
 
-- [ ] **`plan-path-canonical`** — `docs/briefs/plan-path-canonical.md` (2026-11-13), spec to
-      author: every file path a plan names is made canonical where the plan is decoded, so
-      reconciliation, lint, the glob checks, staleness and `plans overlap` compare the same
-      strings (raised by the declined outside contribution #205). Before `property-tests`
-      (operator, 2026-11-13): it bumps `phax-plan` and the plan document, and the property
-      tests' generators and frozen shapes should start from the canonical form.
+- [x] **`plan-path-canonical`** — landed in 0.38.0 (#230): a plan path is made canonical, or
+      refused, where the plan is decoded; `phax-plan`, the plan document and the extraction
+      answer moved to the 0.38.0 shape (operator, 2026-11-14: bump, since the rule reaches the
+      published JSON Schema). #231 fixed the release notes, which named a headless plan by its
+      sidecar's `run.shortName` instead of its title's slug.
 
 ### 3. Property tests over the input boundaries
 
-- [ ] **`property-tests`** — `docs/specs/2611131320-property-tests.md`, Approved 2026-11-13
-      (six questions decided), first plan `docs/plans/2611131338-property-tests-plan.md` Draft:
-      the persisted formats and the shared harness (fast-check, seed and replay, the bridge from
-      `effect/Arbitrary`, a daily deep pass in the Security workflow). Revise the plan with
-      `phax artifact revise` once it ships: its required command must be `pnpm add` exactly (a
-      narrow allowance covers only itself) and fast-check 4.10.2, not 4.3.0. Later plans: the
-      plan parser, the reducer, the CLI arguments. Also counts for OpenSSF Scorecard's Fuzzing
-      check.
+- [ ] **`property-tests`** — `docs/specs/2611131320-property-tests.md`, Approved 2026-11-13.
+      Plan 1 landed (#232, #233): the persisted formats (42) and the shared harness (fast-check
+      4.10.2, seed and replay, the bridge from `effect/Arbitrary`, a daily deep pass in the
+      Security workflow at 2,000 runs and a fresh seed). It found one reader bug (a newer-stamped
+      record manifest refused for a missing `kind` instead of its release), and the first local
+      deep pass found a `__proto__` bug in the tests' own diff helper (#233). Next plans: the plan
+      parser (round trip, totality, bounded time, lint agreeing with extraction), then the
+      reducer, then the CLI arguments. Also counts for OpenSSF Scorecard's Fuzzing check.
 
 ### 4. Review findings: ids and fates
 
