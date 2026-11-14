@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-14
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-14
+  baseline: 48fa84c
 ---
 # Plan paths in one canonical form
 

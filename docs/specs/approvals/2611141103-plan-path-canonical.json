@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611141103-plan-path-canonical.md",
+  "specFingerprint": "703757deaaaa222a32efdd8b198ef262f88042940cef9edd49313099a3cd2bde",
+  "approvedAt": "2026-11-14T11:23:07.866Z",
+  "baseline": "48fa84cd7908242e9ac2823999736f874c85b2b0",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
