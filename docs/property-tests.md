@@ -43,7 +43,7 @@ On a pull request and locally, each property runs 100 inputs from a fixed seed (
 
 | Variable              | Meaning                                                                                                                              |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `PHAX_PROPERTY_SEED`  | An integer within int32, or `random`. Unset means the fixed seed. `random` draws a seed and prints it, with a replay hint.            |
+| `PHAX_PROPERTY_SEED`  | An integer within int32, or `random`. Unset means the fixed seed. `random` draws one seed per test file and prints it once, with a replay hint; every property of that file runs from it. |
 | `PHAX_PROPERTY_PATH`  | Colon-separated integers (for example `36:0:2`): the shrink path of a failure. It needs a fixed integer seed, not `random`.          |
 | `PHAX_PROPERTY_RUNS`  | A positive integer: how many inputs each property checks. Unset means 100. The per-test timeout grows by 30 s per 100 runs (rounded up). |
 
@@ -74,7 +74,7 @@ Run the replay line as printed:
 PHAX_PROPERTY_SEED=1849203311 PHAX_PROPERTY_PATH=36:0:2 pnpm test:unit tests/unit/property/persistedFormats.property.test.ts -t 'persistedFormats.property.test.ts > run-status > reads its written encoding back'
 ```
 
-The seed and path run only that failing input again. Without the path, the seed replays the whole run. A daily deep pass prints its seed in the log, so a failure there replays the same way.
+The seed and path run only that failing input again. Without the path, the seed replays the whole run. A daily deep pass prints its seeds in the log, one per property file, so a failure there replays the same way: its replay line names the seed it ran from.
 
 ## What to do with a counter-example
 
@@ -112,4 +112,4 @@ Add an entry only when the disagreement is deliberate: phax refuses by design wh
 
 ## The daily deep pass
 
-The `property-tests` job of `.github/workflows/security.yml` runs `pnpm test:unit tests/unit/property` with `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`: 2,000 inputs per property from a fresh seed, which the log prints. It runs on the schedule and on demand (`workflow_dispatch`), never on a pull request. A failure there is replayed with the printed line, and fixed as above.
+The `property-tests` job of `.github/workflows/security.yml` runs `pnpm test:unit tests/unit/property` with `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`: 2,000 inputs per property from a fresh seed per property file, each of which the log prints. It runs on the schedule and on demand (`workflow_dispatch`), never on a pull request. A failure there is replayed with the printed line, and fixed as above.

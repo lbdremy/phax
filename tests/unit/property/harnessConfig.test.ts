@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, matchesGlob } from "node:path";
 import * as fc from "fast-check";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import config from "../../../vitest.config.js";
 import {
   checkProperty,
@@ -87,6 +87,48 @@ describe("checkProperty", () => {
     expect(message).toContain("  10");
     expect(message).toContain("PHAX_PROPERTY_SEED=");
     expect(message).toContain("pnpm test:unit tests/unit/property/harnessConfig.test.ts -t '");
+  });
+
+  it("runs every property from the seed it prints under PHAX_PROPERTY_SEED=random", async () => {
+    // A fresh module instance: its random seed is drawn and its notice printed here, whatever ran
+    // before in this file.
+    vi.resetModules();
+    const harness = await import("../../helpers/property/harness.js");
+    const env = { PHAX_PROPERTY_SEED: "random" };
+    const inputsOf = (check: (predicate: (n: number) => boolean) => void) => {
+      const inputs: Array<number> = [];
+      check((n) => {
+        inputs.push(n);
+        return true;
+      });
+      return inputs;
+    };
+
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    let first: ReadonlyArray<number>;
+    let second: ReadonlyArray<number>;
+    let printed: ReadonlyArray<string>;
+    try {
+      first = inputsOf((predicate) => harness.checkProperty(fc.integer(), predicate, env));
+      second = inputsOf((predicate) => harness.checkProperty(fc.integer(), predicate, env));
+      printed = write.mock.calls
+        .map(([chunk]) => String(chunk))
+        .filter((line) => line.includes("PHAX_PROPERTY_SEED=random"));
+    } finally {
+      write.mockRestore();
+    }
+
+    expect(printed).toHaveLength(1);
+    const seed = /^Property seed (-?\d+) /.exec(printed[0]!)?.[1];
+    expect(seed).toBeDefined();
+    const replayed = inputsOf((predicate) => {
+      harness.runProperty(fc.integer(), predicate, {
+        env: { PHAX_PROPERTY_SEED: seed! },
+        location: { file: "tests/unit/property/harnessConfig.test.ts", name: "replay" },
+      });
+    });
+    expect(first).toEqual(replayed);
+    expect(second).toEqual(replayed);
   });
 });
 

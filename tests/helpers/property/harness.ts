@@ -39,6 +39,12 @@ const INT32_MAX = 2 ** 31 - 1;
 
 const randomInt32 = (): number => Math.floor(Math.random() * 2 ** 32) + INT32_MIN;
 
+// PHAX_PROPERTY_SEED=random draws one seed per process, on first read, so every property of the
+// process runs from the seed the notice prints. Vitest gives each test file its own module
+// instance, so a vitest run draws, and prints, one seed per property file.
+let randomSeed: number | undefined;
+const processRandomSeed = (): number => (randomSeed ??= randomInt32());
+
 /** Reads PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS from `env`. */
 export const readPropertyParameters = (env: PropertyEnv): PropertyParameters => {
   const rawSeed = env["PHAX_PROPERTY_SEED"];
@@ -46,7 +52,7 @@ export const readPropertyParameters = (env: PropertyEnv): PropertyParameters => 
   let seedSource: PropertyParameters["seedSource"] = "default";
   if (rawSeed !== undefined) {
     if (rawSeed === "random") {
-      seed = randomInt32();
+      seed = processRandomSeed();
       seedSource = "random";
     } else {
       const parsed = /^-?\d+$/.test(rawSeed) ? Number(rawSeed) : Number.NaN;
@@ -129,13 +135,16 @@ const literalOf = (value: unknown): string => {
   return fc.stringify(value);
 };
 
-/** Checks `predicate` over `arbitrary` under the parameters read from `options.env`. */
-export const runProperty = <T>(
+/** The command line that replays the failure at `seed` and `path` of the test at `location`. */
+const replayCommand = (seed: number, path: string, location: PropertyLocation): string =>
+  `PHAX_PROPERTY_SEED=${seed} PHAX_PROPERTY_PATH=${path} pnpm test:unit ${location.file} -t ${shellQuote(location.name)}`;
+
+const runWith = <T>(
+  { seed, path, runs }: PropertyParameters,
   arbitrary: fc.Arbitrary<T>,
   predicate: (value: T) => boolean,
-  options: { readonly env: PropertyEnv; readonly location: PropertyLocation },
+  location: PropertyLocation,
 ): PropertyOutcome<T> => {
-  const { seed, path, runs } = readPropertyParameters(options.env);
   const details = fc.check(fc.property(arbitrary, predicate), {
     seed,
     ...(path === undefined ? {} : { path }),
@@ -146,7 +155,7 @@ export const runProperty = <T>(
   const counterexample = (details.counterexample as [T])[0];
   const failedPath = details.counterexamplePath ?? "";
   const literal = literalOf(counterexample);
-  const replay = `PHAX_PROPERTY_SEED=${seed} PHAX_PROPERTY_PATH=${failedPath} pnpm test:unit ${options.location.file} -t ${shellQuote(options.location.name)}`;
+  const replay = replayCommand(seed, failedPath, location);
   const error = details.errorInstance;
   const report = [
     `Property failed after ${details.numRuns} runs (seed ${seed}, path "${failedPath}"), shrunk ${details.numShrinks} times`,
@@ -158,6 +167,14 @@ export const runProperty = <T>(
   ].join("\n");
   return { kind: "failed", seed, path: failedPath, counterexample, literal, replay, report };
 };
+
+/** Checks `predicate` over `arbitrary` under the parameters read from `options.env`. */
+export const runProperty = <T>(
+  arbitrary: fc.Arbitrary<T>,
+  predicate: (value: T) => boolean,
+  options: { readonly env: PropertyEnv; readonly location: PropertyLocation },
+): PropertyOutcome<T> =>
+  runWith(readPropertyParameters(options.env), arbitrary, predicate, options.location);
 
 let noticePrinted = false;
 
@@ -185,7 +202,8 @@ export const checkProperty = <T>(
     noticePrinted = true;
     process.stdout.write(`${notice}\n`);
   }
-  const outcome = runProperty(arbitrary, predicate, { env, location: locationFromVitest() });
+  // The parameters just read, not read again: the notice names the seed this property runs from.
+  const outcome = runWith(parameters, arbitrary, predicate, locationFromVitest());
   if (outcome.kind === "failed") throw new Error(outcome.report);
 };
 
