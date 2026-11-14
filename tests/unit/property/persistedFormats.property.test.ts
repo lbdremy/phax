@@ -1,0 +1,261 @@
+// Properties of the persisted formats (spec property-tests §5.1 to §5.6): every format of the
+// ledger has a registered generator, and reads the written encoding of any valid current-shape
+// value back to the value written.
+import { isDeepStrictEqual } from "node:util";
+import { describe, expect, it } from "vitest";
+import { withSchemaUrl } from "../../../src/schemas/persisted.js";
+import { FORMAT_IDS, type FormatId } from "../../../src/schemas/schemaUrl.js";
+import { FORMAT_REGISTRY, missingGenerators } from "../../helpers/property/formatRegistry.js";
+import { checkProperty, propertyTimeout } from "../../helpers/property/harness.js";
+
+const withoutSchema = (value: Readonly<Record<string, unknown>>): Record<string, unknown> => {
+  const { $schema: _schema, ...rest } = value;
+  return rest;
+};
+
+// The first path where `read` departs from `written`, for the failure report.
+const firstDifference = (written: unknown, read: unknown, path = ""): string | undefined => {
+  if (isDeepStrictEqual(written, read)) return undefined;
+  const isRecord = (value: unknown): value is Readonly<Record<string, unknown>> =>
+    typeof value === "object" && value !== null;
+  if (!isRecord(written) || !isRecord(read) || Array.isArray(written) !== Array.isArray(read)) {
+    return `${path || "(root)"}: wrote ${JSON.stringify(written)}, read ${JSON.stringify(read)}`;
+  }
+  for (const key of new Set([...Object.keys(written), ...Object.keys(read)])) {
+    const found = firstDifference(written[key], read[key], `${path}/${key}`);
+    if (found !== undefined) return found;
+  }
+  return `${path || "(root)"}: differs beyond its own keys`;
+};
+
+describe.each(FORMAT_IDS)("%s", (id) => {
+  it("has a generator", () => {
+    expect(missingGenerators([id], FORMAT_REGISTRY), `no generator registered for ${id}`).toEqual(
+      [],
+    );
+  });
+
+  it(
+    "reads its written encoding back",
+    () => {
+      const entry = FORMAT_REGISTRY[id];
+      const read = entry.phax?.read ?? entry.parse;
+      checkProperty(entry.valid(), (value) => {
+        const verdict = read(entry.write(value));
+        if (!verdict.ok) throw new Error(`refused: ${verdict.message}`);
+        const difference = firstDifference(withoutSchema(value), verdict.value);
+        if (difference !== undefined) throw new Error(`read back differs at ${difference}`);
+        return true;
+      });
+    },
+    propertyTimeout(),
+  );
+});
+
+// ── repairs ─────────────────────────────────────────────────────────────────
+// Each repair of the registry, on a hand-written value its schema (or its entry's derivation)
+// admits and phax's reader refuses: the reader's refusal, then the repaired value read.
+
+type Document = Readonly<Record<string, unknown>>;
+
+const phaxReader = (id: FormatId) => {
+  const read = FORMAT_REGISTRY[id].phax?.read;
+  if (read === undefined) throw new Error(`${id} has no phax reader`);
+  return read;
+};
+
+const repairNamed = (id: FormatId, name: string): ((value: Document) => Document) => {
+  const found = FORMAT_REGISTRY[id].repairs.find((repair) => repair.name === name);
+  if (found === undefined) throw new Error(`${id} registers no repair named ${name}`);
+  return found.repair;
+};
+
+const SHA = "0123456789abcdef0123456789abcdef01234567";
+
+const runStatus: Document = {
+  namespace: "phax",
+  shortName: "demo",
+  runId: "run-1",
+  state: "running",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+  phasesCount: Number.POSITIVE_INFINITY,
+  hold: { selection: "none" },
+};
+
+const phaseStatus: Document = {
+  phaseId: "phase-01",
+  phaseIndex: 0,
+  state: "awaiting_review",
+  model: "claude-opus-5-5",
+  effort: "high",
+  createdAt: "2026-01-01T00:00:00Z",
+  updatedAt: "2026-01-01T00:00:00Z",
+  branchName: "phax/demo--phase-01",
+  base: SHA,
+  mode: "headless",
+  stop: null,
+};
+
+const option = (id: string) => ({ id, label: `Option ${id}`, abandons: `What ${id} gives up` });
+
+const openQuestion = (id: string, recommendation = "a") => ({
+  id,
+  question: "Which one?",
+  options: [option("a"), option("b")],
+  recommendation,
+  rationale: "Because.",
+});
+
+const specDocument: Document = {
+  kind: "spec",
+  title: "Demo",
+  ground: [],
+  context: "Context.",
+  problem: "Problem.",
+  productGoal: { statement: "Goal.", guidingRule: "Rule." },
+  terminology: [],
+  requirements: [{ id: "R1", title: "One", pattern: "event", statement: "It does one thing." }],
+  surface: [],
+  nonGoals: [],
+  acceptanceCriteria: [
+    // Given/when/then is the criterion's shape; the key is data, never awaited.
+    // eslint-disable-next-line unicorn/no-thenable
+    { id: "AC1", name: "One", given: "Given.", when: "When.", then: "Then.", refs: ["R1"] },
+  ],
+  openQuestions: [],
+  arbitratedQuestions: [],
+  planningNote: { settled: [], open: [], constraints: [] },
+  docsPage: { kind: "none", why: "Internal." },
+};
+
+const planDocument: Document = {
+  kind: "plan",
+  sourceSpec: null,
+  completesSpec: null,
+  run: { shortName: "demo", title: "Demo", requiredCommands: [] },
+  preamble: {
+    summary: "Summary.",
+    requiredCommandsNote: "None.",
+    technicalArbitrations: [],
+    openQuestions: [],
+    arbitratedQuestions: [],
+  },
+  phases: [
+    {
+      id: "phase-01",
+      title: "One",
+      objective: "Objective.",
+      detailedInstructions: [],
+      planMarkdownAnchor: "#phase-01",
+      plannedFilesToCreate: ["src/one.ts"],
+      plannedFilesToEdit: [],
+      optionalFilesToEdit: [],
+      mode: "headless",
+      acceptance: null,
+      boundaryContracts: null,
+      testStrategy: [],
+      implementationOrder: [],
+      excludedScope: [],
+      verification: "The standard gate.",
+      expectedHandoff: "A handoff.",
+      commit: { subject: "feat: one", body: "One." },
+      assignmentReason: null,
+      model: "claude-opus-5-5",
+      effort: "high",
+    },
+  ],
+};
+
+const expectRepaired = (
+  id: FormatId,
+  name: string,
+  value: Document,
+  refusal: string,
+  written: (value: Document) => unknown = (document) => withSchemaUrl(id, document),
+) => {
+  const read = phaxReader(id);
+  const before = read(written(value));
+  expect(before.ok).toBe(false);
+  expect(before.ok ? "" : before.message).toContain(refusal);
+  const repaired = repairNamed(id, name)(value);
+  const after = read(written(repaired));
+  expect(after.ok ? after.value : after.message).toStrictEqual(repaired);
+};
+
+describe("repairs", () => {
+  it("numbers-are-json-numbers: a number JSON cannot carry is never written", () => {
+    expectRepaired(
+      "run-status",
+      "numbers-are-json-numbers",
+      runStatus,
+      "phasesCount: Expected number, actual null",
+      FORMAT_REGISTRY["run-status"].write,
+    );
+  });
+
+  it("awaiting-review-records-a-waiting-stop: a phase awaiting review records its stop", () => {
+    expectRepaired(
+      "phase-status",
+      "awaiting-review-records-a-waiting-stop",
+      phaseStatus,
+      "a phase awaiting review records no waiting stop",
+    );
+  });
+
+  it("questions-pass-the-question-checks: a spec's question ids are unique", () => {
+    expectRepaired(
+      "spec-document",
+      "questions-pass-the-question-checks",
+      { ...specDocument, openQuestions: [openQuestion("q1"), openQuestion("q1")] },
+      `"q1" duplicates the question id`,
+    );
+  });
+
+  it("questions-pass-the-question-checks: a plan's recommendation names one of its options", () => {
+    expectRepaired(
+      "plan-document",
+      "questions-pass-the-question-checks",
+      {
+        ...planDocument,
+        preamble: {
+          ...(planDocument["preamble"] as Document),
+          openQuestions: [openQuestion("q1", "c")],
+        },
+      },
+      `"c" names none of the question's options`,
+    );
+  });
+
+  it("requirements-are-traced: every requirement is referenced by a criterion", () => {
+    expectRepaired(
+      "spec-document",
+      "requirements-are-traced",
+      {
+        ...specDocument,
+        requirements: [
+          ...(specDocument["requirements"] as ReadonlyArray<Document>),
+          { id: "R2", title: "Two", pattern: "event", statement: "It does another thing." },
+        ],
+      },
+      `"R2" is referenced by no acceptance criterion`,
+    );
+  });
+
+  it("lineage-pairs-source-spec-and-completes-spec: no completion beside no source spec", () => {
+    expectRepaired(
+      "plan-document",
+      "lineage-pairs-source-spec-and-completes-spec",
+      { ...planDocument, sourceSpec: "docs/specs/demo.md", completesSpec: null },
+      "completesSpec is a boolean beside a sourceSpec path",
+    );
+  });
+});
+
+describe("missingGenerators", () => {
+  it("returns a ledger id the registry lacks", () => {
+    expect(missingGenerators([...FORMAT_IDS, "made-up-format"], FORMAT_REGISTRY)).toEqual([
+      "made-up-format",
+    ]);
+  });
+});
