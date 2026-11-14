@@ -1,9 +1,8 @@
 // Acceptance tests (spec plan-path-canonical §8): every reader that compares a plan's paths gives a
 // plan.md writing `./src/x.ts` the answer it gives one writing `src/x.ts`. Each test reads the
 // plan.md through the deterministic reader and asserts the reading succeeded before it compares
-// anything, so a plan that was skipped or refused cannot pass. They are marked `it.fails` until the
-// plan.md reading rewrites a plannable path; what they judge with is frozen with them, so the plan.md
-// builder below is local and imports no shared helper.
+// anything, so a plan that was skipped or refused cannot pass. What they judge with is frozen with
+// them, so the plan.md builder below is local and imports no shared helper.
 import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { computeStaleness } from "../../src/domain/artifact/lineage.js";
