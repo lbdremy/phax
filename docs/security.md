@@ -543,10 +543,10 @@ See `scripts/security/README.md` for the full toolkit reference.
   pull request, whose token is read-only, skips the upload.
 - **Run the property tests deeper, daily.** The `property-tests` job of the
   same workflow runs `pnpm test:unit tests/unit/property` with 2,000 inputs per
-  property from a fresh random seed, which the log prints. It runs on the
-  schedule and on demand, never on a pull request, where the same properties
-  run 100 inputs from a fixed seed in the unit tier. A failed scheduled run is
-  reported like the other scheduled jobs. See
+  property from a fresh random seed per property file, each of which the log
+  prints. It runs on the schedule and on demand, never on a pull request, where
+  the same properties run 100 inputs from a fixed seed in the unit tier. A
+  failed scheduled run is reported like the other scheduled jobs. See
   [`docs/property-tests.md`](property-tests.md) for how to replay a failure.
 - **Keep dependencies fresh.** `.github/dependabot.yml` opens weekly pull
   requests for the pnpm tree and the workflows' actions: minor and patch
