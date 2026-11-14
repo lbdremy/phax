@@ -281,6 +281,10 @@ Given the change is built, when `phax artifact schema plan` runs, then each of t
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-rewrite — A path that is not canonical but has a canonical form (`./src/x.ts`, `src//x.ts`, `src/a/../x.ts`): should the decode rewrite it or refuse it, and on which route?
 
 - rewrite-reading — Rewrite when phax reads a plan.md (the deterministic reading and the extraction answer); refuse in the plan document — abandons: Exact correspondence between a hand-written plan.md and phax-plan.json: the plan.md keeps `./src/x.ts` while every report says `src/x.ts`.
@@ -289,9 +293,8 @@ Given the change is built, when `phax artifact schema plan` runs, then each of t
 
 Recommendation: rewrite-reading — phax-plan.json is a projection of a plan.md and never a byte-for-byte copy, so rewriting while reading a plan.md loses nothing that was approved. It also keeps a model's harmless `./` from failing an extraction. The plan document is the artifact itself, written by a planner and approved by an operator, so it should hold exactly what phax reads; a refusal that names the canonical spelling costs the planner one retry.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: rewrite-reading — by operator (Rémy Loubradou), 2026-11-14
+Why: phax-plan.json is a projection of a plan.md and never a byte-for-byte copy, so rewriting while reading a plan.md loses nothing that was approved. It also keeps a model's harmless `./` from failing an extraction. The plan document is the artifact itself, written by a planner and approved by an operator, so it should hold exactly what phax reads; a refusal that names the canonical spelling costs the planner one retry. Advocate: The strongest case for refuse-everywhere: one rule on every route is simpler to state and to test, a plan.md and the phax-plan.json derived from it then agree byte for byte, and a cosmetic `./` is cheap for an author to fix once, where a silent rewrite hides that the written plan departs from what phax reads. Principles: S1, S3. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -319,3 +322,7 @@ Constraints:
 ## 11. Docs page
 
 None — There is no user docs page for plan file lists. The rule appears in the published plan-document schema (`phax artifact schema plan`) and in refusal messages; the planner may add one line to the phax-planning skill.
+
+## 12. Decision log
+
+- 2026-11-14 q-rewrite decided rewrite-reading — operator (Rémy Loubradou)
