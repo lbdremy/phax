@@ -559,7 +559,7 @@ describe("decideDocumentMigration — plans", () => {
           path: PLAN,
           problem: 'phase-02 plannedFilesToEdit "./src/x.ts" is not canonical: write "src/x.ts"',
           remedy:
-            "Edit the path in the plan, in the sidecar and plan.md alike, to its canonical form (or remove it), then re-approve the plan and rerun.",
+            "Edit the path to its canonical form (or remove it), in the sidecar and plan.md alike, rerun `phax artifact migrate-documents`, then re-approve the plan if needed.",
         },
       });
     });

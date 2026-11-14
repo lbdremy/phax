@@ -149,7 +149,7 @@ const TEST_STRATEGY_REMEDY =
   "Rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun.";
 
 const PLAN_PATH_REMEDY =
-  "Edit the path in the plan, in the sidecar and plan.md alike, to its canonical form (or remove it), then re-approve the plan and rerun.";
+  "Edit the path to its canonical form (or remove it), in the sidecar and plan.md alike, rerun `phax artifact migrate-documents`, then re-approve the plan if needed.";
 
 /**
  * Whether and how one older sidecar migrates. Refused when the artifact is

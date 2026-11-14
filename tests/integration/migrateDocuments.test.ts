@@ -1345,10 +1345,38 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
     expect(message).toContain("plannedFilesToEdit");
     expect(message).toContain('"./src/x.ts"');
     expect(message).toContain('write "src/x.ts"');
-    expect(message).toContain("Edit the path in the plan");
+    expect(message).toContain("Edit the path to its canonical form");
     expect(readRepoFile(PLAN)).toBe(md);
     expect(readRepoFile(sidecarOf(PLAN))).toBe(sidecar);
     expect(headSha()).toBe(head);
+    expect(porcelain()).toBe("");
+  });
+
+  it("follows the refusal's remedy: the path made canonical in the sidecar and plan.md alike, a rerun migrates, and the plan can then be approved", async () => {
+    const { md, sidecar } = writePlan0_33_0("./src/x.ts");
+    expect((await runCommand()).code).toBe(12);
+    // Refused while the sidecar is unmigrated, so approval comes after the rerun.
+    const early = await approve(PLAN);
+    expect(Result.isFailure(early) && early.failure).toBeInstanceOf(DocumentMigrationRequiredError);
+
+    writeRepoFile(PLAN, md.replaceAll("./src/x.ts", "src/x.ts"));
+    writeRepoFile(sidecarOf(PLAN), sidecar.replaceAll("./src/x.ts", "src/x.ts"));
+    commitAll("make the path canonical");
+
+    const rerun = await runCommand();
+    expect(rerun.code).toBe(0);
+    const migratedSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+      $schema: string;
+      phases: { id: string; plannedFilesToEdit: string[] }[];
+    };
+    expect(migratedSidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(migratedSidecar.phases.find((p) => p.id === "phase-02")?.plannedFilesToEdit).toEqual([
+      "src/x.ts",
+    ]);
+
+    const approved = await approve(PLAN);
+    expect(Result.isSuccess(approved)).toBe(true);
+    expect(readRepoFile(PLAN)).toContain("status: Approved");
     expect(porcelain()).toBe("");
   });
 
