@@ -120,7 +120,8 @@ export function readComplianceReviewAnswer(
   parsed: unknown,
 ): Result.Result<ComplianceReview, string> {
   const decoded = decodeComplianceReviewAnswerAll(parsed);
-  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  if (Result.isFailure(decoded))
+    return Result.fail(formatAnswerViolations(parsed, decoded.failure));
   const { $schema: _schema, ...review } = decoded.success;
   return Result.succeed(review);
 }

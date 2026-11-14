@@ -129,10 +129,12 @@ export function formatFirstViolation(err: Schema.SchemaError): string {
  * version: is unexpected, …`): a model that answered an older shape is told the
  * whole difference at once. Without one, the first violation reads as
  * `formatFirstViolation` reads it, at its full path; a plan path the rule
- * refuses also names the written path,
- * `plan.phases[1].plannedFilesToEdit[0]: "../x.ts" leaves the repository`.
+ * refuses also names the phase and the written path, as a plan document's
+ * does: `plan.phases[1].plannedFilesToEdit[0]: phase-02 plans "../x.ts",
+ * which leaves the repository`, the phase id `input.plan.phases[i].id` when
+ * that is a string, `phases[i]` otherwise.
  */
-export function formatAnswerViolations(err: Schema.SchemaError): string {
+export function formatAnswerViolations(input: unknown, err: Schema.SchemaError): string {
   const refusals = refusalsOf(err);
   const ownKeys = refusals.filter(
     ({ path, kind }) =>
@@ -143,9 +145,13 @@ export function formatAnswerViolations(err: Schema.SchemaError): string {
     const [first] = refusals;
     if (first === undefined) return UNDESCRIBED_REFUSAL;
     const planPath = refusedPlanPath(first, ["plan"]);
-    return planPath === undefined
-      ? violationLine(first)
-      : `${refusalPath(first.path, "bracketed")}: ${JSON.stringify(planPath.written)} ${refusalMessage(first)}`;
+    if (planPath === undefined) return violationLine(first);
+    const plan =
+      typeof input === "object" && input !== null
+        ? (input as Record<string, unknown>)["plan"]
+        : undefined;
+    const phaseId = phaseIdAt(plan, planPath.phase) ?? `phases[${String(planPath.phase)}]`;
+    return `${refusalPath(first.path, "bracketed")}: ${phaseId} plans ${JSON.stringify(planPath.written)}, which ${refusalMessage(first)}`;
   }
   const stamp = ownKeys.filter(({ path }) => path[0] === "$schema");
   const others = ownKeys.filter(({ path }) => path[0] !== "$schema");

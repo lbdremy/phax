@@ -657,7 +657,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "plan.phases[0].plannedFilesToEdit[1]: \"../x.ts\" leaves the repository"
+        "refusal": "plan.phases[0].plannedFilesToEdit[1]: phase-01 plans \"../x.ts\", which leaves the repository"
       }
     }
   ]
