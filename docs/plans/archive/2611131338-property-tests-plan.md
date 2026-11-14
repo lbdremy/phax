@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611131320-property-tests.md
 completes-spec: false
 approved:
