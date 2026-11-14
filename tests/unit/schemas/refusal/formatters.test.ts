@@ -111,15 +111,18 @@ describe("formatAnswerViolations", () => {
   const Answer = Schema.Struct({ $schema: Schema.String, verdicts: Schema.Array(Schema.String) });
 
   it("joins the answer's own key refusals, $schema first", () => {
-    expect(formatAnswerViolations(refused(Answer, { version: 1 }))).toBe(
+    expect(formatAnswerViolations({ version: 1 }, refused(Answer, { version: 1 }))).toBe(
       '$schema: is missing; version: is unexpected, expected: "$schema" | "verdicts"; verdicts: is missing',
     );
   });
 
   it("reads the first violation at its full path when no own key is refused", () => {
-    expect(formatAnswerViolations(refused(Answer, { $schema: "s", verdicts: [1] }))).toBe(
-      "verdicts[0]: Expected string, actual 1",
-    );
+    expect(
+      formatAnswerViolations(
+        { $schema: "s", verdicts: [1] },
+        refused(Answer, { $schema: "s", verdicts: [1] }),
+      ),
+    ).toBe("verdicts[0]: Expected string, actual 1");
   });
 });
 

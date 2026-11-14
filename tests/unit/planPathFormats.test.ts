@@ -218,6 +218,36 @@ describe("ac-schema: the published JSON Schemas state the canonical-path rule", 
   });
 });
 
+describe("an extraction answer's unplannable path", () => {
+  const answerPhase = (id: string, edit: readonly string[]) => ({
+    id,
+    model: "claude-sonnet-5-5",
+    effort: "medium",
+    planMarkdownAnchor: "#step",
+    plannedFilesToCreate: [],
+    plannedFilesToEdit: edit,
+    optionalFilesToEdit: [],
+    testLines: [],
+    commit: { subject: "feat: x", body: "Adds x." },
+  });
+  const answer = (second: ReturnType<typeof answerPhase>) => ({
+    $schema: currentSchemaUrl("phax-plan-extraction"),
+    plan: {
+      run: { shortName: "widget", title: "Widget", requiredCommands: [] },
+      phases: [answerPhase("phase-01", ["src/a.ts"]), second],
+    },
+    incomplete: null,
+  });
+
+  it("is refused naming the phase by its id, the written path and why", () => {
+    expect(readPlanExtractionAnswer(answer(answerPhase("phase-02", ["../x.ts"])))).toEqual(
+      Result.fail(
+        'plan.phases[1].plannedFilesToEdit[0]: phase-02 plans "../x.ts", which leaves the repository',
+      ),
+    );
+  });
+});
+
 describe("ac-older-sidecar: a plan sidecar stamped 0.33.0", () => {
   const at0_33_0 = (lists?: Parameters<typeof planDocument>[1]) =>
     planDocument(schemaUrl("plan-document", "0.33.0"), lists);

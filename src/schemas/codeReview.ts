@@ -122,7 +122,8 @@ export const encodeCodeReviewFile = Schema.encodeSync(CodeReviewFileSchema);
  */
 export function readCodeReviewAnswer(parsed: unknown): Result.Result<CodeReview, string> {
   const decoded = decodeCodeReviewAnswerAll(parsed);
-  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  if (Result.isFailure(decoded))
+    return Result.fail(formatAnswerViolations(parsed, decoded.failure));
   return Result.succeed({ findings: decoded.success.findings });
 }
 

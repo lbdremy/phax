@@ -75,7 +75,8 @@ export function readPlanExtractionAnswer(
   parsed: unknown,
 ): Result.Result<PlanExtractionReading, string> {
   const decoded = decodePlanExtractionAnswerAll(parsed);
-  if (Result.isFailure(decoded)) return Result.fail(formatAnswerViolations(decoded.failure));
+  if (Result.isFailure(decoded))
+    return Result.fail(formatAnswerViolations(parsed, decoded.failure));
   const { plan, incomplete } = decoded.success;
   if (plan !== null) return Result.succeed({ kind: "plan", plan });
   return Result.succeed({ kind: "incomplete", reason: incomplete ?? "" });
