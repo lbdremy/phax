@@ -16,6 +16,7 @@ import {
   type Inputs,
   type Program,
 } from "../../../src/cli/commandLibrary/contract/index.js";
+import { TRIGGER_WORDS } from "./argvProgram.js";
 
 /** The source of an argv: `any-strings` and `option-like` are arbitrary; `known` is a full command
  *  path then arbitrary tokens; `known-retired` is a group's words then a word it retired;
@@ -135,13 +136,18 @@ const OPTION_LIKE = [
 
 const unicode = fc.string({ unit: "grapheme", maxLength: 12 });
 
-/** A value for an option or an operand: arbitrary, numeric, empty, or leading with a dash. */
+const triggerWord = fc.constantFrom(...Object.values(TRIGGER_WORDS));
+
+/** A value for an option or an operand: arbitrary, numeric, empty, leading with a dash, or one of
+ *  the words the program reads (`TRIGGER_WORDS`), without which no call reaches a verdict code or
+ *  a check's refusal. */
 const value: fc.Arbitrary<string> = fc.oneof(
   unicode,
   fc.integer({ min: -1000, max: 1000 }).map(String),
   fc.double().map(String),
   fc.constant(""),
   fc.string({ maxLength: 8 }).map((text) => `-${text}`),
+  triggerWord,
 );
 
 const optionLike = fc.constantFrom(...OPTION_LIKE);
@@ -202,7 +208,17 @@ function tokensAfter(
     fc.array(fc.oneof(optionLike, value), { maxLength: 3 }).map((words) => ["--", ...words]),
     fc.constantFrom(["--help"], ["--json"], ["--json-schema"]),
   ];
-  return fc.array(fc.oneof(...tokens), { maxLength: 6 }).map((groups) => groups.flat().slice(0, 6));
+  const any = fc
+    .array(fc.oneof(...tokens), { maxLength: 6 })
+    .map((groups) => groups.flat().slice(0, 6));
+  // Now and then one word the program reads, alone: among arbitrary tokens, a verdict code or a
+  // check's refusal is almost never reached, as some other token is refused first.
+  return command.arguments === 0
+    ? any
+    : fc.oneof(
+        { weight: 3, arbitrary: any },
+        { weight: 1, arbitrary: triggerWord.map((word) => [word]) },
+      );
 }
 
 /** A call of the root's own words: the usage flag and its format, the version, the program's

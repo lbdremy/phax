@@ -100,6 +100,14 @@ const legacy = defineCommand({
 });
 const guarded = plain("guarded", { args: reject(Schema.Tuple([Schema.optionalKey(Str)])) });
 
+/** The operands the program reads: `bad` is `verdict`'s code 1 and the argument `refuse`'s check
+ *  refuses, `warn` is `verdict`'s code 2. The argv sources draw them, so a call reaches those
+ *  paths. */
+export const TRIGGER_WORDS = { bad: "bad", warn: "warn" } as const;
+
+/** What `verdict` answers when it is given no operand. */
+export const VERDICT_DEFAULT = "ok";
+
 /** Answers its argument; `bad` exits 1 and `warn` exits 2, as verdicts, with a note on `warn`. */
 const verdict = defineCommand({
   name: "verdict",
@@ -107,10 +115,14 @@ const verdict = defineCommand({
   input: { args: reject(Schema.Tuple([Schema.optionalKey(Str)])) },
   output: strip(Str),
   exits: {},
-  verdicts: { 1: (value) => value === "bad", 2: (value) => value === "warn" },
-  run: (context) => context.progress("checking").pipe(Effect.as(context.input.args[0] ?? "ok")),
+  verdicts: {
+    1: (value) => value === TRIGGER_WORDS.bad,
+    2: (value) => value === TRIGGER_WORDS.warn,
+  },
+  run: (context) =>
+    context.progress("checking").pipe(Effect.as(context.input.args[0] ?? VERDICT_DEFAULT)),
   render: (text) => text,
-  notes: (value) => (value === "warn" ? "warned" : ""),
+  notes: (value) => (value === TRIGGER_WORDS.warn ? "warned" : ""),
 });
 
 /** Fails with a tag its `exits` maps. */
@@ -132,7 +144,7 @@ const refuse = defineCommand({
   output: strip(Str),
   exits: {},
   check: ({ input }) =>
-    input.args[0] === "bad"
+    input.args[0] === TRIGGER_WORDS.bad
       ? Effect.fail(
           new Refused({
             source: "args",
