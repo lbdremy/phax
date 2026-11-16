@@ -385,6 +385,24 @@ export const missingEventGenerators = (types: ReadonlyArray<string>): ReadonlyAr
 export const anyEvent = (): fc.Arbitrary<PhaxEvent> =>
   fc.oneof(...(Object.values(EVENT_GENERATORS) as fc.Arbitrary<PhaxEvent>[]));
 
+/**
+ * Events biased toward `types`: four draws in five are of one of them, the fifth is any event. A
+ * property about what a handled event leads to checks nothing on a refusal, and `anyEvent` picks
+ * the few handled types too rarely; any event stays in the mix so the refusals are still searched.
+ */
+export const eventsBiasedTo = (types: ReadonlyArray<PhaxEventType>): fc.Arbitrary<PhaxEvent> =>
+  types.length === 0
+    ? anyEvent()
+    : fc.oneof(
+        {
+          weight: 4,
+          arbitrary: fc.oneof(
+            ...types.map((type) => EVENT_GENERATORS[type] as fc.Arbitrary<PhaxEvent>),
+          ),
+        },
+        { weight: 1, arbitrary: anyEvent() },
+      );
+
 // --- Phase sub-state fillers -------------------------------------------------------------------
 
 type SubOf<K extends PhaseSubStateName> = Extract<PhaseSubState, { state: K }>;
@@ -587,3 +605,26 @@ export const terminalPhaseStates = (): fc.Arbitrary<SourcedState> =>
       (shape) => shape.phase !== undefined && TERMINAL_PHASE_STATES.has(shape.phase),
     ),
   );
+
+// The seed of the sample that finds the event types a set of states handles: fixed, so the bias
+// is the same on every run.
+const HANDLED_SEED = 20_261_116;
+const HANDLED_STATES = 100;
+const HANDLED_EVENTS_PER_TYPE = 10;
+
+/** The event types `interpret` handles from at least one state of `states`, read from the reducer
+ *  over a fixed-seed sample of the states and of each type's events. */
+export const handledEventTypes = (
+  states: fc.Arbitrary<SourcedState>,
+): ReadonlyArray<PhaxEventType> => {
+  const sample = fc.sample(states, { numRuns: HANDLED_STATES, seed: HANDLED_SEED });
+  return (Object.keys(EVENT_GENERATORS) as PhaxEventType[]).filter((type) => {
+    const events = fc.sample(EVENT_GENERATORS[type] as fc.Arbitrary<PhaxEvent>, {
+      numRuns: HANDLED_EVENTS_PER_TYPE,
+      seed: HANDLED_SEED,
+    });
+    return sample.some(({ state }) =>
+      events.some((each) => interpret(state, each).kind === "Handled"),
+    );
+  });
+};
