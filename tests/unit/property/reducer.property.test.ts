@@ -2,16 +2,24 @@
 // states and every event type. They read `interpret` in src/domain/reducer.ts, never the
 // deprecated transition functions of src/domain/state.ts, and never a reason's wording.
 import * as fc from "fast-check";
-import { describe, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { interpret } from "../../../src/domain/reducer.js";
 import { TERMINAL_PHASE_STATES } from "../../../src/domain/state.js";
+import type { PhaxEvent } from "../../../src/domain/events.js";
 import type { PhaseSubStateName, PhaxState } from "../../../src/domain/state.js";
-import { checkProperty, propertyTimeout } from "../../helpers/property/harness.js";
+import {
+  DEFAULT_PROPERTY_RUNS,
+  checkProperty,
+  propertyTimeout,
+} from "../../helpers/property/harness.js";
 import {
   anyEvent,
+  eventsBiasedTo,
+  handledEventTypes,
   reachableStates,
   statesOfRun,
   terminalPhaseStates,
+  type SourcedState,
 } from "../../helpers/property/reducerInputs.js";
 
 const DISPOSITION_KINDS: ReadonlySet<string> = new Set([
@@ -34,6 +42,23 @@ const ALLOWED_AFTER_TERMINAL: ReadonlySet<PhaseSubStateName> = new Set<PhaseSubS
   "pending",
   "setting_up_worktree",
 ]);
+
+// The two properties about what a handled event leads to check nothing on a refusal: their events
+// lean toward the types the reducer handles from their states, with any event still in the mix.
+const finishedRuns = statesOfRun("completed", "stopped");
+const finishedInputs = fc.tuple(finishedRuns, eventsBiasedTo(handledEventTypes(finishedRuns)));
+const terminalPhases = terminalPhaseStates();
+const terminalInputs = fc.tuple(terminalPhases, eventsBiasedTo(handledEventTypes(terminalPhases)));
+
+// The seed of the sample that counts the handled inputs at the default run count: fixed, so the
+// count is reproducible. The minimum is a fifth of the runs.
+const REACH_SEED = 20_261_116;
+const MIN_HANDLED = DEFAULT_PROPERTY_RUNS / 5;
+
+const handledCount = (inputs: fc.Arbitrary<[SourcedState, PhaxEvent]>): number =>
+  fc
+    .sample(inputs, { numRuns: DEFAULT_PROPERTY_RUNS, seed: REACH_SEED })
+    .filter(([{ state }, event]) => interpret(state, event).kind === "Handled").length;
 
 const phaseOf = (state: PhaxState): PhaseSubStateName | undefined =>
   "phase" in state ? state.phase.state : undefined;
@@ -74,15 +99,12 @@ describe("run reducer", () => {
   it(
     "a completed or stopped run only archives",
     () => {
-      checkProperty(
-        fc.tuple(statesOfRun("completed", "stopped"), anyEvent()),
-        ([{ state }, event]) => {
-          const disposition = interpret(state, event);
-          if (disposition.kind !== "Handled") return true;
-          const next = disposition.nextState;
-          return Object.keys(next).length === 1 && next.run === "archived";
-        },
-      );
+      checkProperty(finishedInputs, ([{ state }, event]) => {
+        const disposition = interpret(state, event);
+        if (disposition.kind !== "Handled") return true;
+        const next = disposition.nextState;
+        return Object.keys(next).length === 1 && next.run === "archived";
+      });
     },
     propertyTimeout(),
   );
@@ -90,7 +112,7 @@ describe("run reducer", () => {
   it(
     "a terminal phase does not go back",
     () => {
-      checkProperty(fc.tuple(terminalPhaseStates(), anyEvent()), ([{ state }, event]) => {
+      checkProperty(terminalInputs, ([{ state }, event]) => {
         const disposition = interpret(state, event);
         return disposition.kind !== "Handled" || !goesBack(disposition.nextState);
       });
@@ -110,4 +132,14 @@ describe("run reducer", () => {
     },
     propertyTimeout(),
   );
+});
+
+describe("run reducer reach", () => {
+  it("a completed or stopped run only archives: its handled branch is reached", () => {
+    expect(handledCount(finishedInputs)).toBeGreaterThanOrEqual(MIN_HANDLED);
+  });
+
+  it("a terminal phase does not go back: its handled branch is reached", () => {
+    expect(handledCount(terminalInputs)).toBeGreaterThanOrEqual(MIN_HANDLED);
+  });
 });
