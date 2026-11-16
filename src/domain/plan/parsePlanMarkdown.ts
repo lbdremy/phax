@@ -1,10 +1,10 @@
 import { Result, Schema } from "effect";
 import { fromMarkdown } from "mdast-util-from-markdown";
-import { toString } from "mdast-util-to-string";
 import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
 import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
+import { nodeText as toString } from "./nodeText.js";
 import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
 import { describeUnplannable, readPlanPath } from "./planPath.js";
 import {

@@ -287,9 +287,12 @@ const fragments: fc.Arbitrary<Fragment> = fc.oneof(
   mutatedPlans.map((text): Fragment => ({ name: "mutated-plans", text })),
 );
 
-/** The target size: mostly mid-sized, about one in four near the cap. */
+/**
+ * The target size: mostly mid-sized, about one in eight near the cap. A near-cap input costs the
+ * Markdown parser up to a second, so a larger share would eat the CI budget of the property tier.
+ */
 const targetBytes: fc.Arbitrary<number> = fc.oneof(
-  { weight: 3, arbitrary: fc.integer({ min: 64, max: 24_000 }) },
+  { weight: 7, arbitrary: fc.integer({ min: 64, max: 24_000 }) },
   { weight: 1, arbitrary: fc.integer({ min: 61_440, max: MAX_BYTES }) },
 );
 
