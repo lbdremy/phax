@@ -2,7 +2,7 @@ import { Array as Arr, Result } from "effect";
 import { slugifyShortName } from "../branded.js";
 import { PlanValidationError } from "../errors.js";
 import type { ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
-import { phaseHeadingIds } from "./sections.js";
+import { phaseHeadingSources } from "./sections.js";
 
 export interface FinalizeResult {
   readonly plan: PhaxPlan;
@@ -10,25 +10,25 @@ export interface FinalizeResult {
   readonly detectedAnchors: string[];
 }
 
+const PHASE_TITLE_RE = /^##\s+(phase-\d{2})\s*[—–-]\s*(.+?)\s*\{#[^}]*\}\s*$/i;
+
+type PhaseHeadings = ReturnType<typeof phaseHeadingSources>;
+
 // Derive each phase title from its plan.md heading rather than asking the model
 // to round-trip it through JSON. A `"` in a title would otherwise derail the
-// extraction model into malformed output.
-function parsePhaseTitles(planMd: string): Map<string, string> {
+// extraction model into malformed output. Only the root-level phase headings
+// count, read as written: a heading-shaped line inside a fenced code block or an
+// HTML block is not a phase heading and never renames a phase.
+function parsePhaseTitles(headings: PhaseHeadings): Map<string, string> {
   const titles = new Map<string, string>();
-  const re = /^##\s+(phase-\d{2})\s*[—–-]\s*(.+?)\s*\{#[^}]*\}\s*$/gim;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(planMd)) !== null) {
+  for (const { source } of headings) {
+    const m = PHASE_TITLE_RE.exec(source);
+    if (m === null) continue;
     const id = m[1]!.toLowerCase();
     const title = m[2]!.trim();
     if (title.length > 0) titles.set(id, title);
   }
   return titles;
-}
-
-// The ids of the root-level `## phase-NN` headings, as the parser recognises them: a
-// `## phase-NN` written mid-line, inside a list or in a code block is not a phase heading.
-function detectPhaseAnchors(planMd: string): string[] {
-  return [...phaseHeadingIds(planMd)];
 }
 
 /**
@@ -41,7 +41,10 @@ export function finalizeExtractedPlan(
   extracted: ExtractedPhaxPlan,
   planMd: string,
 ): Result.Result<FinalizeResult, PlanValidationError> {
-  const phaseTitles = parsePhaseTitles(planMd);
+  // The ids of the root-level `## phase-NN` headings, as the parser recognises them: a
+  // `## phase-NN` written mid-line, inside a list or in a code block is not a phase heading.
+  const headings = phaseHeadingSources(planMd);
+  const phaseTitles = parsePhaseTitles(headings);
   const missingTitle = extracted.phases.filter((p) => {
     const t = phaseTitles.get(p.id);
     return t === undefined || t.length === 0;
@@ -72,7 +75,7 @@ export function finalizeExtractedPlan(
     phases: phasesWithTitles,
   };
 
-  const detectedAnchors = detectPhaseAnchors(planMd);
+  const detectedAnchors = headings.map((h) => h.phaseId);
   const warnings: string[] = [];
 
   if (detectedAnchors.length > 0 && plan.phases.length !== detectedAnchors.length) {

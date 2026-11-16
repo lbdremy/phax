@@ -6,9 +6,9 @@
  */
 import { Result } from "effect";
 import { fromMarkdown } from "mdast-util-from-markdown";
-import { toString } from "mdast-util-to-string";
 import type { Heading, RootContent } from "mdast";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
+import { nodeText } from "./nodeText.js";
 
 export interface LocatablePhase {
   readonly id: string;
@@ -27,6 +27,8 @@ const ANCHOR_RE = /\{#([^}]+)\}/;
 
 interface RootHeading {
   readonly offset: number;
+  /** The heading's source text, as written in plan.md. */
+  readonly source: string;
   readonly phaseId: string | null;
   readonly anchor: string | null;
 }
@@ -65,11 +67,13 @@ function rootBlocks(body: string): RootBlocks {
       breaks.push({ start: node.position?.start.offset ?? 0, end: node.position?.end.offset ?? 0 });
     }
     if (!isRootH2(node)) continue;
-    const text = toString(node).trim();
+    const text = nodeText(node).trim();
     const idMatch = text.match(PHASE_ID_RE);
     const anchorMatch = text.match(ANCHOR_RE);
+    const offset = node.position?.start.offset ?? 0;
     headings.push({
-      offset: node.position?.start.offset ?? 0,
+      offset,
+      source: body.slice(offset, node.position?.end.offset ?? offset),
       phaseId: idMatch ? idMatch[1]!.toLowerCase() : null,
       anchor: anchorMatch ? stripHash(anchorMatch[1]!) : null,
     });
@@ -139,7 +143,18 @@ export function locatePlanSections(
  * `locatePlanSections`.
  */
 export function phaseHeadingIds(planMd: string): readonly string[] {
-  return rootBlocks(planBody(planMd)).headings.flatMap((h) =>
-    h.phaseId === null ? [] : [h.phaseId],
+  return phaseHeadingSources(planMd).map((h) => h.phaseId);
+}
+
+/**
+ * The root-level `##` headings that begin with a `phase-NN` id, in document
+ * order, each with its source text as written in plan.md — the headings
+ * `phaseHeadingIds` names.
+ */
+export function phaseHeadingSources(
+  planMd: string,
+): readonly { readonly phaseId: string; readonly source: string }[] {
+  return rootBlocks(planBody(planMd)).headings.flatMap(({ phaseId, source }) =>
+    phaseId === null ? [] : [{ phaseId, source }],
   );
 }

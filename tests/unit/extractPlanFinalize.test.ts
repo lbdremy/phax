@@ -170,6 +170,30 @@ describe("finalizeExtractedPlan", () => {
     expect(result.success.warnings).toEqual([]);
   });
 
+  // A heading-shaped line for the same phase inside a fenced code block or an HTML block, after
+  // the real heading, is an example in the plan's prose: it never renames the phase.
+  it("takes a phase title from its root-level heading, not from a fenced or HTML example", () => {
+    const planMd = [
+      "# Plan",
+      "",
+      "## phase-01 — Alpha phase {#phase-01-alpha}",
+      "",
+      "A phase heading looks like this:",
+      "",
+      "```md",
+      "## phase-01 — Example {#phase-01-example}",
+      "```",
+      "",
+      "<div>",
+      "## phase-01 — Html example {#phase-01-html}",
+      "</div>",
+    ].join("\n");
+    const result = finalizeExtractedPlan(makeExtracted(), planMd);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.plan.phases[0]!.title).toBe("Alpha phase");
+    expect(result.success.detectedAnchors).toEqual(["phase-01"]);
+  });
+
   it("emits a warning when phase count differs from detected anchors", () => {
     const planMd = [
       "# Plan",
