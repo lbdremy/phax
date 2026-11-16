@@ -11,7 +11,7 @@ The spec plans four boundaries:
 3. The state machine.
 4. CLI arguments.
 
-The first two are written. The state machine and CLI arguments follow in a later plan of the same spec.
+All four are written. The run reducer (`## The run reducer`) and the CLI arguments (`## CLI arguments`) have their own sections below.
 
 For each persisted format, the suite in `tests/unit/property/persistedFormats.property.test.ts` has one `describe` per format id and one `it` per property:
 
@@ -44,8 +44,19 @@ Vitest reports a failure as `planParser.property.test.ts > plan parser > a rende
 - `tests/helpers/property/planDocuments.ts`: the plan-document generator and `RENDERABLE_RULES`.
 - `tests/helpers/property/planText.ts`: the plan-parser text sources (`anyPlanText`, `mutatedPlanText`, `largePlanText`), `PLAN_TEXT_MUTATIONS` and `LARGE_TEXT_FRAGMENTS`.
 - `tests/helpers/planRoundTrip.ts`: `roundTrip`, the render-and-parse step of the round trip.
+- `tests/helpers/property/reducerInputs.ts`: the reducer's generators (`reachableStates`, `statesOfRun`, `terminalPhaseStates`, `anyEvent`), `EVENT_GENERATORS` and `REACHABLE_SHAPES`.
+- `tests/unit/property/reducerInputs.test.ts`: the sanity and coverage tests of those generators.
+- `tests/helpers/property/argvProgram.ts`: `argvProgram()`, the property program, with `PROGRAM_SHAPES` and `declaredExitCodes`.
+- `tests/helpers/property/argvInputs.ts`: the argument-vector sources (`anyArgv`, `knownArgv`) and the vocabulary read from the program.
+- `tests/unit/property/argvInputs.test.ts`: the sanity tests of the program and its generators.
 
 Property tests import only from `src/domain`, `src/schemas`, `packages/schemas`, `tests/helpers/property/` and the shared round-trip step `tests/helpers/planRoundTrip.ts`, which sits outside the property helpers because the `renderPlan` examples use it too. The plan-parser properties import from `src/domain/plan`, `src/domain/authoring` and `src/schemas`. fast-check is a devDependency.
+
+The rule has a second tier. The four argv files (`tests/helpers/property/argvProgram.ts`, `tests/helpers/property/argvInputs.ts`, `tests/unit/property/argvInputs.test.ts` and `tests/unit/property/cliArguments.property.test.ts`) alone may also import `src/cli/commandLibrary/contract/` (including `conformance/memoryIo.ts`) and exactly `src/cli/commandLibrary/commander/run.ts`. Nothing else under `src/cli/` is allowed, and never `commander/index.ts`, because it re-exports the process-backed `processIo`.
+
+This is safe because `run.ts` reaches the world only through the `Io` it is handed, Commander is built with `exitOverride()`, and its output is collected into strings in memory. `memoryIo` keeps every stream and file in memory. The runner is therefore driven with no real I/O and no port.
+
+The guard `%s imports only from the allowed roots` in `tests/unit/property/harnessConfig.test.ts` runs over every `.ts` file of `tests/unit/property/` and `tests/helpers/property/`. It reads each relative import that resolves into `src/` or `packages/` and fails naming the offending import.
 
 ## The default budget
 
@@ -94,7 +105,13 @@ The seed and path run only that failing input again. Without the path, the seed 
 
 ## What to do with a counter-example
 
-Fix the reader, never the format's shape or stamp. Paste the counter-example as a hand-written case in that reader's existing suite (`tests/unit/persisted.test.ts` for the readers in `src/schemas/persisted.ts`), in the same commit as the fix. If the fix would need a new shape, stop and say so in the plan or pull request: a shape change is a release decision, not a repair.
+A counter-example a property finds is a bug in the code under test unless the generator made it.
+
+- A reducer counter-example is fixed in `src/domain/reducer.ts`, with a case in `tests/unit/reducer.test.ts`.
+- A runner counter-example is fixed under `src/cli/commandLibrary/commander/`, with a case in the runner suite that owns the path.
+- The contract and the conformance cases are never changed to make a property pass.
+
+For a persisted format, fix the reader, never the format's shape or stamp. Paste the counter-example as a hand-written case in that reader's existing suite (`tests/unit/persisted.test.ts` for the readers in `src/schemas/persisted.ts`), in the same commit as the fix. If the fix would need a new shape, stop and say so in the plan or pull request: a shape change is a release decision, not a repair.
 
 For the plan parser, the fix goes where the bug is, with the counter-example as a hand-written case in the same commit:
 
@@ -186,6 +203,61 @@ The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parse
 `the structure check agrees with extraction` holds `collectPlanStructureErrors` and `extractPlanDeterministic` to one verdict. A deliberate disagreement is an entry of `STRUCTURE_EXCEPTIONS` in the test file: `{ name, reason, matches(text) }`, with a hand-written example in which the two differ; `every exception has an example and every example an exception` fails until both exist. Today the list holds `departing-test-line`: extraction refuses a test line that departs from the grammar, while the structure check leaves test lines to the `tests` check of `phax plans lint`. Its `matches` holds only when the structure check is empty, `readPlanDeterministic` succeeds and at least one test line departs, so no other cause hides behind it.
 
 Add an entry only when the disagreement is deliberate, as for `Agreement exceptions`: a parser bug is fixed in the parser instead. Keep `matches` as narrow as the rule it names.
+
+## The run reducer
+
+`tests/unit/property/reducer.property.test.ts` checks `interpret` (`src/domain/reducer.ts`), never the deprecated transition functions of `src/domain/state.ts`. Its five tests are under `describe("run reducer")`:
+
+- `every state and event gets a disposition` (ac-sm-total): every reachable state with every event answers a `Disposition`; a handled one has a next state and a list of effects.
+- `an archived run handles nothing` (ac-sm-archived): from an archived run no event is handled.
+- `a completed or stopped run only archives` (ac-sm-finished): a handled event leads to the bare archived state.
+- `a terminal phase does not go back` (ac-sm-phase-terminal): from `committed`, `cleaned_up`, `review_open` or `skipped`, a handled event leads to no phase, a terminal phase state, a post-commit state (`cleaning_up`, `handoff_failed`, `awaiting_review`) or the next phase's start (`pending`, `setting_up_worktree`). It never leads to `running`, `fixing`, `gates_failed`, `gates_exhausted`, `passed`, `rate_limited` or `failed`. This is the set decided in q-terminal-successors, and the spec's §5.14 states the same set. A wrong move between two allowed states is not caught here; the reducer's own suite checks it.
+- `a refused event carries no change` (ac-sm-refused): an ignored or rejected disposition holds a `kind` and a `reason` and nothing else.
+
+`tests/unit/property/reducerInputs.test.ts` checks the generators themselves.
+
+### Reachability
+
+`REACHABLE_SHAPES` lists every abstract shape (run state, phase sub-state and a stop's cause) the reducer reaches. It is the closure of the reducer from `REACHABILITY_SEEDS`: `created`, and `stopped`. `stopped` is a seed because no transition enters it, yet a run-status written by an older release holds it and `composePhaxState` composes it. A test recomputes the closure with `interpret` and requires it to equal the table, so a reducer change that alters reachability fails until the table is reviewed. The generators draw a shape from the table and fill its free fields (`hash`, `attempt`, `missing`, `cause`) at random.
+
+Loss accepted: a state only an inconsistent persisted file composes (a `rate_limited` run whose phase status is `committed` after a torn write) is never generated. A reducer bug that strands a state outside the closure also hides that state.
+
+### Adding an event type
+
+`EVENT_GENERATORS` is typed `{ readonly [K in PhaxEventType]: fc.Arbitrary<Extract<PhaxEvent, { type: K }>> }`, so `pnpm typecheck` and `pnpm test:type` fail on a missing type. A runtime test checks the registry against the event types of `phaxDispositionMatrix` (`src/domain/matrix.ts`) and fails with `no generator registered for <type>`.
+
+### Derived and hand-built values
+
+`PhaxEvent` and `PhaxState` have no Effect schema, so they are built by hand. The review stop and its `lastClose` come from `ReviewStopFileSchema` through `fromSchema`. The branded ids, worktree paths and session ids have private schemas: they are generated as constrained strings, and a sanity property checks they pass their exported decoders. Error causes are built with their classes, and `RunReviewInfo` is built by hand. A value an event newly admits is generated only once someone extends its piece.
+
+## CLI arguments
+
+`tests/unit/property/cliArguments.property.test.ts` drives the command library's runner (`runner`, `src/cli/commandLibrary/commander/run.ts`) over `memoryIo`. Two tests are under `describe("cli arguments")`:
+
+- `any argv is run or refused through the contract` (ac-cli-argv): a call exits with a code the program declares, or is refused with the refused code, nothing on stdout and a message on stderr. It never ends with the defect code.
+- `no argv reaches the process`: `process.exit` is never called.
+
+The exit codes are read from `program.exits` (and `declaredExitCodes`), never written as literals.
+
+### The property program
+
+`argvProgram()` (`tests/helpers/property/argvProgram.ts`) is built with the contract's `defineProgram`, `defineGroup` and `defineCommand`. It is not taken from the conformance suite, whose programs are private to `cases.ts`, built one per case, and frozen. `PROGRAM_SHAPES` names every runner path it must offer (arguments and flags of each kind, strip and reject policies, stdin, env source, nested group, retired words, program options, usage, version alias, help, the guard exit, verdict codes, mapped error tags), and a test checks each by name.
+
+Paths left out, with their reasons:
+
+- a successful `--out` document write: it hashes with WebCrypto, asynchronously, and the property runs the runner synchronously (`Effect.runSyncExit`). The refusals of `--out` (a missing value) are searched;
+- `handsOver` and `prompts`, and stdin that is a terminal: they have no in-memory answer;
+- a command whose run dies, or fails with a tag it does not map, a `render` or `notes` that throws, and a tag or verdict mapped to the refused or defect code: each is a defect by design, and the runner refuses a program that maps one (`misdeclared`).
+
+A path that only a frozen conformance case builds, and that `PROGRAM_SHAPES` leaves out, is not searched.
+
+### The two argv sources
+
+`anyArgv` draws arbitrary strings. `knownArgv` draws the program's own command words followed by arbitrary flags and values. Each value is `{ origin, argv, stdin }`, and a failure names the origin.
+
+### The vocabulary
+
+The command words, options and aliases are read at run time from the program, through the contract's `fullName`, `flagShapes` and `argShapes`, which `usageSpec` writes from; the program's own options, usage, version alias and groups' retired words are read the same way. A test checks that every word the vocabulary yields appears in `usageSpec(program)`, so a new command is covered without editing the generator. The KDL text itself is not parsed.
 
 ## The daily deep pass
 
