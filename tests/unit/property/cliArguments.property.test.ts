@@ -129,17 +129,30 @@ const displayed = (
   if (asks("--help", "-h", "help") && out.startsWith(`Usage: ${program.name}`)) return true;
   if (asks(...vocabulary.version) && out === `${program.version}\n`) return true;
   if (asks(...vocabulary.usage) && out === usageSpec(program)) return true;
-  if (command === undefined || !asks("--json-schema")) return false;
+  if (!asks("--json-schema")) return false;
   try {
     const schema: unknown = JSON.parse(out);
-    return (
-      typeof schema === "object" &&
-      schema !== null &&
-      isDeepStrictEqual(Reflect.get(schema, "name"), fullName(command))
-    );
+    if (typeof schema !== "object" || schema === null) return false;
+    // Called alone, `--json-schema` answers the program's contracts: every command, by name.
+    if (command === undefined) return isDeepStrictEqual(contractNames(schema), allNames);
+    return isDeepStrictEqual(Reflect.get(schema, "name"), fullName(command));
   } catch {
     return false;
   }
+};
+
+const allNames = program.commands.map(fullName);
+
+/** The program, version and command names of the program's contracts document. */
+const contractNames = (schema: object): unknown => {
+  const commands: unknown = Reflect.get(schema, "commands");
+  return Reflect.get(schema, "program") === program.name &&
+    Reflect.get(schema, "version") === program.version &&
+    Array.isArray(commands)
+    ? commands.map((each: unknown) =>
+        typeof each === "object" && each !== null ? Reflect.get(each, "name") : undefined,
+      )
+    : undefined;
 };
 
 /** A call that ended with a code the command's `exits` maps, or the guard's code for its words,
@@ -187,6 +200,12 @@ describe("cli arguments", () => {
     },
     propertyTimeout(),
   );
+
+  it("`--json-schema` alone runs: it answers the program's contracts", () => {
+    // A counter-example of the deep pass (seed -1195079989): the evidence read only a command's
+    // JSON Schema, and the runner answers the program's whole contracts document here.
+    expect(runsOrRefuses({ origin: "option-like", argv: ["--json-schema"], stdin: "" })).toBe(true);
+  });
 
   it("the argv source reaches every code the program declares, and the refusal", () => {
     const sample = fc.sample(inputs, { numRuns: SAMPLE_SIZE, seed: SAMPLE_SEED });

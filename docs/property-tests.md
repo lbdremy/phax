@@ -238,17 +238,18 @@ Loss accepted: a state only an inconsistent persisted file composes (a `rate_lim
 
 The property runs a dedicated program, `argvProgram()`, built with the contract's define API, not the conformance suite's programs that the spec's ac-cli-argv names. Those programs are private to the suite's `cases.ts`, built one per case, and frozen: the property can neither import them nor add to them, and no one of them offers every path. One program that offers every path `PROGRAM_SHAPES` names lets a single property search them all. The loss is stated under `### The property program`.
 
-Three tests are under `describe("cli arguments")`:
+Four tests are under `describe("cli arguments")`:
 
 - `any argv is run or refused through the contract` (ac-cli-argv): a call runs the command its words name and exits with a code the program declares, or is refused with the refused code, nothing on stdout and a message on stderr. It never ends with the defect code.
 - `the argv source reaches every code the program declares, and the refusal`: a fixed-seed sample of the property's argv source, run through the runner, ends with every code of `declaredExitCodes` (0, each verdict code, the mapped error tag's code, the guard's code) and the refused code.
+- `` `--json-schema` alone runs: it answers the program's contracts ``: a counter-example the deep pass found in the evidence, kept as a hand-written case.
 - `no argv reaches the process`: `process.exit` is never called.
 
 The exit codes are read from `program.exits` (and `declaredExitCodes`), never written as literals.
 
 A code other than the refused one is checked against evidence that the command ran, so a runner that answered 0 to every call would fail. The command is the one whose full name starts the call's words, once the program's options and other dash-led words are set aside:
 
-- on 0, stdout is that command's output (every command without verdicts answers its own name, as text or as the JSON string `--json` writes), or the help, the version, the usage spec or the command's JSON Schema, each only when the call asked for it;
+- on 0, stdout is that command's output (every command without verdicts answers its own name, as text or as the JSON string `--json` writes), or the help, the version, the usage spec, the command's JSON Schema or, for `--json-schema` alone, the program's contracts, each only when the call asked for it;
 - on a verdict code, stdout is the verdict command's output (an operand of the call, or `VERDICT_DEFAULT`), and the code is the one its verdicts give that output;
 - on a code the command's `exits` maps, or the guard's code for its words, stdout is empty and stderr is written.
 
