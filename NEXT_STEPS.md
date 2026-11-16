@@ -33,14 +33,23 @@ briefs of live or unspecced work.
 
 ### 3. Property tests over the input boundaries
 
-- [ ] **`property-tests`** — `docs/specs/2611131320-property-tests.md`, Approved 2026-11-13.
-      Plan 1 landed (#232, #233): the persisted formats (42) and the shared harness (fast-check
-      4.10.2, seed and replay, the bridge from `effect/Arbitrary`, a daily deep pass in the
-      Security workflow at 2,000 runs and a fresh seed). It found one reader bug (a newer-stamped
-      record manifest refused for a missing `kind` instead of its release), and the first local
-      deep pass found a `__proto__` bug in the tests' own diff helper (#233). Next plans: the plan
-      parser (round trip, totality, bounded time, lint agreeing with extraction), then the
-      reducer, then the CLI arguments. Also counts for OpenSSF Scorecard's Fuzzing check.
+- [x] **`property-tests`** — `docs/specs/archive/2611131320-property-tests.md`, Completed
+      2026-11-16 in three plans. Plan 1 (#232, #233): the persisted formats (42) and the shared
+      harness (fast-check 4.10.2, seed and replay, the bridge from `effect/Arbitrary`, a daily
+      deep pass in the Security workflow at 2,000 runs and a fresh seed); it found one reader bug
+      (a newer-stamped record manifest refused for a missing `kind`) and a `__proto__` bug in the
+      tests' own diff helper. Plan 2 (#234): the plan parser (round trip, totality, bounded time,
+      lint agreeing with extraction); it found a prose `## phase-NN` counted as an anchor, a
+      code-span commit subject read as empty, a stack overflow on deep nesting, and (in review) a
+      phase title taken from a fenced example, live in 0.38.0. Known gap, accepted (operator,
+      2026-11-16): deeply nested emphasis is quadratic inside the Markdown library, so a 64 KiB
+      plan of it can take more than 2 s. #235 added `pnpm test:property:deep`. Plan 3 (#236): the
+      run reducer and the CLI arguments; §5.14 was revised first (no-going-back: a terminal phase
+      may move to a post-commit state or the next phase's start). It found a `RunFailed` cause
+      that made `describeCause` throw, and the review made the argv property bind every exit
+      code to evidence. Agents may now run `pnpm test:unit` and `pnpm test:property:deep`
+      (`phax.json` agentCommands): `Bash(pnpm test:*)` does not cover `pnpm test:unit`. Also
+      counts for OpenSSF Scorecard's Fuzzing check.
 
 ### 4. Review findings: ids and fates
 
