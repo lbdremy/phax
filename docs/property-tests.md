@@ -190,3 +190,5 @@ Add an entry only when the disagreement is deliberate, as for `Agreement excepti
 ## The daily deep pass
 
 The `property-tests` job of `.github/workflows/security.yml` runs `pnpm test:unit tests/unit/property` with `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`: 2,000 inputs per property from a fresh seed per property file, each of which the log prints. It runs on the schedule and on demand (`workflow_dispatch`), never on a pull request. A failure there is replayed with the printed line, and fixed as above.
+
+To run the same pass locally on some files, before handing off a new property file for example, use `pnpm test:property:deep <files>`. It sets `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`, so it needs no environment prefix, which a phase agent's session refuses: the gate's `pnpm test` entry already allows it.
