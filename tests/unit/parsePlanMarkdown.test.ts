@@ -994,3 +994,24 @@ describe("plan paths, read in canonical form", () => {
     ]);
   });
 });
+
+describe("a text nested deeper than the call stack", () => {
+  // `mdast-util-to-string` recurses once per level, so flattening a list item that holds this many
+  // nested block quotes threw a RangeError instead of answering. 30,000 levels is 60,000 bytes,
+  // under the 64 KiB the parser is meant to read.
+  const deepQuote = `${"> ".repeat(30_000)}x`;
+
+  it("reads a planned file of nested block quotes as its text", () => {
+    const md = makePlan({ phases: [makePhase({ optional: `- ${deepQuote}` })] });
+    expect(collectPlanStructureErrors(md)).toEqual([]);
+    const plan = extractPlanDeterministic(md);
+    expect(Result.isSuccess(plan) && plan.success.phases[0]!.optionalFilesToEdit).toEqual(["x"]);
+  });
+
+  it("reads a required command of nested block quotes as its text", () => {
+    const md = makePlan({ requiredCommands: `- ${deepQuote}` });
+    expect(collectPlanStructureErrors(md)).toEqual([]);
+    const plan = extractPlanDeterministic(md);
+    expect(Result.isSuccess(plan) && plan.success.run.requiredCommands).toEqual(["x"]);
+  });
+});

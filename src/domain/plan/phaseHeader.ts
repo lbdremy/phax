@@ -11,13 +11,13 @@
  * Inline code and code blocks are prose and never declare anything.
  */
 import { fromMarkdown } from "mdast-util-from-markdown";
-import { toString } from "mdast-util-to-string";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
 import { Result } from "effect";
 import type { PhaseAcceptance, PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ExtractionPlan } from "../../schemas/planExtraction.js";
 import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { PlanValidationError } from "../errors.js";
+import { nodeText as toString } from "./nodeText.js";
 
 /** The declaration labels a phase may carry only in its header paragraph. */
 type DeclarationLabel = "Mode" | "Acceptance phase" | "Acceptance test files";
@@ -172,13 +172,20 @@ function isRootH2(node: RootContent): node is Heading {
 }
 
 // Every paragraph below `node`, however deeply nested in lists or quotes.
-// Code blocks are a different node type and never yield a paragraph.
+// Code blocks are a different node type and never yield a paragraph. Walked with an explicit
+// stack, in document order: a quote nested thousands of levels deep must not overflow the call stack.
 function paragraphsOf(node: RootContent): Paragraph[] {
-  if (node.type === "paragraph") return [node];
-  if ("children" in node && node.type !== "heading") {
-    return (node as Parent).children.flatMap((child) => paragraphsOf(child as RootContent));
+  const paragraphs: Paragraph[] = [];
+  const stack: RootContent[] = [node];
+  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
+    if (next.type === "paragraph") {
+      paragraphs.push(next);
+    } else if ("children" in next && next.type !== "heading") {
+      const { children } = next as Parent;
+      for (let i = children.length - 1; i >= 0; i -= 1) stack.push(children[i] as RootContent);
+    }
   }
-  return [];
+  return paragraphs;
 }
 
 function sourceOf(body: string, node: RootContent): string {

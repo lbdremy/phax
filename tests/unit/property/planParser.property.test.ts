@@ -4,7 +4,13 @@
 // that decodes yet does not round trip, so no rule narrows the generator without cause.
 import { isDeepStrictEqual } from "node:util";
 import { Result } from "effect";
+import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
+import {
+  collectPlanStructureErrors,
+  extractPlanDeterministic,
+  readPlanDeterministic,
+} from "../../../src/domain/plan/parsePlanMarkdown.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
@@ -15,6 +21,7 @@ import {
 } from "../../../src/schemas/planDocument.js";
 import { checkProperty, propertyTimeout } from "../../helpers/property/harness.js";
 import { planDocuments, RENDERABLE_RULES } from "../../helpers/property/planDocuments.js";
+import { anyPlanText, largePlanText, mutatedPlanText } from "../../helpers/property/planText.js";
 import { roundTrip } from "../../helpers/planRoundTrip.js";
 
 const isObject = (value: unknown): value is Readonly<Record<string, unknown>> =>
@@ -68,7 +75,128 @@ function roundTripFailure(doc: PlanDocument): string | undefined {
   }
 }
 
+// ---------------------------------------------------------------------------------------------
+// Totality and bounded time.
+// ---------------------------------------------------------------------------------------------
+
+const totalityInputs = () => fc.oneof(anyPlanText(), mutatedPlanText());
+
+const BUG_PREFIX = "deterministic extraction produced invalid ExtractedPhaxPlan";
+
+const describeError = (error: unknown): string =>
+  error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+
+// The first way the three parser entry points fail to answer `text`, or undefined.
+function totalityProblem(text: string): string | undefined {
+  const calls = {
+    collectPlanStructureErrors: () => collectPlanStructureErrors(text),
+    readPlanDeterministic: () => readPlanDeterministic(text),
+    extractPlanDeterministic: () => extractPlanDeterministic(text),
+  };
+  const answers: Record<string, unknown> = {};
+  for (const [name, call] of Object.entries(calls)) {
+    try {
+      answers[name] = call();
+    } catch (error) {
+      return `${name} threw ${describeError(error)}`;
+    }
+  }
+  const errors = answers["collectPlanStructureErrors"] as ReturnType<
+    typeof collectPlanStructureErrors
+  >;
+  if (!Array.isArray(errors)) return "collectPlanStructureErrors did not return an array";
+  for (const error of errors) {
+    if (
+      !(error.phase === null || typeof error.phase === "string") ||
+      typeof error.message !== "string" ||
+      error.message === ""
+    ) {
+      return `collectPlanStructureErrors returned a malformed error: ${JSON.stringify(error)}`;
+    }
+  }
+  for (const name of ["readPlanDeterministic", "extractPlanDeterministic"]) {
+    const result = answers[name] as Result.Result<unknown, { readonly message: string }>;
+    if (Result.isFailure(result)) {
+      const { message } = result.failure;
+      if (typeof message !== "string" || message === "") return `${name} failed with no message`;
+      if (message.startsWith(BUG_PREFIX)) return `${name} hit a parser bug: ${message}`;
+    }
+  }
+  const read = answers["readPlanDeterministic"] as ReturnType<typeof readPlanDeterministic>;
+  if (Result.isSuccess(read) && read.success.plan.phases.length === 0) {
+    return "readPlanDeterministic succeeded with no phase";
+  }
+  return undefined;
+}
+
+const TIME_BOUND_MS = 2000;
+
+const TIMED_PARSERS: ReadonlyArray<readonly [string, (text: string) => unknown]> = [
+  ["collectPlanStructureErrors", collectPlanStructureErrors],
+  ["extractPlanDeterministic", extractPlanDeterministic],
+];
+
+const timeOnce = (call: () => unknown): number => {
+  const start = performance.now();
+  call();
+  return performance.now() - start;
+};
+
+// The timings of `call`: one, or three when the first is over the bound (the property judges the
+// fastest). A throw comes back as its description.
+function fastestOfThree(call: () => unknown): readonly number[] | string {
+  try {
+    const timings = [timeOnce(call)];
+    while (timings.length < 3 && timings[0]! > TIME_BOUND_MS) timings.push(timeOnce(call));
+    return timings;
+  } catch (error) {
+    return describeError(error);
+  }
+}
+
 describe("plan parser", () => {
+  it(
+    "any text yields a plan or structure errors",
+    () => {
+      checkProperty(totalityInputs(), ({ origin, text }) => {
+        const problem = totalityProblem(text);
+        if (problem !== undefined) throw new Error(`${problem} (origin: ${origin})`);
+        return true;
+      });
+    },
+    propertyTimeout(),
+  );
+
+  it(
+    "parsing finishes in bounded time",
+    () => {
+      checkProperty(
+        fc.oneof(
+          { arbitrary: largePlanText(), weight: 3 },
+          { arbitrary: mutatedPlanText(), weight: 1 },
+          { arbitrary: anyPlanText(), weight: 1 },
+        ),
+        ({ origin, text }) => {
+          const bytes = Buffer.byteLength(text, "utf8");
+          for (const [name, parse] of TIMED_PARSERS) {
+            const timings = fastestOfThree(() => parse(text));
+            if (typeof timings === "string") {
+              throw new Error(`${name} threw: ${timings} (origin: ${origin}, ${bytes} bytes)`);
+            }
+            if (Math.min(...timings) > TIME_BOUND_MS) {
+              throw new Error(
+                `${name} took over ${TIME_BOUND_MS} ms on ${bytes} bytes (origin: ${origin}); ` +
+                  `timings: ${timings.map((t) => `${Math.round(t)} ms`).join(", ")}`,
+              );
+            }
+          }
+          return true;
+        },
+      );
+    },
+    propertyTimeout(),
+  );
+
   it(
     "a rendered plan parses back to its projection",
     () => {
