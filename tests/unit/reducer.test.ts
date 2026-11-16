@@ -391,6 +391,15 @@ describe("interpret — run lifecycle", () => {
     expect(d.nextState).toEqual({ run: "failed", cause: "boom" });
   });
 
+  it("RunFailed with a cause that has no string form (a null-prototype object) does not throw", () => {
+    // A counter-example of the reducer-inputs property generators: String(cause) throws here.
+    const cause = Object.create(null) as unknown;
+    const d = interpret(representativeState.running, { ...sampleEvents.RunFailed, cause });
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "failed", cause: "[object Object]" });
+  });
+
   it("RunArchiveRequested on completed → archived", () => {
     const d = interpret(representativeState.completed, sampleEvents.RunArchiveRequested);
     expect(d.kind).toBe("Handled");
