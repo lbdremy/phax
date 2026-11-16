@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Result } from "effect";
 import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
-import {
-  collectPlanStructureErrors,
-  extractPlanDeterministic,
-} from "../../src/domain/plan/parsePlanMarkdown.js";
-import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
+import { collectPlanStructureErrors } from "../../src/domain/plan/parsePlanMarkdown.js";
 import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import {
   decodeAuthoredPlanDocument,
@@ -14,6 +10,7 @@ import {
   type AuthoredPlanDocument as PlanDocument,
 } from "../../src/schemas/planDocument.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import { roundTrip } from "../helpers/planRoundTrip.js";
 
 function decoded(raw: unknown): PlanDocument {
   const result = decodeAuthoredPlanDocument(raw);
@@ -112,22 +109,6 @@ function fixture(): PlanDocument {
       },
     ],
   });
-}
-
-function roundTrip(doc: PlanDocument, md: string) {
-  const parsed = extractPlanDeterministic(md);
-  if (Result.isFailure(parsed))
-    throw new Error(`rendered plan does not parse: ${parsed.failure.message}`);
-  const fromMarkdown = finalizeExtractedPlan(parsed.success, md);
-  const fromDocument = finalizeExtractedPlan(projectExtractedPlan(doc), md);
-  if (Result.isFailure(fromMarkdown) || Result.isFailure(fromDocument)) {
-    throw new Error("finalize failed");
-  }
-  return {
-    parsed: parsed.success,
-    fromMarkdown: fromMarkdown.success,
-    fromDocument: fromDocument.success,
-  };
 }
 
 /** A made-up test line: an in-phase small example unless `extra` says otherwise. */

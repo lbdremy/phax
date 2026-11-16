@@ -197,6 +197,19 @@ describe("extractPlanDeterministic", () => {
     expect(result.success.phases[0]!.commit.subject).toBe("feat(x): backtick subject");
   });
 
+  // Found by the plan-parser round-trip property: the renderer writes a subject as one code span
+  // whose content is the subject, so backticks at both ends of the subject are its own.
+  it.each([
+    { written: "``` `` ```", subject: "``" },
+    { written: "`` `code` ``", subject: "`code`" },
+    { written: "`` `code` fix `x` ``", subject: "`code` fix `x`" },
+  ])("keeps the backticks of a subject written as one code span: $written", (row) => {
+    const md = makePlan({ phases: [makePhase({ subject: row.written })] });
+    const result = extractPlanDeterministic(md);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.phases[0]!.commit.subject).toBe(row.subject);
+  });
+
   it("preserves the author's line wrapping in a commit body paragraph verbatim", () => {
     const wrapped = [
       "This is a commit body the author hard-wrapped",

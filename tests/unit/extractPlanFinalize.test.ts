@@ -147,6 +147,29 @@ describe("finalizeExtractedPlan", () => {
     }
   });
 
+  // Found by the plan-parser round-trip property: a `## phase-NN` that is not a root-level heading
+  // (mid-line in prose, inside a list item or a code block) is no phase anchor.
+  it("detects only root-level phase headings, not `## phase-NN` written elsewhere", () => {
+    const planMd = [
+      "# Plan",
+      "",
+      "## phase-01 — Alpha {#phase-01-alpha}",
+      "",
+      "Some content, then ## phase-03 mid-line.",
+      "",
+      "- an item",
+      "  ## phase-04 — Inside a list {#phase-04-list}",
+      "",
+      "```md",
+      "## phase-05 — Inside a fence {#phase-05-fence}",
+      "```",
+    ].join("\n");
+    const result = finalizeExtractedPlan(makeExtracted(), planMd);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.detectedAnchors).toEqual(["phase-01"]);
+    expect(result.success.warnings).toEqual([]);
+  });
+
   it("emits a warning when phase count differs from detected anchors", () => {
     const planMd = [
       "# Plan",

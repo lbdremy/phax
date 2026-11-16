@@ -178,7 +178,14 @@ function extractCommitSubject(
       }),
     );
   }
-  const subject = unwrapBackticks(toString(paragraph)).replace(/\s+/g, " ").trim();
+  // A paragraph that is one code span reads as the span's content, backticks inside it included:
+  // the code span already unwrapped it, and unwrapping again would eat a subject's own backticks.
+  const [only, ...others] = paragraph.children;
+  const written =
+    only?.type === "inlineCode" && others.length === 0
+      ? only.value
+      : unwrapBackticks(toString(paragraph));
+  const subject = written.replace(/\s+/g, " ").trim();
   if (subject.length === 0) {
     return Result.fail(new PlanValidationError({ message: `${phaseId}: empty commit subject` }));
   }
