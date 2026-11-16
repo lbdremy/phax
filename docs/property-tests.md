@@ -27,9 +27,9 @@ Vitest reports a failure as `tests/unit/property/persistedFormats.property.test.
 
 The plan parser's suite is `tests/unit/property/planParser.property.test.ts`, with four tests under `describe("plan parser")`:
 
-- `a rendered plan parses back to its projection`: a generated plan document, rendered by `renderPlanBody`, parses back to the projection of that document.
-- `any text yields a plan or structure errors`: for any text, `collectPlanStructureErrors` and `extractPlanDeterministic` answer and never throw, and a refused text comes with errors that say why.
-- `parsing finishes in bounded time`: both parser calls answer within 2 seconds, on inputs up to 64 KiB.
+- `a rendered plan parses back to its projection`: a generated plan document, rendered by `renderPlanBody`, parses back to the projection of that document, and each phase title reads back as its heading writes it.
+- `any text yields a plan or structure errors`: for any text, `collectPlanStructureErrors`, `readPlanDeterministic` and `extractPlanDeterministic` answer and never throw, and a refused text comes with errors that say why. `locatePlanSections` and, on a successful extraction, `finalizeExtractedPlan` read the same text and answer a `Result`, never a throw.
+- `parsing finishes in bounded time`: `collectPlanStructureErrors`, `extractPlanDeterministic`, `finalizeExtractedPlan` (on a successful extraction) and `locatePlanSections` each answer within 2 seconds, on inputs up to 64 KiB.
 - `the structure check agrees with extraction`: `collectPlanStructureErrors` is empty exactly when `extractPlanDeterministic` succeeds, bar the named structure exceptions.
 
 Vitest reports a failure as `planParser.property.test.ts > plan parser > a rendered plan parses back to its projection`. The same file also holds `renderable rules` and `structure exceptions`, which check that every rule and exception has its example (see below). Two sanity files check the generators themselves: `tests/unit/property/planDocuments.test.ts` and `tests/unit/property/planText.test.ts`.
@@ -45,7 +45,7 @@ Vitest reports a failure as `planParser.property.test.ts > plan parser > a rende
 - `tests/helpers/property/planText.ts`: the plan-parser text sources (`anyPlanText`, `mutatedPlanText`, `largePlanText`), `PLAN_TEXT_MUTATIONS` and `LARGE_TEXT_FRAGMENTS`.
 - `tests/helpers/planRoundTrip.ts`: `roundTrip`, the render-and-parse step of the round trip.
 
-Property tests import only from `src/domain`, `src/schemas`, `packages/schemas` and `tests/helpers/property/`. The plan-parser properties import from `src/domain/plan`, `src/domain/authoring` and `src/schemas`. fast-check is a devDependency.
+Property tests import only from `src/domain`, `src/schemas`, `packages/schemas`, `tests/helpers/property/` and the shared round-trip step `tests/helpers/planRoundTrip.ts`, which sits outside the property helpers because the `renderPlan` examples use it too. The plan-parser properties import from `src/domain/plan`, `src/domain/authoring` and `src/schemas`. fast-check is a devDependency.
 
 ## The default budget
 
@@ -102,7 +102,11 @@ For the plan parser, the fix goes where the bug is, with the counter-example as 
 - a finalize counter-example: fix `src/domain/plan/finalize.ts`, with a case in `tests/unit/extractPlanFinalize.test.ts`;
 - a counter-example that only the generator made (a document or text the format never carries) is a generator fix.
 
-A renderer limit, where `renderPlanBody` emits a value the plan.md cannot carry back, becomes a renderable rule with its failing example. It is never a change to `renderPlanBody`: phax compares a sidecar's rendering with the plan body committed beside it, so a change to the output makes committed plans read as diverged. The limits the renderable rules record (title and commit folding and trimming, a blank phase title, a lone `(none)` required command) are known gaps, left for their own spec.
+A renderer limit, where `renderPlanBody` emits a value the plan.md cannot carry back, becomes a renderable rule with its failing example. It is never a change to `renderPlanBody`: phax compares a sidecar's rendering with the plan body committed beside it, so a change to the output makes committed plans read as diverged. The limits the renderable rules record (run-title and commit folding and trimming, a blank phase title, a lone `(none)` required command) are known gaps, left for their own spec.
+
+One renderer limit is not a rule, because the round trip checks the value in the form the renderer writes it:
+
+- `phase-title-folds-onto-its-heading`: `headingText` folds a phase title's line breaks, with the whitespace around them, to one space and trims it, so `" Read\nthe plan "` reads back as `"Read the plan"`. The round trip holds each phase title read back to `headingText` of the document's title, and the generator keeps multi-line and padded titles.
 
 A property written with a bare `fc.assert` escapes the budget and the replay. A guard in `tests/unit/property/harnessConfig.test.ts` refuses one, so go through `checkProperty`.
 
@@ -167,13 +171,15 @@ The totality, bounded-time and agreement properties read texts from three source
 
 - `anyPlanText`: arbitrary Unicode strings (`arbitrary-unicode`), and strings drawn from an alphabet of Markdown and plan tokens (`plan-token-alphabet`).
 - `mutatedPlanText`: a rendered plan with 1 to 3 line-level mutations from `PLAN_TEXT_MUTATIONS`: `heading-dropped`, `section-duplicated`, `list-item-emptied`, `path-made-non-canonical`, `line-inserted`, `line-removed`, `lines-swapped`, `fence-inserted`, `test-line-departs`. The origin lists the mutations applied.
-- `largePlanText`: inputs up to 65,536 UTF-8 bytes, built from `LARGE_TEXT_FRAGMENTS`: `nested-lists`, `nested-quotes`, `character-run` (long runs of one of `# * _ ` > [ ~ - =`), `repeated-plan` and `mutated-plans`. The origin lists the fragments used.
+- `largePlanText`: inputs up to 65,536 UTF-8 bytes, built from `LARGE_TEXT_FRAGMENTS`: `nested-lists`, `nested-quotes`, `nested-inline` (emphasis up to 400 levels deep, as a root phase heading or a prose line), `character-run` (long runs of one of `# * _ ` > [ ~ - =`), `repeated-plan` and `mutated-plans`. The origin lists the fragments used.
 
 Markdown outside the alphabet (tables, HTML blocks, link reference definitions) is reached only by chance, through arbitrary strings. A grammar-based generator was rejected: the trees it makes almost never look like a plan, so the structure check would stop at the first missing section.
 
 ### The 2-second bound
 
-`parsing finishes in bounded time` times each parser call alone with `performance.now()`. A call over 2,000 ms is timed twice more, and the property fails only when the fastest of the three is still over 2,000 ms. One garbage-collection pause or scheduler stall on a loaded runner therefore cannot fail an unrelated pull request. The cost: an input that is slow only some of the time can pass.
+`parsing finishes in bounded time` times each call alone with `performance.now()`; finalize and section location are timed apart from the extraction they read. A call over 2,000 ms is timed twice more, and the property fails only when the fastest of the three is still over 2,000 ms. One garbage-collection pause or scheduler stall on a loaded runner therefore cannot fail an unrelated pull request. The cost: an input that is slow only some of the time can pass.
+
+The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parser resolves emphasis in time that grows with the square of the delimiters in one paragraph or heading, so deeper nesting near 64 KiB outgrows the bound inside the parser itself: one heading 4,000 levels deep (24 KB) already takes it about 1.6 s. The bound is therefore not held against deeper emphasis, a known gap left for its own spec.
 
 ### Structure exceptions
 

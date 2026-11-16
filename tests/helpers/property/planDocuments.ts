@@ -388,8 +388,10 @@ const modelPiece = fc.oneof(
 type PhaseBody = Omit<PlanDocumentPhase, "id" | "planMarkdownAnchor" | "acceptance">;
 
 // A phase title holds no `{#`: the heading ends `{#anchor}`. It may span lines and open or end
-// on whitespace: the renderer folds it onto the heading line, and finalize reads the title back
-// from that heading for the extraction and the projection alike.
+// on whitespace: the renderer's `headingText` folds it onto the heading line and trims it, and the
+// round trip holds the title finalize reads back to that folded form. The folding is a renderer
+// limit, `phase-title-folds-onto-its-heading` in docs/property-tests.md, not a renderable rule:
+// the folded title reads back, so no document is kept out of the round trip for it.
 const phaseTitle = fc
   .tuple(
     fc.constantFrom("", " ", "\n"),

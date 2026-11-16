@@ -11,6 +11,9 @@ import {
   extractPlanDeterministic,
   readPlanDeterministic,
 } from "../../../src/domain/plan/parsePlanMarkdown.js";
+import { finalizeExtractedPlan } from "../../../src/domain/plan/finalize.js";
+import { locatePlanSections, type LocatablePhase } from "../../../src/domain/plan/sections.js";
+import { headingText } from "../../../src/domain/authoring/markdown.js";
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 import {
@@ -49,12 +52,20 @@ function firstDifference(read: unknown, expected: unknown, path: string): string
 }
 
 // The first way `doc`'s rendering fails to read back to its projection, or undefined. Throws the
-// round-trip helper's error on a refusal.
+// round-trip helper's error on a refusal. The projection carries no phase title, and finalize reads
+// the titles of both sides from the same Markdown, so each title read back is held to the
+// document's title as the heading writes it: folded onto one line and trimmed by `headingText`
+// (the renderer limit `phase-title-folds-onto-its-heading`).
 function roundTripDifference(doc: PlanDocument): string | undefined {
   const { parsed, fromMarkdown, fromDocument } = roundTrip(doc, renderPlanBody(doc));
   const projection = projectExtractedPlan(doc);
   return (
     firstDifference(parsed.phases, projection.phases, "parsed.phases") ??
+    firstDifference(
+      fromMarkdown.plan.phases.map((phase) => phase.title),
+      doc.phases.map((phase) => headingText(phase.title)),
+      "fromMarkdown.plan.phases[].title",
+    ) ??
     firstDifference(parsed.run.title, projection.run.title, "parsed.run.title") ??
     firstDifference(
       parsed.run.requiredCommands,
@@ -105,14 +116,25 @@ const BUG_PREFIX = "deterministic extraction produced invalid ExtractedPhaxPlan"
 const describeError = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);
 
-// The first way the three parser entry points fail to answer `text`, or undefined.
-function totalityProblem(text: string): string | undefined {
-  const calls = {
-    collectPlanStructureErrors: () => collectPlanStructureErrors(text),
-    readPlanDeterministic: () => readPlanDeterministic(text),
-    extractPlanDeterministic: () => extractPlanDeterministic(text),
-  };
-  const answers: Record<string, unknown> = {};
+type Extraction = ReturnType<typeof extractPlanDeterministic>;
+
+// The phases `locatePlanSections` looks for: the extraction's, or one probe phase when extraction
+// refused the text (or has not run), so section location reads every text.
+const PROBE_PHASES: readonly LocatablePhase[] = [
+  { id: "phase-01", planMarkdownAnchor: "#phase-01" },
+];
+
+const phasesToLocate = (extraction: Extraction | undefined): readonly LocatablePhase[] =>
+  extraction !== undefined && Result.isSuccess(extraction)
+    ? extraction.success.phases
+    : PROBE_PHASES;
+
+// Calls each entry point in order, recording its answer in `answers`; the first throw, described,
+// or undefined.
+function firstThrow(
+  calls: Readonly<Record<string, () => unknown>>,
+  answers: Record<string, unknown>,
+): string | undefined {
   for (const [name, call] of Object.entries(calls)) {
     try {
       answers[name] = call();
@@ -120,6 +142,33 @@ function totalityProblem(text: string): string | undefined {
       return `${name} threw ${describeError(error)}`;
     }
   }
+  return undefined;
+}
+
+// The first way the parser entry points, and the finalize and section location that read the
+// same text after them, fail to answer `text`, or undefined.
+function totalityProblem(text: string): string | undefined {
+  const answers: Record<string, unknown> = {};
+  const parserThrow = firstThrow(
+    {
+      collectPlanStructureErrors: () => collectPlanStructureErrors(text),
+      readPlanDeterministic: () => readPlanDeterministic(text),
+      extractPlanDeterministic: () => extractPlanDeterministic(text),
+    },
+    answers,
+  );
+  if (parserThrow !== undefined) return parserThrow;
+  const extraction = answers["extractPlanDeterministic"] as Extraction;
+  const readerThrow = firstThrow(
+    {
+      locatePlanSections: () => locatePlanSections(text, phasesToLocate(extraction)),
+      ...(Result.isSuccess(extraction)
+        ? { finalizeExtractedPlan: () => finalizeExtractedPlan(extraction.success, text) }
+        : {}),
+    },
+    answers,
+  );
+  if (readerThrow !== undefined) return readerThrow;
   const errors = answers["collectPlanStructureErrors"] as ReturnType<
     typeof collectPlanStructureErrors
   >;
@@ -133,13 +182,24 @@ function totalityProblem(text: string): string | undefined {
       return `collectPlanStructureErrors returned a malformed error: ${JSON.stringify(error)}`;
     }
   }
-  for (const name of ["readPlanDeterministic", "extractPlanDeterministic"]) {
+  for (const name of [
+    "readPlanDeterministic",
+    "extractPlanDeterministic",
+    "finalizeExtractedPlan",
+  ]) {
+    if (!Object.hasOwn(answers, name)) continue;
     const result = answers[name] as Result.Result<unknown, { readonly message: string }>;
+    if (!Result.isResult(result)) return `${name} did not return a Result`;
     if (Result.isFailure(result)) {
       const { message } = result.failure;
       if (typeof message !== "string" || message === "") return `${name} failed with no message`;
       if (message.startsWith(BUG_PREFIX)) return `${name} hit a parser bug: ${message}`;
     }
+  }
+  const located = answers["locatePlanSections"] as ReturnType<typeof locatePlanSections>;
+  if (!Result.isResult(located)) return "locatePlanSections did not return a Result";
+  if (Result.isFailure(located) && located.failure.length === 0) {
+    return "locatePlanSections failed with no missing phase";
   }
   const read = answers["readPlanDeterministic"] as ReturnType<typeof readPlanDeterministic>;
   if (Result.isSuccess(read) && read.success.plan.phases.length === 0) {
@@ -150,10 +210,23 @@ function totalityProblem(text: string): string | undefined {
 
 const TIME_BOUND_MS = 2000;
 
-const TIMED_PARSERS: ReadonlyArray<readonly [string, (text: string) => unknown]> = [
-  ["collectPlanStructureErrors", collectPlanStructureErrors],
-  ["extractPlanDeterministic", extractPlanDeterministic],
-];
+// The timed calls on `text`, in order. Finalize and section location read the extraction the
+// extraction call left, so only their own work is timed; finalize runs on a successful extraction.
+function timedCalls(text: string): ReadonlyArray<readonly [string, () => unknown]> {
+  let extraction: Extraction | undefined;
+  return [
+    ["collectPlanStructureErrors", () => collectPlanStructureErrors(text)],
+    ["extractPlanDeterministic", () => (extraction = extractPlanDeterministic(text))],
+    [
+      "finalizeExtractedPlan",
+      () =>
+        extraction !== undefined && Result.isSuccess(extraction)
+          ? finalizeExtractedPlan(extraction.success, text)
+          : undefined,
+    ],
+    ["locatePlanSections", () => locatePlanSections(text, phasesToLocate(extraction))],
+  ];
+}
 
 const timeOnce = (call: () => unknown): number => {
   const start = performance.now();
@@ -217,8 +290,8 @@ describe("plan parser", () => {
         ),
         ({ origin, text }) => {
           const bytes = Buffer.byteLength(text, "utf8");
-          for (const [name, parse] of TIMED_PARSERS) {
-            const timings = fastestOfThree(() => parse(text));
+          for (const [name, call] of timedCalls(text)) {
+            const timings = fastestOfThree(call);
             if (typeof timings === "string") {
               throw new Error(`${name} threw: ${timings} (origin: ${origin}, ${bytes} bytes)`);
             }
