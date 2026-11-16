@@ -38,7 +38,12 @@ export function describeCause(cause: unknown): string {
     return cause.message;
   }
   if (cause instanceof Error) return cause.message;
-  return String(cause);
+  try {
+    return String(cause);
+  } catch {
+    // A null-prototype object, or one whose `toString` is no function, has no string form.
+    return Object.prototype.toString.call(cause);
+  }
 }
 
 /**
