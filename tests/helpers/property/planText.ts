@@ -246,6 +246,7 @@ export const mutatedPlanText = (): fc.Arbitrary<PlanText> =>
 export const LARGE_TEXT_FRAGMENTS = [
   "nested-lists",
   "nested-quotes",
+  "nested-inline",
   "character-run",
   "repeated-plan",
   "mutated-plans",
@@ -265,6 +266,30 @@ const nestedQuotes = fc
   .integer({ min: 1, max: 3_000 })
   .map((depth) => `${"> ".repeat(depth)}quoted\n`);
 
+// Emphasis nested `depth` levels deep, alternating `*` and `_` so each level opens its own run, as
+// a root phase heading (which finalize and section location flatten) or a prose line. The depth
+// stops at 400: the Markdown parser's emphasis resolution grows with the square of the delimiters
+// in a paragraph or heading, so a near-cap input of deeper nesting outgrows the 2-second bound in
+// the parser itself (about 1.6 s for one heading 4,000 levels deep), before any flattening.
+const MAX_INLINE_DEPTH = 400;
+
+const nestedEmphasis = (depth: number): string => {
+  let open = "";
+  let close = "";
+  for (let i = 0; i < depth; i += 1) {
+    const marker = i % 2 === 0 ? "*" : "_";
+    open += `${marker}a `;
+    close = ` b${marker}${close}`;
+  }
+  return `${open}x${close}`;
+};
+
+const nestedInline = fc
+  .tuple(fc.integer({ min: 1, max: MAX_INLINE_DEPTH }), fc.boolean())
+  .map(([depth, heading]) =>
+    heading ? `## phase-01 — ${nestedEmphasis(depth)} {#phase-01-deep}` : nestedEmphasis(depth),
+  );
+
 const characterRun = fc
   .tuple(fc.constantFrom(...RUN_CHARACTERS), fc.integer({ min: 1, max: 20_000 }))
   .map(([character, length]) => character.repeat(length));
@@ -282,6 +307,7 @@ const mutatedPlans = fc
 const fragments: fc.Arbitrary<Fragment> = fc.oneof(
   nestedLists.map((text): Fragment => ({ name: "nested-lists", text })),
   nestedQuotes.map((text): Fragment => ({ name: "nested-quotes", text })),
+  nestedInline.map((text): Fragment => ({ name: "nested-inline", text })),
   characterRun.map((text): Fragment => ({ name: "character-run", text })),
   repeatedPlan.map((text): Fragment => ({ name: "repeated-plan", text })),
   mutatedPlans.map((text): Fragment => ({ name: "mutated-plans", text })),
