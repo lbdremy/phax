@@ -194,7 +194,7 @@ Markdown outside the alphabet (tables, HTML blocks, link reference definitions) 
 
 ### The 2-second bound
 
-`parsing finishes in bounded time` times each call alone with `performance.now()`; finalize and section location are timed apart from the extraction they read. A call over 2,000 ms is timed twice more, and the property fails only when the fastest of the three is still over 2,000 ms. One garbage-collection pause or scheduler stall on a loaded runner therefore cannot fail an unrelated pull request. The cost: an input that is slow only some of the time can pass.
+`parsing finishes in bounded time` times each call alone with `performance.now()`; finalize and section location are timed apart from the extraction they read. A call over 2,000 ms is timed twice more, and the property fails only when the fastest of the three is still over 2,000 ms. One garbage-collection pause or scheduler stall on a loaded runner therefore cannot fail an unrelated pull request. The cost: an input that is slow only some of the time can pass. The property draws large, mutated and arbitrary text in equal shares: each large input is parsed four times, and at three large inputs in five the property outgrew the 30-second per-test timeout on a loaded CI runner.
 
 The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parser resolves emphasis in time that grows with the square of the delimiters in one paragraph or heading, so deeper nesting near 64 KiB outgrows the bound inside the parser itself: one heading 4,000 levels deep (24 KB) already takes it about 1.6 s. The bound is therefore not held against deeper emphasis, a known gap left for its own spec.
 

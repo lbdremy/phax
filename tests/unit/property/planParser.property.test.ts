@@ -283,8 +283,10 @@ describe("plan parser", () => {
     "parsing finishes in bounded time",
     () => {
       checkProperty(
+        // Large inputs are a third of the draw: each one is parsed four times, and at a larger share
+        // the property outgrew the unit tier's 30-second per-test timeout on a loaded CI runner.
         fc.oneof(
-          { arbitrary: largePlanText(), weight: 3 },
+          { arbitrary: largePlanText(), weight: 1 },
           { arbitrary: mutatedPlanText(), weight: 1 },
           { arbitrary: anyPlanText(), weight: 1 },
         ),
