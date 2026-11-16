@@ -45,7 +45,7 @@ The plan needs nothing beyond the `standard` gate profile. `pnpm test:property:d
 - Synchronous runs: `checkProperty` takes a synchronous predicate, so the argv property runs the runner with `Effect.runSyncExit`. The property program declares no command that answers asynchronously: no successful `--out` document write, which hashes with WebCrypto, and no stdin that is a terminal. Loss accepted: the successful `--out` write path is not searched by the property. Its refusals (a missing value) still are.
 - No acceptance pair: every guarantee is a property over code that already exists, so an acceptance phase would have nothing to stub and nothing to fail against. Loss accepted: no test is frozen before the code. The only code this plan may write is a fix for a counter-example, and that fix lands with its hand-written case.
 
-## Open questions
+## Arbitrated questions
 
 ### q-terminal-successors — §5.14 and ac-sm-phase-terminal, read word for word, allow only three next states after a terminal phase state: no phase, a terminal phase state, or pending. The reducer's normal post-commit lifecycle leaves that set: - From committed, a handled event leads to cleaning_up, handoff_failed or a held awaiting_review. - From cleaned_up or skipped, PhaseStartRequested leads to setting_up_worktree, which is the next phase's start. Pending is reached only by RunStarted and PhaseResetRequested. How does the terminal-phase property state the invariant?
 
@@ -65,6 +65,13 @@ The plan needs nothing beyond the `standard` gate profile. `pnpm test:property:d
 Recommendation: no-going-back — It states what the criterion's title says (a terminal phase does not go back) and what the q-phase-terminal decision set out to guard. It still checks committed, and it needs no table that copies the reducer's transitions. On the current reducer it holds, from every reachable terminal state.
 
 The literal form fails on the first committed phase that starts its cleanup. That counter-example comes from the spec, not from the reducer. The brief forbids changing the reducer or the contract to make a property pass, so the plan cannot settle this alone.
+
+Decision: no-going-back — by operator (Rémy Loubradou), 2026-11-16
+Why: The spec's §5.14 and ac-sm-phase-terminal were revised on 2026-11-16 to state this same set, so the test and the spec agree. Advocate: The strongest case for literal-with-exceptions: it keeps the spec's exact three-way set and makes every legitimate post-commit successor an explicit, named and explained exception with a hand-written example. A wrong move between two allowed states, such as committed to cleaning_up on the wrong event, would then be caught by the exception's narrow matcher rather than slipping through a wider allowed set. Principles: C3, C2, E0. Reversibility: cheap. Revised: none. Phase: phase-02.
+
+## Decision log
+
+- 2026-11-16 q-terminal-successors decided no-going-back — operator (Rémy Loubradou)
 
 ---
 
