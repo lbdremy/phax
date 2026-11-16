@@ -218,6 +218,11 @@ describe("property files", () => {
     "tests/unit/property/cliArguments.property.test.ts",
   ]);
   const argvRoots = ["src/cli/commandLibrary/contract/", "src/cli/commandLibrary/commander/run.js"];
+  // The test helpers a property file may import: the property helpers and the shared round-trip
+  // step. The harness's own tests also read which files a replay line selects.
+  const testRoots = ["tests/helpers/property/", "tests/helpers/planRoundTrip.js"];
+  const harnessTestRoots = ["tests/helpers/vitestSelection.js"];
+  const harnessTests = new Set([...own].map((name) => `tests/unit/property/${name}`));
   const propertyFiles = [
     ...readdirSync(dir).map((name) => `tests/unit/property/${name}`),
     ...readdirSync(join(process.cwd(), "tests/helpers/property")).map(
@@ -225,19 +230,57 @@ describe("property files", () => {
     ),
   ].filter((file) => file.endsWith(".ts"));
 
-  const offendingImports = (file: string): ReadonlyArray<string> => {
-    const source = readFileSync(join(process.cwd(), file), "utf8");
-    const specifiers = [
-      ...source.matchAll(/\bfrom\s+"(\.[^"]*)"/g),
-      ...source.matchAll(/\bimport\(\s*"(\.[^"]*)"\s*\)/g),
-    ].map((match) => match[1]!);
+  /** The relative specifiers of `source`, in either quote style: `from "…"` (imports and
+   *  re-exports), a bare side-effect `import "…"`, and `import("…")`. */
+  const relativeSpecifiers = (source: string): ReadonlyArray<string> =>
+    [
+      ...source.matchAll(/\bfrom\s+(["'])(\.[^"']*)\1/g),
+      ...source.matchAll(/\bimport\s+(["'])(\.[^"']*)\1/g),
+      ...source.matchAll(/\bimport\(\s*(["'])(\.[^"']*)\1\s*\)/g),
+    ].map((match) => match[2]!);
+
+  const offendingImportsOf = (file: string, source: string): ReadonlyArray<string> => {
     const roots = argvFiles.has(file) ? [...allowedRoots, ...argvRoots] : allowedRoots;
-    return specifiers
+    const tests = harnessTests.has(file) ? [...testRoots, ...harnessTestRoots] : testRoots;
+    return relativeSpecifiers(source)
       .map((specifier) => relative(process.cwd(), resolve(process.cwd(), file, "..", specifier)))
       .map((target) => target.split("\\").join("/"))
-      .filter((target) => target.startsWith("src/") || target.startsWith("packages/"))
-      .filter((target) => !roots.some((root) => target.startsWith(root)));
+      .filter((target) =>
+        target.startsWith("src/") || target.startsWith("packages/")
+          ? !roots.some((root) => target.startsWith(root))
+          : target.startsWith("tests/") && !tests.some((root) => target.startsWith(root)),
+      );
   };
+
+  const offendingImports = (file: string): ReadonlyArray<string> =>
+    offendingImportsOf(file, readFileSync(join(process.cwd(), file), "utf8"));
+
+  // An import line, built from its words so this file's own source holds none the guard reads.
+  const importLine = (...words: ReadonlyArray<string>): string => `${words.join(" ")};\n`;
+  const propertyFile = "tests/unit/property/example.property.test.ts";
+
+  it("refuses a bare side-effect import", () => {
+    const source = importLine("import", '"../../../src/infra/fs.js"');
+    expect(offendingImportsOf(propertyFile, source)).toEqual(["src/infra/fs.js"]);
+  });
+
+  it("refuses a single-quoted specifier", () => {
+    const source = importLine("import { x }", "from", "'../../../src/infra/fs.js'");
+    expect(offendingImportsOf(propertyFile, source)).toEqual(["src/infra/fs.js"]);
+  });
+
+  it("refuses a test helper outside the property helpers and the round-trip step", () => {
+    const source = [
+      importLine("import { x }", "from", '"../../helpers/fixtures.js"'),
+      importLine("import { y }", "from", '"../../helpers/vitestSelection.js"'),
+      importLine("import { roundTrip }", "from", '"../../helpers/planRoundTrip.js"'),
+      importLine("import { z }", "from", '"../../helpers/property/harness.js"'),
+    ].join("");
+    expect(offendingImportsOf(propertyFile, source)).toEqual([
+      "tests/helpers/fixtures.js",
+      "tests/helpers/vitestSelection.js",
+    ]);
+  });
 
   it("sees the argv files and the helpers", () => {
     for (const file of argvFiles) expect(propertyFiles).toContain(file);
