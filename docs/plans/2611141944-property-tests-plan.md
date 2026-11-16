@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611131320-property-tests.md
 completes-spec: false
+approved:
+  date: 2026-11-16
+  baseline: 10b93b8
 ---
 # Property tests over the plan parser
 
