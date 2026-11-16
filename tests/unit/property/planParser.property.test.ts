@@ -81,6 +81,25 @@ function roundTripFailure(doc: PlanDocument): string | undefined {
 
 const totalityInputs = () => fc.oneof(anyPlanText(), mutatedPlanText());
 
+interface StructureException {
+  readonly name: string;
+  readonly reason: string;
+  readonly matches: (text: string) => boolean;
+}
+
+const STRUCTURE_EXCEPTIONS: readonly StructureException[] = [
+  {
+    name: "departing-test-line",
+    reason:
+      "extractPlanDeterministic refuses a test line that departs from the grammar, while collectPlanStructureErrors leaves test lines to the tests check of `phax plans lint`",
+    matches: (text) => {
+      if (collectPlanStructureErrors(text).length > 0) return false;
+      const reading = readPlanDeterministic(text);
+      return Result.isSuccess(reading) && reading.success.departures.length > 0;
+    },
+  },
+];
+
 const BUG_PREFIX = "deterministic extraction produced invalid ExtractedPhaxPlan";
 
 const describeError = (error: unknown): string =>
@@ -155,6 +174,26 @@ function fastestOfThree(call: () => unknown): readonly number[] | string {
 }
 
 describe("plan parser", () => {
+  it(
+    "the structure check agrees with extraction",
+    () => {
+      checkProperty(totalityInputs(), ({ origin, text }) => {
+        const errors = collectPlanStructureErrors(text);
+        const extraction = extractPlanDeterministic(text);
+        const clean = errors.length === 0;
+        const read = Result.isSuccess(extraction);
+        if (clean === read) return true;
+        if (STRUCTURE_EXCEPTIONS.some((exception) => exception.matches(text))) return true;
+        throw new Error(
+          `structure check ${clean ? "clean" : "not clean"} but extraction ${read ? "read" : "refused"} ` +
+            `the plan (origin: ${origin}); first structure error: ${errors[0]?.message ?? "(none)"}; ` +
+            `extraction: ${Result.isFailure(extraction) ? extraction.failure.message : "(read)"}`,
+        );
+      });
+    },
+    propertyTimeout(),
+  );
+
   it(
     "any text yields a plan or structure errors",
     () => {
@@ -303,5 +342,36 @@ describe("renderable rules", () => {
       rule.name,
     ]);
     expect(roundTripFailure(example)).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------------------------
+// Structure exceptions: one hand-written plan per exception.
+// ---------------------------------------------------------------------------------------------
+
+// A minimal valid plan whose one test line writes `--` where the grammar wants ` — `.
+const DEPARTING_TEST_LINE_PLAN = renderPlanBody(BASE).replace(
+  "### Test strategy\n\n- (none)",
+  "### Test strategy\n\n- a plan is read--small · example · the plan · in-phase",
+);
+
+const STRUCTURE_EXAMPLES: Readonly<Record<string, string>> = {
+  "departing-test-line": DEPARTING_TEST_LINE_PLAN,
+};
+
+describe("structure exceptions", () => {
+  it("every exception has an example and every example an exception", () => {
+    expect(Object.keys(STRUCTURE_EXAMPLES).toSorted()).toEqual(
+      STRUCTURE_EXCEPTIONS.map((exception) => exception.name).toSorted(),
+    );
+  });
+
+  it.each(STRUCTURE_EXCEPTIONS)("$name: $reason", (exception) => {
+    const example = STRUCTURE_EXAMPLES[exception.name];
+    if (example === undefined) throw new Error(`no example for ${exception.name}`);
+    expect(example).toContain("read--small");
+    expect(exception.matches(example)).toBe(true);
+    expect(collectPlanStructureErrors(example)).toEqual([]);
+    expect(Result.isFailure(extractPlanDeterministic(example))).toBe(true);
   });
 });
