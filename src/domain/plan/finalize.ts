@@ -2,6 +2,7 @@ import { Array as Arr, Result } from "effect";
 import { slugifyShortName } from "../branded.js";
 import { PlanValidationError } from "../errors.js";
 import type { ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
+import { phaseHeadingIds } from "./sections.js";
 
 export interface FinalizeResult {
   readonly plan: PhaxPlan;
@@ -24,14 +25,10 @@ function parsePhaseTitles(planMd: string): Map<string, string> {
   return titles;
 }
 
+// The ids of the root-level `## phase-NN` headings, as the parser recognises them: a
+// `## phase-NN` written mid-line, inside a list or in a code block is not a phase heading.
 function detectPhaseAnchors(planMd: string): string[] {
-  const matches = planMd.match(/##\s+phase-\d{2}/gi) ?? [];
-  return matches
-    .map((m) => {
-      const id = m.match(/phase-\d{2}/i);
-      return id ? id[0].toLowerCase() : "";
-    })
-    .filter(Boolean);
+  return [...phaseHeadingIds(planMd)];
 }
 
 /**

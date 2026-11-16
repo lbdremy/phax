@@ -387,9 +387,23 @@ const modelPiece = fc.oneof(
 
 type PhaseBody = Omit<PlanDocumentPhase, "id" | "planMarkdownAnchor" | "acceptance">;
 
+// A phase title holds no `{#`: the heading ends `{#anchor}`. It may span lines and open or end
+// on whitespace: the renderer folds it onto the heading line, and finalize reads the title back
+// from that heading for the extraction and the projection alike.
+const phaseTitle = fc
+  .tuple(
+    fc.constantFrom("", " ", "\n"),
+    wordLine(WITHOUT_ANCHOR),
+    fc.array(fc.tuple(fc.constantFrom("\n", " \n "), wordLine(WITHOUT_ANCHOR)), { maxLength: 2 }),
+    fc.constantFrom("", " ", "\n"),
+  )
+  .map(
+    ([lead, first, rest, end]) =>
+      lead + first + rest.map(([glue, line]) => `${glue}${line}`).join("") + end,
+  );
+
 const phaseBody: fc.Arbitrary<PhaseBody> = record<PhaseBody>({
-  // One line with no `{#`: the heading ends `{#anchor}`.
-  title: wordLine(WITHOUT_ANCHOR),
+  title: phaseTitle,
   objective: rootProse,
   detailedInstructions: fc.array(listProse, { maxLength: 3 }),
   plannedFilesToCreate: planPaths,
@@ -612,10 +626,10 @@ export const RENDERABLE_RULES: ReadonlyArray<RenderableRule> = [
     holds: ({ phases }) => phases.every(({ title }) => !title.includes("{#")),
   },
   {
-    name: "phase-title-is-one-trimmed-line",
+    name: "phase-title-has-text",
     reason:
-      "the renderer's headingText folds line breaks to a space and trims, and the heading is one line",
-    holds: ({ phases }) => phases.every(({ title }) => isOneTrimmedLine(title)),
+      "the renderer's headingText trims a blank title to nothing, and finalize's parsePhaseTitles then finds no title in the heading",
+    holds: ({ phases }) => phases.every(({ title }) => /\S/.test(title)),
   },
   {
     name: "root-prose-opens-no-block",
