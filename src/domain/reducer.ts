@@ -26,9 +26,8 @@ function assertNever(x: never): never {
   throw new Error(`Unhandled discriminator: ${JSON.stringify(x)}`);
 }
 
-export function describeCause(cause: unknown): string {
-  if (cause == null) return "unknown";
-  if (typeof cause === "string") return cause;
+/** A cause that is no string, as text. Throws on a cause no step can read. */
+function describeObjectCause(cause: unknown): string {
   if (cause instanceof AgentInvocationError) {
     const raw = cause.stderrExcerpt ?? cause.stderr;
     if (raw) {
@@ -43,6 +42,18 @@ export function describeCause(cause: unknown): string {
   } catch {
     // A null-prototype object, or one whose `toString` is no function, has no string form.
     return Object.prototype.toString.call(cause);
+  }
+}
+
+export function describeCause(cause: unknown): string {
+  if (cause == null) return "unknown";
+  if (typeof cause === "string") return cause;
+  try {
+    return describeObjectCause(cause);
+  } catch {
+    // A revoked Proxy (`instanceof` throws), a throwing `Symbol.toStringTag` or `message` getter:
+    // the run still fails, with a cause that says it could not be read.
+    return "unknown cause";
   }
 }
 

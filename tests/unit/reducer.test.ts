@@ -400,6 +400,31 @@ describe("interpret — run lifecycle", () => {
     expect(d.nextState).toEqual({ run: "failed", cause: "[object Object]" });
   });
 
+  it("RunFailed with a cause whose Symbol.toStringTag getter throws does not throw", () => {
+    // No string form, and Object.prototype.toString throws reading the tag.
+    const cause = Object.create(null, {
+      [Symbol.toStringTag]: {
+        get: () => {
+          throw new Error("no tag");
+        },
+      },
+    }) as unknown;
+    const d = interpret(representativeState.running, { ...sampleEvents.RunFailed, cause });
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "failed", cause: "unknown cause" });
+  });
+
+  it("RunFailed with a revoked Proxy as its cause does not throw", () => {
+    // `instanceof` throws on a revoked Proxy.
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    const d = interpret(representativeState.running, { ...sampleEvents.RunFailed, cause: proxy });
+    expect(d.kind).toBe("Handled");
+    if (d.kind !== "Handled") return;
+    expect(d.nextState).toEqual({ run: "failed", cause: "unknown cause" });
+  });
+
   it("RunArchiveRequested on completed → archived", () => {
     const d = interpret(representativeState.completed, sampleEvents.RunArchiveRequested);
     expect(d.kind).toBe("Handled");
