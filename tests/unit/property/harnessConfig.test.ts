@@ -1,7 +1,7 @@
 // In-phase tests for the property harness's configuration, its budget and the guard that keeps
 // every property file on it. Every call hands the harness an explicit env object.
 import { readdirSync, readFileSync } from "node:fs";
-import { join, matchesGlob } from "node:path";
+import { join, matchesGlob, relative, resolve } from "node:path";
 import * as fc from "fast-check";
 import { describe, expect, it, vi } from "vitest";
 import config from "../../../vitest.config.js";
@@ -205,6 +205,48 @@ describe("property files", () => {
     expect(source).toMatch(/\bcheckProperty\b/);
     expect(source).not.toContain("fc.assert(");
     expect(source).not.toContain("fc.check(");
+  });
+
+  // The roots a property file may import from; the argv files alone may also reach the command
+  // library's contract and its runner, never `commander/index.ts` (it re-exports `processIo`).
+  // Specifiers end in `.js`, as the sources import each other.
+  const allowedRoots = ["src/domain/", "src/schemas/", "packages/schemas/"];
+  const argvFiles = new Set([
+    "tests/helpers/property/argvProgram.ts",
+    "tests/helpers/property/argvInputs.ts",
+    "tests/unit/property/argvInputs.test.ts",
+    "tests/unit/property/cliArguments.property.test.ts",
+  ]);
+  const argvRoots = ["src/cli/commandLibrary/contract/", "src/cli/commandLibrary/commander/run.js"];
+  const propertyFiles = [
+    ...readdirSync(dir).map((name) => `tests/unit/property/${name}`),
+    ...readdirSync(join(process.cwd(), "tests/helpers/property")).map(
+      (name) => `tests/helpers/property/${name}`,
+    ),
+  ].filter((file) => file.endsWith(".ts"));
+
+  const offendingImports = (file: string): ReadonlyArray<string> => {
+    const source = readFileSync(join(process.cwd(), file), "utf8");
+    const specifiers = [
+      ...source.matchAll(/\bfrom\s+"(\.[^"]*)"/g),
+      ...source.matchAll(/\bimport\(\s*"(\.[^"]*)"\s*\)/g),
+    ].map((match) => match[1]!);
+    const roots = argvFiles.has(file) ? [...allowedRoots, ...argvRoots] : allowedRoots;
+    return specifiers
+      .map((specifier) => relative(process.cwd(), resolve(process.cwd(), file, "..", specifier)))
+      .map((target) => target.split("\\").join("/"))
+      .filter((target) => target.startsWith("src/") || target.startsWith("packages/"))
+      .filter((target) => !roots.some((root) => target.startsWith(root)));
+  };
+
+  it("sees the argv files and the helpers", () => {
+    for (const file of argvFiles) expect(propertyFiles).toContain(file);
+    expect(propertyFiles).toContain("tests/helpers/property/harness.ts");
+  });
+
+  it.each(propertyFiles)("%s imports only from the allowed roots", (file) => {
+    const offending = offendingImports(file);
+    expect(offending, `${file} imports ${offending.join(", ")}`).toEqual([]);
   });
 
   it("is collected by the unit project", () => {
