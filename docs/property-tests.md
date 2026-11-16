@@ -44,19 +44,19 @@ Vitest reports a failure as `planParser.property.test.ts > plan parser > a rende
 - `tests/helpers/property/planDocuments.ts`: the plan-document generator and `RENDERABLE_RULES`.
 - `tests/helpers/property/planText.ts`: the plan-parser text sources (`anyPlanText`, `mutatedPlanText`, `largePlanText`), `PLAN_TEXT_MUTATIONS` and `LARGE_TEXT_FRAGMENTS`.
 - `tests/helpers/planRoundTrip.ts`: `roundTrip`, the render-and-parse step of the round trip.
-- `tests/helpers/property/reducerInputs.ts`: the reducer's generators (`reachableStates`, `statesOfRun`, `terminalPhaseStates`, `anyEvent`), `EVENT_GENERATORS` and `REACHABLE_SHAPES`.
+- `tests/helpers/property/reducerInputs.ts`: the reducer's generators (`reachableStates`, `statesOfRun`, `terminalPhaseStates`, `anyEvent`, `eventsBiasedTo`), `handledEventTypes`, `EVENT_GENERATORS` and `REACHABLE_SHAPES`.
 - `tests/unit/property/reducerInputs.test.ts`: the sanity and coverage tests of those generators.
-- `tests/helpers/property/argvProgram.ts`: `argvProgram()`, the property program, with `PROGRAM_SHAPES` and `declaredExitCodes`.
+- `tests/helpers/property/argvProgram.ts`: `argvProgram()`, the property program, with `PROGRAM_SHAPES`, `declaredExitCodes`, `TRIGGER_WORDS` and `VERDICT_DEFAULT`.
 - `tests/helpers/property/argvInputs.ts`: the argument-vector sources (`anyArgv`, `knownArgv`) and the vocabulary read from the program.
 - `tests/unit/property/argvInputs.test.ts`: the sanity tests of the program and its generators.
 
-Property tests import only from `src/domain`, `src/schemas`, `packages/schemas`, `tests/helpers/property/` and the shared round-trip step `tests/helpers/planRoundTrip.ts`, which sits outside the property helpers because the `renderPlan` examples use it too. The plan-parser properties import from `src/domain/plan`, `src/domain/authoring` and `src/schemas`. fast-check is a devDependency.
+Property tests import only from `src/domain`, `src/schemas`, `packages/schemas`, `tests/helpers/property/` and the shared round-trip step `tests/helpers/planRoundTrip.ts`, which sits outside the property helpers because the `renderPlan` examples use it too. The harness's own tests (`harness.test.ts` and `harnessConfig.test.ts`) may also import `tests/helpers/vitestSelection.ts`, which reads the files a replay line selects. The plan-parser properties import from `src/domain/plan`, `src/domain/authoring` and `src/schemas`. fast-check is a devDependency.
 
 The rule has a second tier. The four argv files (`tests/helpers/property/argvProgram.ts`, `tests/helpers/property/argvInputs.ts`, `tests/unit/property/argvInputs.test.ts` and `tests/unit/property/cliArguments.property.test.ts`) alone may also import `src/cli/commandLibrary/contract/` (including `conformance/memoryIo.ts`) and exactly `src/cli/commandLibrary/commander/run.ts`. Nothing else under `src/cli/` is allowed, and never `commander/index.ts`, because it re-exports the process-backed `processIo`.
 
 This is safe because `run.ts` reaches the world only through the `Io` it is handed, Commander is built with `exitOverride()`, and its output is collected into strings in memory. `memoryIo` keeps every stream and file in memory. The runner is therefore driven with no real I/O and no port.
 
-The guard `%s imports only from the allowed roots` in `tests/unit/property/harnessConfig.test.ts` runs over every `.ts` file of `tests/unit/property/` and `tests/helpers/property/`. It reads each relative import that resolves into `src/` or `packages/` and fails naming the offending import.
+The guard `%s imports only from the allowed roots` in `tests/unit/property/harnessConfig.test.ts` runs over every `.ts` file of `tests/unit/property/` and `tests/helpers/property/`. It reads each relative specifier, in either quote style, of a `from` (an import or a re-export), a bare side-effect `import "…"` and an `import("…")`. A target under `src/` or `packages/` must be under an allowed root, and a target under `tests/` must be one of the test helpers named above. It fails naming the offending import. The guard's own tests give it one example of each kind it must refuse.
 
 ## The default budget
 
@@ -214,6 +214,8 @@ Add an entry only when the disagreement is deliberate, as for `Agreement excepti
 - `a terminal phase does not go back` (ac-sm-phase-terminal): from `committed`, `cleaned_up`, `review_open` or `skipped`, a handled event leads to no phase, a terminal phase state, a post-commit state (`cleaning_up`, `handoff_failed`, `awaiting_review`) or the next phase's start (`pending`, `setting_up_worktree`). It never leads to `running`, `fixing`, `gates_failed`, `gates_exhausted`, `passed`, `rate_limited` or `failed`. This is the set decided in q-terminal-successors, and the spec's §5.14 states the same set. A wrong move between two allowed states is not caught here; the reducer's own suite checks it.
 - `a refused event carries no change` (ac-sm-refused): an ignored or rejected disposition holds a `kind` and a `reason` and nothing else.
 
+`a completed or stopped run only archives` and `a terminal phase does not go back` check nothing on a refusal, and among the 39 event types `anyEvent` draws the few each handles too rarely: under the fixed seed, the first would see no handled input at all. Their events come from `eventsBiasedTo(handledEventTypes(states))`: four draws in five are of a type the reducer handles from those states, read from `interpret` over a fixed-seed sample, and the fifth is any event, so the refusals are still searched. The tests under `describe("run reducer reach")` count the handled inputs of each over a fixed-seed sample at the default run count, and require at least one in five.
+
 `tests/unit/property/reducerInputs.test.ts` checks the generators themselves.
 
 ### Reachability
@@ -232,12 +234,23 @@ Loss accepted: a state only an inconsistent persisted file composes (a `rate_lim
 
 ## CLI arguments
 
-`tests/unit/property/cliArguments.property.test.ts` drives the command library's runner (`runner`, `src/cli/commandLibrary/commander/run.ts`) over `memoryIo`. Two tests are under `describe("cli arguments")`:
+`tests/unit/property/cliArguments.property.test.ts` drives the command library's runner (`runner`, `src/cli/commandLibrary/commander/run.ts`) over `memoryIo`.
 
-- `any argv is run or refused through the contract` (ac-cli-argv): a call exits with a code the program declares, or is refused with the refused code, nothing on stdout and a message on stderr. It never ends with the defect code.
+The property runs a dedicated program, `argvProgram()`, built with the contract's define API, not the conformance suite's programs that the spec's ac-cli-argv names. Those programs are private to the suite's `cases.ts`, built one per case, and frozen: the property can neither import them nor add to them, and no one of them offers every path. One program that offers every path `PROGRAM_SHAPES` names lets a single property search them all. The loss is stated under `### The property program`.
+
+Three tests are under `describe("cli arguments")`:
+
+- `any argv is run or refused through the contract` (ac-cli-argv): a call runs the command its words name and exits with a code the program declares, or is refused with the refused code, nothing on stdout and a message on stderr. It never ends with the defect code.
+- `the argv source reaches every code the program declares, and the refusal`: a fixed-seed sample of the property's argv source, run through the runner, ends with every code of `declaredExitCodes` (0, each verdict code, the mapped error tag's code, the guard's code) and the refused code.
 - `no argv reaches the process`: `process.exit` is never called.
 
 The exit codes are read from `program.exits` (and `declaredExitCodes`), never written as literals.
+
+A code other than the refused one is checked against evidence that the command ran, so a runner that answered 0 to every call would fail. The command is the one whose full name starts the call's words, once the program's options and other dash-led words are set aside:
+
+- on 0, stdout is that command's output (every command without verdicts answers its own name, as text or as the JSON string `--json` writes), or the help, the version, the usage spec or the command's JSON Schema, each only when the call asked for it;
+- on a verdict code, stdout is the verdict command's output (an operand of the call, or `VERDICT_DEFAULT`), and the code is the one its verdicts give that output;
+- on a code the command's `exits` maps, or the guard's code for its words, stdout is empty and stderr is written.
 
 ### The property program
 
@@ -255,6 +268,8 @@ A path that only a frozen conformance case builds, and that `PROGRAM_SHAPES` lea
 
 `anyArgv` draws arbitrary strings. `knownArgv` draws the program's own command words followed by arbitrary flags and values. Each value is `{ origin, argv, stdin }`, and a failure names the origin.
 
+The values also draw `TRIGGER_WORDS` (exported by `argvProgram.ts`), the operands the program reads: `bad` is the verdict command's code 1 and the argument the `refuse` command's check refuses, `warn` its code 2. A command that takes an operand is now and then called with one of them alone, since among arbitrary tokens another word is almost always refused first.
+
 ### The vocabulary
 
 The command words, options and aliases are read at run time from the program, through the contract's `fullName`, `flagShapes` and `argShapes`, which `usageSpec` writes from; the program's own options, usage, version alias and groups' retired words are read the same way. A test checks that every word the vocabulary yields appears in `usageSpec(program)`, so a new command is covered without editing the generator. The KDL text itself is not parsed.
@@ -263,4 +278,4 @@ The command words, options and aliases are read at run time from the program, th
 
 The `property-tests` job of `.github/workflows/security.yml` runs `pnpm test:unit tests/unit/property` with `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`: 2,000 inputs per property from a fresh seed per property file, each of which the log prints. It runs on the schedule and on demand (`workflow_dispatch`), never on a pull request. A failure there is replayed with the printed line, and fixed as above.
 
-To run the same pass locally on some files, before handing off a new property file for example, use `pnpm test:property:deep <files>`. It sets `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`, so it needs no environment prefix, which a phase agent's session refuses: the gate's `pnpm test` entry already allows it.
+To run the same pass locally on some files, before handing off a new property file for example, use `pnpm test:property:deep <files>`. It sets `PHAX_PROPERTY_RUNS=2000` and `PHAX_PROPERTY_SEED=random`, so it needs no environment prefix, which a phase agent's session refuses. phax.json's `security.agentCommands` lists it, with `pnpm test:unit`, so a phase agent may run either.

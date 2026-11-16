@@ -23,6 +23,8 @@
       "git grep",
       "git mv",
       "pnpm test:integration",
+      "pnpm test:unit",
+      "pnpm test:property:deep",
       "node"
     ]
   },
