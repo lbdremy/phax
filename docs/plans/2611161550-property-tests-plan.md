@@ -1,0 +1,642 @@
+---
+status: Draft
+source-spec: docs/specs/2611131320-property-tests.md
+completes-spec: true
+---
+# Property tests over the run reducer and the CLI arguments
+
+The third and last plan of the property-tests spec. It takes the two remaining slices: the run reducer (§5.11 to §5.15: ac-sm-total, ac-sm-archived, ac-sm-finished, ac-sm-phase-terminal, ac-sm-refused) and the CLI arguments (§5.16: ac-cli-argv). It reuses the harness, the bridge and the registry pattern that plans 1 and 2 landed (#232, #233, #234).
+
+The state-machine properties check `interpret` in `src/domain/reducer.ts`, which returns a `Disposition` from `src/domain/disposition.ts`. They never check the deprecated transition functions in `src/domain/state.ts`. The argv property drives the command library's runner (`runner` in `src/cli/commandLibrary/commander/run.ts`) over the contract's in-memory IO (`memoryIo` in `src/cli/commandLibrary/contract/conformance/memoryIo.ts`). It runs a property program built from the contract's define API.
+
+The phases follow the brief's shape:
+
+- phase-01 writes the reducer's generators, with their sanity properties and coverage tests.
+- phase-02 writes the five reducer properties.
+- phase-03 writes the argv program and generators, with their sanity tests.
+- phase-04 writes the argv property.
+- phase-05 updates `docs/property-tests.md`, adds a guard for the import rule, and checks that every criterion of the spec names an existing test.
+
+No acceptance pair is declared. The code under test already exists, so an acceptance phase would have no stub to fail against. Every test line is in-phase.
+
+One question is open and blocks approval: q-terminal-successors. Read word for word, §5.14 refuses the reducer's normal post-commit lifecycle, so the operator decides how phase-02 states the terminal-phase invariant.
+
+A counter-example a property finds is a reducer or runner bug unless the generator made it. The fix goes into the reducer or the runner, never into the contract or a persisted format. The counter-example is added as a hand-written case in that boundary's existing suite, in the same commit, and the handoff says so.
+
+Deep pass. The brief names `pnpm test:property:deep <file>` (#235). The script was not in `package.json` on main when this plan was written. Each phase that adds a property file runs it when the script exists and records the seed, the result and the duration. When it does not exist, the phase records that instead and names the deep pass as owed to the operator. The session refuses an environment prefix, so nothing runs in its place.
+
+## Required commands
+
+- (none)
+
+The plan needs nothing beyond the `standard` gate profile. `pnpm test:property:deep` (the deep pass, when `package.json` defines it) and `pnpm test:unit <path>` are reached through the gate's `pnpm test` entry. They are named in the phases' instructions, not listed here.
+
+## Technical arbitrations
+
+- Reachable states: they are the reducer's own closure, as a reviewed table. The seeds are `{ run: "created" }` and `{ run: "stopped" }`. `stopped` is a seed because no transition enters it, yet a run-status from an older release holds it and `composePhaxState` composes it. `REACHABLE_SHAPES` lists every abstract shape the closure reaches: the run state, the phase sub-state, and a stop's cause. A sanity test recomputes the closure with `interpret` and must equal the table. The generators draw a shape from the table and fill its free fields (`hash`, `attempt`, `missing`, `cause`) at random. Loss accepted: a state that only inconsistent persisted files compose is never generated, such as a `rate_limited` run whose phase status is `committed` after a torn write. Because the table is the reducer's closure, a reducer bug that strands a state outside it also hides that state. In exchange, no named filter is needed and `assertNever` cannot be reached by a state the reducer never produces.
+- Events: `EVENT_GENERATORS` is a hand-built registry typed `{ readonly [K in PhaxEventType]: fc.Arbitrary<Extract<PhaxEvent, { type: K }>> }`, so `pnpm typecheck` and `pnpm test:type` fail on a missing type. A runtime coverage test checks the registry against the event types of `phaxDispositionMatrix` (`src/domain/matrix.ts`, itself `satisfies` over `PhaxEventType`) and fails with `no generator registered for <type>`. So the check is both type-level and runtime. `PhaxEvent` and `PhaxState` have no Effect schema, so derive-effect applies only where a schema exists: the review stop and its `lastClose` come from `ReviewStopFileSchema` through `fromSchema`. The branded ids, worktree paths and session ids have private schemas; they are generated as constrained strings, and a sanity property checks they pass their exported decoders. Error causes are built with their classes, and `RunReviewInfo` is built by hand. Loss accepted: a value an event newly admits is generated only once someone extends its piece.
+- The argv property's program: a property program in `tests/helpers/property/argvProgram.ts`, built with the contract's `defineProgram`, `defineGroup` and `defineCommand`. It is not taken from the conformance suite, whose programs are private to `cases.ts`, built one per case, and frozen. A closed `PROGRAM_SHAPES` list names every runner path the program must offer, each checked by name. Loss accepted: a path that only a frozen suite case builds, and that `PROGRAM_SHAPES` leaves out, is not searched. Each such path is named in the docs with its reason.
+- Argv vocabulary: the command words, options and aliases are read at run time from the program itself, through the contract's exported `fullName`, `flagShapes` and `argShapes`. These are the functions `usageSpec` writes from, and the program's own `options`, `usage`, `versionAlias` and groups' `retired` words are read the same way. A sanity test checks that every word the vocabulary yields appears in `usageSpec(program)`, and a new command in the program is covered without editing the generator. Loss accepted: the KDL text itself is not parsed, so something only the usage spec prints, and the shapes do not expose, is not drawn.
+- Import rule: the argv files (`tests/helpers/property/argvProgram.ts`, `tests/helpers/property/argvInputs.ts`, `tests/unit/property/argvInputs.test.ts`, `tests/unit/property/cliArguments.property.test.ts`) may also import from `src/cli/commandLibrary/contract/` (including `conformance/memoryIo.ts`) and from `src/cli/commandLibrary/commander/run.ts`. They import nothing else under `src/cli/`, and never `commander/index.ts`, which re-exports the process-backed `processIo`. This was confirmed by reading the code:
+  - `run.ts` reaches the world only through the `Io` it is handed.
+  - Commander is built with `exitOverride()`, and its `configureOutput` collects output into strings (`commanderAdapter.ts`).
+  - `memoryIo` keeps every stream and file in memory.
+  The runner is therefore driven with no real I/O and no port, and the spec question the brief guards against does not arise. Loss accepted: the import rule gains a second tier. phase-05 enforces it with a guard test.
+- Synchronous runs: `checkProperty` takes a synchronous predicate, so the argv property runs the runner with `Effect.runSyncExit`. The property program declares no command that answers asynchronously: no successful `--out` document write, which hashes with WebCrypto, and no stdin that is a terminal. Loss accepted: the successful `--out` write path is not searched by the property. Its refusals (a missing value) still are.
+- No acceptance pair: every guarantee is a property over code that already exists, so an acceptance phase would have nothing to stub and nothing to fail against. Loss accepted: no test is frozen before the code. The only code this plan may write is a fix for a counter-example, and that fix lands with its hand-written case.
+
+## Open questions
+
+### q-terminal-successors — §5.14 and ac-sm-phase-terminal, read word for word, allow only three next states after a terminal phase state: no phase, a terminal phase state, or pending. The reducer's normal post-commit lifecycle leaves that set: - From committed, a handled event leads to cleaning_up, handoff_failed or a held awaiting_review. - From cleaned_up or skipped, PhaseStartRequested leads to setting_up_worktree, which is the next phase's start. Pending is reached only by RunStarted and PhaseResetRequested. How does the terminal-phase property state the invariant?
+
+- no-going-back — The phase never goes back before its commit. From a terminal phase state, a handled event leads to one of:
+  - no phase;
+  - a terminal phase state;
+  - a post-commit state (cleaning_up, handoff_failed, awaiting_review);
+  - the next phase's start (pending, setting_up_worktree).
+  It never leads to running, fixing, gates_failed, gates_exhausted, passed, rate_limited or failed. — abandons: The spec's wording. The test checks a wider set than §5.14 and the criterion state, so the two disagree until the operator revises the spec's text, which is outside this plan. It also misses a wrong move between two allowed states, such as committed to cleaning_up on the wrong event.
+- literal-with-exceptions — Keep §5.14's three-way set, and list each legitimate successor as a named, explained exception with a hand-written example, as AGREEMENT_EXCEPTIONS does:
+  - committed to cleaning_up;
+  - committed to handoff_failed;
+  - committed to a held awaiting_review;
+  - cleaned_up and skipped to setting_up_worktree. — abandons: A property independent of the reducer's design. The exception table restates five of the reducer's own transitions, so it checks the table as much as the reducer. Every new legitimate post-commit transition fails the suite until it is listed.
+- narrow-premise — Check only from cleaned_up, review_open and skipped, and allow setting_up_worktree beside pending. — abandons: Committed goes unchecked, though every phase spends its post-commit work there, and the property still departs from §5.14's wording.
+
+Recommendation: no-going-back — It states what the criterion's title says (a terminal phase does not go back) and what the q-phase-terminal decision set out to guard. It still checks committed, and it needs no table that copies the reducer's transitions. On the current reducer it holds, from every reachable terminal state.
+
+The literal form fails on the first committed phase that starts its cleanup. That counter-example comes from the spec, not from the reducer. The brief forbids changing the reducer or the contract to make a property pass, so the plan cannot settle this alone.
+
+---
+
+## phase-01 — Reducer inputs: reachable states and every event {#phase-01-reducer-inputs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Give the state-machine properties their inputs. This phase adds:
+- one generator per event type of `PhaxEvent`;
+- one field filler per phase sub-state;
+- a reviewed table of the run's reachable abstract shapes, checked against the reducer's own closure.
+
+Each comes with a sanity property and a coverage test that fails by name.
+
+### Detailed instructions
+
+- Read first: `src/domain/state.ts` (`PhaxState`, `PhaseSubState`, `PhaxStateName`, `PhaseSubStateName`, `StopCause`, `TERMINAL_PHASE_STATES`), `src/domain/events.ts` (39 event types), `src/domain/reducer.ts`, `src/domain/matrix.ts` (`phaxDispositionMatrix`, keyed by every run state, then every event type), `src/domain/branded.ts` (the `decode*` functions; their schemas are private), `src/domain/errors.ts` (`RateLimitError`, `UsageLimitError`, `AgentSessionFailedError`, `AgentInvocationError`), `src/domain/security/protectedPaths.ts` (`ProtectedChange`, `NonEmptyProtectedChanges`), `src/domain/runReviewInfo.ts`, `src/schemas/reviewStop.ts` (`ReviewStopFileSchema`, `LastClose`), `src/app/phaxState.ts` (`composePhaxState`, read only, for the reachability reasoning: never import it), `tests/unit/reducer.test.ts` (`sampleEvents`, the hand-written shape of every event), and the existing helpers `tests/helpers/property/harness.ts`, `tests/helpers/property/fromEffect.ts`, `tests/helpers/property/formatRegistry.ts` (`missingGenerators`, the pattern to copy).
+- Create `tests/helpers/property/reducerInputs.ts`. Import only from `src/domain`, `src/schemas` and `tests/helpers/property/`. A head comment states what the module generates and why it is hand-built: `PhaxEvent` and `PhaxState` are TypeScript types with no Effect schema, so derive-effect (q-generators) applies only where a schema exists.
+- `EVENT_GENERATORS`, typed `{ readonly [K in PhaxEventType]: fc.Arbitrary<Extract<PhaxEvent, { type: K }>> }`, has one entry per event type. Base fields:
+  - `eventId` and `occurredAt` (an ISO timestamp);
+  - `run`, a `RunId` from a non-empty string;
+  - an optional `phase` `PhaseId`, matching `^phase-\d{2}$`;
+  - an optional `correlationId`.
+
+  Cast branded values only after building strings that satisfy the decoder: the sanity property in step 9 checks every one through its `decode*`.
+
+  Cover every variant a field discriminates:
+  - `GateFailed` and `FixAttemptsExhausted`: both `failedStep` variants, and `NonEmptyProtectedChanges` for `protected-paths`.
+  - `RunArchiveRequested`: `force` true and false, with and without `worktreesFrom`/`worktreesTo`.
+  - `RateLimitDetected`: both `kind`s, with a `RateLimitError` or `UsageLimitError` cause.
+  - `NetworkFailureDetected` and `HandoffTurnFailed`: an `AgentSessionFailedError` cause.
+  - `ReviewStopReached`: a `cause` that sometimes equals and sometimes differs from `reviewStop.cause`, because the reducer answers `Unexpected` on a mismatch.
+  - `StopCommitted` and `HeldStopClosed`: both closure outcomes.
+  - `StopRecordRefused`: both causes.
+- Derive `ReviewStopReached.reviewStop` and `StopCloseRefused.lastClose` through `fromSchema` from `ReviewStopFileSchema` (or from its members). The decoded `ReviewStop` type is what the event carries, so check which side of the schema the event type is before choosing. Build `FinalReviewOpened.info` (`RunReviewInfo`) by hand from small strings. Draw `RunFailed.cause` (typed `unknown`) from:
+  - `fc.anything({ withNullPrototype: true })`;
+  - `Error` instances;
+  - `AgentInvocationError` instances, with and without a stderr excerpt.
+
+  `describeCause` falls back to `String(cause)`, which can throw on a null-prototype object or an object whose `toString` is no function. Such a throw is a reducer bug: see the counter-example rule below.
+- Export `missingEventGenerators(types: ReadonlyArray<string>): ReadonlyArray<string>`. It returns the types with no registry entry, following the pattern of `missingGenerators` in `formatRegistry.ts`. Also export `anyEvent(): fc.Arbitrary<PhaxEvent>`, a `fc.oneof` over every registry entry.
+- `PHASE_SUB_STATE_FILLERS` is typed `{ readonly [K in PhaseSubStateName]: fc.Arbitrary<Extract<PhaseSubState, { state: K }>> }`. For the states with free fields, it fills `attempt` (a small nat), `hash` (a string), `missing` (a short string array), `cause` (a string for `failed`) and the stop `cause` (`declared` or `held`).
+- `REACHABLE_SHAPES` is a reviewed, hand-written literal: an array of `{ run, phase?, stopCause? }` abstract shapes. `phase` is a `PhaseSubStateName`, and `stopCause` is present only for an `awaiting_review` phase. A head comment states the definition: the closure of `interpret` from two seeds, `{ run: "created" }` and `{ run: "stopped" }`. `stopped` is a seed because no transition enters it, yet a run-status from an older release holds it and `composePhaxState` composes it. Name the seeds in an exported `REACHABILITY_SEEDS` list, each `{ name, reason, state }`.
+
+  Work out the table by computing the closure in step 8 and reviewing the result before writing it down. For example, the closure has `interrupted` with `gates_exhausted` and `running` with `rate_limited`, but neither `running` with `gates_exhausted` nor any `failed` phase sub-state.
+- Export `reducerClosure(seeds: ReadonlyArray<PhaxState>, events: ReadonlyArray<PhaxEvent>): ReadonlyArray<Shape>`. It runs a breadth-first search over abstract shapes. From each concrete representative state it interprets every event, and keeps every `Handled` `nextState` whose shape is new. Export the `shapeOf(state)` abstraction it uses.
+- Export the state sources, each value `{ origin: string, state: PhaxState }` whose origin names the shape:
+  - `reachableStates()`: a shape drawn from `REACHABLE_SHAPES`, its free fields filled by the fillers.
+  - `statesOfRun(...runs: PhaxStateName[])`: the same, restricted to those run states.
+  - `terminalPhaseStates()`: the shapes whose phase is in `TERMINAL_PHASE_STATES`.
+
+  Export only what this phase's test file uses; phase-02 uses the same exports. knip runs at this phase's gate.
+- Create `tests/unit/property/reducerInputs.test.ts`. The file must call `checkProperty`: the guard in `harnessConfig.test.ts` refuses a property file without it. Use `propertyTimeout()` as each property's timeout. The tests:
+  - (a) `describe("event generators")`, `it.each` over `Object.keys(phaxDispositionMatrix.created)`: `<type> has a generator`, asserting `missingEventGenerators([type])` is empty, with the message `no generator registered for <type>`.
+  - (b) `no generator is registered for an event type the matrix does not know`.
+  - (c) `every generated event is well-formed for its type`, through `checkProperty`. Draw a type, then its event. The event's `type` equals the key, and every branded field decodes through its `decode*`: `run`, `phase`, `phaseId`, `worktreePath`, `path` and `sessionId` when present.
+  - (d) `describe("state generators")`, `it.each` over the run states (`Object.keys(phaxDispositionMatrix)`): `<run> has a reachable shape`.
+  - (e) `it.each` over the phase sub-state names, read at run time from the `state` field of `PhaseStatusFileSchema` in `src/schemas/status.ts`: `<state> has a filler`. If no exported route to those literals exists, rely on the mapped type and say so in the handoff.
+  - (f) `the reachable-shape table is the reducer's closure`. Compute `reducerClosure` from `REACHABILITY_SEEDS`, using about 30 `fc.sample`s per event type under a fixed seed constant declared in the test. Compare it to `REACHABLE_SHAPES` as sorted keys, with a message that lists the missing and the extra shapes.
+  - (g) `every generated state has a reachable shape`, through `checkProperty` over `reachableStates()`.
+  - (h) `the terminal source holds only terminal phase states`, through `checkProperty`.
+- Counter-example rule: if `interpret` throws while this phase computes the closure, that is a reducer bug unless the generator made the input. The `RunFailed` cause above is the likely one. Fix `src/domain/reducer.ts`, never its types or the contract, and add the shrunk input as a hand-written case in `tests/unit/reducer.test.ts`, in the same commit. Say so in the handoff.
+- Run `pnpm test:unit tests/unit/property/reducerInputs.test.ts`, then `pnpm test:unit tests/unit/property`. Record the new file's duration and the total. All property files together must stay well under the CI budget step's 60 s; they take about 11 s today. Then run `pnpm test:property:deep tests/unit/property/reducerInputs.test.ts` once and record the printed seed, the result and the duration. If `package.json` defines no `test:property:deep`, record that instead, run nothing in its place, and name the deep pass as owed.
+- Never name the opened version or a `next` shape anywhere: CI rehearses the release cut on every pull request.
+
+### Planned files to create
+
+- `tests/helpers/property/reducerInputs.ts`
+- `tests/unit/property/reducerInputs.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- `src/domain/reducer.ts`
+- `tests/unit/reducer.test.ts`
+
+### Boundary contracts
+
+Consumer: the reducer properties of phase-02. Producer: `tests/helpers/property/reducerInputs.ts`. The stable shape between them:
+- `anyEvent()`;
+- `reachableStates()`, `statesOfRun(...runs)` and `terminalPhaseStates()`, each yielding `{ origin, state }` values;
+- `EVENT_GENERATORS`.
+
+The generators reach the domain only through its public types, `interpret`, `phaxDispositionMatrix`, `TERMINAL_PHASE_STATES` and the `decode*` functions.
+
+### Test strategy
+
+- every event type of the disposition matrix has a registered generator, and a missing one fails by name — small · table · the event types keyed in phaxDispositionMatrix · in-phase
+- no generator is registered for an event type the matrix does not know — small · example · the event types keyed in phaxDispositionMatrix · in-phase
+- every generated event carries its own type and branded fields that pass their decoders — small · property · the registry key and the decode functions of src/domain/branded.ts · in-phase
+- every run state has a reachable shape and every phase sub-state has a filler — small · table · the run states of phaxDispositionMatrix and the phase-status state literals · in-phase
+- the reviewed reachable-shape table equals the reducer's closure from its seeds — small · example · a breadth-first closure of interpret over fixed-seed event samples · in-phase
+- every generated state has a shape of the reachable table, and the terminal source yields only terminal phase states — small · property · REACHABLE_SHAPES and TERMINAL_PHASE_STATES · in-phase
+
+### Implementation order
+
+1. Base-field and branded-value pieces, then the error and review-stop pieces.
+2. EVENT_GENERATORS, missingEventGenerators and anyEvent.
+3. PHASE_SUB_STATE_FILLERS, shapeOf and reducerClosure.
+4. Compute the closure, review it, and write REACHABLE_SHAPES and REACHABILITY_SEEDS.
+5. The state sources.
+6. tests/unit/property/reducerInputs.test.ts, then the timings and the deep pass.
+
+### Excluded scope
+
+- The reducer properties themselves (phase-02).
+- Any change to `src/domain/state.ts`, `src/domain/events.ts`, `src/domain/matrix.ts` or the deprecated transition functions.
+- Importing anything from `src/app/`, `src/cli/` or `src/infra/`.
+- Exporting a branded schema from `src/domain/branded.ts` to derive from it.
+
+### Verification
+
+The `standard` gate profile in `phax.json`: its every-phase steps (format, typecheck, test:type, lint, format:check, test, knip, audit:architecture, gen:model-catalog --check).
+
+### Expected handoff content
+
+The handoff records:
+- The exact exports of `tests/helpers/property/reducerInputs.ts` and their signatures (`EVENT_GENERATORS`, `missingEventGenerators`, `anyEvent`, `PHASE_SUB_STATE_FILLERS`, `REACHABLE_SHAPES`, `REACHABILITY_SEEDS`, `shapeOf`, `reducerClosure`, `reachableStates`, `statesOfRun`, `terminalPhaseStates`) and the `{ origin, state }` value shape.
+- The reviewed `REACHABLE_SHAPES` table: how many shapes, which run state and phase sub-state pairs it leaves out, and why.
+- Which event fields are derived through `fromSchema` and which are hand-built.
+- Any counter-example found, with its fix in `src/domain/reducer.ts` and the hand-written case added to `tests/unit/reducer.test.ts`.
+- The new file's duration at 100 runs and the total for `tests/unit/property`.
+- The deep-pass seed, result and duration, or the absence of `test:property:deep`.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(property): generate the reducer's reachable states and every event`
+
+### Commit body
+
+Add the inputs of the state-machine properties:
+- one hand-built generator per PhaxEvent type, typed over PhaxEventType and checked by name against the disposition matrix;
+- a field filler per phase sub-state;
+- a reviewed table of the run's reachable shapes, which a sanity test recomputes as the reducer's closure from created and stopped.
+
+The review stop and its last close are derived from their schema. Branded fields are generated to pass their decoders.
+
+---
+
+## phase-02 — Reducer properties: disposition, archived, finished, terminal phase, refusal {#phase-02-reducer-properties}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Hold the reducer phax executes to the spec's five state-machine promises. Every reachable state and event gets a disposition. An archived run handles nothing, and a completed or stopped run only archives. A terminal phase does not go back. A refused event carries no change. Each promise is its own named property in the unit tier.
+
+### Detailed instructions
+
+- Read first: `tests/helpers/property/reducerInputs.ts` and its test, `src/domain/reducer.ts`, `src/domain/disposition.ts`, `TERMINAL_PHASE_STATES` in `src/domain/state.ts`, `tests/helpers/property/harness.ts`, and the decision recorded for q-terminal-successors in the plan preamble's arbitrated questions.
+- Create `tests/unit/property/reducer.property.test.ts`, with one `describe("run reducer")` and the five `it`s below, titled exactly as written. Each passes `propertyTimeout()` as its timeout and goes through `checkProperty`. Draw inputs as `fc.tuple(<state source>, anyEvent())`, and call `interpret(state, event)` in the predicate. The test imports only `src/domain`, `src/schemas` and `tests/helpers/property/`.
+- `every state and event gets a disposition` (ac-sm-total): over `reachableStates()`. The call returns without throwing. `kind` is one of `Handled`, `Ignored`, `Stale`, `Rejected` and `Unexpected`. A `Handled` disposition carries a `nextState` and an `effects` array.
+- `an archived run handles nothing` (ac-sm-archived): over `statesOfRun("archived")`, the disposition's kind is never `Handled`.
+- `a completed or stopped run only archives` (ac-sm-finished): over `statesOfRun("completed", "stopped")`, a `Handled` disposition's `nextState` deep-equals `{ run: "archived" }`.
+- `a terminal phase does not go back` (ac-sm-phase-terminal): over `terminalPhaseStates()`, for a `Handled` disposition. State the allowed next phases as a named constant, with a comment for each member, as the decision on q-terminal-successors sets out:
+  - `no-going-back`: the next state holds no phase, or a phase in `TERMINAL_PHASE_STATES`, in `cleaning_up`, `handoff_failed` or `awaiting_review` (post-commit), or in `pending` or `setting_up_worktree` (the next phase's start). It is never in `running`, `fixing`, `gates_failed`, `gates_exhausted`, `passed`, `rate_limited` or `failed`.
+  - `literal-with-exceptions`: the next state holds no phase, a terminal phase or `pending`, bar the entries of a `TERMINAL_EXCEPTIONS` list in the test file. Each entry is `{ name, reason, matches(from, event, next) }`, kebab-case and as narrow as its transition: committed to cleaning_up, committed to handoff_failed, committed to a held awaiting_review, cleaned_up or skipped to setting_up_worktree. Add `every exception has an example and every example an exception`, with one hand-written (state, event) example per entry, following the pattern of STRUCTURE_EXCEPTIONS in `tests/unit/property/planParser.property.test.ts`.
+  - `narrow-premise`: the premise is only the shapes whose phase is `cleaned_up`, `review_open` or `skipped`, and the next state holds no phase, a terminal phase, `pending` or `setting_up_worktree`.
+  - The reserved `other`: follow the decision's text.
+- `a refused event carries no change` (ac-sm-refused): over `reachableStates()`. When the kind is not `Handled`, the disposition's own keys are exactly `kind` and `reason`: no `nextState` and no `effects`.
+- Counter-example rule: a failing property is a reducer bug unless the generator made the input.
+  - If the generator made it (an input `REACHABLE_SHAPES` or an event generator should not produce), fix `tests/helpers/property/reducerInputs.ts`.
+  - If the reducer is wrong, fix `src/domain/reducer.ts`: never its types, the matrix or the spec's invariant. Add the shrunk counter-example as a hand-written case in `tests/unit/reducer.test.ts`, in the same commit, and keep the property as it is.
+  In either case, say which it was in the handoff.
+- Run `pnpm test:unit tests/unit/property/reducer.property.test.ts` and `pnpm test:unit tests/unit/property`, and record both durations. Then run `pnpm test:property:deep tests/unit/property/reducer.property.test.ts` once and record the seed, the result and the duration. If `package.json` defines no `test:property:deep`, record that instead, run nothing in its place, and name the deep pass as owed.
+
+### Planned files to create
+
+- `tests/unit/property/reducer.property.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- `src/domain/reducer.ts`
+- `tests/unit/reducer.test.ts`
+- `tests/helpers/property/reducerInputs.ts`
+
+### Boundary contracts
+
+Consumer: the property test. Producer: the reducer, through `interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxState>`. The test reads only the disposition's `kind`, `nextState`, `effects` and its own keys. It never reads a reason's wording.
+
+### Test strategy
+
+- every reachable state and any event get a disposition, and interpret never throws — small · property · one of the five Disposition kinds, a Handled one with nextState and effects · in-phase · ac-sm-total
+- an archived run handles no event — small · property · the disposition kind is never Handled · in-phase · ac-sm-archived
+- a completed or stopped run handles an event only by moving to archived — small · property · a Handled nextState deep-equals the archived state · in-phase · ac-sm-finished
+- from a terminal phase state a handled event never sends the phase back — small · property · the allowed next-phase set decided in q-terminal-successors · in-phase · ac-sm-phase-terminal
+- an Ignored, Stale, Rejected or Unexpected disposition carries no next state and no effect — small · property · the disposition's own keys are exactly kind and reason · in-phase · ac-sm-refused
+
+### Implementation order
+
+1. The total property, which shows the sources and the call work.
+2. The archived and finished properties.
+3. The refused property.
+4. The terminal-phase property, as decided, with its exceptions and examples if the decision asks for them.
+5. Timings and the deep pass.
+
+### Excluded scope
+
+- The deprecated transition functions in `src/domain/state.ts`.
+- The dispatcher, resume and the interrupt handler under `src/app/`. A same-phase restart is their tests' concern (q-phase-terminal).
+- Changing the matrix, the reducer's types or a disposition's reason text to make a property pass.
+
+### Verification
+
+The `standard` gate profile in `phax.json`: its every-phase steps.
+
+### Expected handoff content
+
+The handoff records:
+- The five test titles and the criterion each proves.
+- The terminal-phase property's allowed set as decided, and any exceptions with their examples.
+- Every counter-example found: whether the reducer or the generator made it, the fix, and the hand-written case added to `tests/unit/reducer.test.ts`.
+- The file's duration at 100 runs and the total for `tests/unit/property`.
+- The deep-pass seed, result and duration, or the absence of `test:property:deep`.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(property): hold the run reducer to its five properties`
+
+### Commit body
+
+Check interpret against generated reachable states and every event type.
+
+The properties:
+- Every pair gets a disposition without a throw.
+- An archived run handles nothing.
+- A completed or stopped run only archives.
+- A terminal phase does not go back, as q-terminal-successors decides.
+- A refused event carries no next state and no effect.
+
+---
+
+## phase-03 — Argv inputs: a property program and its argument vectors {#phase-03-argv-inputs}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** high
+**Assignment reason:** High effort: the property program must reach every reading branch of the runner (groups, retired words, program options, the usage flag, the guard, the stdin flag, verdicts) through the contract's define API, while avoiding everything `misdeclared` refuses. No test or source in the repository builds such a program as one piece yet.
+
+Give the CLI-argument property its inputs. This phase adds a property program that offers every reading path of the command library's runner, and argument vectors of two kinds: arbitrary strings, and known command words followed by arbitrary flags and values. The known words are read from the program itself, so a new command is covered without editing the generator.
+
+### Detailed instructions
+
+- Read first:
+  - `src/cli/commandLibrary/contract/` (`command.ts`, `define.ts`, `shapes.ts`, `usage.ts`, `index.ts`);
+  - `src/cli/commandLibrary/contract/conformance/memoryIo.ts` and `cases.ts` (the frozen per-case programs, for the shapes they build; never import or edit `cases.ts`);
+  - `src/cli/commandLibrary/commander/run.ts`, `undeclared.ts` and `commanderAdapter.ts` (`exitOverride` and `configureOutput`);
+  - `tests/unit/commandLibrary/conformance.test.ts` and `tests/unit/commandLibrary/commander/neverExits.test.ts`.
+
+  Confirm by reading that `run.ts` reaches the world only through the `Io` it is handed, and record that in the handoff.
+- Import rule for the argv files: they may import from `src/cli/commandLibrary/contract/` (including `conformance/memoryIo.ts`), from `src/cli/commandLibrary/commander/run.ts`, from `src/domain`, `src/schemas` and `tests/helpers/property/`. They import nothing else under `src/cli/`, and never `src/cli/commandLibrary/commander/index.ts`, which re-exports the process-backed `processIo`.
+- Create `tests/helpers/property/argvProgram.ts`, exporting `argvProgram()`. It returns a `Program<never>` built with `defineProgram`, `defineGroup` and `defineCommand`:
+  - `name: "prop"`;
+  - a fixed `version`;
+  - `exits: { refused: 64, defect: 70 }`, the spec's refusal code and a distinct defect code.
+
+  The tests read these codes from `program.exits`, never as literals.
+- The program offers at least these paths: positional arguments, an optional argument and a variadic argument; a switch, a value flag, a one-letter alias and an optional-value flag; a flag whose value decodes to a number, and is refused when it does not; `strip` and `reject` policies; a JSON stdin, a text stdin, and a stdin bound to a flag; an `env` source; a group holding a group; a group's retired word and a command's retired option; program options; the usage flag with its format option; a version alias; the help command; a guard that refuses one command with its own exit code (exported as `ARGV_GUARD_EXIT`); a verdict code; a command whose run fails with a tag mapped in its `exits`; and a command whose `check` answers `Refused`.
+
+  The program also has rules on what it may not declare:
+  - Every command's run succeeds, or fails only with a mapped tag.
+  - No `render` or `notes` throws.
+  - No tag or verdict maps to the refused or the defect code.
+  - No `writesDocument` is used: a successful `--out` write hashes with WebCrypto, asynchronously, and the property runs synchronously.
+  - No `handsOver` or `prompts` is declared.
+
+  The runner refuses a misdeclared program with the defect code, so check the program against `misdeclared`'s rules in `run.ts`.
+- Export from `argvProgram.ts`:
+  - `PROGRAM_SHAPES`, a closed list of `{ name, reason, holds(program) }`, one per path above. `name` is kebab-case, `reason` is one line naming the runner branch it reaches, and `holds` inspects the program through the contract's exports (`fullName`, `flagShapes`, `argShapes`, the `Program` fields).
+  - `declaredExitCodes(program)`: the set of 0, every command's `exits` values, every `verdicts` key and `ARGV_GUARD_EXIT`. It excludes `program.exits.refused`, which the property checks through the refusal contract instead.
+- Create `tests/helpers/property/argvInputs.ts`. Every value is `{ origin, argv, stdin }`, where `origin` names the source:
+  - `argvVocabulary(program)`: the full command paths (`fullName`); per command, its options as `--<option>` and `-<alias>`, from `flagShapes`; its argument count, from `argShapes`; the program's options, usage flag, format option and version alias; and the groups' retired words.
+  - `anyArgv()`: arrays of 0 to 6 arbitrary Unicode strings, and arrays drawn from an alphabet of option-like tokens (`-`, `--`, `--x=`, `-abc`, `--help`, `--json`, `--json-schema`, `--version`, `-V`, `help`).
+  - `knownArgv(program)`: a full command path from the vocabulary, then 0 to 6 tokens. A token is a known option, with no value, a separate value or `=value`; an alias; an unknown option; an operand; `--` followed by option-like words; `--help`; `--json`; or the program's option. Values are arbitrary strings, numeric strings, the empty string and dash-leading strings.
+  - `stdin` is drawn from the empty string, a valid JSON document for the JSON stdin command, a text document, and garbage.
+- Create `tests/unit/property/argvInputs.test.ts`. The file calls `checkProperty`, which the harness guard requires, and passes `propertyTimeout()` as the timeout. The tests:
+  - (a) `it.each(PROGRAM_SHAPES)`: `the property program offers <name>`, asserting `holds(argvProgram())`.
+  - (b) `every vocabulary word appears in the program's usage spec`, against `usageSpec(argvProgram())`.
+  - (c) `every known argv starts with a full command path of the program`, through `checkProperty` over `knownArgv`.
+  - (d) `the known source reaches every command path`: an `fc.sample` of about 1,000 under a fixed seed constant, compared with the program's command paths, failing with the paths it missed.
+  - (e) `declaredExitCodes holds neither the refused nor the defect code`.
+- Run `pnpm test:unit tests/unit/property/argvInputs.test.ts` and `pnpm test:unit tests/unit/property`, and record both durations. Then run `pnpm test:property:deep tests/unit/property/argvInputs.test.ts` once and record the seed, the result and the duration. If `package.json` defines no `test:property:deep`, record that instead, run nothing in its place, and name the deep pass as owed.
+- Export only what this phase's test uses (knip runs at the gate); phase-04 uses the same exports.
+
+### Planned files to create
+
+- `tests/helpers/property/argvProgram.ts`
+- `tests/helpers/property/argvInputs.ts`
+- `tests/unit/property/argvInputs.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- (none)
+
+### Boundary contracts
+
+Consumer: the argv property of phase-04. Producer: `argvProgram.ts` and `argvInputs.ts`.
+
+The stable shape between them:
+- `argvProgram()`;
+- `declaredExitCodes(program)` and `ARGV_GUARD_EXIT`;
+- `anyArgv()` and `knownArgv(program)`, each yielding `{ origin, argv, stdin }`.
+
+The program reaches the command library only through the contract's exported define API and shape functions. The runner is reached only through `run.ts`.
+
+### Test strategy
+
+- the property program offers every reading path PROGRAM_SHAPES names, and a missing one fails by name — small · table · each shape's holds predicate over the program · in-phase
+- every word of the argv vocabulary is one the program's usage spec prints — small · example · the text of usageSpec(argvProgram()) · in-phase
+- every known argv starts with a full command path of the program — small · property · fullName over the program's commands · in-phase
+- the known source reaches every command path of the program — small · example · a fixed-seed sample against the program's command paths · in-phase
+- the declared exit codes hold neither the refused nor the defect code — small · example · program.exits · in-phase
+
+### Implementation order
+
+1. argvProgram(), shape by shape, checked against misdeclared's rules.
+2. PROGRAM_SHAPES and declaredExitCodes.
+3. argvVocabulary, anyArgv and knownArgv.
+4. tests/unit/property/argvInputs.test.ts, then the timings and the deep pass.
+
+### Excluded scope
+
+- The argv property itself (phase-04).
+- phax's own program and its commands' use cases (a spec non-goal).
+- Editing or importing `src/cli/commandLibrary/contract/conformance/cases.ts`, which is frozen.
+- A `--out` document write or a terminal stdin, both asynchronous or dying by design.
+
+### Verification
+
+The `standard` gate profile in `phax.json`: its every-phase steps.
+
+### Expected handoff content
+
+The handoff records:
+- The exports of `argvProgram.ts` and `argvInputs.ts`, with their signatures and the `{ origin, argv, stdin }` value shape.
+- The `PROGRAM_SHAPES` names, and every runner path deliberately left out of the program, with its reason (at least the `--out` write and handsOver/prompts).
+- The reading that confirmed the runner performs no I/O beyond the `Io` it is handed.
+- The new file's duration and the total for `tests/unit/property`.
+- The deep-pass seed, result and duration, or the absence of `test:property:deep`.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(property): generate argument vectors for the command library's runner`
+
+### Commit body
+
+Add a property program, built with the contract's define API, that offers every reading path of the runner, each named in PROGRAM_SHAPES and checked by name.
+
+Two argv sources:
+- arbitrary strings;
+- known command words followed by arbitrary flags and values.
+
+The known words are read from the program through the contract's shape functions and checked against its usage spec, so a new command is covered without editing the generator.
+
+---
+
+## phase-04 — CLI-argument property: run or refused through the contract {#phase-04-cli-arguments-property}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+Hold the command library's runner to its refusal contract on any argument vector. Every call either runs a command and exits with one of its declared codes, or exits with the program's refused code, with nothing on standard output and a message on standard error. No call ever exits with the defect code.
+
+### Detailed instructions
+
+- Read first: `tests/helpers/property/argvProgram.ts`, `tests/helpers/property/argvInputs.ts` and their test; `src/cli/commandLibrary/commander/run.ts`; `src/cli/commandLibrary/contract/conformance/memoryIo.ts`; `tests/unit/commandLibrary/commander/neverExits.test.ts`.
+- Create `tests/unit/property/cliArguments.property.test.ts`, with `describe("cli arguments")` and one `it("any argv is run or refused through the contract", …, propertyTimeout())` through `checkProperty`. Draw inputs from `fc.oneof(anyArgv(), knownArgv(program))`, with `program = argvProgram()` built once.
+- Imports, under the import rule:
+  - `runner` from `src/cli/commandLibrary/commander/run.ts`, never `commander/index.ts`;
+  - `memoryIo` from `src/cli/commandLibrary/contract/conformance/memoryIo.ts`;
+  - the helpers from `tests/helpers/property/`.
+
+  Nothing else under `src/cli/`.
+- The predicate does the following:
+  - Builds `memoryIo({ argv, stdin, env })` with a fixed env that holds the program's env-source key, and `stdinIsTerminal: false`.
+  - Runs `Effect.runSyncExit(runner.run(program, io.io))`.
+  - Requires a successful exit with a number code.
+  - Requires that code to differ from `program.exits.defect`.
+  - If the code equals `program.exits.refused`, requires `io.out() === ""` and a non-empty `io.err()`.
+  - Otherwise requires the code to be in `declaredExitCodes(program)`.
+
+  No exit code is written as a literal in the test.
+- Spy on `process.exit` around the property with `vi.spyOn(process, "exit").mockImplementation(() => { throw … })`, as `neverExits.test.ts` does, and restore it afterwards. A call that reaches the process is a failure. Add a second `it`, `no argv reaches the process`, over the same inputs, which asserts the spy was never called.
+- Counter-example rule: a failing call is a runner bug unless the generator or the property program made it.
+  - If the input or the program made it (a misdeclared program, an asynchronous path, a stdin the program never declares), fix `tests/helpers/property/argvInputs.ts` or `argvProgram.ts`.
+  - If the runner is wrong, fix it under `src/cli/commandLibrary/commander/`. Never touch `src/cli/commandLibrary/contract/`, the conformance cases or the refusal contract. Add the shrunk argv as a hand-written case in the runner suite that owns that path (`tests/unit/commandLibrary/commander/reading.test.ts`, `undeclared.test.ts` or `suggest.test.ts`), in the same commit, and keep the property as it is.
+  In either case, say which it was in the handoff.
+- Run `pnpm test:unit tests/unit/property/cliArguments.property.test.ts` and `pnpm test:unit tests/unit/property`, and record both durations. All property files together must stay well under the CI budget step's 60 s. Then run `pnpm test:property:deep tests/unit/property/cliArguments.property.test.ts` once and record the seed, the result and the duration. If `package.json` defines no `test:property:deep`, record that instead, run nothing in its place, and name the deep pass as owed.
+
+### Planned files to create
+
+- `tests/unit/property/cliArguments.property.test.ts`
+
+### Planned files to edit
+
+- (none)
+
+### Optional files that may be edited
+
+- `src/cli/commandLibrary/commander/run.ts`
+- `src/cli/commandLibrary/commander/undeclared.ts`
+- `src/cli/commandLibrary/commander/commanderAdapter.ts`
+- `src/cli/commandLibrary/commander/suggest.ts`
+- `src/cli/commandLibrary/commander/stdin.ts`
+- `src/cli/commandLibrary/commander/json.ts`
+- `tests/unit/commandLibrary/commander/reading.test.ts`
+- `tests/unit/commandLibrary/commander/undeclared.test.ts`
+- `tests/unit/commandLibrary/commander/suggest.test.ts`
+- `tests/helpers/property/argvInputs.ts`
+- `tests/helpers/property/argvProgram.ts`
+
+### Boundary contracts
+
+Consumer: the property test. Producer: the command library's runner, through `runner.run(program, io): Effect<ExitCode>`.
+
+The contract is the program's own `exits`:
+- `refused`: with an empty `out` and a written `err`;
+- `defect`: never reached by a well-declared program;
+- every other code: one the program declares.
+
+The test reads `out` and `err` only through `memoryIo`.
+
+### Test strategy
+
+- any argv is run with a declared code or refused through the contract, and never ends with the defect code — small · property · program.exits.refused with empty stdout and written stderr, else a code of declaredExitCodes · in-phase · ac-cli-argv
+- no argument vector makes the runner exit the process — small · property · a process.exit spy that is never called · in-phase
+
+### Implementation order
+
+1. The call and its outcome over memoryIo.
+2. The refusal-contract predicate.
+3. The process.exit guard.
+4. Timings and the deep pass.
+
+### Excluded scope
+
+- Random arguments to phax's own commands and their use cases (a spec non-goal).
+- Any change to `src/cli/commandLibrary/contract/`, the conformance cases or the exit codes the contract defines.
+- Asynchronous runner paths (the `--out` write).
+
+### Verification
+
+The `standard` gate profile in `phax.json`: its every-phase steps.
+
+### Expected handoff content
+
+The handoff records:
+- The two test titles and the criterion the first proves.
+- Every counter-example found: whether the runner, the generator or the program made it, the fix, and the hand-written case with its file.
+- The file's duration at 100 runs and the total for `tests/unit/property`.
+- The deep-pass seed, result and duration, or the absence of `test:property:deep`.
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`test(property): hold the runner to its refusal contract on any argv`
+
+### Commit body
+
+Run the command library's runner on the property program over in-memory IO, with arbitrary and known-word argument vectors. Every call either exits with a code the program declares, or is refused with the program's refused code, nothing on stdout and a message on stderr. None ends with the defect code, and none reaches process.exit. All codes are read from the program's exits.
+
+---
+
+## phase-05 — Docs, import rule guard and the spec's completion check {#phase-05-docs-and-completion}
+
+**Recommended model:** claude-sonnet-5-5
+**Recommended effort:** medium
+
+This phase closes the spec:
+- `docs/property-tests.md` describes the state-machine and CLI-argument slices and the import rule's second tier.
+- A guard test enforces the import rule.
+- The handoff confirms that every acceptance criterion of the spec names a test that exists.
+
+### Detailed instructions
+
+- Read first: `docs/property-tests.md`, `tests/unit/property/harnessConfig.test.ts`, the handoffs of phases 01 to 04 (in `.phax-context/`), and every file under `tests/unit/property/` and `tests/helpers/property/`.
+- In `docs/property-tests.md`, change `What is covered` so that all four slices are written, and drop the sentence that defers the state machine and CLI arguments to a later plan.
+- Add a section `## The run reducer`, which describes:
+  - `tests/unit/property/reducer.property.test.ts` and its five test titles, each with the promise it checks (the terminal-phase one as decided in q-terminal-successors);
+  - the sanity file `tests/unit/property/reducerInputs.test.ts`;
+  - reachability: `REACHABLE_SHAPES` is the reducer's closure from `REACHABILITY_SEEDS` (created and stopped, with the reason for stopped), and a test recomputes it, so a reducer change that alters reachability fails until the table is reviewed;
+  - adding an event type: `EVENT_GENERATORS` is typed over `PhaxEventType`, and the coverage test fails with `no generator registered for <type>`;
+  - which fields are derived through `fromSchema` and which are hand-built, and why.
+- Add a section `## CLI arguments`, which describes:
+  - `tests/unit/property/cliArguments.property.test.ts`, and the property program `argvProgram()` with its `PROGRAM_SHAPES`;
+  - the paths left out, with their reasons;
+  - the two argv sources;
+  - the vocabulary read from the program and checked against its usage spec;
+  - the exit codes read from `program.exits`.
+- Extend `Where the files live` with the four new helper and test files.
+
+  Rewrite the import-rule paragraph. Property tests import only from `src/domain`, `src/schemas`, `packages/schemas`, `tests/helpers/property/` and `tests/helpers/planRoundTrip.ts`. The argv files alone may also import `src/cli/commandLibrary/contract/` (including `conformance/memoryIo.ts`) and `src/cli/commandLibrary/commander/run.ts`. Nothing else under `src/cli/` is allowed, and never `commander/index.ts`, because it re-exports the process-backed `processIo`. State why this is safe: the runner reaches the world only through the `Io` it is handed, and Commander's output is collected in memory.
+- Extend `What to do with a counter-example`:
+  - a reducer counter-example is fixed in `src/domain/reducer.ts`, with a case in `tests/unit/reducer.test.ts`;
+  - a runner counter-example is fixed under `src/cli/commandLibrary/commander/`, with a case in the runner suite that owns the path;
+  - the contract and the conformance cases are never changed to make a property pass.
+- Do not touch the replay example lines: `harnessConfig.test.ts` checks them against `replayCommand`.
+- In `tests/unit/property/harnessConfig.test.ts`, under `describe("property files")`, add `it.each` over every `.ts` file of `tests/unit/property/` and `tests/helpers/property/`: `%s imports only from the allowed roots`. The test:
+  - reads every relative import specifier that resolves into `src/` or `packages/`;
+  - requires it to start with `src/domain/`, `src/schemas/` or `packages/schemas/`;
+  - for the four argv files alone, also allows `src/cli/commandLibrary/contract/` and exactly `src/cli/commandLibrary/commander/run.ts`;
+  - names the offending import in its message.
+
+  Every existing property file already meets this rule; confirm it before writing the test.
+- Spec-completion check. For each criterion of `docs/specs/2611131320-property-tests.md` met by plans 1 and 2, find the test that proves it today and record it as `<criterion id> — <file> > <test title>`:
+  - ac-fmt-roundtrip, ac-fmt-total, ac-fmt-newer, ac-fmt-frozen, ac-fmt-agree and ac-new-format;
+  - ac-plan-roundtrip, ac-plan-total, ac-plan-bounded and ac-plan-lint-agrees;
+  - ac-tier, ac-budget, ac-seed-fixed, ac-deep-pass, ac-repro-print and ac-repro-rerun.
+
+  Likely homes are `persistedFormats.property.test.ts`, `planParser.property.test.ts`, `harness.test.ts`, `harnessConfig.test.ts` and `tests/unit/ciWorkflow.test.ts`; verify each by reading. Add this plan's six criteria with the tests phases 02 and 04 wrote. If a criterion names no existing test, say so in the handoff. Do not write a test for it here: the gap goes back to the operator.
+
+### Planned files to create
+
+- (none)
+
+### Planned files to edit
+
+- `docs/property-tests.md`
+- `tests/unit/property/harnessConfig.test.ts`
+
+### Optional files that may be edited
+
+- `CONTRIBUTING.md`
+
+### Test strategy
+
+- every property file and helper imports only from the allowed roots, the argv files alone also from the command library's contract and runner — small · table · each file's import specifiers against the allowed prefixes · in-phase
+
+### Implementation order
+
+1. Confirm the existing files meet the import rule, then add the guard.
+2. The docs sections and the import-rule paragraph.
+3. The spec-completion check.
+
+### Excluded scope
+
+- New tests for the criteria plans 1 and 2 met.
+- Changing the CI budget step, the Security workflow or the harness.
+- Any change to the spec.
+
+### Verification
+
+The `standard` gate profile in `phax.json`: its every-phase steps, and its terminal steps (build, site:build, deno:smoke, deno:smoke-binary), since this is the last phase.
+
+### Expected handoff content
+
+The handoff records:
+- The spec-completion table: every criterion id of the spec, the file and test title that proves it, and any criterion with no test.
+- The import guard's title and the allowed roots it enforces.
+- The sections added to `docs/property-tests.md`.
+- The total duration of `pnpm test:unit tests/unit/property` at 100 runs, and the deep-pass record of each new property file from phases 01 to 04 (or the deep passes still owed).
+- Any deviation from the planned file lists, with the reason.
+
+### Commit subject
+
+`docs(property-tests): the reducer and CLI-argument slices, and the import rule`
+
+### Commit body
+
+Describe the run-reducer and CLI-argument properties, their generators, the reachable-shape table and the property program in docs/property-tests.md.
+
+State the import rule's second tier: the argv files may also import the command library's contract and its runner, never the process-backed IO. Enforce the rule with a guard over every property file and helper.
