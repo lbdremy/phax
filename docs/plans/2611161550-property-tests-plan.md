@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611131320-property-tests.md
 completes-spec: true
+approved:
+  date: 2026-11-16
+  baseline: 1619afe
 ---
 # Property tests over the run reducer and the CLI arguments
 
