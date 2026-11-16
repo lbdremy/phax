@@ -118,7 +118,7 @@ WHILE a run is completed or stopped THE state machine SHALL handle an event only
 
 ### 5.14 State machine: a terminal phase stays terminal
 
-WHEN the state machine handles an event from a state whose phase is in a terminal phase state THE next state SHALL hold no phase, a phase in a terminal phase state, or a phase in pending (the next phase's start).
+WHEN the state machine handles an event from a state whose phase is in a terminal phase state THE next state SHALL hold no phase, a phase in a terminal phase state, a phase in a post-commit state (cleaning_up, handoff_failed or awaiting_review), or a phase at the next phase's start (pending or setting_up_worktree), and SHALL NOT hold a phase in running, fixing, gates_failed, gates_exhausted, passed, rate_limited or failed.
 
 ### 5.15 State machine: a refused event changes nothing
 
@@ -301,7 +301,7 @@ Given a completed or stopped run and any generated event, when the state machine
 
 ### A terminal phase does not go back
 
-Given a run state whose phase is committed, cleaned_up, review_open or skipped, and any generated event, when the state machine handles the event, then the next state holds no phase, a phase in a terminal phase state, or a phase in pending. (refs §5.14)
+Given a run state whose phase is committed, cleaned_up, review_open or skipped, and any generated event, when the state machine handles the event, then the next state holds no phase, a phase in a terminal phase state, a phase in a post-commit state (cleaning_up, handoff_failed or awaiting_review) or a phase at the next phase's start (pending or setting_up_worktree), and never a phase that is running, fixing, failing or passing its gates (gates_failed, gates_exhausted, passed), rate limited or failed. (refs §5.14)
 
 ### A refused event carries no change
 
