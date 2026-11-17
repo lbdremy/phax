@@ -1,6 +1,7 @@
 import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { codeReviewFileText, readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
+import { assignCodeReviewIds } from "../../../src/domain/findings/runFindings.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
@@ -26,19 +27,21 @@ function accept(parsed: unknown) {
   return result.success;
 }
 
+// The file as written: each finding of an answer with the id phax gives it.
+const fileText = (parsed: unknown) => codeReviewFileText(assignCodeReviewIds(accept(parsed), 0));
+
 describe("the code-review answer contract", () => {
-  it("accepts a stamped answer and writes $schema first, then the findings", () => {
-    const review = accept(answer([finding]));
-    const file = JSON.parse(codeReviewFileText(review)) as Record<string, unknown>;
+  it("accepts a stamped answer and writes $schema first, then the findings with their ids", () => {
+    const file = JSON.parse(fileText(answer([finding]))) as Record<string, unknown>;
     expect(Object.keys(file)).toEqual(["$schema", "findings"]);
     expect(file["$schema"]).toBe(FILE_STAMP);
-    expect(file["findings"]).toEqual([finding]);
+    expect(file["findings"]).toEqual([{ id: "F1", ...finding }]);
     expect(file).not.toHaveProperty("version");
   });
 
   it("keeps a criterion and a file as given, whether or not they exist", () => {
     const odd = { ...finding, criterion: "ac-nope", file: "src/not/in/any/worktree.ts" };
-    const file = JSON.parse(codeReviewFileText(accept(answer([odd])))) as {
+    const file = JSON.parse(fileText(answer([odd]))) as {
       findings: Array<Record<string, unknown>>;
     };
     expect(file.findings[0]?.["criterion"]).toBe("ac-nope");
@@ -48,14 +51,15 @@ describe("the code-review answer contract", () => {
   it("keeps the findings in the answer's order", () => {
     const first = { ...finding, line: 1, message: "first" };
     const second = { ...finding, line: 2, message: "second", severity: "info" };
-    const file = JSON.parse(codeReviewFileText(accept(answer([first, second])))) as {
-      findings: unknown[];
-    };
-    expect(file.findings).toEqual([first, second]);
+    const file = JSON.parse(fileText(answer([first, second]))) as { findings: unknown[] };
+    expect(file.findings).toEqual([
+      { id: "F1", ...first },
+      { id: "F2", ...second },
+    ]);
   });
 
   it("accepts an empty findings list and writes it empty", () => {
-    const file = JSON.parse(codeReviewFileText(accept(answer([])))) as { findings: unknown[] };
+    const file = JSON.parse(fileText(answer([]))) as { findings: unknown[] };
     expect(file.findings).toEqual([]);
   });
 

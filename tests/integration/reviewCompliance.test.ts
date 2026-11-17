@@ -160,6 +160,7 @@ function setup(options: { readonly seedRunFolder?: boolean } = {}) {
     Effect.runPromise(
       reviewCompliance(info, enabledConfig, resolutionOn(provider), fakeSecurity, {
         output,
+        findingsAfter: 0,
       }).pipe(Effect.provide(layer)),
     );
   const filesUnder = (dir: string): string[] =>
@@ -186,6 +187,7 @@ describe("reviewCompliance", () => {
     const result = await Effect.runPromise(
       reviewCompliance(makeInfo(), disabledConfig, resolutionOn("claude-code"), fakeSecurity, {
         output: t.output,
+        findingsAfter: 0,
       }).pipe(Effect.provide(t.layer)),
     );
 

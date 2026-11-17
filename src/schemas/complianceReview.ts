@@ -1,17 +1,20 @@
 // The `compliance-review` document: `<run folder>/compliance-review.json`, the
 // compliance review of a run, and the `compliance-review-answer` the review
-// session gives. Two formats with one shape for now (spec finding-ids-and-fates
-// §5.3): the file gains finding ids in the next phase, the answer never carries
-// one. Both strict, `$schema` const first, then the
+// session gives. Two formats (spec finding-ids-and-fates §5.3): a finding of the
+// file carries an `id` (`C<n>`, unique across the run's reviews, numbered across
+// `perPhase` in document order) that phax gives when it persists the review, and
+// a finding of the answer never does. Both strict, `$schema` const first, then the
 // verdict, the summary, one verdict per phase, the two ledgers, the attention
-// points and the pointers. The 0.17.0 shape (no ledgers) and the pre-schema one
-// stay readable through src/schemas/history/compliance-review/.
+// points and the pointers. The 0.32.0 shape (no ids), the 0.17.0 shape (no
+// ledgers) and the pre-schema one stay readable through
+// src/schemas/history/compliance-review/.
 import { Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
+import { refusalOverride } from "./refusal/adapter.js";
 import { schemaUrl } from "./schemaUrl.js";
-import { NonEmptyString } from "./strictString.js";
+import { isExportedPattern, NonEmptyString } from "./strictString.js";
 
 export const VerdictSchema = Schema.Literals([
   "conformant",
@@ -48,6 +51,33 @@ export const PhaseVerdictSchema = Schema.Struct({
 });
 export type PhaseVerdict = Schema.Schema.Type<typeof PhaseVerdictSchema>;
 
+/**
+ * The id of a finding of a compliance review file: `C` and a number from 1,
+ * unique across the reviews of a run. phax gives it; a session never writes one.
+ */
+export const ComplianceFindingIdSchema = Schema.String.check(
+  isExportedPattern(/^C[1-9][0-9]*$/),
+).annotate({
+  description: "The finding's id in its run: C<n>, n from 1, given by phax.",
+  ...refusalOverride(
+    (actual) => `${JSON.stringify(actual)} is not a compliance finding id (expected C<n>)`,
+  ),
+});
+
+/** A finding of the file: its id, then what it says. */
+const FileFindingSchema = Schema.Struct({
+  id: ComplianceFindingIdSchema,
+  ...FindingSchema.fields,
+});
+
+/** A finding of a persisted compliance review: `id` first, then what it says. */
+export type PersistedFinding = Schema.Schema.Type<typeof FileFindingSchema>;
+
+const FilePhaseVerdictSchema = Schema.Struct({
+  ...PhaseVerdictSchema.fields,
+  findings: Schema.Array(FileFindingSchema),
+});
+
 export const UnplannedChangeSchema = Schema.Struct({
   phaseId: NonEmptyString,
   path: NonEmptyString,
@@ -78,22 +108,43 @@ const complianceReviewFields = {
   pointers: Schema.Array(Schema.String),
 };
 
-/** A compliance review in memory: never a `$schema`. */
+/** A compliance review in memory, as the session answered it: no ids, never a `$schema`. */
 export type ComplianceReview = Types.Simplify<Schema.Struct.Type<typeof complianceReviewFields>>;
 
 /**
- * A compliance review that may predate the ledgers: the fields every shape
- * carries. A 0.17.0 or pre-schema file has neither ledger.
+ * A compliance review in memory as `compliance-review.json` holds it: every
+ * finding has its id.
  */
-export type AnyShapeComplianceReview = Omit<ComplianceReview, "unplannedChanges" | "unmetPromises">;
+export type PersistedComplianceReview = Omit<ComplianceReview, "perPhase"> & {
+  readonly perPhase: readonly (Omit<PhaseVerdict, "findings"> & {
+    readonly findings: readonly PersistedFinding[];
+  })[];
+};
 
 /**
- * A `compliance-review` document: `$schema` first, then the review. Every key
- * is required; any other key is refused, at any level.
+ * A compliance review that may predate the ledgers or the ids: the fields every
+ * shape carries. A 0.17.0 or pre-schema file has neither ledger; a file before
+ * 0.40.0 has no finding ids, and a current one has them, so a finding may or
+ * may not hold an `id`.
+ */
+export type AnyShapeComplianceReview = Omit<
+  ComplianceReview,
+  "unplannedChanges" | "unmetPromises" | "perPhase"
+> & {
+  readonly perPhase: readonly (Omit<PhaseVerdict, "findings"> & {
+    readonly findings: readonly (Finding & { readonly id?: string })[];
+  })[];
+};
+
+/**
+ * A `compliance-review` document: `$schema` first, then the review, each
+ * finding with its `id`. Every key is required; any other key is refused, at
+ * any level.
  */
 export const ComplianceReviewFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("compliance-review"),
   ...complianceReviewFields,
+  perPhase: Schema.Array(FilePhaseVerdictSchema),
 });
 
 export type ComplianceReviewFile = Schema.Schema.Type<typeof ComplianceReviewFileSchema>;
@@ -142,8 +193,8 @@ export function readComplianceReviewAnswer(
   return Result.succeed(review);
 }
 
-/** The text of `compliance-review.json`: `$schema` first, then the review, indented by 2. */
-export function complianceReviewFileText(review: ComplianceReview): string {
+/** The text of `compliance-review.json`: `$schema` first, then the review with its finding ids, indented by 2. */
+export function complianceReviewFileText(review: PersistedComplianceReview): string {
   const file = encodeComplianceReviewFile({
     $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
     ...review,

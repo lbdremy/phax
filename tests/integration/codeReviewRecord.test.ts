@@ -21,6 +21,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -61,21 +62,19 @@ const security = {
   } satisfies ResolvedSecurityConfig,
 };
 
-function answerWith(message: string): string {
+function answerOf(messages: readonly string[]): string {
   return JSON.stringify({
     $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
-    findings: [
-      {
-        severity: "concern",
-        file: "src/example.ts",
-        line: 7,
-        message,
-        lens: "core",
-        escape: "omission",
-        criterion: null,
-        suggestion: "Cover it with a test.",
-      },
-    ],
+    findings: messages.map((message) => ({
+      severity: "concern",
+      file: "src/example.ts",
+      line: 7,
+      message,
+      lens: "core",
+      escape: "omission",
+      criterion: null,
+      suggestion: "Cover it with a test.",
+    })),
   });
 }
 
@@ -138,11 +137,15 @@ describe("code review entry (real git)", () => {
   }
 
   function review(message: string, records: ResolvedRecordsConfig = RECORDS) {
+    return reviewAnswering([message], records);
+  }
+
+  function reviewAnswering(messages: readonly string[], records: ResolvedRecordsConfig = RECORDS) {
     const backend = makeFakeBackend();
     backend.impl.addRunResponse({
-      sessionId: `session-${message}` as ClaudeSessionId,
+      sessionId: `session-${messages.join("-")}` as ClaudeSessionId,
       outputPath: "",
-      finalText: answerWith(message),
+      finalText: answerOf(messages),
     });
     const layers = Layer.mergeAll(
       backend.layer,
@@ -183,6 +186,104 @@ describe("code review entry (real git)", () => {
     expect(manifest.review).toBe("code-review");
     expect(reviewEntryNotice(outcome)).toMatch(new RegExp(`^Recorded: ${KEY} \\(`));
     expect(reviewEntryWarnings(outcome, "code-review", "phax review-code by-hand")).toEqual([]);
+  });
+
+  // AC-ids-assigned: phax gives each finding its F<n> id when it persists the
+  // review, the session never writes one, and the numbering continues.
+  it("gives the findings F1, F2, F3 in answer order, the record holds the same bytes, and a second review continues at F4", async () => {
+    const first = await reviewAnswering(["one", "two", "three"]);
+    expect(first.review.kind).toBe("accepted");
+    expect(first.record.kind).toBe("written");
+
+    const firstText = await readFile(join(runPath, "code-review.json"), "utf8");
+    const firstFile = JSON.parse(firstText) as {
+      $schema: string;
+      findings: ReadonlyArray<{ id: string; message: string }>;
+    };
+    expect(firstFile.$schema).toBe(currentSchemaUrl("code-review"));
+    expect(firstFile.findings.map((f) => [f.id, f.message])).toEqual([
+      ["F1", "one"],
+      ["F2", "two"],
+      ["F3", "three"],
+    ]);
+    expect(Object.keys(firstFile.findings[0] ?? {})[0]).toBe("id");
+    expect(runGit(["show", `${RECORDS_BRANCH_NAME}:${KEY}/code-review.json`], repoDir)).toBe(
+      firstText,
+    );
+
+    const second = await reviewAnswering(["four", "five"]);
+    expect(second.review.kind).toBe("accepted");
+    const secondFile = JSON.parse(await readFile(join(runPath, "code-review.json"), "utf8")) as {
+      findings: ReadonlyArray<{ id: string; message: string }>;
+    };
+    expect(secondFile.findings.map((f) => [f.id, f.message])).toEqual([
+      ["F4", "four"],
+      ["F5", "five"],
+    ]);
+  });
+
+  it("numbers after the ids a file written before ids would lift to, and warns of an unreadable file", async () => {
+    const warnings: string[] = [];
+    const output = { log() {}, warn: (m: string) => void warnings.push(m), error() {} };
+    const older = {
+      $schema: schemaUrl("code-review", "0.32.0"),
+      findings: [1, 2].map((n) => ({
+        severity: "concern",
+        file: "src/example.ts",
+        line: n,
+        message: `older ${n}`,
+        lens: "core",
+        escape: "omission",
+        criterion: null,
+        suggestion: "Cover it with a test.",
+      })),
+    };
+    await writeFile(join(runPath, "code-review.json"), JSON.stringify(older));
+    await reviewAnswering(["next"]);
+    const lifted = JSON.parse(await readFile(join(runPath, "code-review.json"), "utf8")) as {
+      findings: ReadonlyArray<{ id: string }>;
+    };
+    expect(lifted.findings.map((f) => f.id)).toEqual(["F3"]);
+
+    await writeFile(join(runPath, "code-review.json"), "{ not json");
+    const backend = makeFakeBackend();
+    backend.impl.addRunResponse({
+      sessionId: "session-damaged" as ClaudeSessionId,
+      outputPath: "",
+      finalText: answerOf(["after damage"]),
+    });
+    const outcome = await Effect.runPromise(
+      reviewCodeAndRecord(
+        info(),
+        { enabled: false, model: "claude-opus-5-5", effort: "high" },
+        resolution,
+        security,
+        {
+          kind: "project",
+          records: RECORDS,
+          repoRoot: repoDir,
+          publishRemote: "origin",
+          push: null,
+        },
+        { bundledReviewSkill: "# phax review\n", nowIso: "2026-10-27T12:30:00.000Z", output },
+      ).pipe(
+        Effect.provide(
+          Layer.mergeAll(
+            backend.layer,
+            NodeFileSystemLayer,
+            NodeGitLayer,
+            NoopSystemTelemetryLayer,
+            fakeGitHub.layer,
+          ),
+        ),
+      ),
+    );
+    expect(outcome.review.kind).toBe("accepted");
+    expect(warnings.some((w) => w.includes("code-review.json"))).toBe(true);
+    const restarted = JSON.parse(await readFile(join(runPath, "code-review.json"), "utf8")) as {
+      findings: ReadonlyArray<{ id: string }>;
+    };
+    expect(restarted.findings.map((f) => f.id)).toEqual(["F1"]);
   });
 
   it("replaces the entry on a second review and keeps the first in the branch's history", async () => {

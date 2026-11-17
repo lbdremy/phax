@@ -72,6 +72,8 @@ import { decodeAuthoringRecordManifestPreSchema } from "../../src/schemas/histor
 import { decodeBriefRecordV0_20_0 } from "../../src/schemas/history/brief-record/0.20.0.js";
 import { decodeCodeReviewV0_29_0 } from "../../src/schemas/history/code-review/0.29.0.js";
 import { decodeComplianceReviewV0_17_0 } from "../../src/schemas/history/compliance-review/0.17.0.js";
+import { decodeComplianceReviewV0_32_0 } from "../../src/schemas/history/compliance-review/0.32.0.js";
+import { decodeCodeReviewV0_32_0 } from "../../src/schemas/history/code-review/0.32.0.js";
 import { decodeComplianceReviewPreSchema } from "../../src/schemas/history/compliance-review/pre-schema.js";
 import { decodeCostLedgerV0_25_0 } from "../../src/schemas/history/cost-ledger/0.25.0.js";
 import { decodeCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0.26.0.js";
@@ -500,7 +502,9 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("authoring-record-manifest/pre-schema", decodeAuthoringRecordManifestPreSchema, "first"),
   frozen("brief-record/0.20.0", decodeBriefRecordV0_20_0, "package"),
   frozen("code-review/0.29.0", decodeCodeReviewV0_29_0, "first"),
+  frozen("code-review/0.32.0", decodeCodeReviewV0_32_0, "first"),
   frozen("compliance-review/0.17.0", decodeComplianceReviewV0_17_0, "first"),
+  frozen("compliance-review/0.32.0", decodeComplianceReviewV0_32_0, "first"),
   frozen("compliance-review/pre-schema", decodeComplianceReviewPreSchema, "first"),
   frozen("cost-ledger/0.25.0", decodeCostLedgerV0_25_0, "first"),
   frozen("cost-ledger/0.26.0", decodeCostLedgerV0_26_0, "first"),

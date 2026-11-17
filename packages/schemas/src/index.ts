@@ -691,6 +691,14 @@ export {
   type CodeReviewV0_29_0,
 } from "../../../src/schemas/history/code-review/0.29.0.js";
 export {
+  CodeReviewV0_32_0Schema,
+  type CodeReviewV0_32_0,
+} from "../../../src/schemas/history/code-review/0.32.0.js";
+export {
+  ComplianceReviewV0_32_0Schema,
+  type ComplianceReviewV0_32_0,
+} from "../../../src/schemas/history/compliance-review/0.32.0.js";
+export {
   InteractiveSessionV0_26_0Schema,
   type InteractiveSessionV0_26_0,
 } from "../../../src/schemas/history/interactive-session/0.26.0.js";

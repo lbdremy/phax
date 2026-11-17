@@ -245,7 +245,8 @@ describe("prepareCodeReviewSession", () => {
   });
 
   // The worklist reads only the fields every shape carries: a 0.17.0 review
-  // (no ledger) and a 0.32.0 one (both ledgers) feed the prompt alike.
+  // (no ledger), a 0.32.0 one (both ledgers) and a current one (also an id on
+  // each finding) feed the prompt alike.
   const { version: _version, ...reviewFields } = JSON.parse(validComplianceJson) as Record<
     string,
     unknown
@@ -255,8 +256,23 @@ describe("prepareCodeReviewSession", () => {
     [
       "0.32.0",
       {
+        $schema: schemaUrl("compliance-review", "0.32.0"),
+        ...reviewFields,
+        unplannedChanges: [{ phaseId: "phase-01", path: "src/extra.ts", note: "Not in the plan" }],
+        unmetPromises: [],
+      },
+    ],
+    [
+      "current",
+      {
         $schema: currentSchemaUrl("compliance-review"),
         ...reviewFields,
+        perPhase: (reviewFields["perPhase"] as { findings: Record<string, unknown>[] }[]).map(
+          (phase) => ({
+            ...phase,
+            findings: phase.findings.map((finding, index) => ({ id: `C${index + 1}`, ...finding })),
+          }),
+        ),
         unplannedChanges: [{ phaseId: "phase-01", path: "src/extra.ts", note: "Not in the plan" }],
         unmetPromises: [],
       },

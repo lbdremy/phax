@@ -228,7 +228,8 @@ function loadCodeReview(
     if (!(yield* fs.exists(path))) return notReviewed;
     const raw = yield* fs.readText(path);
     const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
-    const review = yield* Effect.fromResult(readCodeReviewFile(path, parsed));
+    // Only the fields every shape carries: the ids of a current file are not read here.
+    const { review } = yield* Effect.fromResult(readCodeReviewFile(path, parsed));
     return { kind: "reviewed", review } as const;
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }

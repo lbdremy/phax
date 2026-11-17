@@ -42,6 +42,7 @@ import {
   resolvePublishConfig,
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -423,6 +424,8 @@ describe("compliance review entry by hand (real git)", () => {
       readonly refusedTwice?: boolean;
       readonly runInfo?: RunReviewInfo;
       readonly target?: ReviewRecordTarget | ReviewRecordUnresolved;
+      /** Replaces the answer's `perPhase`. */
+      readonly perPhase?: readonly unknown[];
     } = {},
   ) {
     const runInfo = opts.runInfo ?? info();
@@ -433,7 +436,11 @@ describe("compliance review entry by hand (real git)", () => {
       finalText:
         opts.refusedTwice === true
           ? "Prose, not JSON."
-          : JSON.stringify({ ...JSON.parse(COMPLIANCE_AGENT_JSON), summary }),
+          : JSON.stringify({
+              ...JSON.parse(COMPLIANCE_AGENT_JSON),
+              summary,
+              ...(opts.perPhase === undefined ? {} : { perPhase: opts.perPhase }),
+            }),
     });
     if (opts.refusedTwice === true) {
       backend.impl.addResumeResponse({
@@ -466,6 +473,60 @@ describe("compliance review entry by hand (real git)", () => {
       ).pipe(Effect.provide(layers)),
     );
   }
+
+  // AC-compliance-ids: phax gives each finding its C<n> id across perPhase in
+  // document order; the session never writes one, and the numbering continues.
+  it("gives the findings C1, then C2 and C3, across perPhase in document order, and a rerun continues at C4", async () => {
+    const finding = (message: string) => ({
+      dimension: "files",
+      severity: "deviation",
+      message,
+    });
+    const runInfo: RunReviewInfo = {
+      ...info(),
+      planPhases: [
+        { id: "phase-01", title: "Phase One" },
+        { id: "phase-02", title: "Phase Two" },
+      ],
+    };
+    const perPhase = [
+      { phaseId: "phase-01", verdict: "conformant-with-deviations", findings: [finding("a")] },
+      {
+        phaseId: "phase-02",
+        verdict: "conformant-with-deviations",
+        findings: [finding("b"), finding("c")],
+      },
+    ];
+
+    const first = await review("first", { runInfo, perPhase });
+    expect(first.review.kind).toBe("generated");
+    const file = JSON.parse(await readFile(join(runPath, "compliance-review.json"), "utf8")) as {
+      $schema: string;
+      perPhase: ReadonlyArray<{
+        phaseId: string;
+        findings: ReadonlyArray<{ id: string; message: string }>;
+      }>;
+    };
+    expect(file.$schema).toBe(currentSchemaUrl("compliance-review"));
+    expect(file.perPhase.map((p) => [p.phaseId, p.findings.map((f) => [f.id, f.message])])).toEqual(
+      [
+        ["phase-01", [["C1", "a"]]],
+        [
+          "phase-02",
+          [
+            ["C2", "b"],
+            ["C3", "c"],
+          ],
+        ],
+      ],
+    );
+
+    await review("second", { runInfo, perPhase });
+    const rerun = JSON.parse(await readFile(join(runPath, "compliance-review.json"), "utf8")) as {
+      perPhase: ReadonlyArray<{ findings: ReadonlyArray<{ id: string }> }>;
+    };
+    expect(rerun.perPhase.flatMap((p) => p.findings.map((f) => f.id))).toEqual(["C4", "C5", "C6"]);
+  });
 
   it("commits a new entry at the same key on each review, pushes it, and keeps the first file in history", async () => {
     const first = await review("first review");

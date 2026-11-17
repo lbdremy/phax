@@ -4,7 +4,10 @@ import {
   complianceReviewFileText,
   decodeComplianceReviewFile,
   readComplianceReviewAnswer,
+  type ComplianceReview,
 } from "../../../src/schemas/complianceReview.js";
+import { assignComplianceReviewIds } from "../../../src/domain/findings/runFindings.js";
+import { formatFirstViolation } from "../../../src/schemas/formatError.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
@@ -237,10 +240,41 @@ describe("readComplianceReviewAnswer", () => {
 });
 
 describe("decodeComplianceReviewFile", () => {
-  const validFile = { ...validAnswer, $schema: CURRENT_URL };
+  // The file: the answer's review with an id on every finding.
+  const validFile = {
+    ...validAnswer,
+    $schema: CURRENT_URL,
+    perPhase: validAnswer.perPhase.map((phase) => ({
+      ...phase,
+      findings: phase.findings.map((finding, index) => ({ id: `C${index + 1}`, ...finding })),
+    })),
+  };
 
   it("accepts the file at its current stamp", () => {
     expect(Result.isSuccess(decodeComplianceReviewFile(validFile))).toBe(true);
+  });
+
+  it("refuses a finding without an id", () => {
+    const withoutIds = { ...validAnswer, $schema: CURRENT_URL };
+    expect(Result.isFailure(decodeComplianceReviewFile(withoutIds))).toBe(true);
+  });
+
+  it.each(["C0", "C01", "F1", "c1", "C", "C1a", ""])("refuses the finding id %j", (id) => {
+    const [phase] = validFile.perPhase;
+    const [finding] = phase?.findings ?? [];
+    const file = { ...validFile, perPhase: [{ ...phase, findings: [{ ...finding, id }] }] };
+    expect(Result.isFailure(decodeComplianceReviewFile(file))).toBe(true);
+  });
+
+  it("names the form a wrong id should have", () => {
+    const [phase] = validFile.perPhase;
+    const [finding] = phase?.findings ?? [];
+    const refused = decodeComplianceReviewFile({
+      ...validFile,
+      perPhase: [{ ...phase, findings: [{ ...finding, id: "F1" }] }],
+    });
+    if (Result.isSuccess(refused)) throw new Error("expected a refusal");
+    expect(formatFirstViolation(refused.failure)).toContain("C<n>");
   });
 
   it("refuses the 0.17.0 file: its stamp is not the format's current one", () => {
@@ -255,20 +289,30 @@ describe("decodeComplianceReviewFile", () => {
   it("refuses a $schema naming another format, the answer's included", () => {
     const other = { ...validFile, $schema: schemaUrl("phax-plan", "0.32.0") };
     expect(Result.isFailure(decodeComplianceReviewFile(other))).toBe(true);
-    expect(Result.isFailure(decodeComplianceReviewFile(validAnswer))).toBe(true);
+    expect(
+      Result.isFailure(decodeComplianceReviewFile({ ...validFile, $schema: ANSWER_URL })),
+    ).toBe(true);
   });
 });
 
 describe("complianceReviewFileText", () => {
   const { $schema: _schema, ...review } = validAnswer;
+  const numbered = () => assignComplianceReviewIds(review as ComplianceReview, 0);
 
   it("starts with the $schema at the file's current stamp, indented by 2", () => {
-    const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
-    expect(text.startsWith(`{\n  "$schema": "${CURRENT_URL}",\n  "verdict"`)).toBe(true);
+    expect(
+      complianceReviewFileText(numbered()).startsWith(
+        `{\n  "$schema": "${CURRENT_URL}",\n  "verdict"`,
+      ),
+    ).toBe(true);
   });
 
-  it("round-trips through the file decoder", () => {
-    const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
-    expect(JSON.parse(text)).toEqual({ ...validAnswer, $schema: CURRENT_URL });
+  it("writes the finding ids and round-trips through the file decoder", () => {
+    const written: unknown = JSON.parse(complianceReviewFileText(numbered()));
+    expect(written).toMatchObject({
+      $schema: CURRENT_URL,
+      perPhase: [{ findings: [{ id: "C1" }] }],
+    });
+    expect(Result.isSuccess(decodeComplianceReviewFile(written))).toBe(true);
   });
 });

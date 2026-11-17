@@ -72,6 +72,14 @@ interface Answer {
   readonly rewordedMessages?: ReadonlyArray<string>;
 }
 
+/** A finding of a fixture given a well-formed id; anything else stays as it is. */
+const withId =
+  (letter: "F" | "C") =>
+  (finding: unknown, index: number): unknown =>
+    typeof finding === "object" && finding !== null
+      ? { id: `${letter}${index + 1}`, ...finding }
+      : finding;
+
 const without = (body: Body, key: string): Body => {
   const { [key]: _omitted, ...rest } = body;
   return rest;
@@ -381,6 +389,11 @@ const ANSWERS: ReadonlyArray<Answer> = [
     frozen: decodeCodeReviewV0_29_0,
     frozenStamp: schemaUrl("code-review", "0.29.0"),
     current: decodeCodeReviewFile,
+    // The 0.29.0 shape has no finding id: the new decoder reads each finding with one.
+    forCurrent: (body) =>
+      Array.isArray(body["findings"])
+        ? { ...body, findings: body["findings"].map(withId("F")) }
+        : body,
     fixtures: [
       ["no finding", review()],
       ["one finding", review({})],
@@ -413,8 +426,27 @@ const ANSWERS: ReadonlyArray<Answer> = [
     frozen: decodeComplianceReviewV0_17_0,
     frozenStamp: schemaUrl("compliance-review", "0.17.0"),
     current: decodeComplianceReviewFile,
-    // The 0.17.0 shape has no ledger: the new decoder reads each fixture with both.
-    forCurrent: (body) => ({ ...body, unplannedChanges: [], unmetPromises: [] }),
+    // The 0.17.0 shape has no ledger and no finding id: the new decoder reads each
+    // fixture with both.
+    forCurrent: (body) => ({
+      ...body,
+      unplannedChanges: [],
+      unmetPromises: [],
+      ...(Array.isArray(body["perPhase"])
+        ? {
+            perPhase: body["perPhase"].map((phase: unknown) =>
+              typeof phase === "object" && phase !== null && "findings" in phase
+                ? {
+                    ...phase,
+                    findings: Array.isArray(phase.findings)
+                      ? phase.findings.map(withId("C"))
+                      : phase.findings,
+                  }
+                : phase,
+            ),
+          }
+        : {}),
+    }),
     fixtures: [
       ["a review with one deviation", complianceReview],
       [

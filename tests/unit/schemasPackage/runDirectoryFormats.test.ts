@@ -27,6 +27,7 @@ import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { decodePhaseStatusFile, decodeRunStatusFile } from "../../../src/schemas/status.js";
 import {
   complianceReviewV0_17_0Document,
+  complianceReviewV0_32_0Document,
   EXAMPLE_BASE,
   preSchemaDocuments,
   preSchemaUnsupported,
@@ -53,6 +54,19 @@ interface RunDirectoryFormat {
   readonly unrecorded?: Doc;
   /** What the upgrade gives every phase of an older document, as the shape it read never carried it. */
   readonly phaseLift?: Doc;
+  /** What the upgrade gives every finding of every `perPhase` entry, as the shape it read never carried it. */
+  readonly findingLift?: Doc;
+}
+
+/** `doc` with `lift` laid under every finding of `perPhase`, or, with `strip`, those keys removed from each. */
+function liftFindings(doc: Doc, lift: Doc, strip = false): Doc {
+  const perPhase = (doc["perPhase"] as { findings: Doc[] }[]).map((phase) => ({
+    ...phase,
+    findings: phase.findings.map((finding) =>
+      strip ? Object.keys(lift).reduce(withoutKey, finding) : { ...lift, ...finding },
+    ),
+  }));
+  return { ...doc, perPhase };
 }
 
 const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
@@ -90,6 +104,8 @@ const FORMATS: ReadonlyArray<RunDirectoryFormat> = [
     // No older phax recorded the ledgers: an empty list would say its run had no
     // unplanned change and no unmet promise.
     unrecorded: { unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN },
+    // Nor did any phax before 0.40.0 record a finding's id.
+    findingLift: { id: UNKNOWN },
   },
 ];
 
@@ -143,7 +159,11 @@ describe.each(FORMATS)("$id", (format) => {
   it("upgrades by dropping version, keeping everything else and marking what it never recorded", () => {
     const result = format.parse(preSchema);
     if (!result.ok) throw new Error("document rejected");
-    const recorded = withoutKey(preSchema, "version");
+    const withoutVersion = withoutKey(preSchema, "version");
+    const recorded =
+      format.findingLift === undefined
+        ? withoutVersion
+        : liftFindings(withoutVersion, format.findingLift);
     const phaseLift = format.phaseLift;
     expect(format.toLatest(result.value as never)).toEqual({
       ...recorded,
@@ -160,7 +180,11 @@ describe.each(FORMATS)("$id", (format) => {
     if (!old.ok || !written.ok) throw new Error("document rejected");
     // The facts the pre-schema shape never recorded, on the document and on each phase, are left out.
     const recorded = (latest: unknown): Doc => {
-      const doc = Object.keys(format.unrecorded ?? {}).reduce(withoutKey, latest as Doc);
+      const unlifted = Object.keys(format.unrecorded ?? {}).reduce(withoutKey, latest as Doc);
+      const doc =
+        format.findingLift === undefined
+          ? unlifted
+          : liftFindings(unlifted, format.findingLift, true);
       const phaseLift = format.phaseLift;
       if (phaseLift === undefined) return doc;
       const phases = (doc["phases"] as Doc[]).map((phase) =>
@@ -248,11 +272,36 @@ describe("the compliance review's ledger history", () => {
     if (!result.ok || result.shape !== "0.17.0") throw new Error("document rejected");
     const latest = toLatestComplianceReview(result.value);
     expect(latest).toEqual({
-      ...withoutKey(complianceReviewV0_17_0Document, "$schema"),
+      ...liftFindings(withoutKey(complianceReviewV0_17_0Document, "$schema"), { id: UNKNOWN }),
       unplannedChanges: UNKNOWN,
       unmetPromises: UNKNOWN,
     });
     for (const key of ledgers) expect(latest[key]).toBe(UNKNOWN);
+  });
+
+  it("parses a 0.32.0 document as shape 0.32.0 through the frozen module", () => {
+    expect(parseComplianceReview(complianceReviewV0_32_0Document)).toEqual({
+      ok: true,
+      shape: "0.32.0",
+      value: complianceReviewV0_32_0Document,
+    });
+  });
+
+  it("lifts a 0.32.0 document with its ledgers as recorded and each finding's id Unknown", () => {
+    const result = parseComplianceReview(complianceReviewV0_32_0Document);
+    if (!result.ok || result.shape !== "0.32.0") throw new Error("document rejected");
+    expect(toLatestComplianceReview(result.value)).toEqual(
+      liftFindings(withoutKey(complianceReviewV0_32_0Document, "$schema"), { id: UNKNOWN }),
+    );
+  });
+
+  it("refuses a current document whose finding has no id", () => {
+    const withoutIds = withKey(
+      complianceReviewV0_32_0Document,
+      "$schema",
+      validDocuments["compliance-review"]["$schema"],
+    );
+    expect(parseComplianceReview(withoutIds).ok).toBe(false);
   });
 
   it("keeps the ledgers of a current document as recorded", () => {

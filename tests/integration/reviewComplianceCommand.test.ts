@@ -105,9 +105,10 @@ function setup() {
   const layer = Layer.mergeAll(backend.layer, fs.layer, NoopSystemTelemetryLayer);
   const review = (config: ResolvedComplianceReviewConfig = enabledConfig) =>
     Effect.runPromise(
-      reviewCompliance(makeInfo(), config, fakeResolution, fakeSecurity, { output }).pipe(
-        Effect.provide(layer),
-      ),
+      reviewCompliance(makeInfo(), config, fakeResolution, fakeSecurity, {
+        output,
+        findingsAfter: 0,
+      }).pipe(Effect.provide(layer)),
     );
   return { fs, backend, review };
 }

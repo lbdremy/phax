@@ -32,6 +32,7 @@ import type {
   parseAcceptanceRequest,
   toLatestAcceptanceRequest,
   CodeReviewV0_29_0,
+  CodeReviewV0_32_0,
   FirstReading,
   FirstReadingShape,
   FirstReadingV0_26_0,
@@ -302,6 +303,7 @@ import type {
   ComplianceReview as PhaxComplianceReview,
   ComplianceReviewAnswer as PhaxComplianceReviewAnswer,
   ComplianceReviewFile as PhaxComplianceReviewFile,
+  PersistedComplianceReview as PhaxPersistedComplianceReview,
 } from "../../src/schemas/complianceReview.js";
 import type {
   ArchitectureReportFile as PhaxArchitectureReportFile,
@@ -351,6 +353,7 @@ import type {
   CodeReview as PhaxCodeReview,
   CodeReviewAnswer as PhaxCodeReviewAnswer,
   CodeReviewFile as PhaxCodeReviewFile,
+  PersistedCodeReview as PhaxPersistedCodeReview,
 } from "../../src/schemas/codeReview.js";
 import type {
   CostLedger as PhaxCostLedger,
@@ -385,6 +388,8 @@ import type { DecisionRecordManifestV0_25_0 as FrozenDecisionRecordManifestV0_25
 import type { DecisionRecordManifestV0_28_0 as FrozenDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
 import type { DecisionRecordManifestV0_30_0 as FrozenDecisionRecordManifestV0_30_0 } from "../../src/schemas/history/decision-record-manifest/0.30.0.js";
 import type { CodeReviewV0_29_0 as FrozenCodeReviewV0_29_0 } from "../../src/schemas/history/code-review/0.29.0.js";
+import type { CodeReviewV0_32_0 as FrozenCodeReviewV0_32_0 } from "../../src/schemas/history/code-review/0.32.0.js";
+import type { ComplianceReviewV0_32_0 as FrozenComplianceReviewV0_32_0 } from "../../src/schemas/history/compliance-review/0.32.0.js";
 import type { FirstReadingV0_26_0 as FrozenFirstReadingV0_26_0 } from "../../src/schemas/history/first-reading/0.26.0.js";
 import type { InteractiveHandoffV0_26_0 as FrozenInteractiveHandoffV0_26_0 } from "../../src/schemas/history/interactive-handoff/0.26.0.js";
 import type { PlanExtractionAnswer as PhaxPlanExtractionFile } from "../../src/schemas/planExtraction.js";
@@ -826,7 +831,7 @@ const eachShapeId: [
     PhaxPlanShape,
     "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | "0.32.0" | "0.33.0" | Current<"phax-plan">
   >,
-  Equals<ComplianceReviewShape, "pre-schema" | "0.17.0" | Current<"compliance-review">>,
+  Equals<ComplianceReviewShape, "pre-schema" | "0.17.0" | "0.32.0" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
   Equals<SpecApprovalsShape, "pre-schema" | Current<"spec-approvals">>,
   Equals<
@@ -928,7 +933,10 @@ const parseValues: [
   >,
   Equals<
     Value<typeof parseComplianceReview>,
-    FrozenComplianceReview | FrozenComplianceReviewV0_17_0 | PhaxComplianceReviewFile
+    | FrozenComplianceReview
+    | FrozenComplianceReviewV0_17_0
+    | FrozenComplianceReviewV0_32_0
+    | PhaxComplianceReviewFile
   >,
   Equals<Value<typeof parsePlanApprovals>, FrozenPlanApprovals | ApprovalRecordFile>,
   Equals<Value<typeof parseSpecApprovals>, FrozenSpecApprovals | SpecApprovalRecordFile>,
@@ -1068,13 +1076,29 @@ type PhaxPlanWithUnknownLines = Omit<PhaxPhaxPlan, "phases"> & {
   readonly phases: readonly [PhaxPlanPhaseWithUnknownLines, ...PhaxPlanPhaseWithUnknownLines[]];
 };
 
-// A review an older phax wrote holds `Unknown` ledgers.
-type PhaxComplianceReviewWithUnknownLedgers = Omit<
-  PhaxComplianceReview,
-  "unplannedChanges" | "unmetPromises"
+// A review an older phax wrote holds `Unknown` ledgers, and one before 0.40.0
+// an `Unknown` id on each finding.
+type PhaxComplianceFindingWithUnknownId = Omit<
+  PhaxPersistedComplianceReview["perPhase"][number]["findings"][number],
+  "id"
 > & {
-  readonly unplannedChanges: PhaxComplianceReview["unplannedChanges"] | Unknown;
-  readonly unmetPromises: PhaxComplianceReview["unmetPromises"] | Unknown;
+  readonly id:
+    | PhaxPersistedComplianceReview["perPhase"][number]["findings"][number]["id"]
+    | Unknown;
+};
+type PhaxComplianceReviewWithUnknownLedgers = Omit<
+  PhaxPersistedComplianceReview,
+  "unplannedChanges" | "unmetPromises" | "perPhase"
+> & {
+  readonly unplannedChanges: PhaxPersistedComplianceReview["unplannedChanges"] | Unknown;
+  readonly unmetPromises: PhaxPersistedComplianceReview["unmetPromises"] | Unknown;
+  readonly perPhase: readonly (Omit<
+    PhaxPersistedComplianceReview["perPhase"][number],
+    "findings"
+  > & { readonly findings: readonly PhaxComplianceFindingWithUnknownId[] })[];
+};
+type PhaxCodeFindingWithUnknownId = Omit<PhaxPersistedCodeReview["findings"][number], "id"> & {
+  readonly id: PhaxPersistedCodeReview["findings"][number]["id"] | Unknown;
 };
 
 // Each Latest type is phax's in-memory type: no version, no $schema
@@ -1423,25 +1447,33 @@ if (document.ok && document.format === "cost-ledger") {
   void exact;
   void ledgerShape;
 }
-// The code review is born with $schema too: phax's own types, one current
-// shape, and an in-memory value without $schema
+// The code review is born with $schema too: phax's own types, a current shape
+// whose findings carry an id, and an in-memory value without $schema, with an
+// `Unknown` id on the findings of an older shape
 const codeReviewTypes: [
   Equals<CodeReview, PhaxCodeReviewFile>,
-  Equals<CodeReviewShape, "0.29.0" | Current<"code-review">>,
-  Equals<Value<typeof parseCodeReview>, FrozenCodeReviewV0_29_0 | PhaxCodeReviewFile>,
-  Equals<LatestCodeReview, PhaxCodeReview>,
+  Equals<CodeReviewShape, "0.29.0" | "0.32.0" | Current<"code-review">>,
+  Equals<
+    Value<typeof parseCodeReview>,
+    FrozenCodeReviewV0_29_0 | FrozenCodeReviewV0_32_0 | PhaxCodeReviewFile
+  >,
+  Equals<LatestCodeReview, { readonly findings: readonly PhaxCodeFindingWithUnknownId[] }>,
   Equals<
     Parameters<typeof toLatestCodeReview>,
-    [value: PhaxCodeReviewFile | FrozenCodeReviewV0_29_0]
+    [value: PhaxCodeReviewFile | FrozenCodeReviewV0_32_0 | FrozenCodeReviewV0_29_0]
   >,
   Equals<CodeReviewV0_29_0, FrozenCodeReviewV0_29_0>,
-] = [true, true, true, true, true, true];
+  Equals<CodeReviewV0_32_0, FrozenCodeReviewV0_32_0>,
+] = [true, true, true, true, true, true, true];
 void codeReviewTypes;
 declare const latestCodeReview: LatestCodeReview;
 // @ts-expect-error: the in-memory code review carries no $schema
 void latestCodeReview.$schema;
 if (document.ok && document.format === "code-review") {
-  const exact: Equals<typeof document.value, FrozenCodeReviewV0_29_0 | PhaxCodeReviewFile> = true;
+  const exact: Equals<
+    typeof document.value,
+    FrozenCodeReviewV0_29_0 | FrozenCodeReviewV0_32_0 | PhaxCodeReviewFile
+  > = true;
   void exact;
 }
 // The code review and compliance review answers are born at the opened release
@@ -1807,7 +1839,13 @@ const toLatestParameters: [
   >,
   Equals<
     Parameters<typeof toLatestComplianceReview>,
-    [value: FrozenComplianceReview | FrozenComplianceReviewV0_17_0 | PhaxComplianceReviewFile]
+    [
+      value:
+        | FrozenComplianceReview
+        | FrozenComplianceReviewV0_17_0
+        | FrozenComplianceReviewV0_32_0
+        | PhaxComplianceReviewFile,
+    ]
   >,
   Equals<
     Parameters<typeof toLatestPlanApprovals>,
