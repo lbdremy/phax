@@ -16,20 +16,30 @@ import { Array as Arr } from "effect";
 import {
   ComplianceReviewFileSchema,
   decodeComplianceReviewFile,
-  type ComplianceReview,
   type ComplianceReviewFile,
+  type PersistedComplianceReview,
 } from "../../../../src/schemas/complianceReview.js";
 import {
   CodeReviewFileSchema,
   decodeCodeReviewFile,
-  type CodeReview,
   type CodeReviewFile,
+  type PersistedCodeReview,
 } from "../../../../src/schemas/codeReview.js";
 import {
   CodeReviewV0_29_0Schema,
   decodeCodeReviewV0_29_0,
   type CodeReviewV0_29_0,
 } from "../../../../src/schemas/history/code-review/0.29.0.js";
+import {
+  CodeReviewV0_32_0Schema,
+  decodeCodeReviewV0_32_0,
+  type CodeReviewV0_32_0,
+} from "../../../../src/schemas/history/code-review/0.32.0.js";
+import {
+  ComplianceReviewV0_32_0Schema,
+  decodeComplianceReviewV0_32_0,
+  type ComplianceReviewV0_32_0,
+} from "../../../../src/schemas/history/compliance-review/0.32.0.js";
 import {
   CostLedgerFileSchema,
   decodeCostLedgerFile,
@@ -466,14 +476,16 @@ function isV0_26_0PhaxPlan(
 
 // ── compliance review
 
-// The current shape is a strict answer since 0.32.0 (a const `$schema`, two
-// required ledgers); the 0.17.0 shape, which has no ledger, is listed as a
-// release. A const `$schema` reads only its own stamp: a document stamped above
-// the current stamp is refused at `$schema`.
+// The current shape is a strict document (a const `$schema`, two required
+// ledgers, and an `id` on every finding); the 0.32.0 shape, which has no finding
+// id, and the 0.17.0 shape, which has no ledger either, are listed as releases.
+// A const `$schema` reads only its own stamp: a document stamped above the
+// current stamp is refused at `$schema`.
 
 export type ComplianceReviewShapes = {
   "pre-schema": ComplianceReviewPreSchema;
   "0.17.0": ComplianceReviewV0_17_0;
+  "0.32.0": ComplianceReviewV0_32_0;
 } & {
   [K in CurrentShapeName<"compliance-review">]: ComplianceReviewFile;
 };
@@ -487,6 +499,7 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
   preSchema: { schema: ComplianceReviewPreSchemaSchema, decode: decodeComplianceReviewPreSchema },
   releases: [
     ["0.17.0", { schema: ComplianceReviewV0_17_0Schema, decode: decodeComplianceReviewV0_17_0 }],
+    ["0.32.0", { schema: ComplianceReviewV0_32_0Schema, decode: decodeComplianceReviewV0_32_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["compliance-review"],
@@ -498,38 +511,70 @@ export const complianceReviewFormat = defineFormat<ComplianceReviewShapes>({
 export const parseComplianceReview: (input: unknown) => ParsedShape<ComplianceReviewShapes> =
   complianceReviewFormat.parse;
 
+type PersistedComplianceFinding = PersistedComplianceReview["perPhase"][number]["findings"][number];
+
 /**
  * The latest compliance review: phax's in-memory value, with no `version` and
  * no `$schema`. A review an older phax wrote never recorded its ledgers: each
- * is `Unknown`, which a reader treats as 'not recorded'.
+ * is `Unknown`, which a reader treats as 'not recorded'. A review before
+ * 0.40.0 never recorded its findings' ids either: each finding's `id` is
+ * `Unknown`.
  */
 export type LatestComplianceReview = Omit<
-  ComplianceReview,
-  "unplannedChanges" | "unmetPromises"
+  PersistedComplianceReview,
+  "unplannedChanges" | "unmetPromises" | "perPhase"
 > & {
-  readonly unplannedChanges: ComplianceReview["unplannedChanges"] | Unknown;
-  readonly unmetPromises: ComplianceReview["unmetPromises"] | Unknown;
+  readonly unplannedChanges: PersistedComplianceReview["unplannedChanges"] | Unknown;
+  readonly unmetPromises: PersistedComplianceReview["unmetPromises"] | Unknown;
+  readonly perPhase: readonly (Omit<PersistedComplianceReview["perPhase"][number], "findings"> & {
+    readonly findings: readonly (Omit<PersistedComplianceFinding, "id"> & {
+      readonly id: PersistedComplianceFinding["id"] | Unknown;
+    })[];
+  })[];
 };
 
 /**
  * Upgrades a parsed compliance review in memory. Keeps every recorded fact;
  * never invents one: a 0.17.0 or pre-schema review has `Unknown` ledgers, never
  * an empty list, because that would say its run had no unplanned change and no
- * unmet promise.
+ * unmet promise. A review before 0.40.0 has an `Unknown` id on each finding:
+ * phax lifts it by position across the run's reviews, which one file alone
+ * cannot tell.
  */
 export function toLatestComplianceReview(
-  value: ComplianceReviewPreSchema | ComplianceReviewV0_17_0 | ComplianceReviewFile,
+  value:
+    | ComplianceReviewPreSchema
+    | ComplianceReviewV0_17_0
+    | ComplianceReviewV0_32_0
+    | ComplianceReviewFile,
 ): LatestComplianceReview {
+  const { perPhase } = value;
+  const perPhaseLatest = perPhase.map((phase) => ({
+    ...phase,
+    findings: phase.findings.map((finding) =>
+      "id" in finding ? finding : { id: UNKNOWN, ...finding },
+    ),
+  }));
   if ("unplannedChanges" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return recorded;
+    return { ...recorded, perPhase: perPhaseLatest };
   }
   if ("$schema" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return { ...recorded, unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN };
+    return {
+      ...recorded,
+      perPhase: perPhaseLatest,
+      unplannedChanges: UNKNOWN,
+      unmetPromises: UNKNOWN,
+    };
   }
   const { version: _version, ...recorded } = value;
-  return { ...recorded, unplannedChanges: UNKNOWN, unmetPromises: UNKNOWN };
+  return {
+    ...recorded,
+    perPhase: perPhaseLatest,
+    unplannedChanges: UNKNOWN,
+    unmetPromises: UNKNOWN,
+  };
 }
 
 // ── cost ledger
@@ -580,13 +625,14 @@ export function toLatestCostLedger(
 
 // Born with `$schema`: no pre-schema shape, and a document without `$schema` is
 // unreadable. It refuses a key it does not name, at any level. The current
-// shape is a strict answer since 0.32.0 (a const `$schema`, the strict
-// non-empty pattern); the 0.29.0 shape is listed as a release. A const
-// `$schema` reads only its own stamp: a document stamped above the current
-// stamp is refused at `$schema`.
+// shape is a strict document (a const `$schema`, the strict non-empty pattern,
+// and an `id` on every finding); the 0.32.0 shape, which has no finding id, and
+// the 0.29.0 shape are listed as releases. A const `$schema` reads only its own
+// stamp: a document stamped above the current stamp is refused at `$schema`.
 
 export type CodeReviewShapes = {
   "0.29.0": CodeReviewV0_29_0;
+  "0.32.0": CodeReviewV0_32_0;
 } & {
   [K in CurrentShapeName<"code-review">]: CodeReviewFile;
 };
@@ -598,7 +644,10 @@ export const codeReviewFormat = defineFormat<CodeReviewShapes>({
   id: "code-review",
   label: "code review",
   preSchema: null,
-  releases: [["0.29.0", { schema: CodeReviewV0_29_0Schema, decode: decodeCodeReviewV0_29_0 }]],
+  releases: [
+    ["0.29.0", { schema: CodeReviewV0_29_0Schema, decode: decodeCodeReviewV0_29_0 }],
+    ["0.32.0", { schema: CodeReviewV0_32_0Schema, decode: decodeCodeReviewV0_32_0 }],
+  ],
   current: {
     name: CURRENT_SHAPES["code-review"],
     shape: { schema: CodeReviewFileSchema, decode: decodeCodeReviewFile },
@@ -609,14 +658,30 @@ export const codeReviewFormat = defineFormat<CodeReviewShapes>({
 export const parseCodeReview: (input: unknown) => ParsedShape<CodeReviewShapes> =
   codeReviewFormat.parse;
 
-/** The latest code review: phax's in-memory value, with no `$schema`. */
-export type LatestCodeReview = CodeReview;
+type PersistedCodeFinding = PersistedCodeReview["findings"][number];
+
+/**
+ * The latest code review: phax's in-memory value, with no `$schema`. A review
+ * before 0.40.0 never recorded its findings' ids: each finding's `id` is
+ * `Unknown`.
+ */
+export type LatestCodeReview = {
+  readonly findings: readonly (Omit<PersistedCodeFinding, "id"> & {
+    readonly id: PersistedCodeFinding["id"] | Unknown;
+  })[];
+};
 
 /**
  * Upgrades a parsed code review in memory: drops `$schema`, keeps every finding.
- * A 0.29.0 review is valid in the current shape as it is.
+ * A 0.32.0 or 0.29.0 review has an `Unknown` id on each finding: phax lifts it
+ * by position across the run's reviews, which one file alone cannot tell.
  */
-export function toLatestCodeReview(value: CodeReviewFile | CodeReviewV0_29_0): LatestCodeReview {
-  const { $schema: _schema, ...review } = value;
-  return review;
+export function toLatestCodeReview(
+  value: CodeReviewFile | CodeReviewV0_32_0 | CodeReviewV0_29_0,
+): LatestCodeReview {
+  return {
+    findings: value.findings.map((finding) =>
+      "id" in finding ? finding : { id: UNKNOWN, ...finding },
+    ),
+  };
 }

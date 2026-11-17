@@ -149,6 +149,7 @@ function setup() {
         bundledReviewSkill,
         nowIso,
         output,
+        findingsAfter: 0,
       }).pipe(Effect.provide(layer)),
     );
   return { fs, backend, git, github, layer, session, retry, review, warnings, output };

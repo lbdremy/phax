@@ -101,7 +101,9 @@ import { AuthoringRecordManifestV0_23_0Schema } from "../../../src/schemas/histo
 import { AuthoringRecordManifestPreSchemaSchema } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { BriefRecordV0_20_0Schema } from "../../../src/schemas/history/brief-record/0.20.0.js";
 import { CodeReviewV0_29_0Schema } from "../../../src/schemas/history/code-review/0.29.0.js";
+import { CodeReviewV0_32_0Schema } from "../../../src/schemas/history/code-review/0.32.0.js";
 import { ComplianceReviewV0_17_0Schema } from "../../../src/schemas/history/compliance-review/0.17.0.js";
+import { ComplianceReviewV0_32_0Schema } from "../../../src/schemas/history/compliance-review/0.32.0.js";
 import { ComplianceReviewPreSchemaSchema } from "../../../src/schemas/history/compliance-review/pre-schema.js";
 import { CostLedgerV0_25_0Schema } from "../../../src/schemas/history/cost-ledger/0.25.0.js";
 import { CostLedgerV0_26_0Schema } from "../../../src/schemas/history/cost-ledger/0.26.0.js";
@@ -342,6 +344,13 @@ const readPhaxPlan: Reader = (input) => {
 
 const readComplianceReview: Reader = (input) => {
   const result = readComplianceReviewFile(FILE, input);
+  return Result.isSuccess(result)
+    ? ok(result.success.review, result.success.shape)
+    : refused(result.failure.message);
+};
+
+const readCodeReview: Reader = (input) => {
+  const result = readCodeReviewFile(FILE, input);
   return Result.isSuccess(result)
     ? ok(result.success.review, result.success.shape)
     : refused(result.failure.message);
@@ -869,6 +878,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
   "compliance-review": [
     shape("pre-schema", ComplianceReviewPreSchemaSchema),
     shape("0.17.0", ComplianceReviewV0_17_0Schema),
+    shape("0.32.0", ComplianceReviewV0_32_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
   ],
   "plan-approvals": [shape("pre-schema", PlanApprovalsPreSchemaSchema)],
   "spec-approvals": [shape("pre-schema", SpecApprovalsPreSchemaSchema)],
@@ -940,7 +950,10 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
   "interactive-session": [shape("0.26.0", InteractiveSessionV0_26_0Schema)],
   "review-stop": [shape("0.26.0", ReviewStopV0_26_0Schema)],
   "run-list": [shape("0.26.0", RunListV0_26_0Schema), shape("0.30.0", RunListV0_30_0Schema)],
-  "code-review": [shape("0.29.0", CodeReviewV0_29_0Schema)],
+  "code-review": [
+    shape("0.29.0", CodeReviewV0_29_0Schema),
+    shape("0.32.0", CodeReviewV0_32_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
+  ],
   "phax-plan-extraction": [
     shape("0.32.0", PhaxPlanExtractionV0_32_0Schema, {
       packageOnly: EXTRACTION_READS_ITS_STAMP,
@@ -1134,7 +1147,7 @@ export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readon
   }),
   "code-review": entry("code-review", {
     schema: CodeReviewSchema,
-    phax: read(persisted(readCodeReviewFile)),
+    phax: read(readCodeReview),
     parse: fromPackage(parseCodeReview),
   }),
   "code-review-answer": entry("code-review-answer", {

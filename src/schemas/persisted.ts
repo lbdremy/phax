@@ -45,10 +45,15 @@
 // as a refused lift, which still reads. A run status or registry stamped
 // below its current stamp is read by its frozen 0.17.0 decoder, and a phase
 // status by its frozen 0.20.0 decoder, lifted with `mode: "headless"` and
-// `stop: null`. A compliance review stamped below its current stamp is read by
-// its frozen 0.17.0 decoder, and one written before `$schema` by the pre-schema
-// decoder; neither gains a ledger (`unplannedChanges`, `unmetPromises`), and
-// `readComplianceReviewFile` reports the shape it read. A phase, authoring or
+// `stop: null`. A compliance review stamped 0.32.0 or later, below its current
+// stamp, is read by its frozen 0.32.0 decoder; one stamped lower by its frozen
+// 0.17.0 decoder, and one written before `$schema` by the pre-schema decoder;
+// none gains a finding id, and the two oldest no ledger (`unplannedChanges`,
+// `unmetPromises`). A code review stamped 0.32.0 or later, below its current
+// stamp, is read by its frozen 0.32.0 decoder, and one stamped lower by its
+// frozen 0.29.0 decoder; neither gains a finding id. `readComplianceReviewFile`
+// and `readCodeReviewFile` report the shape they read, and a read never
+// rewrites a file. A phase, authoring or
 // decision record manifest or an interactive session stamped below its current stamp is read by the frozen
 // decoder of the release that wrote its shape, and every Vibe usage it carries
 // lifts to unavailable (`liftFrozenTokenUsage`). `readDocumentSidecar`
@@ -103,12 +108,18 @@ import {
 } from "./brief.js";
 import { decodeArchitectureReportFile, type ArchitectureReportFile } from "./architecture.js";
 import { decodeBriefReportFile, type BriefReportFile } from "./briefReport.js";
-import { decodeCodeReviewFile, type CodeReview } from "./codeReview.js";
+import {
+  decodeCodeReviewFile,
+  type CodeReview,
+  type CodeReviewFile,
+  type PersistedCodeReview,
+} from "./codeReview.js";
 import {
   decodeComplianceReviewFile,
   type AnyShapeComplianceReview,
   type ComplianceReview,
   type ComplianceReviewFile,
+  type PersistedComplianceReview,
 } from "./complianceReview.js";
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile, liftFrozenDecisionManifest } from "./decisionRecord.js";
@@ -128,6 +139,7 @@ import { decodeAuthoringRecordManifestV0_17_0 } from "./history/authoring-record
 import { decodeAuthoringRecordManifestV0_23_0 } from "./history/authoring-record-manifest/0.23.0.js";
 import { decodeAuthoringRecordManifestPreSchema } from "./history/authoring-record-manifest/pre-schema.js";
 import { decodeComplianceReviewV0_17_0 } from "./history/compliance-review/0.17.0.js";
+import { decodeComplianceReviewV0_32_0 } from "./history/compliance-review/0.32.0.js";
 import {
   decodeComplianceReviewPreSchema,
   type ComplianceReviewPreSchema,
@@ -236,6 +248,7 @@ import { decodeRegistryFile, type Registry } from "./registry.js";
 import { describeReportIssue } from "./report.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "./release.js";
 import { decodeCodeReviewV0_29_0 } from "./history/code-review/0.29.0.js";
+import { decodeCodeReviewV0_32_0 } from "./history/code-review/0.32.0.js";
 import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
 import { liftFrozenTokenUsage, withLoadedUserConfig, type TokenUsage } from "./runRecord.js";
@@ -687,21 +700,35 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
 
 /**
  * A compliance review as read, tagged with the shape it was written in. An
- * older shape has no ledger: it is never lifted with empty ones, because that
- * would invent the fact that its run had no unplanned change and no unmet
- * promise. A reader that needs a ledger refuses the older shapes by name.
+ * older shape has no ledger or no finding id: it is never lifted with empty
+ * ledgers (that would invent the fact that its run had no unplanned change and
+ * no unmet promise) nor given ids (a file alone cannot tell which ids the run's
+ * other reviews hold: `numberRunFindings` lifts them across the run's
+ * reviews). A reader that needs a ledger refuses the 0.17.0 and pre-schema
+ * shapes by name.
  */
 export type ComplianceReviewRead =
-  | { readonly shape: "current"; readonly review: ComplianceReview }
+  | { readonly shape: "current"; readonly review: PersistedComplianceReview }
+  | { readonly shape: "0.32.0"; readonly review: ComplianceReview }
   | { readonly shape: "0.17.0" | "pre-schema"; readonly review: AnyShapeComplianceReview };
 
 /**
- * Reads a run's `compliance-review.json`. One stamped below the format's
- * current stamp is read by the frozen 0.17.0 decoder, and one written before
- * `$schema` by the pre-schema decoder; neither gains a ledger. The read
- * reports the shape it found.
+ * Reads a run's `compliance-review.json`. One stamped 0.32.0 or later, below
+ * the format's current stamp, is read by the frozen 0.32.0 decoder (no finding
+ * ids); one stamped lower by the frozen 0.17.0 decoder (no ledger either), and
+ * one written before `$schema` by the pre-schema decoder. A current-stamp file
+ * whose finding has no `id` is refused. The read reports the shape it found
+ * and never rewrites the file.
  */
 export const readComplianceReviewFile: Reader<ComplianceReviewRead> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("compliance-review", input, "0.32.0")) {
+    const older = decodeComplianceReviewV0_32_0(input);
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "compliance-review", formatFirstViolation(older.failure)));
+    }
+    const { $schema: _schema, ...review } = older.success;
+    return Result.succeed({ shape: "0.32.0", review });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("compliance-review", input)) {
     const older = decodeComplianceReviewV0_17_0(input);
     if (Result.isFailure(older)) {
@@ -1808,25 +1835,48 @@ export const readCostLedgerFile: Reader<CostLedger> = (file, input) => {
   });
 };
 
-// A code review stamped below the format's current stamp is the 0.29.0 file of
-// an older run folder, read by the frozen 0.29.0 decoder; its findings are valid
-// in the current shape as they are.
-/** Reads a run's `code-review.json`. Born with `$schema`. */
-export const readCodeReviewFile: Reader<CodeReview> = (file, input) => {
+/**
+ * A code review as read, tagged with the shape it was written in. A file of an
+ * older shape has no finding id: its reader never gives it ids (a file alone
+ * cannot tell which ids the run's other reviews hold); `numberRunFindings`
+ * lifts them across the run's reviews.
+ */
+export type CodeReviewRead =
+  | { readonly shape: "current"; readonly review: PersistedCodeReview }
+  | { readonly shape: "0.32.0" | "0.29.0"; readonly review: CodeReview };
+
+// A code review stamped 0.32.0 or later, below the format's current stamp, is
+// read by the frozen 0.32.0 decoder; one stamped lower is the 0.29.0 file of an
+// older run folder, read by the frozen 0.29.0 decoder. Both have the same
+// findings, without ids.
+/**
+ * Reads a run's `code-review.json`. Born with `$schema`. A current-stamp file
+ * whose finding has no `id` is refused. The read reports the shape it found
+ * and never rewrites the file.
+ */
+export const readCodeReviewFile: Reader<CodeReviewRead> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("code-review", input, "0.32.0")) {
+    const older = decodeCodeReviewV0_32_0(input);
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "code-review", formatFirstViolation(older.failure)));
+    }
+    const { $schema: _schema, ...review } = older.success;
+    return Result.succeed({ shape: "0.32.0", review });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("code-review", input)) {
     const older = decodeCodeReviewV0_29_0(input);
     if (Result.isFailure(older)) {
       return Result.fail(readError(file, "code-review", formatFirstViolation(older.failure)));
     }
     const { $schema: _schema, ...review } = older.success;
-    return Result.succeed(review);
+    return Result.succeed({ shape: "0.29.0", review });
   }
-  return readSchemaBornPersisted(input, {
+  return readSchemaBornPersisted<CodeReviewFile, CodeReviewRead>(input, {
     format: "code-review",
     label: "code review",
     file,
     decodeCurrent: decodeCodeReviewFile,
-    fromCurrent: ({ $schema: _schema, ...review }) => review,
+    fromCurrent: ({ $schema: _schema, ...review }) => ({ shape: "current", review }),
   });
 };
 

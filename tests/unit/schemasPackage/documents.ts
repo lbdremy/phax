@@ -71,6 +71,9 @@ import {
   type AuthoringRecordManifestPreSchema,
 } from "../../../src/schemas/history/authoring-record-manifest/pre-schema.js";
 import { ComplianceReviewV0_17_0Schema } from "../../../src/schemas/history/compliance-review/0.17.0.js";
+import { ComplianceReviewV0_32_0Schema } from "../../../src/schemas/history/compliance-review/0.32.0.js";
+import { CodeReviewV0_29_0Schema } from "../../../src/schemas/history/code-review/0.29.0.js";
+import { CodeReviewV0_32_0Schema } from "../../../src/schemas/history/code-review/0.32.0.js";
 import {
   ComplianceReviewPreSchemaSchema,
   type ComplianceReviewPreSchema,
@@ -1017,6 +1020,10 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     ComplianceReviewFileSchema,
     withSchemaUrl("compliance-review", {
       ...stepped(complianceReview),
+      perPhase: complianceReview.perPhase.map((phase) => ({
+        ...phase,
+        findings: phase.findings.map((finding, index) => ({ id: `C${index + 1}`, ...finding })),
+      })),
       unplannedChanges: [
         { phaseId: "phase-01", path: "README.md", note: "The plan did not list it" },
       ],
@@ -1145,7 +1152,12 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("revision-record-manifest", revisionRecordManifest),
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
-  "code-review": encoded(CodeReviewFileSchema, withSchemaUrl("code-review", codeReview)),
+  "code-review": encoded(
+    CodeReviewFileSchema,
+    withSchemaUrl("code-review", {
+      findings: codeReview.findings.map((finding, index) => ({ id: `F${index + 1}`, ...finding })),
+    }),
+  ),
   "code-review-answer": encoded(
     CodeReviewAnswerSchema,
     withSchemaUrl("code-review-answer", codeReview),
@@ -1658,6 +1670,32 @@ export const versionOnePhaseRecordManifest: Doc = withKey(
 export const complianceReviewV0_17_0Document: Doc = encoded(ComplianceReviewV0_17_0Schema, {
   $schema: schemaUrl("compliance-review", "0.17.0"),
   ...stepped(complianceReview),
+});
+
+/**
+ * A compliance review as the 0.32.0 shape: a const `$schema` at the 0.32.0
+ * stamp, then the review with both ledgers and no finding id.
+ */
+export const complianceReviewV0_32_0Document: Doc = encoded(ComplianceReviewV0_32_0Schema, {
+  // The frozen shape's `$schema` is a literal: the one stamp of its release.
+  $schema: "https://docs.phax.run/schemas/compliance-review/0.32.0.json",
+  ...stepped(complianceReview),
+  unplannedChanges: [{ phaseId: "phase-01", path: "README.md", note: "The plan did not list it" }],
+  unmetPromises: [
+    { phaseId: "phase-01", promise: "A test for the example", note: "No such test exists" },
+  ],
+});
+
+/** A code review as the 0.32.0 shape: a const `$schema` at the 0.32.0 stamp, findings without an id. */
+export const codeReviewV0_32_0Document: Doc = encoded(CodeReviewV0_32_0Schema, {
+  $schema: "https://docs.phax.run/schemas/code-review/0.32.0.json",
+  ...codeReview,
+});
+
+/** A code review as the 0.29.0 shape: a release-pattern `$schema` at the 0.29.0 stamp, findings without an id. */
+export const codeReviewV0_29_0Document: Doc = encoded(CodeReviewV0_29_0Schema, {
+  $schema: schemaUrl("code-review", "0.29.0"),
+  ...codeReview,
 });
 
 // The messages a test expects follow the package's generated values, so a

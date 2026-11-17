@@ -396,18 +396,30 @@ describe("publishRun", () => {
   });
 
   // The same review in the 0.32.0 shape: the ledgers are the only addition.
-  const currentComplianceReviewJson = JSON.stringify({
+  const v0_32_0ComplianceReview = {
     ...JSON.parse(complianceReviewJson),
-    $schema: currentSchemaUrl("compliance-review"),
+    $schema: schemaUrl("compliance-review", "0.32.0"),
     unplannedChanges: [
       { phaseId: "phase-01", path: "src/greet.ts", note: "The plan did not list it" },
     ],
     unmetPromises: [],
-  });
+  };
+  // And in the current shape: every finding also carries its id.
+  const currentComplianceReview = {
+    ...v0_32_0ComplianceReview,
+    $schema: currentSchemaUrl("compliance-review"),
+    perPhase: v0_32_0ComplianceReview.perPhase.map(
+      (phase: { findings: Record<string, unknown>[] }) => ({
+        ...phase,
+        findings: phase.findings.map((finding, index) => ({ id: `C${index + 1}`, ...finding })),
+      }),
+    ),
+  };
 
   it.each([
     ["a 0.17.0", complianceReviewJson],
-    ["a 0.32.0", currentComplianceReviewJson],
+    ["a 0.32.0", JSON.stringify(v0_32_0ComplianceReview)],
+    ["a current", JSON.stringify(currentComplianceReview)],
   ])(
     "carries the compliance verdict and attention points from %s compliance-review.json, never a finding",
     async (_shape, json) => {
@@ -463,15 +475,23 @@ describe("publishRun", () => {
     return fs.impl.getFile(`${runPath}/pr-body.md`)!;
   }
 
-  it("lists the findings of code-review.json under Code review findings", async () => {
-    const body = await publishBody({
-      $schema: currentSchemaUrl("code-review"),
-      findings: [codeReviewFinding],
-    });
-    expect(body).toContain(
-      "### Code review findings\n\n- **bug** `src/greet.ts:7` — The greeting drops the name.",
-    );
-  });
+  // A review of the current shape (findings with their ids) and one of the 0.32.0
+  // shape (without) list alike.
+  it.each([
+    [
+      "current",
+      { $schema: currentSchemaUrl("code-review"), findings: [{ id: "F1", ...codeReviewFinding }] },
+    ],
+    ["0.32.0", { $schema: schemaUrl("code-review", "0.32.0"), findings: [codeReviewFinding] }],
+  ])(
+    "lists the findings of a %s code-review.json under Code review findings",
+    async (_shape, file) => {
+      const body = await publishBody(file);
+      expect(body).toContain(
+        "### Code review findings\n\n- **bug** `src/greet.ts:7` — The greeting drops the name.",
+      );
+    },
+  );
 
   it("leaves the heading out when code-review.json is absent or refused", async () => {
     expect(await publishBody(undefined)).not.toContain("### Code review findings");

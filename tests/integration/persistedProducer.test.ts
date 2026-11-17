@@ -767,7 +767,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       { enabled: true, model: "example-model", effort: "medium" },
       resolution,
       { mode: "secure", config: security },
-      { output: { log() {}, warn() {}, error() {} } },
+      { output: { log() {}, warn() {}, error() {} }, findingsAfter: 0 },
     ),
   );
   if (Result.isFailure(reviewed) || reviewed.success.kind !== "generated") {
@@ -807,6 +807,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         bundledReviewSkill: "# phax review\n",
         nowIso: "2026-01-01T11:00:00.000Z",
         output: { log() {}, warn() {}, error() {} },
+        findingsAfter: 0,
       },
     ),
   );

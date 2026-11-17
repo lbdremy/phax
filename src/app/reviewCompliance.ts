@@ -30,7 +30,14 @@ import {
   complianceReviewFileText,
   readComplianceReviewAnswer,
   type ComplianceReview,
+  type PersistedComplianceReview,
 } from "../schemas/complianceReview.js";
+import {
+  assignComplianceReviewIds,
+  numberRunFindings,
+  type RunReview,
+} from "../domain/findings/runFindings.js";
+import { readComplianceReviewFile } from "../schemas/persisted.js";
 import { Backend, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
@@ -60,7 +67,8 @@ export type ComplianceReviewResult =
   | { readonly kind: "disabled" }
   | {
       readonly kind: "generated";
-      readonly review: ComplianceReview;
+      /** The review as written: every finding has the id phax gave it. */
+      readonly review: PersistedComplianceReview;
       readonly mdArtifactPath: string;
       readonly jsonArtifactPath: string;
     }
@@ -82,6 +90,16 @@ export interface ReviewComplianceOpts {
   readonly verbose?: boolean;
   /** Where the refusal of a first answer is printed before the session is resumed. */
   readonly output: OutputPort;
+}
+
+/** What `reviewCompliance` takes: the options of the review and where its numbering starts. */
+interface NumberedReviewComplianceOpts extends ReviewComplianceOpts {
+  /**
+   * The highest C number the run has given: this review's first finding id is
+   * the next one. phax numbers the findings across `perPhase` in document
+   * order; the session never writes an id.
+   */
+  readonly findingsAfter: number;
 }
 
 /** Why the pair could not be kept, and whether the files are as they were before the writes. */
@@ -119,7 +137,7 @@ export function reviewCompliance(
   config: ResolvedComplianceReviewConfig,
   resolution: RoutingResolution,
   security: { mode: SecurityMode; config: ResolvedSecurityConfig },
-  opts: ReviewComplianceOpts,
+  opts: NumberedReviewComplianceOpts,
 ): Effect.Effect<ComplianceReviewResult, FsError, Backend | FileSystem | SystemTelemetry> {
   if (!config.enabled) {
     return Effect.succeed({ kind: "disabled" } satisfies ComplianceReviewResult);
@@ -319,7 +337,7 @@ export function reviewCompliance(
       }
     }
 
-    const review = answer.success;
+    const review = assignComplianceReviewIds(answer.success, opts.findingsAfter);
 
     // The pair is replaced together or left as it was: a failed second write
     // puts the first file back (or removes it when there was none). When that
@@ -415,6 +433,51 @@ export function reviewCompliance(
   );
 }
 
+/**
+ * The highest C number the run's compliance-review.json holds, read before a
+ * new review replaces it: 0 for a missing file. An unreadable file counts 0,
+ * with a warning that names it. A file without ids counts the ids its position
+ * would lift to.
+ */
+function highestComplianceFindingNumber(
+  info: RunReviewInfo,
+  output: OutputPort,
+): Effect.Effect<number, never, FileSystem> {
+  const path = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    if (!(yield* fs.exists(path))) return 0;
+    const text = yield* fs.readText(path);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      output.warn(
+        `${path} is not JSON (${String(error)}); numbering the new review's findings from C1`,
+      );
+      return 0;
+    }
+    const read = readComplianceReviewFile(path, parsed);
+    if (Result.isFailure(read)) {
+      output.warn(`${read.failure.message}; numbering the new review's findings from C1`);
+      return 0;
+    }
+    const reviews: readonly RunReview[] = [
+      read.success.shape === "current"
+        ? { source: "compliance-review", ids: "persisted", review: read.success.review }
+        : { source: "compliance-review", ids: "absent", review: read.success.review },
+    ];
+    return numberRunFindings(reviews).highest.C;
+  }).pipe(
+    Effect.catch((error) => {
+      output.warn(
+        `could not read ${path}: ${error.message}; numbering the new review's findings from C1`,
+      );
+      return Effect.succeed(0);
+    }),
+  );
+}
+
 export interface ComplianceReviewRecordOutcome extends ReviewEntryOutcome {
   readonly review: ComplianceReviewResult;
 }
@@ -438,7 +501,11 @@ export function reviewComplianceAndRecord(
   Backend | FileSystem | SystemTelemetry | Git | GitHub
 > {
   return Effect.gen(function* () {
-    const review = yield* reviewCompliance(info, config, resolution, security, opts);
+    const findingsAfter = yield* highestComplianceFindingNumber(info, opts.output);
+    const review = yield* reviewCompliance(info, config, resolution, security, {
+      ...opts,
+      findingsAfter,
+    });
     // Only a compliance-review.json written by this invocation is an entry.
     if (review.kind !== "generated") {
       return { review, ...NO_REVIEW_ENTRY };

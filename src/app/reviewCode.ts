@@ -25,7 +25,13 @@ import {
   codeReviewFileText,
   readCodeReviewAnswer,
   type CodeReview,
+  type PersistedCodeReview,
 } from "../schemas/codeReview.js";
+import {
+  assignCodeReviewIds,
+  numberRunFindings,
+  type RunReview,
+} from "../domain/findings/runFindings.js";
 import {
   CODE_REVIEW_RETRY_STREAM_FILENAME,
   codeReviewRefusedTwiceMessage,
@@ -51,7 +57,7 @@ import {
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
 import { answerJsonSchema } from "../schemas/answerSchemas.js";
-import { readComplianceReviewFile } from "../schemas/persisted.js";
+import { readCodeReviewFile, readComplianceReviewFile } from "../schemas/persisted.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
@@ -427,7 +433,8 @@ function decodeReviewAnswer(result: AgentRunResult): Result.Result<CodeReview, s
 export type HeadlessCodeReviewResult =
   | {
       readonly kind: "accepted";
-      readonly review: CodeReview;
+      /** The review as written: every finding has the id phax gave it. */
+      readonly review: PersistedCodeReview;
       readonly reviewPath: string;
       /** The review session record written beside the review (code-review-session.json). */
       readonly sessionPath: string;
@@ -449,6 +456,8 @@ export type HeadlessCodeReviewResult =
  * replaced together or left as they were; a refused answer, an empty one, a
  * failed session and a session that changed the worktree write neither, and
  * say why. A session that changed the worktree has those paths put back.
+ * phax gives each finding of the file its id, `F<n>` in answer order from
+ * `findingsAfter + 1`; the session never writes one.
  */
 export function reviewCodeHeadless(
   info: RunReviewInfo,
@@ -460,6 +469,8 @@ export function reviewCodeHeadless(
     readonly nowIso: string;
     /** Where the refusal of a first answer is printed before the session is resumed. */
     readonly output: OutputPort;
+    /** The highest F number the run has given: this review's first id is the next one. */
+    readonly findingsAfter: number;
   },
 ): Effect.Effect<
   HeadlessCodeReviewResult,
@@ -596,7 +607,7 @@ export function reviewCodeHeadless(
       }
     }
 
-    const review = answer.success;
+    const review = assignCodeReviewIds(answer.success, opts.findingsAfter);
     const reviewPath = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
     const sessionPath = join(info.runPath, CODE_REVIEW_SESSION_FILENAME);
     const session: CodeReviewSession = {
@@ -670,6 +681,52 @@ export function reviewCodeHeadless(
   );
 }
 
+/**
+ * The highest F number the run's code-review.json holds, read before a new
+ * review replaces it: 0 for a missing file. An unreadable file counts 0, with
+ * a warning that names it. A file without ids counts the ids its position
+ * would lift to.
+ */
+function highestCodeFindingNumber(
+  info: RunReviewInfo,
+  output: OutputPort,
+): Effect.Effect<number, never, FileSystem> {
+  const path = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    if (!(yield* fs.exists(path))) return 0;
+    const text = yield* fs.readText(path);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch (error) {
+      output.warn(
+        `${path} is not JSON (${String(error)}); numbering the new review's findings from F1`,
+      );
+      return 0;
+    }
+    const read = readCodeReviewFile(path, parsed);
+    if (Result.isFailure(read)) {
+      output.warn(`${read.failure.message}; numbering the new review's findings from F1`);
+      return 0;
+    }
+    const { shape, review } = read.success;
+    const reviews: readonly RunReview[] = [
+      shape === "current"
+        ? { source: "code-review", ids: "persisted", review }
+        : { source: "code-review", ids: "absent", review },
+    ];
+    return numberRunFindings(reviews).highest.F;
+  }).pipe(
+    Effect.catch((error) => {
+      output.warn(
+        `could not read ${path}: ${error.message}; numbering the new review's findings from F1`,
+      );
+      return Effect.succeed(0);
+    }),
+  );
+}
+
 export type CodeReviewRecordOutcome = {
   readonly review: HeadlessCodeReviewResult;
 } & ReviewEntryOutcome;
@@ -697,7 +754,11 @@ export function reviewCodeAndRecord(
   Backend | FileSystem | SystemTelemetry | Git | GitHub
 > {
   return Effect.gen(function* () {
-    const review = yield* reviewCodeHeadless(info, config, resolution, security, opts).pipe(
+    const findingsAfter = yield* highestCodeFindingNumber(info, opts.output);
+    const review = yield* reviewCodeHeadless(info, config, resolution, security, {
+      ...opts,
+      findingsAfter,
+    }).pipe(
       Effect.catch((error) =>
         Effect.succeed({
           kind: "failed",

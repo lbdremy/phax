@@ -9,6 +9,7 @@ import {
   readBriefRecordFile,
   readBriefReport,
   readBriefRequestFile,
+  readCodeReviewFile,
   readComplianceReviewFile,
   readDocumentSidecar,
   readGateAttributionFile,
@@ -45,7 +46,10 @@ import {
   type FormatId,
 } from "../../src/schemas/schemaUrl.js";
 import {
+  codeReviewV0_29_0Document,
+  codeReviewV0_32_0Document,
   complianceReviewV0_17_0Document,
+  complianceReviewV0_32_0Document,
   EXAMPLE_BASE,
   EXAMPLE_SURFACE_SUMMARY,
   heldPhaseRecordManifestDocument,
@@ -495,13 +499,45 @@ describe("format readers", () => {
     const ledgers = ["unplannedChanges", "unmetPromises"];
     const { $schema: _schema, ...currentReview } = validDocuments["compliance-review"];
 
-    it("reads a 0.32.0 file as current, with both ledgers", () => {
+    it("reads a current file as current, with both ledgers and an id on each finding", () => {
       const read = right(readComplianceReviewFile(file, validDocuments["compliance-review"]));
       expect(read.shape).toBe("current");
       expect(read.review).toEqual(currentReview);
       expect(read.review).not.toHaveProperty("$schema");
       expect(read.review).toHaveProperty("unplannedChanges");
       expect(read.review).toHaveProperty("unmetPromises");
+      expect(read.review.perPhase[0]?.findings[0]).toHaveProperty("id", "C1");
+    });
+
+    it("reads a 0.32.0 file as 0.32.0: both ledgers, no id given by the reader", () => {
+      const read = right(readComplianceReviewFile(file, complianceReviewV0_32_0Document));
+      expect(read.shape).toBe("0.32.0");
+      expect(read.review).not.toHaveProperty("$schema");
+      expect(read.review).toHaveProperty("unplannedChanges");
+      expect(read.review.perPhase[0]?.findings[0]).not.toHaveProperty("id");
+    });
+
+    it("refuses a current file whose finding has no id, naming it and the file", () => {
+      const error = left(
+        readComplianceReviewFile(file, {
+          ...complianceReviewV0_32_0Document,
+          $schema: validDocuments["compliance-review"]["$schema"],
+        }),
+      );
+      expect(error.format).toBe("compliance-review");
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).toContain("perPhase[0].findings[0].id");
+    });
+
+    it("refuses a 0.32.0 file that carries a finding id", () => {
+      const error = left(
+        readComplianceReviewFile(file, {
+          ...validDocuments["compliance-review"],
+          $schema: complianceReviewV0_32_0Document["$schema"],
+        }),
+      );
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).toContain("perPhase[0].findings[0].id");
     });
 
     it("reads a 0.17.0 file as 0.17.0, with no ledger key", () => {
@@ -520,7 +556,7 @@ describe("format readers", () => {
       expect(read.review).not.toHaveProperty("version");
     });
 
-    it.each(ledgers)("refuses a 0.32.0 file without %s, naming it and the file", (key) => {
+    it.each(ledgers)("refuses a current file without %s, naming it and the file", (key) => {
       const error = left(
         readComplianceReviewFile(file, withoutKey(validDocuments["compliance-review"], key)),
       );
@@ -544,12 +580,79 @@ describe("format readers", () => {
       expect(error.message).toMatch(new RegExp(`^${file}: compliance review without \\$schema`));
     });
 
-    it("refuses a 0.32.0 file with an unknown key", () => {
+    it("refuses a current file with an unknown key", () => {
       const error = left(
         readComplianceReviewFile(file, withKey(validDocuments["compliance-review"], "extra", true)),
       );
       expect(error.message).toMatch(new RegExp(`^${file}: `));
       expect(error.message).not.toContain("without $schema");
+    });
+  });
+
+  // A code review is read with the shape it was written in: an older shape has
+  // no finding id, and its reader never gives it one.
+  describe("code-review: shape-tagged read", () => {
+    const file = `${RUN_DIR}/code-review.json`;
+    const { $schema: _schema, ...currentReview } = validDocuments["code-review"];
+
+    it("reads a current file as current, with an id on each finding", () => {
+      const read = right(readCodeReviewFile(file, validDocuments["code-review"]));
+      expect(read.shape).toBe("current");
+      expect(read.review).toEqual(currentReview);
+      expect(read.review).not.toHaveProperty("$schema");
+      expect(read.review.findings[0]).toHaveProperty("id", "F1");
+    });
+
+    it.each([
+      ["0.32.0", codeReviewV0_32_0Document],
+      ["0.29.0", codeReviewV0_29_0Document],
+    ] as const)("reads a %s file as that shape, findings without an id", (shape, document) => {
+      const read = right(readCodeReviewFile(file, document));
+      expect(read.shape).toBe(shape);
+      expect(read.review).not.toHaveProperty("$schema");
+      expect(read.review.findings).toHaveLength(1);
+      expect(read.review.findings[0]).not.toHaveProperty("id");
+    });
+
+    it("refuses a current file whose finding has no id, naming it and the file", () => {
+      const error = left(
+        readCodeReviewFile(file, {
+          ...codeReviewV0_32_0Document,
+          $schema: validDocuments["code-review"]["$schema"],
+        }),
+      );
+      expect(error.format).toBe("code-review");
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+      expect(error.message).toContain("findings[0].id");
+    });
+
+    it.each(["C1", "F0", "F", "f1", "F01"])(
+      "refuses a current file with the finding id %s",
+      (id) => {
+        const [finding] = validDocuments["code-review"]["findings"] as Doc[];
+        const error = left(
+          readCodeReviewFile(file, {
+            ...validDocuments["code-review"],
+            findings: [{ ...finding, id }],
+          }),
+        );
+        expect(error.message).toMatch(new RegExp(`^${file}: `));
+        expect(error.message).toContain("F<n>");
+      },
+    );
+
+    it("refuses a 0.32.0 file that carries a finding id", () => {
+      const error = left(
+        readCodeReviewFile(file, {
+          ...validDocuments["code-review"],
+          $schema: codeReviewV0_32_0Document["$schema"],
+        }),
+      );
+      expect(error.message).toContain("findings[0].id");
+    });
+
+    it("refuses a file without $schema", () => {
+      expect(left(readCodeReviewFile(file, currentReview)).message).toContain("$schema");
     });
   });
 
@@ -1412,7 +1515,9 @@ describe("documents from another release", () => {
                         ? withModelReasons(validDocuments[id])
                         : withoutPreambleQuestions(validDocuments[id])
                 : id === "compliance-review"
-                  ? withoutKey(withoutKey(validDocuments[id], "unplannedChanges"), "unmetPromises")
+                  ? compareReleases(release, "0.32.0") >= 0
+                    ? complianceReviewV0_32_0Document
+                    : complianceReviewV0_17_0Document
                   : id === "phax-plan"
                     ? compareReleases(release, "0.33.0") >= 0
                       ? validDocuments[id]
@@ -1426,12 +1531,14 @@ describe("documents from another release", () => {
     // An answer format's $schema is a const of its own stamps: a release above
     // its current stamp that this phax did not outgrow names no shape it wrote,
     // and nor does one between the plan document's frozen 0.33.0 stamp and its
-    // current one.
+    // current one; so does the compliance review's frozen 0.32.0 shape, whose
+    // `$schema` is a const of its one stamp.
     const constAbove =
       (id in ANSWER_FORMATS || id === "code-review" || id === "compliance-review") &&
       !newer &&
       (compareReleases(release, CURRENT_STAMPS[id]) > 0 ||
-        (id === "plan-document" && below && compareReleases(release, "0.33.0") > 0));
+        (id === "plan-document" && below && compareReleases(release, "0.33.0") > 0) ||
+        (id === "compliance-review" && below && compareReleases(release, "0.32.0") > 0));
     if (constAbove) {
       expect(left(result).message).toContain(`$schema`);
       return;

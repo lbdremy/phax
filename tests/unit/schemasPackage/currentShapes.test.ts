@@ -139,7 +139,10 @@ import {
   type FormatId,
 } from "../../../src/schemas/schemaUrl.js";
 import {
+  codeReviewV0_29_0Document,
+  codeReviewV0_32_0Document,
   complianceReviewV0_17_0Document,
+  complianceReviewV0_32_0Document,
   EXAMPLE_SURFACE_SUMMARY,
   preSchemaDocuments,
   validDocuments,
@@ -347,7 +350,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "review-record-manifest": readRecordManifestFile,
   "revision-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,
-  "code-review": readCodeReviewFile,
+  // The reader reports the shape it read beside the review; the review is the read.
+  "code-review": (file, input) =>
+    Result.map(readCodeReviewFile(file, input), (read) => read.review),
   // phax reads a review session's answer as the final message, never as a file.
   "code-review-answer": undefined,
   "compliance-review-answer": undefined,
@@ -420,6 +425,18 @@ const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
     id !== "compliance-review",
 );
 
+/** A compliance review with each finding of `perPhase` stripped of its `id`. */
+function withoutFindingIds(review: Record<string, unknown>): Record<string, unknown> {
+  const perPhase = review["perPhase"] as { findings: Record<string, unknown>[] }[];
+  return {
+    ...review,
+    perPhase: perPhase.map((phase) => ({
+      ...phase,
+      findings: phase.findings.map(({ id: _id, ...finding }) => finding),
+    })),
+  };
+}
+
 /** Each phase without its `testLines` key. */
 function phasesWithoutLines(phases: readonly object[]): object[] {
   return phases.map((phase) => {
@@ -484,13 +501,50 @@ describe("phax's bridge and the package agree", () => {
       expect(read.success.shape).toBe(shape);
       expect(read.success.review).not.toHaveProperty("unplannedChanges");
       expect(read.success.review).not.toHaveProperty("unmetPromises");
-      // Every other recorded fact reads alike.
+      // Every other recorded fact reads alike, but for the finding ids: the
+      // package gives an older finding an Unknown id, phax's reader none.
       const {
         unplannedChanges: _a,
         unmetPromises: _b,
         ...recorded
       } = PACKAGE_LATEST["compliance-review"](document) as Record<string, unknown>;
-      expect(read.success.review).toEqual(recorded);
+      expect(read.success.review).toEqual(withoutFindingIds(recorded));
+    },
+  );
+
+  // Where they part: a compliance review before 0.40.0 never recorded its
+  // findings' ids. The package marks each Unknown; phax's reader gives the
+  // finding no id at all (`numberRunFindings` lifts one across the run's reviews).
+  it("compliance-review: a 0.32.0 review's finding ids are Unknown to the package, absent to phax", () => {
+    const document = complianceReviewV0_32_0Document;
+    const lifted = PACKAGE_LATEST["compliance-review"](document) as {
+      perPhase: { findings: { id: unknown }[] }[];
+    };
+    expect(lifted.perPhase[0]?.findings[0]?.id).toBe(UNKNOWN);
+    const read = readComplianceReviewFile("/work/example-repo/compliance-review.json", document);
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.shape).toBe("0.32.0");
+    expect(read.success.review).toEqual(withoutFindingIds(lifted as Record<string, unknown>));
+  });
+
+  // Where they part: a code review before 0.40.0 never recorded its findings'
+  // ids, in the same way.
+  it.each([
+    ["0.32.0", codeReviewV0_32_0Document],
+    ["0.29.0", codeReviewV0_29_0Document],
+  ] as const)(
+    "code-review: a %s review's finding ids are Unknown to the package, absent to phax",
+    (shape, document) => {
+      const lifted = PACKAGE_LATEST["code-review"](document) as {
+        findings: { id: unknown }[];
+      };
+      expect(lifted.findings[0]?.id).toBe(UNKNOWN);
+      const read = readCodeReviewFile("/work/example-repo/code-review.json", document);
+      if (Result.isFailure(read)) throw new Error(read.failure.message);
+      expect(read.success.shape).toBe(shape);
+      expect(read.success.review).toEqual({
+        findings: lifted.findings.map(({ id: _id, ...finding }) => finding),
+      });
     },
   );
 

@@ -223,6 +223,7 @@ async function driveCodeReview(): Promise<void> {
           bundledReviewSkill: "---\nname: phax-review\n---\n\n# Bundled doctrine\n",
           nowIso: "2026-10-27T12:00:00.000Z",
           output: { log() {}, warn() {}, error() {} },
+          findingsAfter: 0,
         },
       ).pipe(
         Effect.provide(
@@ -254,7 +255,7 @@ async function driveComplianceReview(): Promise<void> {
         { enabled: true, model: "claude-opus-5-5", effort: "high" },
         resolutionOn("claude-opus-5-5"),
         { mode: "secure", config: authoringSecurity },
-        { output: { log() {}, warn() {}, error() {} } },
+        { output: { log() {}, warn() {}, error() {} }, findingsAfter: 0 },
       ).pipe(Effect.provide(Layer.mergeAll(fs.layer, backendLayer(), NoopSystemTelemetryLayer))),
     ),
   );
