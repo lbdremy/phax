@@ -59,10 +59,14 @@ briefs of live or unspecced work.
 
 ### 5. Process and code in two repositories
 
-- [ ] **`code-repository`** — `docs/briefs/code-repository.md` (2026-11-02), spec to author: a
-      project whose process lives in one repository and whose code in another, checked out
-      inside it.
-      Moved up 2026-11-10 (operator): right after `finding-ids-and-fates`.
+- [ ] **`code-repository`** — `docs/specs/2611171616-code-repository.md`, Approved 2026-11-17, no
+      plan yet: a project whose process lives in one repository and whose code in another,
+      checked out inside it. Decided: the process repository declares the link, a linked run is
+      gated as an artifact but completes nothing, the code repository's PR names nothing of the
+      process, and `plan-approval-record` gets a required `code` key (`null` unlinked, older
+      records read as `null`).
+      Interleaved with `finding-ids-and-fates` (operator, 2026-11-17): specs and plans in
+      parallel, one code run at a time; its first run follows the merge of finding-ids plan 1.
 
 ### 6. The project doctrine
 
