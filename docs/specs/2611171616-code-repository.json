@@ -67,7 +67,7 @@
   "context": "Some projects keep their code in a public repository and their process (specs, plans, briefs and their approvals) in a private one. The process repository holds the code repository checked out inside it, at a directory its own .gitignore lists (`code/`, say). phax 0.27 already handles this layout with no changes. Headless authoring runs in the process repository and reads the code under `code/`. `phax artifact approve` and `complete` commit in the process repository. `phax run --plan ../docs/plans/<plan>.md`, run from the code repository, runs the plan as a loose plan: the gates pass and the run reaches review. With `records.destination` `{ \"kind\": \"repo\", \"remote\": <process URL> }` in the code repository's phax.json, the records go to the process repository's remote.\n\nphax judges an Approved plan stale on three kinds of evidence, computed in two places today: `phax run`'s preflight, for plans under docs/plans/ only, and `phax plans status`, which flips stale plans to Stale under `--apply`. `phax resume` and `phax artifact status` do not compute staleness. self-changed compares the plan's fingerprint with the one recorded at approval. spec-changed does the same for its source spec. ground-changed lists the files of the plan's footprint that changed since the approval's baseline, a commit of the plan's own repository. When the baseline commit no longer exists, or the plan has no record, the verdict is missing-record.\n\nThe approval record file today:\n\n    {\n      \"$schema\": \"https://docs.phax.run/schemas/plan-approval-record/0.25.0.json\",\n      \"artifact\": \"docs/plans/2611171555-finding-ids-and-fates-plan.md\",\n      \"planFingerprint\": \"73307e42…\",\n      \"approvedAt\": \"2026-11-17T16:15:50.352Z\",\n      \"baseline\": \"bae802b24aed73802ec8d9292ed61df045b9c747\",\n      \"sourceSpec\": { \"path\": \"docs/specs/…\", \"fingerprint\": \"ddef903b…\" },\n      \"approvedBy\": { \"kind\": \"operator\", \"name\": \"…\" }\n    }\n\nA run completes its plan (and a last plan's spec) by committing their archival on the run's branch, so the completion merges with the code. The pull request footer names the plan and the spec. Phase commits carry Run-Id, Short-Name, Phase-Id, Phase-Title, Model, Effort and Gate-Log. Gate-Log is relative to the run folder, and no trailer names a local worktree path.",
   "problem": "In the two-repository layout a plan loses the guarantee that matters most: that it is still true of the code it was planned against. ground-changed diffs the plan's footprint in the plan's own repository, and the code is not there. A plan approved on code that has changed since therefore runs as if it were fresh. Run from the code repository, the plan is loose, so the run's staleness gate is skipped altogether, along with the checks that it is approved and recorded. phax plans status in the process repository reports the same plan as fresh, and plans lint checks the plan's files against the process repository's tree, where none of them exist.\n\nTwo smaller losses follow from the plan being loose. Nothing tells the operator that the plan and its spec must be completed by hand after the merge. The code repository's pull request also names the plan by its process path (`../docs/plans/<plan>.md`), which in a public repository points to a private one that readers cannot open.",
   "productGoal": {
-    "statement": "A project declares, once, that its code lives in a code repository checked out inside its process repository. phax then gives every plan of that project the guarantees a plan has when it lives with its code. Its approval records the code commit it was planned against. Its staleness is judged against the code that changed since then, wherever phax judges staleness. A run from the code repository treats the plan as the process repository's artifact. The code repository's pull request and commits name nothing of the process repository. A project without the link sees no change at all.",
+    "statement": "A project declares, once, that its code lives in a code repository checked out inside its process repository. phax then gives every plan of that project the guarantees a plan has when it lives with its code. Its approval records the code commit it was planned against. Its staleness is judged against the code that changed since then, wherever phax judges staleness. A run from the code repository treats the plan as the process repository's artifact. The code repository's pull request and commits name nothing of the process repository. A project without the link behaves exactly as before. The one change it sees is that its new plan approval records carry an explicit `\"code\": null` under the newer plan-approval-record version.",
     "guidingRule": "A plan's ground is the code it reads, in whichever repository that code lives."
   },
   "terminology": [
@@ -129,13 +129,19 @@
       "id": "r-approve-code-baseline",
       "title": "The approval records the code baseline",
       "pattern": "event",
-      "statement": "WHEN `phax artifact approve` approves a plan of a linked project THE system SHALL record the code repository's HEAD commit as the code baseline, both in the plan's approval record file and in its frontmatter approved stamp."
+      "statement": "WHEN `phax artifact approve` approves a plan of a linked project THE system SHALL record the code root and the code repository's HEAD commit as the code baseline, both in the required `code` key of the plan's approval record file and in its frontmatter approved stamp."
     },
     {
       "id": "r-approve-unlinked",
-      "title": "An unlinked approval is unchanged",
+      "title": "An unlinked approval records no code",
       "pattern": "optional",
-      "statement": "WHERE the process repository declares no code link THE system SHALL write a plan's approval record file and frontmatter stamp with no code baseline, exactly as it writes them today."
+      "statement": "WHERE the process repository declares no code link THE system SHALL write a plan's approval record file with `\"code\": null` under the newer plan-approval-record version, and the frontmatter stamp with no code key, as it writes the stamp today."
+    },
+    {
+      "id": "r-record-older",
+      "title": "Older approval records are read, never rewritten",
+      "pattern": "event",
+      "statement": "WHEN the system reads a plan approval record file stamped with an older plan-approval-record version THE system SHALL read it as carrying `\"code\": null`, without rewriting or migrating the file."
     },
     {
       "id": "r-ground-code",
@@ -157,15 +163,15 @@
     },
     {
       "id": "r-record-without-code",
-      "title": "An approval that predates the link",
+      "title": "An approval without a code baseline in a linked project",
       "pattern": "unwanted",
-      "statement": "IF the approval record of a linked project's plan carries no code baseline THEN the system SHALL give the plan the missing-record verdict, saying it was approved without a code baseline."
+      "statement": "IF the approval record of a linked project's plan carries `\"code\": null`, written so or read so from an older version, THEN the system SHALL give the plan the missing-record verdict, saying it was approved without a code baseline."
     },
     {
       "id": "r-record-unlinked-code",
       "title": "A code baseline without a link",
       "pattern": "unwanted",
-      "statement": "IF a plan's approval record carries a code baseline while the process repository declares no code link THEN the system SHALL give the plan the missing-record verdict, saying the project declares no code link."
+      "statement": "IF a plan's approval record carries a non-null code baseline while the process repository declares no code link THEN the system SHALL give the plan the missing-record verdict, saying the project declares no code link."
     },
     {
       "id": "r-run-resolves",
@@ -199,9 +205,9 @@
     },
     {
       "id": "r-unlinked-unchanged",
-      "title": "No change without a link",
+      "title": "No behavior change without a link",
       "pattern": "ubiquitous",
-      "statement": "The system shall give a project that declares no code link, and a plan run from outside any linked process repository, the same argv, environment, records, persisted formats and command output as today."
+      "statement": "The system shall give a project that declares no code link, and a plan run from outside any linked process repository, the same argv, environment, records, verdicts and command output as today, the plan approval record's version and `\"code\": null` key being the one change."
     }
   ],
   "surface": [
@@ -221,10 +227,10 @@
     },
     {
       "surface": "file: docs/plans/approvals/<plan>.json",
-      "summary": "A plan's approval record in a linked project names the code commit the plan was approved against.",
+      "summary": "Every plan approval record states which code commit its plan was approved against, or null when the project has no code link.",
       "binding": "indicative",
       "before": "{\n  \"$schema\": \"https://docs.phax.run/schemas/plan-approval-record/0.25.0.json\",\n  \"artifact\": \"docs/plans/2611201030-billing-export-plan.md\",\n  \"planFingerprint\": \"73307e42…\",\n  \"approvedAt\": \"2026-11-20T10:42:07.112Z\",\n  \"baseline\": \"bae802b24aed73802ec8d9292ed61df045b9c747\",\n  \"sourceSpec\": { \"path\": \"docs/specs/2611181420-billing-export.md\", \"fingerprint\": \"ddef903b…\" },\n  \"approvedBy\": { \"kind\": \"operator\", \"name\": \"Ada\" }\n}",
-      "after": "{\n  \"$schema\": \"https://docs.phax.run/schemas/plan-approval-record/0.25.0.json\",\n  \"artifact\": \"docs/plans/2611201030-billing-export-plan.md\",\n  \"planFingerprint\": \"73307e42…\",\n  \"approvedAt\": \"2026-11-20T10:42:07.112Z\",\n  \"baseline\": \"bae802b24aed73802ec8d9292ed61df045b9c747\",\n  \"code\": { \"root\": \"code\", \"baseline\": \"9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d\" },\n  \"sourceSpec\": { \"path\": \"docs/specs/2611181420-billing-export.md\", \"fingerprint\": \"ddef903b…\" },\n  \"approvedBy\": { \"kind\": \"operator\", \"name\": \"Ada\" }\n}"
+      "after": "# linked project\n{\n  \"$schema\": \"https://docs.phax.run/schemas/plan-approval-record/0.40.0.json\",\n  \"artifact\": \"docs/plans/2611201030-billing-export-plan.md\",\n  \"planFingerprint\": \"73307e42…\",\n  \"approvedAt\": \"2026-11-20T10:42:07.112Z\",\n  \"baseline\": \"bae802b24aed73802ec8d9292ed61df045b9c747\",\n  \"code\": { \"root\": \"code\", \"baseline\": \"9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d\" },\n  \"sourceSpec\": { \"path\": \"docs/specs/2611181420-billing-export.md\", \"fingerprint\": \"ddef903b…\" },\n  \"approvedBy\": { \"kind\": \"operator\", \"name\": \"Ada\" }\n}\n\n# project with no code link\n{\n  \"$schema\": \"https://docs.phax.run/schemas/plan-approval-record/0.40.0.json\",\n  …\n  \"baseline\": \"bae802b24aed73802ec8d9292ed61df045b9c747\",\n  \"code\": null,\n  …\n}"
     },
     {
       "surface": "file: plan frontmatter approved stamp",
@@ -272,7 +278,8 @@
     "A code baseline for spec approvals: a spec has no footprint.",
     "Judging uncommitted changes in the code checkout at approval: the code baseline is the code repository's HEAD commit.",
     "plans lint's commands and models checks: they read the configuration of the repository lint runs in, as today.",
-    "The text of a plan's commit bodies, which the plan author writes: phax adds no redaction to it."
+    "The text of a plan's commit bodies, which the plan author writes: phax adds no redaction to it.",
+    "Migrating or rewriting stored approval records: older ones are read as `\"code\": null` and stay as written."
   ],
   "acceptanceCriteria": [
     {
@@ -320,19 +327,30 @@
       "name": "Approval records the code baseline",
       "given": "a linked process repository with a Draft plan whose spec is Approved and recorded, and the code repository at commit C",
       "when": "`phax artifact approve` runs on the plan",
-      "then": "the plan's approval record file carries the code root and the full commit C, its frontmatter approved stamp carries C's short form, and the record's `$schema` is the current plan-approval-record version",
+      "then": "the plan's approval record file carries `code` with the code root and the full commit C under the newer plan-approval-record version, and its frontmatter approved stamp carries C's short form",
       "refs": [
         "r-approve-code-baseline"
       ]
     },
     {
       "id": "ac-approve-unlinked",
-      "name": "Unlinked approval writes today's shape",
+      "name": "Unlinked approval records a null code",
       "given": "a repository whose phax.json declares no code link",
       "when": "`phax artifact approve` runs on a plan",
-      "then": "the approval record file and the frontmatter stamp carry exactly today's keys, with no code key",
+      "then": "the approval record file is stamped with the newer plan-approval-record version and carries `\"code\": null` with every other key as today, and the frontmatter stamp carries exactly today's keys",
       "refs": [
         "r-approve-unlinked",
+        "r-unlinked-unchanged"
+      ]
+    },
+    {
+      "id": "ac-older-record-read",
+      "name": "An older record is read as null and left as written",
+      "given": "a repository with no code link holding a plan approval record stamped plan-approval-record 0.25.0",
+      "when": "`phax plans status` runs",
+      "then": "the plan's verdict is the one it had before, and the record file's bytes are unchanged",
+      "refs": [
+        "r-record-older",
         "r-unlinked-unchanged"
       ]
     },
@@ -388,18 +406,19 @@
     },
     {
       "id": "ac-prelink-record",
-      "name": "An approval from before the link must be redone",
-      "given": "a plan approved before its process repository declared the code link, so its record has no code baseline",
+      "name": "An approval without a code baseline must be redone",
+      "given": "a plan approved before its process repository declared the code link, its record either stamped 0.25.0 or carrying `\"code\": null`",
       "when": "`phax plans status` runs after the link is declared",
       "then": "the plan is reported missing-record, saying it was approved without a code baseline",
       "refs": [
-        "r-record-without-code"
+        "r-record-without-code",
+        "r-record-older"
       ]
     },
     {
       "id": "ac-unlinked-code-record",
       "name": "A code baseline without a link is reported",
-      "given": "a plan whose approval record carries a code baseline in a repository whose phax.json declares no code link",
+      "given": "a plan whose approval record carries a non-null `code` in a repository whose phax.json declares no code link",
       "when": "`phax plans status` runs",
       "then": "the plan is reported missing-record, saying the project declares no code link",
       "refs": [
@@ -478,7 +497,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-link-side",
       "question": "Which repository declares the code link?",
@@ -500,7 +520,29 @@
         }
       ],
       "recommendation": "process-side",
-      "rationale": "The process repository is the only one that knows the layout, and the plan path a linked run is given already leads to it, so nothing needs to be written in the public repository. The loss is that a link is undiscoverable from a bare code checkout. That is acceptable, because a bare code checkout has no plans to judge."
+      "rationale": "The process repository is the only one that knows the layout, and the plan path a linked run is given already leads to it, so nothing needs to be written in the public repository. The loss is that a link is undiscoverable from a bare code checkout. That is acceptable, because a bare code checkout has no plans to judge.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "process-side",
+        "abandoned": [
+          "code-side",
+          "both-sides"
+        ],
+        "why": "The process repository is the only one that knows the layout, and the plan path a linked run is given already leads to it, so nothing needs to be written in the public repository. The loss is that a link is undiscoverable from a bare code checkout. That is acceptable, because a bare code checkout has no plans to judge.",
+        "advocate": "The strongest case for both-sides: each repository can verify the link from its own side, so a run started in the code repository knows it is linked without having to infer it from the plan path it was given.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-17T16:26:40.280Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-run-lifecycle",
@@ -523,7 +565,29 @@
         }
       ],
       "recommendation": "gated-artifact",
-      "rationale": "Today completion is safe because it is committed on the run's branch and merges with the code. Across two repositories nothing can make the two atomic. A manual step that is printed is a smaller loss than a completion that can be false. Staying loose would give up the guarantee the brief asks for."
+      "rationale": "Today completion is safe because it is committed on the run's branch and merges with the code. Across two repositories nothing can make the two atomic. A manual step that is printed is a smaller loss than a completion that can be false. Staying loose would give up the guarantee the brief asks for.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "gated-artifact",
+        "abandoned": [
+          "full-lifecycle",
+          "loose"
+        ],
+        "why": "Today completion is safe because it is committed on the run's branch and merges with the code. Across two repositories nothing can make the two atomic. A manual step that is printed is a smaller loss than a completion that can be false. Staying loose would give up the guarantee the brief asks for.",
+        "advocate": "The strongest case for full-lifecycle: the system completes the plan as a condition it can verify, instead of a manual procedure that operators will forget, so merged plans never linger as Approved.",
+        "principles": [
+          "S1",
+          "S7"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-17T16:26:40.280Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-pr-names",
@@ -546,7 +610,29 @@
         }
       ],
       "recommendation": "omit",
-      "rationale": "The brief's main case is a public code repository with a private process, and there any reference leaks something or cannot be opened. The run's qualified name and its records in the process repository still connect a pull request to its plan for whoever can read them. A setting can be added later without breaking anything."
+      "rationale": "The brief's main case is a public code repository with a private process, and there any reference leaks something or cannot be opened. The run's qualified name and its records in the process repository still connect a pull request to its plan for whoever can read them. A setting can be added later without breaking anything.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "omit",
+        "abandoned": [
+          "slug",
+          "setting"
+        ],
+        "why": "The brief's main case is a public code repository with a private process, and there any reference leaks something or cannot be opened. The run's qualified name and its records in the process repository still connect a pull request to its plan for whoever can read them. A setting can be added later without breaking anything.",
+        "advocate": "The strongest case for setting: a team whose two repositories are both private keeps the reviewer's direct link from the pull request to its plan, and a public project can still choose to omit it.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-17T16:26:40.280Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-record-shape",
@@ -564,18 +650,47 @@
         }
       ],
       "recommendation": "absent-unlinked",
-      "rationale": "The brief makes additivity a hard constraint: a project with no link must see no change in its persisted formats. The record's verdicts stay explicit anyway. A linked plan without the key, or an unlinked plan with it, gets the missing-record verdict, so the optional key never decides a verdict silently."
+      "rationale": "The brief makes additivity a hard constraint: a project with no link must see no change in its persisted formats. The record's verdicts stay explicit anyway. A linked plan without the key, or an unlinked plan with it, gets the missing-record verdict, so the optional key never decides a verdict silently.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "required-null",
+        "abandoned": [
+          "absent-unlinked"
+        ],
+        "why": "New persisted fields are required, not optional, and a $schema stamp names one shape: a key that is present for a linked plan and absent otherwise puts two shapes under one stamp. required-null does not migrate or rewrite any stored record: the plan-approval-record format moves to the opened version with a required `code` key (null when the project has no code link, { root, baseline } when it has one), and records written before it are read through the schema history readers as `code: null`, as the review files get their finding ids at read time. The loss accepted: an unlinked project's new approval records carry `\"code\": null` under the newer stamp, so an @lbdremy/phax-schemas older than that release must be upgraded to read them, which docs/upgrading.md states. Revise the requirements, the approval-record surface, the acceptance criterion on an unlinked approval, and the constraints that say the format changes only by adding a key at its current version.",
+        "advocate": "The strongest case for absent-unlinked: a project with no link sees no change at all in its persisted formats. No unlinked record moves to a newer stamp, and no older @lbdremy/phax-schemas has to be upgraded to read records from a project that never uses the feature.",
+        "principles": [
+          "E0",
+          "S2",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-17T16:26:40.280Z",
+        "revised": [
+          "productGoal",
+          "requirements",
+          "surface",
+          "nonGoals",
+          "acceptanceCriteria",
+          "planningNote"
+        ]
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The link is a project-level fact of the process repository; the code root is inside the process repository's tree and is a git repository's top level, ignored by the process repository.",
       "Under the link, ground-changed is judged only in the code repository, from the recorded code baseline, on footprint paths relative to the code root; self-changed and spec-changed stay in the process repository.",
       "Staleness is judged wherever it is today: `phax run`'s preflight and `phax plans status` (with `--apply`).",
-      "Missing-record covers a vanished code baseline, a linked plan approved without one, and an unlinked plan that carries one.",
+      "Missing-record covers a vanished code baseline, a linked plan whose record has `\"code\": null` (written so, or read so from an older version), and an unlinked plan whose record has a non-null code.",
       "The pull request footer's Plan and Spec entries are the only process references the code repository receives; commit trailers already name nothing of the process repository.",
-      "§5 is written to the recommended default of each §9 question; a different decision rewrites the requirements it names (r-link-declare and r-run-resolves for q-link-side, r-run-no-completion for q-run-lifecycle, r-pr-omit for q-pr-names, r-approve-code-baseline and r-approve-unlinked for q-record-shape)."
+      "The plan approval record gains a required `code` key, `{ root, baseline }` or `null`, at the opened plan-approval-record version (q-record-shape: required-null); no stored record is migrated or rewritten.",
+      "Each §9b decision is reflected in §5: r-link-declare and r-run-resolves (q-link-side), r-run-no-completion (q-run-lifecycle), r-pr-omit (q-pr-names), and r-approve-code-baseline, r-approve-unlinked, r-record-older and r-record-without-code (q-record-shape)."
     ],
     "open": [
       "The exact spelling of the config key, the record key and the frontmatter key (indicative in §6).",
@@ -584,8 +699,9 @@
       "The exit codes of the link refusals."
     ],
     "constraints": [
-      "Additive: a project with no link sees no change in argv, environment, records, persisted formats or output; its existing tests pass unchanged.",
-      "The plan-approval-record format changes only by adding the code key, at its current version (pending q-record-shape); the plan frontmatter's approved block gains one key.",
+      "A project with no link sees no change in argv, environment, records, verdicts or output, and its existing tests pass. The one exception is that its new plan approval records carry `\"code\": null` under the newer plan-approval-record version.",
+      "The plan-approval-record format moves to the opened version through a `next` snapshot with a required `code` key; records stamped at older versions are read through the schema history readers as `\"code\": null`, never rewritten. The plan frontmatter's approved block gains one key, for linked plans only.",
+      "docs/upgrading.md states that an @lbdremy/phax-schemas older than the release that ships this change must be upgraded to read the new plan approval records.",
       "phax knows no project: messages, keys and docs say process repository, code repository and code root.",
       "All git access to the code repository goes through the Git port; the link is decoded through a schema at the config boundary."
     ]
