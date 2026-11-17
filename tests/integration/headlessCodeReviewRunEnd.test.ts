@@ -33,7 +33,7 @@ import { processOutput } from "../helpers/processOutput.js";
 import type { OutputPort } from "../../src/ports/output.js";
 
 const COMPLIANCE_JSON = JSON.stringify({
-  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+  $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
   verdict: "conformant",
   summary: "All phases conformed.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
@@ -79,7 +79,10 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const answerOf = (...findings: unknown[]) =>
-  JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings });
+  JSON.stringify({
+    $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
+    findings,
+  });
 
 const HEADING = "### Code review findings";
 

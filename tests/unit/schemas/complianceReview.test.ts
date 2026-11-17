@@ -5,13 +5,18 @@ import {
   decodeComplianceReviewFile,
   readComplianceReviewAnswer,
 } from "../../../src/schemas/complianceReview.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
-const CURRENT_URL = "https://docs.phax.run/schemas/compliance-review/0.32.0.json";
+const CURRENT_URL = schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]);
+const ANSWER_URL = schemaUrl(
+  "compliance-review-answer",
+  CURRENT_STAMPS["compliance-review-answer"],
+);
 
-// The answer is the file's own shape: `$schema`, the review, both ledgers.
+// The answer: `$schema` naming its own format, the review, both ledgers.
 const validAnswer = {
-  $schema: CURRENT_URL,
+  $schema: ANSWER_URL,
   verdict: "conformant",
   summary: "All phases conformed to the plan.",
   perPhase: [
@@ -44,7 +49,19 @@ function refusal(answer: unknown): string {
 }
 
 describe("readComplianceReviewAnswer", () => {
-  it("accepts a 0.32.0 answer and returns the review without $schema", () => {
+  it("refuses a finding that carries an id, naming its path", () => {
+    const text = refusal(
+      withPhase([{ id: "C1", dimension: "objective", severity: "info", message: "x" }]),
+    );
+    expect(text).toContain("perPhase[0].findings[0].id");
+    expect(text).toContain("unexpected");
+  });
+
+  it("refuses an answer stamped as the compliance-review file", () => {
+    expect(refusal({ ...validAnswer, $schema: CURRENT_URL })).toContain("$schema");
+  });
+
+  it("accepts an answer and returns the review without $schema", () => {
     const read = readComplianceReviewAnswer(validAnswer);
     expect(Result.isSuccess(read)).toBe(true);
     if (Result.isSuccess(read)) {
@@ -220,35 +237,38 @@ describe("readComplianceReviewAnswer", () => {
 });
 
 describe("decodeComplianceReviewFile", () => {
-  it("accepts the 0.32.0 file", () => {
-    expect(Result.isSuccess(decodeComplianceReviewFile(validAnswer))).toBe(true);
+  const validFile = { ...validAnswer, $schema: CURRENT_URL };
+
+  it("accepts the file at its current stamp", () => {
+    expect(Result.isSuccess(decodeComplianceReviewFile(validFile))).toBe(true);
   });
 
   it("refuses the 0.17.0 file: its stamp is not the format's current one", () => {
-    const file = { ...validAnswer, $schema: schemaUrl("compliance-review", "0.17.0") };
+    const file = { ...validFile, $schema: schemaUrl("compliance-review", "0.17.0") };
     expect(Result.isFailure(decodeComplianceReviewFile(file))).toBe(true);
   });
 
   it("refuses a file that also carries version", () => {
-    expect(Result.isFailure(decodeComplianceReviewFile({ ...validAnswer, version: 1 }))).toBe(true);
+    expect(Result.isFailure(decodeComplianceReviewFile({ ...validFile, version: 1 }))).toBe(true);
   });
 
-  it("refuses a $schema naming another format", () => {
-    const other = { ...validAnswer, $schema: schemaUrl("phax-plan", "0.32.0") };
+  it("refuses a $schema naming another format, the answer's included", () => {
+    const other = { ...validFile, $schema: schemaUrl("phax-plan", "0.32.0") };
     expect(Result.isFailure(decodeComplianceReviewFile(other))).toBe(true);
+    expect(Result.isFailure(decodeComplianceReviewFile(validAnswer))).toBe(true);
   });
 });
 
 describe("complianceReviewFileText", () => {
   const { $schema: _schema, ...review } = validAnswer;
 
-  it("starts with the $schema at the 0.32.0 stamp, indented by 2", () => {
+  it("starts with the $schema at the file's current stamp, indented by 2", () => {
     const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
     expect(text.startsWith(`{\n  "$schema": "${CURRENT_URL}",\n  "verdict"`)).toBe(true);
   });
 
   it("round-trips through the file decoder", () => {
     const text = complianceReviewFileText(review as Parameters<typeof complianceReviewFileText>[0]);
-    expect(JSON.parse(text)).toEqual(validAnswer);
+    expect(JSON.parse(text)).toEqual({ ...validAnswer, $schema: CURRENT_URL });
   });
 });

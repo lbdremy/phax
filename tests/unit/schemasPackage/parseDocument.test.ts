@@ -38,12 +38,18 @@ const NEXT_PACKAGE_VERSION = `${PACKAGE_VERSION.split(".")[0]}.${Number(PACKAGE_
 
 // The answer formats: each reads under a `$schema` const naming its own stamp.
 const ANSWER_FORMAT_IDS = Object.keys(ANSWER_FORMATS) as ReadonlyArray<AnswerFormatId>;
+// The code review and compliance review files carry such a const too, though they are no
+// answer format any more: the review sessions answer code-review-answer and
+// compliance-review-answer.
+const CONST_STAMPED_IDS: ReadonlyArray<FormatId> = [
+  ...ANSWER_FORMAT_IDS,
+  "code-review",
+  "compliance-review",
+];
 
 /** The stamp a document of `formatId` carries to be read as the package's current shape. */
 function ownStamp(formatId: FormatId): string {
-  return (ANSWER_FORMAT_IDS as ReadonlyArray<string>).includes(formatId)
-    ? CURRENT_STAMPS[formatId]
-    : PACKAGE_VERSION;
+  return CONST_STAMPED_IDS.includes(formatId) ? CURRENT_STAMPS[formatId] : PACKAGE_VERSION;
 }
 
 function expectFailure(result: Parsed<unknown>, path: string, message?: string) {
@@ -144,9 +150,9 @@ describe("parseDocument", () => {
     },
   );
 
-  // The compliance review's `$schema` is a const since 0.32.0, as an answer
-  // format's is; it joins ANSWER_FORMATS when it becomes a structured call.
-  it.each([...new Set<FormatId>([...ANSWER_FORMAT_IDS, "compliance-review"])])(
+  // The compliance review's and the code review's `$schema` are consts since 0.32.0, as an
+  // answer format's is.
+  it.each(CONST_STAMPED_IDS)(
     "refuses a %s stamped above its current stamp at $schema, once a release has named its shape",
     (formatId) => {
       // The format as the next release leaves it: its `next` shape renamed to

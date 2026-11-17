@@ -1428,7 +1428,7 @@ describe("documents from another release", () => {
     // and nor does one between the plan document's frozen 0.33.0 stamp and its
     // current one.
     const constAbove =
-      id in ANSWER_FORMATS &&
+      (id in ANSWER_FORMATS || id === "code-review" || id === "compliance-review") &&
       !newer &&
       (compareReleases(release, CURRENT_STAMPS[id]) > 0 ||
         (id === "plan-document" && below && compareReleases(release, "0.33.0") > 0));

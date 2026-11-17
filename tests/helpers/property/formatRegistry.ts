@@ -14,7 +14,9 @@ import {
   BriefRecordSchema,
   BriefReportSchema,
   BriefRequestSchema,
+  CodeReviewAnswerSchema,
   CodeReviewSchema,
+  ComplianceReviewAnswerSchema,
   ComplianceReviewSchema,
   CostLedgerSchema,
   DecideVerdictsSchema,
@@ -57,6 +59,8 @@ import {
   parseBriefReport,
   parseBriefRequest,
   parseCodeReview,
+  parseCodeReviewAnswer,
+  parseComplianceReviewAnswer,
   parseComplianceReview,
   parseCostLedger,
   parseDecideVerdicts,
@@ -189,6 +193,8 @@ import {
   type PersistedReadError,
   type ReportError,
 } from "../../../src/schemas/persisted.js";
+import { readCodeReviewAnswer } from "../../../src/schemas/codeReview.js";
+import { readComplianceReviewAnswer } from "../../../src/schemas/complianceReview.js";
 import { readPlanExtractionAnswer } from "../../../src/schemas/planExtraction.js";
 import { OTHER_OPTION_ID } from "../../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
@@ -391,6 +397,18 @@ const readHandAnswer =
       ? ok(result.success)
       : refused(`${result.failure.path}: ${result.failure.message}`);
   };
+
+// A review session's answer: readCodeReviewAnswer / readComplianceReviewAnswer, the findings or
+// the review without `$schema`.
+const readCodeReviewAnswerValue: Reader = (input) => {
+  const result = readCodeReviewAnswer(input);
+  return Result.isSuccess(result) ? ok(result.success) : refused(result.failure);
+};
+
+const readComplianceReviewAnswerValue: Reader = (input) => {
+  const result = readComplianceReviewAnswer(input);
+  return Result.isSuccess(result) ? ok(result.success) : refused(result.failure);
+};
 
 // `phax artifact decide --verdicts` reads the file's text.
 const readDecideVerdicts: Reader = (input) => {
@@ -1118,6 +1136,16 @@ export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readon
     schema: CodeReviewSchema,
     phax: read(persisted(readCodeReviewFile)),
     parse: fromPackage(parseCodeReview),
+  }),
+  "code-review-answer": entry("code-review-answer", {
+    schema: CodeReviewAnswerSchema,
+    phax: read(readCodeReviewAnswerValue),
+    parse: fromPackage(parseCodeReviewAnswer),
+  }),
+  "compliance-review-answer": entry("compliance-review-answer", {
+    schema: ComplianceReviewAnswerSchema,
+    phax: read(readComplianceReviewAnswerValue),
+    parse: fromPackage(parseComplianceReviewAnswer),
   }),
   "phax-plan-extraction": entry("phax-plan-extraction", {
     schema: PhaxPlanExtractionSchema,

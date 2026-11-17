@@ -7,6 +7,18 @@
 // file schema and decoder, or, for the retired format, its frozen module. The
 // package declares none of its own.
 import {
+  CodeReviewAnswerSchema,
+  decodeCodeReviewAnswer,
+  type CodeReview,
+  type CodeReviewAnswer,
+} from "../../../../src/schemas/codeReview.js";
+import {
+  ComplianceReviewAnswerSchema,
+  decodeComplianceReviewAnswer,
+  type ComplianceReview,
+  type ComplianceReviewAnswer,
+} from "../../../../src/schemas/complianceReview.js";
+import {
   DecideVerdictsFileSchema,
   decodeDecideVerdictsFile,
   type DecideVerdicts,
@@ -192,6 +204,86 @@ export function toLatestPlanHandDecisionAnswer(
 ): LatestPlanHandDecisionAnswer {
   const { $schema: _schema, ...answer } = value;
   return answer;
+}
+
+// ── code review answer
+
+// Born at this release (spec finding-ids-and-fates) with `$schema`: no
+// pre-schema shape and no earlier release. It is the final message of a
+// headless code review session, which phax reads but never writes, and it
+// refuses a key it does not name, at any level, a finding's `id` among them. A
+// const `$schema` reads only its own stamp. The latest value is the findings,
+// with no `$schema`.
+
+export type CodeReviewAnswerShapes = {
+  [K in CurrentShapeName<"code-review-answer">]: CodeReviewAnswer;
+};
+
+/** The id of every code review answer shape the package reads. */
+export type CodeReviewAnswerShape = keyof CodeReviewAnswerShapes;
+
+export const codeReviewAnswerFormat = defineFormat<CodeReviewAnswerShapes>({
+  id: "code-review-answer",
+  label: "code review answer",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["code-review-answer"],
+    shape: { schema: CodeReviewAnswerSchema, decode: decodeCodeReviewAnswer },
+  },
+});
+
+/** Reads a code review answer: the final message of a headless code review session. Never throws. */
+export const parseCodeReviewAnswer: (input: unknown) => ParsedShape<CodeReviewAnswerShapes> =
+  codeReviewAnswerFormat.parse;
+
+/** The latest code review answer: the findings, with no `$schema`. */
+export type LatestCodeReviewAnswer = CodeReview;
+
+/** Upgrades a parsed code review answer in memory: drops `$schema`, keeps every finding. */
+export function toLatestCodeReviewAnswer(value: CodeReviewAnswer): LatestCodeReviewAnswer {
+  const { $schema: _schema, ...review } = value;
+  return review;
+}
+
+// ── compliance review answer
+
+// Born at this release with `$schema`, as the code review answer; the final
+// message of a compliance review session. The latest value is phax's in-memory
+// review, with no `$schema`.
+
+export type ComplianceReviewAnswerShapes = {
+  [K in CurrentShapeName<"compliance-review-answer">]: ComplianceReviewAnswer;
+};
+
+/** The id of every compliance review answer shape the package reads. */
+export type ComplianceReviewAnswerShape = keyof ComplianceReviewAnswerShapes;
+
+export const complianceReviewAnswerFormat = defineFormat<ComplianceReviewAnswerShapes>({
+  id: "compliance-review-answer",
+  label: "compliance review answer",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["compliance-review-answer"],
+    shape: { schema: ComplianceReviewAnswerSchema, decode: decodeComplianceReviewAnswer },
+  },
+});
+
+/** Reads a compliance review answer: the final message of a compliance review session. Never throws. */
+export const parseComplianceReviewAnswer: (
+  input: unknown,
+) => ParsedShape<ComplianceReviewAnswerShapes> = complianceReviewAnswerFormat.parse;
+
+/** The latest compliance review answer: phax's in-memory review, with no `$schema`. */
+export type LatestComplianceReviewAnswer = ComplianceReview;
+
+/** Upgrades a parsed compliance review answer in memory: drops `$schema`, keeps every fact. */
+export function toLatestComplianceReviewAnswer(
+  value: ComplianceReviewAnswer,
+): LatestComplianceReviewAnswer {
+  const { $schema: _schema, ...review } = value;
+  return review;
 }
 
 // ── decide verdicts

@@ -229,15 +229,15 @@ describe("buildHeadlessCodeReviewPrompt", () => {
     ]) {
       expect(prompt).toContain(`"${key}"`);
     }
-    const stamp = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
+    const stamp = schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]);
     expect(prompt).toContain(`{"$schema":"${stamp}","findings":[]}`);
     expect(prompt).not.toContain('"version"');
   });
 
   it("states the answer's JSON Schema, with its $schema const", () => {
     const prompt = buildHeadlessCodeReviewPrompt({ ...baseInput, ...headless });
-    const stamp = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
-    expect(prompt).toContain(JSON.stringify(answerJsonSchema("code-review"), null, 2));
+    const stamp = schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]);
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("code-review-answer"), null, 2));
     expect(prompt).toContain(`"const": "${stamp}"`);
   });
 

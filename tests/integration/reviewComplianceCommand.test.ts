@@ -82,7 +82,7 @@ const fakeSecurity = {
 };
 
 const validJson = JSON.stringify({
-  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+  $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
   verdict: "conformant-with-deviations",
   summary: "Minor deviations found.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant-with-deviations", findings: [] }],

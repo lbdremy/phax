@@ -43,8 +43,8 @@ describe("answerJsonSchema", () => {
       "plan-hand-decision-answer",
       "first-reading",
       "interactive-handoff",
-      "code-review",
-      "compliance-review",
+      "code-review-answer",
+      "compliance-review-answer",
       "phax-plan-extraction",
     ]);
   });

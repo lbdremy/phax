@@ -35,6 +35,8 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseCodeReview,
+  parseCodeReviewAnswer,
+  parseComplianceReviewAnswer,
   parseCostLedger,
   parseDecisionRecordManifest,
   parseReviewRecordManifest,
@@ -76,6 +78,8 @@ import {
   toLatestBriefRequest,
   toLatestComplianceReview,
   toLatestCodeReview,
+  toLatestCodeReviewAnswer,
+  toLatestComplianceReviewAnswer,
   toLatestCostLedger,
   toLatestDecisionRecordManifest,
   toLatestReviewRecordManifest,
@@ -286,6 +290,8 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "revision-record-manifest": latest(parseRevisionRecordManifest, toLatestRevisionRecordManifest),
   "cost-ledger": latest(parseCostLedger, toLatestCostLedger),
   "code-review": latest(parseCodeReview, toLatestCodeReview),
+  "code-review-answer": latest(parseCodeReviewAnswer, toLatestCodeReviewAnswer),
+  "compliance-review-answer": latest(parseComplianceReviewAnswer, toLatestComplianceReviewAnswer),
   "architecture-request": latest(parseArchitectureRequest, toLatestArchitectureRequest),
   "architecture-report": latest(parseArchitectureReport, toLatestArchitectureReport),
   // parseAcceptanceRequest reads both requests: an oracle request is lifted to the acceptance names.
@@ -342,6 +348,9 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "revision-record-manifest": readRecordManifestFile,
   "cost-ledger": readCostLedgerFile,
   "code-review": readCodeReviewFile,
+  // phax reads a review session's answer as the final message, never as a file.
+  "code-review-answer": undefined,
+  "compliance-review-answer": undefined,
   // phax writes the architecture request and never reads it back; it reads the
   // architecture report only as a provider's answer, through
   // readArchitectureReport, which names no file.

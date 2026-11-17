@@ -25,8 +25,11 @@ import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
 import { decodeAuthoringRecordManifestFile } from "../../../src/schemas/authoringRecord.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
-import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
-import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
+import {
+  decodeComplianceReviewAnswer,
+  decodeComplianceReviewFile,
+} from "../../../src/schemas/complianceReview.js";
+import { decodeCodeReviewAnswer, decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateReportFile } from "../../../src/schemas/gateReport.js";
@@ -116,6 +119,8 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "revision-record-manifest": decodeRevisionRecordManifestFile,
   "cost-ledger": decodeCostLedgerFile,
   "code-review": decodeCodeReviewFile,
+  "code-review-answer": decodeCodeReviewAnswer,
+  "compliance-review-answer": decodeComplianceReviewAnswer,
   "architecture-request": decodeArchitectureRequestFile,
   "architecture-report": decodeArchitectureReportFile,
   "oracle-request": decodeOracleRequestV0_26_0,

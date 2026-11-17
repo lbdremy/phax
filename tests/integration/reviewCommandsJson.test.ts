@@ -160,7 +160,7 @@ describe("review and publication commands", () => {
   }
 
   const complianceAnswer = JSON.stringify({
-    $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+    $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
     verdict: "conformant",
     summary: "All as planned.",
     perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
@@ -171,7 +171,7 @@ describe("review and publication commands", () => {
   });
 
   const codeAnswer = JSON.stringify({
-    $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
+    $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
     findings: [
       {
         severity: "bug",

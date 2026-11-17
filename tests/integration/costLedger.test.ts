@@ -316,7 +316,7 @@ describe("cost ledger at run time", () => {
       sessionId: "session-review" as ClaudeSessionId,
       outputPath: "",
       finalText: JSON.stringify({
-        $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+        $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
         verdict: "conformant",
         summary: "Both phases conformed.",
         perPhase: ["phase-01", "phase-02"].map((phaseId) => ({

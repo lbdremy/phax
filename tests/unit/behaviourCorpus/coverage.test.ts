@@ -266,6 +266,7 @@ function refusedNames(cases: ReadonlyArray<{ name: string; expected: unknown }>)
  * - gate-report, brief-report: provider output phax reads as printed ("there is no encoder").
  * - hand-decision-answer, spec-hand-decision-answer, plan-hand-decision-answer: a decide
  *   session's answer, read only.
+ * - code-review-answer, compliance-review-answer: a review session's answer, read only.
  * - decide-verdicts: the person's verdicts, read only.
  * - architecture-report: the provider's report, read only.
  * - architecture-request: written on the provider's stdin without a Schema encoder.

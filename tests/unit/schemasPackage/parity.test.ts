@@ -19,6 +19,8 @@ import {
   parseBriefRequest,
   parseComplianceReview,
   parseCodeReview,
+  parseCodeReviewAnswer,
+  parseComplianceReviewAnswer,
   parseCostLedger,
   parseDecideVerdicts,
   parsePhaxPlanExtraction,
@@ -71,8 +73,11 @@ import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
 import { decodeBriefReportFile } from "../../../src/schemas/briefReport.js";
-import { decodeComplianceReviewFile } from "../../../src/schemas/complianceReview.js";
-import { decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
+import {
+  decodeComplianceReviewAnswer,
+  decodeComplianceReviewFile,
+} from "../../../src/schemas/complianceReview.js";
+import { decodeCodeReviewAnswer, decodeCodeReviewFile } from "../../../src/schemas/codeReview.js";
 import { decodeCostLedgerFile } from "../../../src/schemas/costLedger.js";
 import {
   decodeDecisionRecordManifestFile,
@@ -370,6 +375,22 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodeCodeReviewFile,
     wrongType: ["findings", {}],
     required: "findings",
+    excess: "error",
+  },
+  "code-review-answer": {
+    id: "code-review-answer",
+    parse: parseCodeReviewAnswer,
+    phax: decodeCodeReviewAnswer,
+    wrongType: ["findings", {}],
+    required: "findings",
+    excess: "error",
+  },
+  "compliance-review-answer": {
+    id: "compliance-review-answer",
+    parse: parseComplianceReviewAnswer,
+    phax: decodeComplianceReviewAnswer,
+    wrongType: ["summary", 1],
+    required: "verdict",
     excess: "error",
   },
   "architecture-request": {

@@ -442,6 +442,12 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     file: "packages/schemas/snapshots/code-review/*.schema.json",
     lines: [/"wrong-oracle"/],
   },
+  {
+    id: "wrong-oracle-escape-json-schema-answer",
+    reason: "wrong-oracle escape",
+    file: "packages/schemas/snapshots/code-review-answer/*.schema.json",
+    lines: [/"wrong-oracle"/],
+  },
 
   {
     id: "wrong-oracle-escape-review-skill",

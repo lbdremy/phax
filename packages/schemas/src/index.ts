@@ -57,11 +57,15 @@ import {
   type GateReportShapes,
 } from "./formats/reports.js";
 import {
+  codeReviewAnswerFormat,
+  complianceReviewAnswerFormat,
   decideVerdictsFormat,
   handDecisionAnswerFormat,
   phaxPlanExtractionFormat,
   planHandDecisionAnswerFormat,
   specHandDecisionAnswerFormat,
+  type CodeReviewAnswerShapes,
+  type ComplianceReviewAnswerShapes,
   type DecideVerdictsShapes,
   type HandDecisionAnswerShapes,
   type PhaxPlanExtractionShapes,
@@ -489,6 +493,24 @@ export {
   type SpecHandDecisionAnswerShape,
 } from "./formats/answers.js";
 
+// The answers of the code review and compliance review sessions, born at this
+// release. Their schemas and types are phax's own answer schemas and types.
+export { CodeReviewAnswerSchema, type CodeReviewAnswer } from "../../../src/schemas/codeReview.js";
+export {
+  ComplianceReviewAnswerSchema,
+  type ComplianceReviewAnswer,
+} from "../../../src/schemas/complianceReview.js";
+export {
+  parseCodeReviewAnswer,
+  parseComplianceReviewAnswer,
+  toLatestCodeReviewAnswer,
+  toLatestComplianceReviewAnswer,
+  type CodeReviewAnswerShape,
+  type ComplianceReviewAnswerShape,
+  type LatestCodeReviewAnswer,
+  type LatestComplianceReviewAnswer,
+} from "./formats/answers.js";
+
 // The verdicts file a person writes for `phax artifact decide --verdicts`.
 // Its schema and type are phax's own file schema and type.
 export {
@@ -828,6 +850,8 @@ type DocumentShapes = EveryFormat<{
   "decide-verdicts": DecideVerdictsShapes;
   "cost-ledger": CostLedgerShapes;
   "code-review": CodeReviewShapes;
+  "code-review-answer": CodeReviewAnswerShapes;
+  "compliance-review-answer": ComplianceReviewAnswerShapes;
   "phax-plan-extraction": PhaxPlanExtractionShapes;
   "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
   "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
@@ -885,6 +909,8 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "decide-verdicts": decideVerdictsFormat,
     "cost-ledger": costLedgerFormat,
     "code-review": codeReviewFormat,
+    "code-review-answer": codeReviewAnswerFormat,
+    "compliance-review-answer": complianceReviewAnswerFormat,
     "phax-plan-extraction": phaxPlanExtractionFormat,
     "spec-hand-decision-answer": specHandDecisionAnswerFormat,
     "plan-hand-decision-answer": planHandDecisionAnswerFormat,

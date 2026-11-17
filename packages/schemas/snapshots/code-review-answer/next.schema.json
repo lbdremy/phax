@@ -1,0 +1,110 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax code review answer",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "enum": [
+        "https://docs.phax.run/schemas/code-review-answer/0.40.0.json"
+      ],
+      "description": "The code-review-answer format's shape, exactly: https://docs.phax.run/schemas/code-review-answer/0.40.0.json",
+      "const": "https://docs.phax.run/schemas/code-review-answer/0.40.0.json"
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "bug",
+              "deviation",
+              "concern",
+              "info"
+            ]
+          },
+          "file": {
+            "$ref": "#/$defs/NonEmptyString"
+          },
+          "line": {
+            "type": "integer",
+            "maximum": 9007199254740991,
+            "exclusiveMinimum": 0,
+            "description": "The 1-based line the finding is about."
+          },
+          "message": {
+            "$ref": "#/$defs/NonEmptyString_1"
+          },
+          "lens": {
+            "type": "string",
+            "enum": [
+              "surface",
+              "acceptance",
+              "boundary",
+              "core",
+              "edge",
+              "tests",
+              "architecture",
+              "docs"
+            ]
+          },
+          "escape": {
+            "type": "string",
+            "enum": [
+              "wrong-oracle",
+              "same-author",
+              "weakened",
+              "fake-drift",
+              "unexplored-input",
+              "omission",
+              "untestable"
+            ]
+          },
+          "criterion": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/NonEmptyString_1"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The acceptance criterion id the finding is about, or null."
+          },
+          "suggestion": {
+            "$ref": "#/$defs/NonEmptyString_1"
+          }
+        },
+        "required": [
+          "severity",
+          "file",
+          "line",
+          "message",
+          "lens",
+          "escape",
+          "criterion",
+          "suggestion"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The path the finding is about, as the reviewer gave it."
+    },
+    "NonEmptyString_1": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$"
+    }
+  }
+}

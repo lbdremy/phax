@@ -63,7 +63,7 @@ const security = {
 
 function answerWith(message: string): string {
   return JSON.stringify({
-    $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
+    $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
     findings: [
       {
         severity: "concern",

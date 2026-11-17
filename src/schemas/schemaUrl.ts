@@ -26,7 +26,9 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * acceptance-tests, which replaces the oracle request (kept in this list,
  * frozen at 0.26.0), then the three answers of the commands behind the Claude
  * Code mod (artifact status, plans overview and plans lint) of spec
- * command-contracts, appended so existing order stays stable.
+ * command-contracts, appended so existing order stays stable; then the
+ * answers of the code review and compliance review sessions, of spec
+ * finding-ids-and-fates.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -71,6 +73,8 @@ export const FORMAT_IDS = [
   "plan-overview",
   "plan-lint",
   "revision-record-manifest",
+  "code-review-answer",
+  "compliance-review-answer",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -109,7 +113,8 @@ export function isFormatId(value: string): value is FormatId {
  * `phax plans overview --json` and `phax plans lint --json` print, which phax
  * never saves, of spec command-contracts, born at 0.34.0. So is the manifest
  * of a revise writer session's revision record, of spec artifact-revise, born
- * at 0.38.0.
+ * at 0.38.0. So are the answers of the code review and compliance review
+ * sessions, of spec finding-ids-and-fates, born at this release.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -141,6 +146,8 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-overview",
   "plan-lint",
   "revision-record-manifest",
+  "code-review-answer",
+  "compliance-review-answer",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

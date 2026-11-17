@@ -153,7 +153,7 @@ export function buildCompliancePrompt(input: BuildCompliancePromptInput): string
     "valid against this JSON Schema, with every key required and no other key:",
     "",
     "```json",
-    JSON.stringify(answerJsonSchema("compliance-review"), null, 2),
+    JSON.stringify(answerJsonSchema("compliance-review-answer"), null, 2),
     "```",
     "",
     `- \`perPhase\` names each of these phase ids exactly once, in any order: ${idList(phases.map((p) => p.id))}.`,

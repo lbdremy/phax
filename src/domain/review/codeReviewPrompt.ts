@@ -145,7 +145,7 @@ export function buildHeadlessCodeReviewPrompt(input: HeadlessCodeReviewPromptInp
     "Your final message is your answer: JSON alone, valid against this JSON Schema, with every key required and no other key:",
     "",
     "```json",
-    JSON.stringify(answerJsonSchema("code-review"), null, 2),
+    JSON.stringify(answerJsonSchema("code-review-answer"), null, 2),
     "```",
     "",
     `- \`severity\`: one of ${idList(CODE_REVIEW_SEVERITIES)}.`,
@@ -156,7 +156,7 @@ export function buildHeadlessCodeReviewPrompt(input: HeadlessCodeReviewPromptInp
     "- `criterion`: an acceptance-criterion id of the source spec, or null.",
     "- `message` and `suggestion`: non-empty.",
     "",
-    `When there is nothing to report, answer \`${JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings: [] })}\`.`,
+    `When there is nothing to report, answer \`${JSON.stringify({ $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]), findings: [] })}\`.`,
   ].join("\n");
 }
 

@@ -215,7 +215,10 @@ describe("buildVibeArgs — secure mode fail-closed", () => {
 });
 
 describe("buildVibeArgs — a structured call", () => {
-  const answerSchema = { call: "code-review", schema: answerJsonSchema("code-review") } as const;
+  const answerSchema = {
+    call: "code-review",
+    schema: answerJsonSchema("code-review-answer"),
+  } as const;
   const promptWithSchema = `Answer with this schema:\n${JSON.stringify(answerSchema.schema)}`;
 
   it("holds no schema option and leaves the argv as it was, on a new session and a resume", () => {

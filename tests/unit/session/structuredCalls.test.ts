@@ -95,7 +95,7 @@ describe("claudeAnswerSchema", () => {
     "plan-hand-decision-answer",
     "first-reading",
     "interactive-handoff",
-    "code-review",
+    "code-review-answer",
     "phax-plan-extraction",
   ] as const)("leaves no $schema property in the %s schema", (format) => {
     const handed = claudeAnswerSchema(answerJsonSchema(format));
@@ -105,7 +105,7 @@ describe("claudeAnswerSchema", () => {
 });
 
 describe("stampStructuredValue", () => {
-  const schema = answerJsonSchema("code-review");
+  const schema = answerJsonSchema("code-review-answer");
   const stamp = (schema as { properties: { $schema: { const: string } } }).properties.$schema.const;
 
   it("sets the handed format's stamp first", () => {
