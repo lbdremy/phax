@@ -44,6 +44,7 @@ import {
 import { acceptanceRequestFormat, oracleRequestFormat } from "../src/formats/acceptanceRequest.js";
 import {
   artifactStatusFormat,
+  findingListFormat,
   planLintFormat,
   planOverviewFormat,
 } from "../src/formats/commandAnswers.js";
@@ -127,6 +128,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "code-review": codeReviewFormat,
   "code-review-answer": codeReviewAnswerFormat,
   "compliance-review-answer": complianceReviewAnswerFormat,
+  "finding-list": findingListFormat,
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
@@ -177,6 +179,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "code-review": "error",
   "code-review-answer": "error",
   "compliance-review-answer": "error",
+  "finding-list": "error",
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",

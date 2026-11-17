@@ -1,7 +1,8 @@
 // The answers of the commands behind the Claude Code mod, born at 0.34.0 with
 // `$schema`: the artifact status `phax artifact status --json` prints, the plan
 // overview `phax plans overview --json` prints and the plan lint
-// `phax plans lint --json` prints. phax never saves one. Each has no
+// `phax plans lint --json` prints, and the finding list
+// `phax finding list --json` prints. phax never saves one. Each has no
 // pre-schema shape and no frozen release, and a document without `$schema` is
 // unreadable. Each refuses a key it does not name. Its current shape, named by
 // `CURRENT_SHAPES`, is phax's own file schema and decoder, and its
@@ -12,6 +13,12 @@ import {
   type ArtifactStatusDocument,
   type ArtifactStatusFile,
 } from "../../../../src/schemas/artifactStatusDocument.js";
+import {
+  FindingListFileSchema,
+  decodeFindingListFile,
+  type FindingListDocument,
+  type FindingListFile,
+} from "../../../../src/schemas/findingList.js";
 import {
   PlanLintFileSchema,
   decodePlanLintFile,
@@ -122,6 +129,39 @@ export type LatestPlanLint = PlanLintDocument;
 
 /** Drops `$schema` from a parsed plan lint and keeps every other fact. */
 export function toLatestPlanLint(value: PlanLintFile): LatestPlanLint {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
+// ── finding list
+
+export type FindingListShapes = {
+  [K in CurrentShapeName<"finding-list">]: FindingListFile;
+};
+
+/** The id of every finding list shape the package reads. */
+export type FindingListShape = keyof FindingListShapes;
+
+export const findingListFormat = defineFormat<FindingListShapes>({
+  id: "finding-list",
+  label: "finding list",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["finding-list"],
+    shape: { schema: FindingListFileSchema, decode: decodeFindingListFile },
+  },
+});
+
+/** Reads what `phax finding list --json` printed. Never throws. */
+export const parseFindingList: (input: unknown) => ParsedShape<FindingListShapes> =
+  findingListFormat.parse;
+
+/** The latest finding list: phax's in-memory value, with no `$schema`. */
+export type LatestFindingList = FindingListDocument;
+
+/** Drops `$schema` from a parsed finding list and keeps every other fact. */
+export function toLatestFindingList(value: FindingListFile): LatestFindingList {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }

@@ -27,10 +27,10 @@ describe("schemaUrl", () => {
     expect(parseSchemaUrl(schemaUrl(id, "0.10.2"))).toEqual({ formatId: id, release: "0.10.2" });
   });
 
-  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record, the two reports, the hand decision answer, the decision record manifest, the cost ledger, the architecture request and report, the oracle request and the four documents of a declared stop, the run list, the decide verdicts, the review record manifest, the code review, the plan extraction, the two hand decision answers, the acceptance request, the three answers of the commands behind the Claude Code mod and the two review session answers", () => {
-    expect(FORMAT_IDS).toHaveLength(44);
-    expect(new Set(FORMAT_IDS).size).toBe(44);
-    expect(FORMAT_IDS.slice(-31)).toEqual([
+  it("lists the thirteen formats of spec §4 phax still writes, the two approval record formats, the gate request, the brief request and record, the two reports, the hand decision answer, the decision record manifest, the cost ledger, the architecture request and report, the oracle request and the four documents of a declared stop, the run list, the decide verdicts, the review record manifest, the code review, the plan extraction, the two hand decision answers, the acceptance request, the three answers of the commands behind the Claude Code mod, the two review session answers and the finding list", () => {
+    expect(FORMAT_IDS).toHaveLength(45);
+    expect(new Set(FORMAT_IDS).size).toBe(45);
+    expect(FORMAT_IDS.slice(-32)).toEqual([
       "plan-approval-record",
       "spec-approval-record",
       "gate-request",
@@ -62,6 +62,7 @@ describe("schemaUrl", () => {
       "revision-record-manifest",
       "code-review-answer",
       "compliance-review-answer",
+      "finding-list",
     ]);
     expect(isFormatId("code-review")).toBe(true);
     expect(isFormatId("phase-record-manifest")).toBe(true);
@@ -100,6 +101,7 @@ describe("schemaUrl", () => {
       "revision-record-manifest",
       "code-review-answer",
       "compliance-review-answer",
+      "finding-list",
     ]);
     expect(PRE_SCHEMA_FORMAT_IDS).toEqual(
       FORMAT_IDS.filter((id) => !SCHEMA_BORN_FORMAT_IDS.some((born) => born === id)),

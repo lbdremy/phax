@@ -3,10 +3,12 @@ import { CURRENT_SHAPES } from "../../../packages/schemas/src/generated/index.js
 import {
   parseArtifactStatus,
   parseDocument,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   parseRunList,
   toLatestArtifactStatus,
+  toLatestFindingList,
   toLatestPlanLint,
   toLatestPlanOverview,
   toLatestRunList,
@@ -21,6 +23,7 @@ const FORMATS = [
   ["artifact-status", parseArtifactStatus, toLatestArtifactStatus],
   ["plan-overview", parsePlanOverview, toLatestPlanOverview],
   ["plan-lint", parsePlanLint, toLatestPlanLint],
+  ["finding-list", parseFindingList, toLatestFindingList],
 ] as const;
 
 describe.each(FORMATS)("%s", (id, parse, toLatest) => {

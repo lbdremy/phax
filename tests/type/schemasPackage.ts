@@ -3,6 +3,9 @@ import type {
   ArtifactStatus,
   ArtifactStatusShape,
   LatestArtifactStatus,
+  FindingList,
+  FindingListShape,
+  LatestFindingList,
   LatestPlanLint,
   LatestPlanOverview,
   PlanLint,
@@ -11,9 +14,11 @@ import type {
   PlanOverviewShape,
   RunListV0_30_0,
   parseArtifactStatus,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   toLatestArtifactStatus,
+  toLatestFindingList,
   toLatestPlanLint,
   toLatestPlanOverview,
   ArchitectureReport,
@@ -342,6 +347,10 @@ import type {
   PlanLintDocument as PhaxPlanLintDocument,
   PlanLintFile as PhaxPlanLintFile,
 } from "../../src/schemas/planLint.js";
+import type {
+  FindingListDocument as PhaxFindingListDocument,
+  FindingListFile as PhaxFindingListFile,
+} from "../../src/schemas/findingList.js";
 import type { PlanOverview as PhaxPlanOverview } from "../../src/domain/plan/overview.js";
 import type { LintReport as PhaxLintReport } from "../../src/app/lintPlan.js";
 import type { RunListV0_30_0 as FrozenRunListV0_30_0 } from "../../src/schemas/history/run-list/0.30.0.js";
@@ -699,6 +708,7 @@ const formats: Equals<
   | "code-review"
   | "code-review-answer"
   | "compliance-review-answer"
+  | "finding-list"
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
@@ -813,6 +823,7 @@ const shapeIds: Equals<
   | ArtifactStatusShape
   | PlanOverviewShape
   | PlanLintShape
+  | FindingListShape
   | FirstReadingShape
   | InteractiveHandoffShape
   | InteractiveSessionShape
@@ -1676,7 +1687,17 @@ const commandAnswerTypes: [
   Equals<LatestPlanLint, PhaxPlanLintDocument>,
   Equals<Parameters<typeof toLatestPlanLint>, [value: PhaxPlanLintFile]>,
   Equals<PhaxPlanLintDocument, PhaxLintReport>,
+  Equals<FindingList, PhaxFindingListFile>,
+  Equals<FindingListShape, Current<"finding-list">>,
+  Equals<Value<typeof parseFindingList>, PhaxFindingListFile>,
+  Equals<LatestFindingList, PhaxFindingListDocument>,
+  Equals<Parameters<typeof toLatestFindingList>, [value: PhaxFindingListFile]>,
 ] = [
+  true,
+  true,
+  true,
+  true,
+  true,
   true,
   true,
   true,
