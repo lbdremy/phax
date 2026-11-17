@@ -511,7 +511,7 @@ export function reviewCodeHeadless(
       // The review answers and never writes: its reading tools and the
       // read-only git above, whatever the policy allows.
       readOnly: true,
-      answerSchema: { call: "code-review", schema: answerJsonSchema("code-review") },
+      answerSchema: { call: "code-review", schema: answerJsonSchema("code-review-answer") },
     } as const;
     const costOf = (streamPath: string) =>
       ({

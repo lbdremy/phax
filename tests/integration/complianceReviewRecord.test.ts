@@ -53,7 +53,7 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 import { processOutput } from "../helpers/processOutput.js";
 
 const COMPLIANCE_AGENT_JSON = JSON.stringify({
-  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+  $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
   verdict: "conformant",
   summary: "All phases conformed.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],

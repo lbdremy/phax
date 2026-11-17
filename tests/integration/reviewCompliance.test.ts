@@ -96,7 +96,7 @@ const fakeSecurity = {
 const fakePlanMd = "# Plan\n\nThis is the plan.\n";
 const fakeReconciliationMd = "# Global File Reconciliation\n\nAll files planned.\n";
 
-const stamp = schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]);
+const stamp = schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]);
 
 const phaseEntry = (phaseId: string) => ({ phaseId, verdict: "conformant", findings: [] });
 
@@ -212,11 +212,12 @@ describe("reviewCompliance", () => {
     expect(result.jsonArtifactPath).toBe(jsonPath);
     expect(result.review.verdict).toBe("conformant-with-deviations");
 
-    // compliance-review.json: the answer as given, `$schema` first at the 0.32.0 stamp.
+    // compliance-review.json: the answer as given, `$schema` first, at the file format's stamp.
     const file = JSON.parse(t.fs.impl.getFile(jsonPath) ?? "") as Record<string, unknown>;
+    const fileStamp = schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]);
     expect(Object.keys(file)[0]).toBe("$schema");
-    expect(file["$schema"]).toBe("https://docs.phax.run/schemas/compliance-review/0.32.0.json");
-    expect(file).toEqual(answer);
+    expect(file["$schema"]).toBe(fileStamp);
+    expect(file).toEqual({ ...answer, $schema: fileStamp });
     expect(file["unplannedChanges"]).toHaveLength(1);
     expect(file["unmetPromises"]).toHaveLength(1);
 
@@ -277,7 +278,7 @@ describe("reviewCompliance", () => {
         // The answer schema is the compliance-review call's, handed on the first session.
         expect(options.answerSchema).toEqual({
           call: "compliance-review",
-          schema: answerJsonSchema("compliance-review"),
+          schema: answerJsonSchema("compliance-review-answer"),
         });
         // Nothing is created in the worktree; both files are phax's, in the run folder.
         expect(t.filesUnder(worktreePath)).toEqual([]);
@@ -324,7 +325,9 @@ describe("reviewCompliance", () => {
       expect(prompt).toContain("`feature/test-run`");
       expect(prompt).toContain(`git diff ${base}..HEAD`);
       expect(prompt).not.toContain("/.phax-context/");
-      expect(prompt).toContain(JSON.stringify(answerJsonSchema("compliance-review"), null, 2));
+      expect(prompt).toContain(
+        JSON.stringify(answerJsonSchema("compliance-review-answer"), null, 2),
+      );
     });
   });
 
@@ -339,7 +342,9 @@ describe("reviewCompliance", () => {
 
       expect(result.kind).toBe("generated");
       const prompt = t.backend.impl.runCalls[0]!.prompt;
-      expect(prompt).toContain(JSON.stringify(answerJsonSchema("compliance-review"), null, 2));
+      expect(prompt).toContain(
+        JSON.stringify(answerJsonSchema("compliance-review-answer"), null, 2),
+      );
       expect(t.warnings).toHaveLength(1);
       expect(t.warnings[0]).toMatch(/^compliance-review answer refused — .*unmetPromises/);
       expect(t.warnings[0]).toContain(

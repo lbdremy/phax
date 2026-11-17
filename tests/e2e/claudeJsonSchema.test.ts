@@ -62,8 +62,8 @@ const CALL_OF: Readonly<Record<AnswerFormatId, StructuredCallId>> = {
   "plan-hand-decision-answer": "decide-handback",
   "first-reading": "first-turn",
   "interactive-handoff": "closing-turn",
-  "code-review": "code-review",
-  "compliance-review": "compliance-review",
+  "code-review-answer": "code-review",
+  "compliance-review-answer": "compliance-review",
   "phax-plan-extraction": "plan-extraction",
 };
 

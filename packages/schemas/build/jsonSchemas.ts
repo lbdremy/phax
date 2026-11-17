@@ -49,6 +49,8 @@ import {
 } from "../src/formats/commandAnswers.js";
 import { briefReportFormat, gateReportFormat } from "../src/formats/reports.js";
 import {
+  codeReviewAnswerFormat,
+  complianceReviewAnswerFormat,
   decideVerdictsFormat,
   handDecisionAnswerFormat,
   phaxPlanExtractionFormat,
@@ -123,6 +125,8 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "review-record-manifest": reviewRecordManifestFormat,
   "revision-record-manifest": revisionRecordManifestFormat,
   "code-review": codeReviewFormat,
+  "code-review-answer": codeReviewAnswerFormat,
+  "compliance-review-answer": complianceReviewAnswerFormat,
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
@@ -171,6 +175,8 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "review-record-manifest": "error",
   "revision-record-manifest": "error",
   "code-review": "error",
+  "code-review-answer": "error",
+  "compliance-review-answer": "error",
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",

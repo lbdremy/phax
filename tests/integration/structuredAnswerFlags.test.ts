@@ -922,14 +922,14 @@ const DRIVERS: readonly CallDriver[] = [
   },
   {
     call: "code-review",
-    format: "code-review",
+    format: "code-review-answer",
     providers: ["claude-code", "codex-cli"],
     retries: true,
     drive: (provider, table) => driveCodeReview(provider, table),
   },
   {
     call: "compliance-review",
-    format: "compliance-review",
+    format: "compliance-review-answer",
     providers: ["claude-code", "codex-cli"],
     retries: true,
     drive: (provider, table) => driveComplianceReview(provider, table),
@@ -1066,7 +1066,7 @@ describe("ac-vibe: the compliance review on Mistral Vibe", () => {
 
     const first = backend.impl.runCalls[0]!;
     const resume = backend.impl.resumeCalls[0]!;
-    expect(first.prompt).toContain(statedSchema("compliance-review"));
+    expect(first.prompt).toContain(statedSchema("compliance-review-answer"));
     for (const [prompt, options, resumeId] of [
       [first.prompt, first.options, undefined],
       [resume.prompt, resume.options, "vibe-session"],

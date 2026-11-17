@@ -278,7 +278,7 @@ const BRIEF_REPORT = JSON.stringify({
 });
 
 const COMPLIANCE_VERDICT = JSON.stringify({
-  $schema: schemaUrl("compliance-review", CURRENT_STAMPS["compliance-review"]),
+  $schema: schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
   verdict: "conformant",
   summary: "The run delivers the plan.",
   perPhase: [{ phaseId: "phase-01", verdict: "conformant", findings: [] }],
@@ -289,7 +289,7 @@ const COMPLIANCE_VERDICT = JSON.stringify({
 });
 
 const CODE_REVIEW_ANSWER = JSON.stringify({
-  $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
+  $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
   findings: [
     {
       severity: "concern",
@@ -877,6 +877,11 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "hand-decision-answer",
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
+  // phax never writes a review session's answer as a file: it is the session's
+  // final message, from which phax writes code-review.json and
+  // compliance-review.json at their own formats.
+  "code-review-answer",
+  "compliance-review-answer",
   // phax wrote an oracle request until 0.32.0 and writes the acceptance
   // request since: oracle-request is frozen at 0.26.0 and read only.
   "oracle-request",

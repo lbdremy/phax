@@ -4,7 +4,8 @@ import { codeReviewFileText, readCodeReviewAnswer } from "../../../src/schemas/c
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
-const STAMP = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
+const FILE_STAMP = schemaUrl("code-review", CURRENT_STAMPS["code-review"]);
+const STAMP = schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]);
 
 const finding = {
   severity: "bug",
@@ -30,7 +31,7 @@ describe("the code-review answer contract", () => {
     const review = accept(answer([finding]));
     const file = JSON.parse(codeReviewFileText(review)) as Record<string, unknown>;
     expect(Object.keys(file)).toEqual(["$schema", "findings"]);
-    expect(file["$schema"]).toBe(STAMP);
+    expect(file["$schema"]).toBe(FILE_STAMP);
     expect(file["findings"]).toEqual([finding]);
     expect(file).not.toHaveProperty("version");
   });
@@ -67,6 +68,11 @@ describe("the code-review answer contract", () => {
     ["an unknown lens", answer([{ ...finding, lens: "security" }]), ["lens", "security"]],
     ["a missing suggestion", answer([without("suggestion")]), ["suggestion"]],
     ["an extra finding key", answer([{ ...finding, confidence: 0.9 }]), ["confidence"]],
+    [
+      "a finding carrying an id",
+      answer([{ id: "F1", ...finding }]),
+      ["findings[0].id", "unexpected"],
+    ],
     ["an unknown severity", answer([{ ...finding, severity: "critical" }]), []],
     ["an unknown escape", answer([{ ...finding, escape: "flaky" }]), []],
     ["no $schema", { findings: [] }, ["$schema"]],

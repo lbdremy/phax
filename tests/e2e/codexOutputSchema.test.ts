@@ -53,8 +53,8 @@ const FORMATS = [
   "plan-document",
   "spec-hand-decision-answer",
   "plan-hand-decision-answer",
-  "code-review",
-  "compliance-review",
+  "code-review-answer",
+  "compliance-review-answer",
 ] as const satisfies readonly AnswerFormatId[];
 
 const CALL_OF: Readonly<Record<(typeof FORMATS)[number], StructuredCallId>> = {
@@ -62,8 +62,8 @@ const CALL_OF: Readonly<Record<(typeof FORMATS)[number], StructuredCallId>> = {
   "plan-document": "authoring",
   "spec-hand-decision-answer": "decide-handback",
   "plan-hand-decision-answer": "decide-handback",
-  "code-review": "code-review",
-  "compliance-review": "compliance-review",
+  "code-review-answer": "code-review",
+  "compliance-review-answer": "compliance-review",
 };
 
 const askFor = (answer: unknown): string =>

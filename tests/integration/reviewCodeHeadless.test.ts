@@ -94,7 +94,10 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const answerOf = (...findings: unknown[]) =>
-  JSON.stringify({ $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]), findings });
+  JSON.stringify({
+    $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
+    findings,
+  });
 
 const CLAUDE_STREAM = [
   JSON.stringify({ type: "system", subtype: "init", session_id: "session-a" }),
@@ -214,6 +217,23 @@ describe("reviewCodeHeadless", () => {
       expect(t.fs.impl.getFile(sessionPath)).toBe("previous session");
     },
   );
+
+  it("refuses an answer whose finding carries an id, naming findings[0].id, and writes no code-review.json", async () => {
+    const t = setup();
+    const withId = answerOf(finding({ id: "F1" }));
+    t.session("session-a", withId);
+    t.retry("session-a", withId);
+
+    const result = await t.review();
+
+    expect(result.kind).toBe("failed");
+    if (result.kind !== "failed") return;
+    expect(result.reason).toMatch(/^code-review answer rejected twice — first answer: /);
+    expect(result.reason).toContain("findings[0].id");
+    expect(result.reason).toContain("unexpected");
+    expect(t.backend.impl.resumeCalls).toHaveLength(1);
+    expect(t.fs.impl.getFile(reviewPath)).toBeUndefined();
+  });
 
   it("resumes the first session once when its answer is refused, and keeps the retry's", async () => {
     const t = setup();

@@ -1,6 +1,8 @@
 // The `compliance-review` document: `<run folder>/compliance-review.json`, the
-// compliance review of a run. Since 0.32.0 it is a strict answer: the review
-// session's answer and the file are one shape, `$schema` const first, then the
+// compliance review of a run, and the `compliance-review-answer` the review
+// session gives. Two formats with one shape for now (spec finding-ids-and-fates
+// §5.3): the file gains finding ids in the next phase, the answer never carries
+// one. Both strict, `$schema` const first, then the
 // verdict, the summary, one verdict per phase, the two ledgers, the attention
 // points and the pointers. The 0.17.0 shape (no ledgers) and the pre-schema one
 // stay readable through src/schemas/history/compliance-review/.
@@ -86,9 +88,8 @@ export type ComplianceReview = Types.Simplify<Schema.Struct.Type<typeof complian
 export type AnyShapeComplianceReview = Omit<ComplianceReview, "unplannedChanges" | "unmetPromises">;
 
 /**
- * A `compliance-review` document, which is also the answer the review session
- * gives: `$schema` first, then the review. Every key is required; any other
- * key is refused, at any level.
+ * A `compliance-review` document: `$schema` first, then the review. Every key
+ * is required; any other key is refused, at any level.
  */
 export const ComplianceReviewFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("compliance-review"),
@@ -102,16 +103,31 @@ export const decodeComplianceReviewFile = Schema.decodeUnknownResult(ComplianceR
   reportInput: true,
 });
 
-const decodeComplianceReviewAnswerAll = Schema.decodeUnknownResult(ComplianceReviewFileSchema, {
-  errors: "all",
-  onExcessProperty: "error",
-  reportInput: true,
+/**
+ * The answer the review session gives: `$schema` first, then the review.
+ * Every key is required; any other key, an `id` on a finding included, is
+ * refused, at any level.
+ */
+export const ComplianceReviewAnswerSchema = Schema.Struct({
+  $schema: answerSchemaUrlField("compliance-review-answer"),
+  ...complianceReviewFields,
 });
+
+export type ComplianceReviewAnswer = Schema.Schema.Type<typeof ComplianceReviewAnswerSchema>;
+
+export const decodeComplianceReviewAnswer = Schema.decodeUnknownResult(
+  ComplianceReviewAnswerSchema,
+  {
+    errors: "all",
+    onExcessProperty: "error",
+    reportInput: true,
+  },
+);
 
 export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFileSchema);
 
 /**
- * Reads the session's parsed answer, which is the file's own shape: one that
+ * Reads the session's parsed answer, a `compliance-review-answer`: one that
  * does not meet it is a Left with the refusal text (every root-level issue,
  * `$schema` first, joined by `; `; else the first violation); otherwise the
  * review, without `$schema`. Reading the final text as JSON is the caller's.
@@ -119,7 +135,7 @@ export const encodeComplianceReviewFile = Schema.encodeSync(ComplianceReviewFile
 export function readComplianceReviewAnswer(
   parsed: unknown,
 ): Result.Result<ComplianceReview, string> {
-  const decoded = decodeComplianceReviewAnswerAll(parsed);
+  const decoded = decodeComplianceReviewAnswer(parsed);
   if (Result.isFailure(decoded))
     return Result.fail(formatAnswerViolations(parsed, decoded.failure));
   const { $schema: _schema, ...review } = decoded.success;

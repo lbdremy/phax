@@ -242,7 +242,10 @@ export function reviewCompliance(
       // The review answers and never writes: its reading tools and the
       // read-only git above, whatever the policy allows.
       readOnly: true,
-      answerSchema: { call: "compliance-review", schema: answerJsonSchema("compliance-review") },
+      answerSchema: {
+        call: "compliance-review",
+        schema: answerJsonSchema("compliance-review-answer"),
+      },
     } as const;
     const costOf = (streamPath: string) =>
       ({

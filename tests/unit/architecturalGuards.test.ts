@@ -1005,6 +1005,8 @@ const BRIDGE_ONLY_DECODERS: { readonly [F in FormatId]: ReadonlyArray<string> } 
   "revision-record-manifest": ["decodeRevisionRecordManifestFile", "decodeRecordManifestFile"],
   "cost-ledger": ["decodeCostLedgerFile"],
   "code-review": ["decodeCodeReviewFile"],
+  "code-review-answer": ["decodeCodeReviewAnswer"],
+  "compliance-review-answer": ["decodeComplianceReviewAnswer"],
   "architecture-request": ["decodeArchitectureRequestFile"],
   // Retired: its one shape is the frozen 0.26.0 module, which phax decodes nowhere.
   "oracle-request": ["decodeOracleRequestV0_26_0"],

@@ -30,8 +30,15 @@ import {
   type PhaseBriefRequest,
 } from "../../../src/schemas/brief.js";
 import { BriefReportFileSchema, type BriefReport } from "../../../src/schemas/briefReport.js";
-import { CodeReviewFileSchema, type CodeReview } from "../../../src/schemas/codeReview.js";
-import { ComplianceReviewFileSchema } from "../../../src/schemas/complianceReview.js";
+import {
+  CodeReviewAnswerSchema,
+  CodeReviewFileSchema,
+  type CodeReview,
+} from "../../../src/schemas/codeReview.js";
+import {
+  ComplianceReviewAnswerSchema,
+  ComplianceReviewFileSchema,
+} from "../../../src/schemas/complianceReview.js";
 import { CostLedgerFileSchema, type CostLedger } from "../../../src/schemas/costLedger.js";
 import {
   DecisionRecordManifestFileSchema,
@@ -1139,6 +1146,22 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "cost-ledger": encoded(CostLedgerFileSchema, withSchemaUrl("cost-ledger", costLedger)),
   "code-review": encoded(CodeReviewFileSchema, withSchemaUrl("code-review", codeReview)),
+  "code-review-answer": encoded(
+    CodeReviewAnswerSchema,
+    withSchemaUrl("code-review-answer", codeReview),
+  ),
+  "compliance-review-answer": encoded(
+    ComplianceReviewAnswerSchema,
+    withSchemaUrl("compliance-review-answer", {
+      ...stepped(complianceReview),
+      unplannedChanges: [
+        { phaseId: "phase-01", path: "README.md", note: "The plan did not list it" },
+      ],
+      unmetPromises: [
+        { phaseId: "phase-01", promise: "A test for the example", note: "No such test exists" },
+      ],
+    }),
+  ),
   "phax-plan-extraction": encoded(
     PlanExtractionAnswerSchema,
     withSchemaUrl("phax-plan-extraction", {

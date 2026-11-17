@@ -6,6 +6,8 @@ import {
 } from "../../../src/domain/review/compliancePrompt.js";
 import { CODE_REVIEW_AGENT_COMMANDS } from "../../../src/domain/security/agentCommands.js";
 import { answerJsonSchema } from "../../../src/schemas/answerSchemas.js";
+import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
+import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 
 const baseInput = {
   planMd: "# My Plan\n\nPhase 01 details here.",
@@ -113,8 +115,10 @@ describe("buildCompliancePrompt", () => {
 
   it("states the published answer schema in full, as the answer to give", () => {
     const prompt = buildCompliancePrompt(baseInput);
-    expect(prompt).toContain(JSON.stringify(answerJsonSchema("compliance-review"), null, 2));
-    expect(prompt).toContain("https://docs.phax.run/schemas/compliance-review/0.32.0.json");
+    expect(prompt).toContain(JSON.stringify(answerJsonSchema("compliance-review-answer"), null, 2));
+    expect(prompt).toContain(
+      schemaUrl("compliance-review-answer", CURRENT_STAMPS["compliance-review-answer"]),
+    );
     expect(prompt).toContain("Your final message is your answer: one JSON object alone");
     expect(prompt).not.toContain('"version"');
   });

@@ -20,7 +20,7 @@ const finding = (overrides: Record<string, unknown> = {}) => ({
 
 const refusal = (overrides: Record<string, unknown>) => {
   const read = readCodeReviewAnswer({
-    $schema: schemaUrl("code-review", CURRENT_STAMPS["code-review"]),
+    $schema: schemaUrl("code-review-answer", CURRENT_STAMPS["code-review-answer"]),
     findings: [finding(overrides)],
   });
   return Result.isFailure(read) ? read.failure : undefined;

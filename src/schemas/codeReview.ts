@@ -1,8 +1,10 @@
 // The `code-review` document: `<run folder>/code-review.json`, the findings of
-// the headless code review of spec headless-code-review. The session answers
-// this very shape, `{ $schema, findings }`, as its final message (a strict
-// answer since 0.32.0: the `$schema` const and `strictString`'s pattern), and
-// phax persists the findings as they came. Born with `$schema`. The closed
+// the headless code review of spec headless-code-review, and the
+// `code-review-answer` the session gives as its final message. The two are
+// formats of their own with the same shape for now (spec finding-ids-and-fates
+// §5.2): the file gains finding ids in the next phase, the answer never carries
+// one. Both are strict (the `$schema` const and `strictString`'s pattern). Born
+// with `$schema`. The closed
 // severity, lens and escape ids are the ones the bundled `phax-review` skill
 // lists; a test keeps the two equal.
 import { Result, Schema } from "effect";
@@ -90,9 +92,8 @@ export interface CodeReview {
 }
 
 /**
- * A `code-review` document, which is also the answer the review session gives:
- * `$schema` first, then the findings. Every key is required; any other key is
- * refused, at any level.
+ * A `code-review` document: `$schema` first, then the findings. Every key is
+ * required; any other key is refused, at any level.
  */
 export const CodeReviewFileSchema = Schema.Struct({
   $schema: answerSchemaUrlField("code-review"),
@@ -106,7 +107,19 @@ export const decodeCodeReviewFile = Schema.decodeUnknownResult(CodeReviewFileSch
   reportInput: true,
 });
 
-const decodeCodeReviewAnswerAll = Schema.decodeUnknownResult(CodeReviewFileSchema, {
+/**
+ * The answer the review session gives: `$schema` first, then the findings.
+ * Every key is required; any other key, an `id` on a finding included, is
+ * refused, at any level.
+ */
+export const CodeReviewAnswerSchema = Schema.Struct({
+  $schema: answerSchemaUrlField("code-review-answer"),
+  findings: Schema.Array(CodeReviewFindingSchema),
+});
+
+export type CodeReviewAnswer = Schema.Schema.Type<typeof CodeReviewAnswerSchema>;
+
+export const decodeCodeReviewAnswer = Schema.decodeUnknownResult(CodeReviewAnswerSchema, {
   errors: "all",
   onExcessProperty: "error",
   reportInput: true,
@@ -115,13 +128,13 @@ const decodeCodeReviewAnswerAll = Schema.decodeUnknownResult(CodeReviewFileSchem
 export const encodeCodeReviewFile = Schema.encodeSync(CodeReviewFileSchema);
 
 /**
- * Reads the session's parsed answer, which is the file's own shape: one that
+ * Reads the session's parsed answer, a `code-review-answer`: one that
  * does not meet it is a Left with the refusal text (every root-level issue,
  * `$schema` first, joined by `; `; else the first violation); otherwise the
  * findings, without `$schema`. Reading the final text as JSON is the caller's.
  */
 export function readCodeReviewAnswer(parsed: unknown): Result.Result<CodeReview, string> {
-  const decoded = decodeCodeReviewAnswerAll(parsed);
+  const decoded = decodeCodeReviewAnswer(parsed);
   if (Result.isFailure(decoded))
     return Result.fail(formatAnswerViolations(parsed, decoded.failure));
   return Result.succeed({ findings: decoded.success.findings });

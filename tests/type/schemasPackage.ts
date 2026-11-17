@@ -80,6 +80,16 @@ import type {
   CostLedgerV0_25_0,
   CostLedgerV0_26_0,
   CodeReview,
+  CodeReviewAnswer,
+  CodeReviewAnswerShape,
+  ComplianceReviewAnswer,
+  ComplianceReviewAnswerShape,
+  LatestCodeReviewAnswer,
+  LatestComplianceReviewAnswer,
+  parseCodeReviewAnswer,
+  parseComplianceReviewAnswer,
+  toLatestCodeReviewAnswer,
+  toLatestComplianceReviewAnswer,
   CodeReviewShape,
   LatestCodeReview,
   parseCodeReview,
@@ -290,6 +300,7 @@ import type {
 } from "../../src/schemas/authoringRecord.js";
 import type {
   ComplianceReview as PhaxComplianceReview,
+  ComplianceReviewAnswer as PhaxComplianceReviewAnswer,
   ComplianceReviewFile as PhaxComplianceReviewFile,
 } from "../../src/schemas/complianceReview.js";
 import type {
@@ -338,6 +349,7 @@ import type {
 } from "../../src/schemas/runList.js";
 import type {
   CodeReview as PhaxCodeReview,
+  CodeReviewAnswer as PhaxCodeReviewAnswer,
   CodeReviewFile as PhaxCodeReviewFile,
 } from "../../src/schemas/codeReview.js";
 import type {
@@ -680,6 +692,8 @@ const formats: Equals<
   | "revision-record-manifest"
   | "cost-ledger"
   | "code-review"
+  | "code-review-answer"
+  | "compliance-review-answer"
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
@@ -786,6 +800,8 @@ const shapeIds: Equals<
   | RevisionRecordManifestShape
   | CostLedgerShape
   | CodeReviewShape
+  | CodeReviewAnswerShape
+  | ComplianceReviewAnswerShape
   | ArchitectureRequestShape
   | ArchitectureReportShape
   | AcceptanceRequestShape
@@ -1428,6 +1444,25 @@ if (document.ok && document.format === "code-review") {
   const exact: Equals<typeof document.value, FrozenCodeReviewV0_29_0 | PhaxCodeReviewFile> = true;
   void exact;
 }
+// The code review and compliance review answers are born at the opened release
+// with $schema: phax's own answer types, one current shape each, in-memory
+// values without $schema
+const reviewAnswerTypes: [
+  Equals<CodeReviewAnswer, PhaxCodeReviewAnswer>,
+  Equals<CodeReviewAnswerShape, Current<"code-review-answer">>,
+  Equals<Value<typeof parseCodeReviewAnswer>, PhaxCodeReviewAnswer>,
+  Equals<LatestCodeReviewAnswer, PhaxCodeReview>,
+  Equals<Parameters<typeof toLatestCodeReviewAnswer>, [value: PhaxCodeReviewAnswer]>,
+  Equals<ComplianceReviewAnswer, PhaxComplianceReviewAnswer>,
+  Equals<ComplianceReviewAnswerShape, Current<"compliance-review-answer">>,
+  Equals<Value<typeof parseComplianceReviewAnswer>, PhaxComplianceReviewAnswer>,
+  Equals<LatestComplianceReviewAnswer, PhaxComplianceReview>,
+  Equals<Parameters<typeof toLatestComplianceReviewAnswer>, [value: PhaxComplianceReviewAnswer]>,
+] = [true, true, true, true, true, true, true, true, true, true];
+void reviewAnswerTypes;
+declare const latestCodeReviewAnswer: LatestCodeReviewAnswer;
+// @ts-expect-error: the in-memory code review answer carries no $schema
+void latestCodeReviewAnswer.$schema;
 // The plan extraction answer is born at 0.32.0 with $schema: phax's own file
 // type, one current shape, and an in-memory value without $schema
 const planExtractionTypes: [
