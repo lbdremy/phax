@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RECORDS_BRANCH_NAME } from "../../src/app/recordPlumbing.js";
 import { reviewCodeAndRecord } from "../../src/app/reviewCode.js";
 import { reviewEntryNotice, reviewEntryWarnings } from "../../src/app/reviewEntry.js";
+import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import type { BranchName, ClaudeSessionId } from "../../src/domain/branded.js";
 import type { RoutingResolution } from "../../src/domain/routing/types.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
@@ -140,7 +141,11 @@ describe("code review entry (real git)", () => {
     return reviewAnswering([message], records);
   }
 
-  function reviewAnswering(messages: readonly string[], records: ResolvedRecordsConfig = RECORDS) {
+  function reviewAnswering(
+    messages: readonly string[],
+    records: ResolvedRecordsConfig = RECORDS,
+    warnings: string[] = [],
+  ) {
     const backend = makeFakeBackend();
     backend.impl.addRunResponse({
       sessionId: `session-${messages.join("-")}` as ClaudeSessionId,
@@ -164,11 +169,73 @@ describe("code review entry (real git)", () => {
         {
           bundledReviewSkill: "# phax review\n",
           nowIso: "2026-10-27T12:30:00.000Z",
-          output: { log() {}, warn() {}, error() {} },
+          output: { log() {}, warn: (m: string) => void warnings.push(m), error() {} },
         },
       ).pipe(Effect.provide(layers)),
     );
   }
+
+  async function idsOfRunFile(): Promise<readonly string[]> {
+    const file = JSON.parse(await readFile(join(runPath, "code-review.json"), "utf8")) as {
+      findings: ReadonlyArray<{ id: string }>;
+    };
+    return file.findings.map((f) => f.id);
+  }
+
+  // AC-rereview-continues (numbering): an empty review between two does not
+  // restart the numbering, though the run folder held it when the third began.
+  it("continues the numbering across a review with no finding", async () => {
+    await reviewAnswering(["one", "two", "three"]);
+    await reviewAnswering([]);
+    expect(await idsOfRunFile()).toEqual([]);
+    await reviewAnswering(["four", "five"]);
+    expect(await idsOfRunFile()).toEqual(["F4", "F5"]);
+  });
+
+  it("numbers after an older, id-less review held on the records branch", async () => {
+    const older = {
+      $schema: schemaUrl("code-review", "0.32.0"),
+      findings: [1, 2, 3].map((n) => ({
+        severity: "concern",
+        file: "src/example.ts",
+        line: n,
+        message: `older ${n}`,
+        lens: "core",
+        escape: "omission",
+        criterion: null,
+        suggestion: "Cover it with a test.",
+      })),
+    };
+    const olderRun = mkdtempSync(join(tmpdir(), "phax-code-review-older-"));
+    try {
+      await writeFile(join(olderRun, "code-review.json"), JSON.stringify(older));
+      await Effect.runPromise(
+        writeReviewRecord({
+          repoRoot: repoDir,
+          records: RECORDS,
+          publishRemote: "origin",
+          runId: RUN_ID,
+          runPath: olderRun,
+          review: "code-review",
+        }).pipe(
+          Effect.provide(Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer)),
+        ),
+      );
+    } finally {
+      removeTempDir(olderRun);
+    }
+    await reviewAnswering(["next"]);
+    expect(await idsOfRunFile()).toEqual(["F4"]);
+  });
+
+  it("with records off, numbers after the run folder's file and warns that records are off", async () => {
+    const off = { ...RECORDS, enabled: false };
+    const warnings: string[] = [];
+    await reviewAnswering(["one", "two"], off, warnings);
+    await reviewAnswering(["three"], off, warnings);
+    expect(await idsOfRunFile()).toEqual(["F3"]);
+    expect(warnings.some((w) => w.includes("records are off"))).toBe(true);
+  });
 
   it("commits the run's code-review.json byte for byte under the run's code-review key", async () => {
     const outcome = await review("first");
@@ -283,7 +350,9 @@ describe("code review entry (real git)", () => {
     const restarted = JSON.parse(await readFile(join(runPath, "code-review.json"), "utf8")) as {
       findings: ReadonlyArray<{ id: string }>;
     };
-    expect(restarted.findings.map((f) => f.id)).toEqual(["F1"]);
+    // The damaged run folder file is skipped; the readable review recorded
+    // before it (F3) still sets the numbering.
+    expect(restarted.findings.map((f) => f.id)).toEqual(["F4"]);
   });
 
   it("replaces the entry on a second review and keeps the first in the branch's history", async () => {

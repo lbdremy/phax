@@ -426,6 +426,8 @@ describe("compliance review entry by hand (real git)", () => {
       readonly target?: ReviewRecordTarget | ReviewRecordUnresolved;
       /** Replaces the answer's `perPhase`. */
       readonly perPhase?: readonly unknown[];
+      /** Collects the review's warnings. */
+      readonly warnings?: string[];
     } = {},
   ) {
     const runInfo = opts.runInfo ?? info();
@@ -469,10 +471,41 @@ describe("compliance review entry by hand (real git)", () => {
           publishRemote: "origin",
           push: { publishRemote: "origin" },
         },
-        { output: { log() {}, warn() {}, error() {} } },
+        {
+          output: {
+            log() {},
+            warn: (m: string) => void opts.warnings?.push(m),
+            error() {},
+          },
+        },
       ).pipe(Effect.provide(layers)),
     );
   }
+
+  it("with records off, a second review continues after the run folder's C ids and warns that records are off", async () => {
+    const warnings: string[] = [];
+    const target: ReviewRecordTarget = {
+      kind: "project",
+      records: { ...RECORDS, enabled: false },
+      repoRoot: repoDir,
+      publishRemote: "origin",
+      push: null,
+    };
+    const perPhase = [
+      {
+        phaseId: "phase-01",
+        verdict: "conformant-with-deviations",
+        findings: [{ dimension: "files", severity: "deviation", message: "a" }],
+      },
+    ];
+    await review("first", { target, perPhase, warnings });
+    await review("second", { target, perPhase, warnings });
+    const file = JSON.parse(await readFile(join(runPath, "compliance-review.json"), "utf8")) as {
+      perPhase: ReadonlyArray<{ findings: ReadonlyArray<{ id: string }> }>;
+    };
+    expect(file.perPhase.flatMap((p) => p.findings.map((f) => f.id))).toEqual(["C2"]);
+    expect(warnings.some((w) => w.includes("records are off"))).toBe(true);
+  });
 
   // AC-compliance-ids: phax gives each finding its C<n> id across perPhase in
   // document order; the session never writes one, and the numbering continues.

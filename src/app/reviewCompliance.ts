@@ -32,12 +32,8 @@ import {
   type ComplianceReview,
   type PersistedComplianceReview,
 } from "../schemas/complianceReview.js";
-import {
-  assignComplianceReviewIds,
-  numberRunFindings,
-  type RunReview,
-} from "../domain/findings/runFindings.js";
-import { readComplianceReviewFile } from "../schemas/persisted.js";
+import { assignComplianceReviewIds, numberRunFindings } from "../domain/findings/runFindings.js";
+import { readRunReviews, reviewSourceOf, runReviewWarnings } from "./runReviews.js";
 import { Backend, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
@@ -433,51 +429,6 @@ export function reviewCompliance(
   );
 }
 
-/**
- * The highest C number the run's compliance-review.json holds, read before a
- * new review replaces it: 0 for a missing file. An unreadable file counts 0,
- * with a warning that names it. A file without ids counts the ids its position
- * would lift to.
- */
-function highestComplianceFindingNumber(
-  info: RunReviewInfo,
-  output: OutputPort,
-): Effect.Effect<number, never, FileSystem> {
-  const path = join(info.runPath, COMPLIANCE_REVIEW_JSON_FILENAME);
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    if (!(yield* fs.exists(path))) return 0;
-    const text = yield* fs.readText(path);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      output.warn(
-        `${path} is not JSON (${String(error)}); numbering the new review's findings from C1`,
-      );
-      return 0;
-    }
-    const read = readComplianceReviewFile(path, parsed);
-    if (Result.isFailure(read)) {
-      output.warn(`${read.failure.message}; numbering the new review's findings from C1`);
-      return 0;
-    }
-    const reviews: readonly RunReview[] = [
-      read.success.shape === "current"
-        ? { source: "compliance-review", ids: "persisted", review: read.success.review }
-        : { source: "compliance-review", ids: "absent", review: read.success.review },
-    ];
-    return numberRunFindings(reviews).highest.C;
-  }).pipe(
-    Effect.catch((error) => {
-      output.warn(
-        `could not read ${path}: ${error.message}; numbering the new review's findings from C1`,
-      );
-      return Effect.succeed(0);
-    }),
-  );
-}
-
 export interface ComplianceReviewRecordOutcome extends ReviewEntryOutcome {
   readonly review: ComplianceReviewResult;
 }
@@ -501,7 +452,13 @@ export function reviewComplianceAndRecord(
   Backend | FileSystem | SystemTelemetry | Git | GitHub
 > {
   return Effect.gen(function* () {
-    const findingsAfter = yield* highestComplianceFindingNumber(info, opts.output);
+    const earlier = yield* readRunReviews({
+      runId: info.runId,
+      runFolder: info.runPath,
+      source: reviewSourceOf(target),
+    });
+    for (const line of runReviewWarnings(earlier)) opts.output.warn(line);
+    const findingsAfter = numberRunFindings(earlier.reviews.map((r) => r.review)).highest.C;
     const review = yield* reviewCompliance(info, config, resolution, security, {
       ...opts,
       findingsAfter,

@@ -27,11 +27,8 @@ import {
   type CodeReview,
   type PersistedCodeReview,
 } from "../schemas/codeReview.js";
-import {
-  assignCodeReviewIds,
-  numberRunFindings,
-  type RunReview,
-} from "../domain/findings/runFindings.js";
+import { assignCodeReviewIds, numberRunFindings } from "../domain/findings/runFindings.js";
+import { readComplianceReviewFile } from "../schemas/persisted.js";
 import {
   CODE_REVIEW_RETRY_STREAM_FILENAME,
   codeReviewRefusedTwiceMessage,
@@ -57,7 +54,7 @@ import {
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
 import { answerJsonSchema } from "../schemas/answerSchemas.js";
-import { readCodeReviewFile, readComplianceReviewFile } from "../schemas/persisted.js";
+import { readRunReviews, reviewSourceOf, runReviewWarnings } from "./runReviews.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
@@ -681,52 +678,6 @@ export function reviewCodeHeadless(
   );
 }
 
-/**
- * The highest F number the run's code-review.json holds, read before a new
- * review replaces it: 0 for a missing file. An unreadable file counts 0, with
- * a warning that names it. A file without ids counts the ids its position
- * would lift to.
- */
-function highestCodeFindingNumber(
-  info: RunReviewInfo,
-  output: OutputPort,
-): Effect.Effect<number, never, FileSystem> {
-  const path = join(info.runPath, CODE_REVIEW_JSON_FILENAME);
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    if (!(yield* fs.exists(path))) return 0;
-    const text = yield* fs.readText(path);
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(text);
-    } catch (error) {
-      output.warn(
-        `${path} is not JSON (${String(error)}); numbering the new review's findings from F1`,
-      );
-      return 0;
-    }
-    const read = readCodeReviewFile(path, parsed);
-    if (Result.isFailure(read)) {
-      output.warn(`${read.failure.message}; numbering the new review's findings from F1`);
-      return 0;
-    }
-    const { shape, review } = read.success;
-    const reviews: readonly RunReview[] = [
-      shape === "current"
-        ? { source: "code-review", ids: "persisted", review }
-        : { source: "code-review", ids: "absent", review },
-    ];
-    return numberRunFindings(reviews).highest.F;
-  }).pipe(
-    Effect.catch((error) => {
-      output.warn(
-        `could not read ${path}: ${error.message}; numbering the new review's findings from F1`,
-      );
-      return Effect.succeed(0);
-    }),
-  );
-}
-
 export type CodeReviewRecordOutcome = {
   readonly review: HeadlessCodeReviewResult;
 } & ReviewEntryOutcome;
@@ -754,7 +705,13 @@ export function reviewCodeAndRecord(
   Backend | FileSystem | SystemTelemetry | Git | GitHub
 > {
   return Effect.gen(function* () {
-    const findingsAfter = yield* highestCodeFindingNumber(info, opts.output);
+    const earlier = yield* readRunReviews({
+      runId: info.runId,
+      runFolder: info.runPath,
+      source: reviewSourceOf(target),
+    });
+    for (const line of runReviewWarnings(earlier)) opts.output.warn(line);
+    const findingsAfter = numberRunFindings(earlier.reviews.map((r) => r.review)).highest.F;
     const review = yield* reviewCodeHeadless(info, config, resolution, security, {
       ...opts,
       findingsAfter,
