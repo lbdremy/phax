@@ -38,6 +38,7 @@ import {
   PlanApprovalsSchema,
   PlanDocumentSchema,
   PlanHandDecisionAnswerSchema,
+  FindingListSchema,
   PlanLintSchema,
   PlanOverviewSchema,
   RegistrySchema,
@@ -82,6 +83,7 @@ import {
   parsePlanApprovals,
   parsePlanDocument,
   parsePlanHandDecisionAnswer,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   parseRegistry,
@@ -1197,6 +1199,12 @@ export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readon
     phax: null,
     writeOnly: "`phax plans lint --json` prints it; phax never saves or reads one",
     parse: fromPackage(parsePlanLint),
+  }),
+  "finding-list": entry("finding-list", {
+    schema: FindingListSchema,
+    phax: null,
+    writeOnly: "`phax finding list --json` prints it; phax never saves or reads one",
+    parse: fromPackage(parseFindingList),
   }),
   "revision-record-manifest": entry("revision-record-manifest", {
     schema: RevisionRecordManifestSchema,

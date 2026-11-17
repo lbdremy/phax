@@ -51,6 +51,7 @@ import {
   parsePlanApprovals,
   parsePlanDocument,
   parsePlanHandDecisionAnswer,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   parseRegistry,
@@ -187,6 +188,7 @@ import {
 } from "../../src/schemas/interactiveSession.js";
 import { decodePhaxPlanFile, encodePhaxPlanFile } from "../../src/schemas/phaxPlan.js";
 import { decodePlanDocumentFile, encodePlanDocumentFile } from "../../src/schemas/planDocument.js";
+import { decodeFindingListFile, encodeFindingListFile } from "../../src/schemas/findingList.js";
 import { decodePlanLintFile, encodePlanLintFile } from "../../src/schemas/planLint.js";
 import { decodePlanOverviewFile, encodePlanOverviewFile } from "../../src/schemas/planOverview.js";
 import {
@@ -453,6 +455,7 @@ const PACKAGE_PARSERS: { readonly [F in FormatId]: PackageParse } = {
   "artifact-status": parseArtifactStatus,
   "plan-overview": parsePlanOverview,
   "plan-lint": parsePlanLint,
+  "finding-list": parseFindingList,
 };
 
 function isFormatId(id: string): id is FormatId {
@@ -624,6 +627,7 @@ const WRITTEN_FORMAT_IDS = [
   "plan-overview",
   "plan-lint",
   "revision-record-manifest",
+  "finding-list",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 type WrittenFormatId = (typeof WRITTEN_FORMAT_IDS)[number];
@@ -715,6 +719,8 @@ const ENCODE_SUBJECTS: { readonly [F in WrittenFormatId]: Subject } = {
   "plan-overview": roundTrip(decodePlanOverviewFile, encodePlanOverviewFile),
   // the plans lint answer: decodePlanLintFile, encodePlanLintFile.
   "plan-lint": roundTrip(decodePlanLintFile, encodePlanLintFile),
+  // the finding list answer: decodeFindingListFile, encodeFindingListFile.
+  "finding-list": roundTrip(decodeFindingListFile, encodeFindingListFile),
 };
 
 function isWrittenFormatId(id: string): id is WrittenFormatId {

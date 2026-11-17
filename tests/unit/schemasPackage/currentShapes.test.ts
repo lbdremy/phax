@@ -22,6 +22,7 @@ import {
   parseArchitectureRequest,
   parseAcceptanceRequest,
   parseArtifactStatus,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   parseFirstReading,
@@ -65,6 +66,7 @@ import {
   toLatestArchitectureRequest,
   toLatestAcceptanceRequest,
   toLatestArtifactStatus,
+  toLatestFindingList,
   toLatestPlanLint,
   toLatestPlanOverview,
   toLatestFirstReading,
@@ -303,6 +305,7 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "artifact-status": latest(parseArtifactStatus, toLatestArtifactStatus),
   "plan-overview": latest(parsePlanOverview, toLatestPlanOverview),
   "plan-lint": latest(parsePlanLint, toLatestPlanLint),
+  "finding-list": latest(parseFindingList, toLatestFindingList),
   "first-reading": latest(parseFirstReading, toLatestFirstReading),
   "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
@@ -371,6 +374,7 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "artifact-status": undefined,
   "plan-overview": undefined,
   "plan-lint": undefined,
+  "finding-list": undefined,
   // phax reads the first reading and the interactive handoff only as a turn's
   // answer, through readFirstReadingAnswer and readInteractiveHandoffAnswer,
   // which name no file.

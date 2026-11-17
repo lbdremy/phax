@@ -50,4 +50,5 @@ export const CURRENT_STAMPS = {
   "revision-record-manifest": "0.38.0",
   "code-review-answer": "0.40.0",
   "compliance-review-answer": "0.40.0",
+  "finding-list": "0.40.0",
 } as const;

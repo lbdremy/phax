@@ -1,0 +1,2178 @@
+{
+  "format": "finding-list",
+  "current": [
+    {
+      "name": "accepts a code-review and a compliance finding",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "run": {
+            "namespace": "garden",
+            "shortName": "garden-sync",
+            "runId": "2611011300-garden-sync",
+            "state": "completed"
+          },
+          "records": "read",
+          "findings": [
+            {
+              "id": "F1",
+              "source": "code-review",
+              "severity": "bug",
+              "file": "src/example.ts",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "lens": "edge",
+              "escape": "unexplored-input",
+              "criterion": "AC-empty-name",
+              "suggestion": "Refuse an empty name.",
+              "fate": "open",
+              "history": []
+            },
+            {
+              "id": "C1",
+              "source": "compliance-review",
+              "severity": "deviation",
+              "phaseId": "phase-02",
+              "dimension": "files",
+              "message": "A planned file was not touched.",
+              "fate": "unrecorded",
+              "history": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a list with no finding and records off",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "off",
+        "findings": []
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "run": {
+            "namespace": "garden",
+            "shortName": "garden-sync",
+            "runId": "2611011300-garden-sync",
+            "state": "completed"
+          },
+          "records": "off",
+          "findings": []
+        }
+      }
+    },
+    {
+      "name": "accepts a code-review finding with a null criterion",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "unavailable",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": null,
+            "suggestion": "Refuse an empty name.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "run": {
+            "namespace": "garden",
+            "shortName": "garden-sync",
+            "runId": "2611011300-garden-sync",
+            "state": "completed"
+          },
+          "records": "unavailable",
+          "findings": [
+            {
+              "id": "F1",
+              "source": "code-review",
+              "severity": "bug",
+              "file": "src/example.ts",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "lens": "edge",
+              "escape": "unexplored-input",
+              "criterion": null,
+              "suggestion": "Refuse an empty name.",
+              "fate": "unrecorded",
+              "history": []
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a document that is not an object",
+      "input": [
+        "not",
+        "an",
+        "object"
+      ],
+      "expected": {
+        "ok": false,
+        "refusal": ": a finding list is a JSON object, got an array"
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: finding list has no $schema — every finding list is written with one"
+      }
+    },
+    {
+      "name": "refuses an unexpected key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ],
+        "extra": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "extra: is unexpected, expected: \"$schema\" | \"run\" | \"records\" | \"findings\""
+      }
+    },
+    {
+      "name": "refuses an unexpected key in a finding",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": [],
+            "extra": 1
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.extra: is unexpected, expected: \"id\" | \"source\" | \"severity\" | \"file\" | \"line\" | \"message\" | \"lens\" | \"escape\" | \"criterion\" | \"suggestion\" | \"fate\" | \"history\""
+      }
+    },
+    {
+      "name": "refuses a fate outside the five",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "wontfix",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.fate: \"wontfix\" is not a finding fate (expected one of open, fixed, dismissed, deferred, unrecorded)"
+      }
+    },
+    {
+      "name": "refuses a code-review finding with a C id",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "C1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: \"C1\" is not a code review finding id (expected F<n>)"
+      }
+    },
+    {
+      "name": "refuses a compliance finding with an F id",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: \"F1\" is not a compliance finding id (expected C<n>)"
+      }
+    },
+    {
+      "name": "refuses a compliance finding with a file",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": [],
+            "file": "src/example.ts"
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.file: is unexpected, expected: \"id\" | \"source\" | \"severity\" | \"phaseId\" | \"dimension\" | \"message\" | \"fate\" | \"history\""
+      }
+    },
+    {
+      "name": "refuses a non-empty history",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": [
+              {
+                "fate": "fixed"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0: is unexpected, expected: never"
+      }
+    },
+    {
+      "name": "refuses records outside read, off and unavailable",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "maybe",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records: Expected \"read\" | \"off\" | \"unavailable\", actual \"maybe\""
+      }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "not a schema url",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a schema url\""
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: finding list has no $schema — every finding list is written with one"
+      }
+    },
+    {
+      "name": "constraint findings required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].criterion pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.criterion: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].criterion required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.criterion: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].dimension enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "bogus",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.1.dimension: Expected \"objective\" | \"excluded-scope\" | \"files\" | \"tests\" | \"boundaries\" | \"commit\" | \"handoff\", actual \"bogus\""
+      }
+    },
+    {
+      "name": "constraint findings[].dimension required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.1.dimension: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].escape enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "bogus",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.escape: \"bogus\" is not an escape (expected one of wrong-oracle, same-author, weakened, fake-drift, unexplored-input, omission, untestable)"
+      }
+    },
+    {
+      "name": "constraint findings[].escape required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.escape: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].fate enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "bogus",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.fate: \"bogus\" is not a finding fate (expected one of open, fixed, dismissed, deferred, unrecorded)"
+      }
+    },
+    {
+      "name": "constraint findings[].fate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.fate: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].file pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.file: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].file required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.file: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open"
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].id pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "X1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: \"X1\" is not a code review finding id (expected F<n>)"
+      }
+    },
+    {
+      "name": "constraint findings[].id required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.id: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].lens enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "bogus",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.lens: \"bogus\" is not a lens (expected one of surface, acceptance, boundary, core, edge, tests, architecture, docs)"
+      }
+    },
+    {
+      "name": "constraint findings[].lens required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.lens: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].line required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.line: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].message pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.message: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].message required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.message: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].phaseId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.1.phaseId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].phaseId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.1.phaseId: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].severity enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bogus",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.severity: \"bogus\" is not a severity (expected one of bug, deviation, concern, info)"
+      }
+    },
+    {
+      "name": "constraint findings[].severity required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.severity: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].source enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "other",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.source: Expected \"code-review\" | \"compliance-review\", actual \"other\""
+      }
+    },
+    {
+      "name": "constraint findings[].source required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.source: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].suggestion pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.suggestion: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].suggestion required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.suggestion: is missing"
+      }
+    },
+    {
+      "name": "constraint records enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "maybe",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records: Expected \"read\" | \"off\" | \"unavailable\", actual \"maybe\""
+      }
+    },
+    {
+      "name": "constraint records required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "records: is missing"
+      }
+    },
+    {
+      "name": "constraint run required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run: is missing"
+      }
+    },
+    {
+      "name": "constraint run.namespace pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.namespace: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint run.namespace required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.namespace: is missing"
+      }
+    },
+    {
+      "name": "constraint run.runId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.runId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint run.runId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.runId: is missing"
+      }
+    },
+    {
+      "name": "constraint run.shortName pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.shortName: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint run.shortName required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.shortName: is missing"
+      }
+    },
+    {
+      "name": "constraint run.state enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "bogus"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.state: Expected \"created\" | \"running\" | \"failed\" | \"review_open\" | \"completed\" | \"stopped\" | \"archived\" | \"interrupted\" | \"rate_limited\" | \"awaiting_review\", actual \"bogus\""
+      }
+    },
+    {
+      "name": "constraint run.state required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "open",
+            "history": []
+          },
+          {
+            "id": "C1",
+            "source": "compliance-review",
+            "severity": "deviation",
+            "phaseId": "phase-02",
+            "dimension": "files",
+            "message": "A planned file was not touched.",
+            "fate": "unrecorded",
+            "history": []
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "run.state: is missing"
+      }
+    }
+  ],
+  "shapes": {}
+}

@@ -6,6 +6,7 @@ import {
   parseArchitectureRequest,
   parseAcceptanceRequest,
   parseArtifactStatus,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   parseFirstReading,
@@ -69,6 +70,7 @@ import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
+import { decodeFindingListFile } from "../../../src/schemas/findingList.js";
 import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
 import { decodeBriefRecordFile, decodeBriefRequestFile } from "../../../src/schemas/brief.js";
@@ -448,6 +450,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodePlanLintFile,
     wrongType: ["findings", {}],
     required: "plan",
+    excess: "error",
+  },
+  "finding-list": {
+    id: "finding-list",
+    parse: parseFindingList,
+    phax: decodeFindingListFile,
+    wrongType: ["findings", {}],
+    required: "run",
     excess: "error",
   },
   "first-reading": {

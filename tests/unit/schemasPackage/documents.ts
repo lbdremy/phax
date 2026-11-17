@@ -131,6 +131,7 @@ import { PlanExtractionAnswerSchema } from "../../../src/schemas/planExtraction.
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
 import { ArtifactStatusFileSchema } from "../../../src/schemas/artifactStatusDocument.js";
+import { FindingListFileSchema } from "../../../src/schemas/findingList.js";
 import { PlanLintFileSchema } from "../../../src/schemas/planLint.js";
 import { PlanOverviewFileSchema } from "../../../src/schemas/planOverview.js";
 import { PhaxPlanFileSchema } from "../../../src/schemas/phaxPlan.js";
@@ -1298,6 +1299,44 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           check: "structure",
           phase: "phase-02",
           message: "phase-02 has no gate",
+        },
+      ],
+    }),
+  ),
+  "finding-list": encoded(
+    FindingListFileSchema,
+    withSchemaUrl("finding-list", {
+      run: {
+        namespace: "garden",
+        shortName: "garden-sync",
+        runId: "2611011300-garden-sync",
+        state: "completed",
+      },
+      records: "read",
+      findings: [
+        {
+          id: "F1",
+          source: "code-review",
+          severity: "bug",
+          file: "src/example.ts",
+          line: 12,
+          message: "An empty name is accepted.",
+          lens: "edge",
+          escape: "unexplored-input",
+          criterion: null,
+          suggestion: "Refuse an empty name.",
+          fate: "open",
+          history: [],
+        },
+        {
+          id: "C1",
+          source: "compliance-review",
+          severity: "deviation",
+          phaseId: "phase-02",
+          dimension: "files",
+          message: "A planned file was not touched.",
+          fate: "unrecorded",
+          history: [],
         },
       ],
     }),

@@ -28,7 +28,8 @@ export const SCHEMA_URL_BASE = "https://docs.phax.run/schemas";
  * Code mod (artifact status, plans overview and plans lint) of spec
  * command-contracts, appended so existing order stays stable; then the
  * answers of the code review and compliance review sessions, of spec
- * finding-ids-and-fates.
+ * finding-ids-and-fates; then the answer of `phax finding list --json`, of the
+ * same spec, never saved.
  */
 export const FORMAT_IDS = [
   "registry",
@@ -75,6 +76,7 @@ export const FORMAT_IDS = [
   "revision-record-manifest",
   "code-review-answer",
   "compliance-review-answer",
+  "finding-list",
 ] as const;
 
 export type FormatId = (typeof FORMAT_IDS)[number];
@@ -114,7 +116,8 @@ export function isFormatId(value: string): value is FormatId {
  * never saves, of spec command-contracts, born at 0.34.0. So is the manifest
  * of a revise writer session's revision record, of spec artifact-revise, born
  * at 0.38.0. So are the answers of the code review and compliance review
- * sessions, of spec finding-ids-and-fates, born at this release.
+ * sessions, and the finding list `phax finding list --json` prints (never
+ * saved), of spec finding-ids-and-fates, born at this release.
  */
 export const SCHEMA_BORN_FORMAT_IDS = [
   "plan-approval-record",
@@ -148,6 +151,7 @@ export const SCHEMA_BORN_FORMAT_IDS = [
   "revision-record-manifest",
   "code-review-answer",
   "compliance-review-answer",
+  "finding-list",
 ] as const satisfies ReadonlyArray<FormatId>;
 
 export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];

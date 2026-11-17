@@ -131,7 +131,8 @@ function schemaPaths(schema: JsonObject): string[] {
       found.add(path);
       for (const subNode of asNodes(sub)) walk(subNode, path, refs);
     }
-    if (node["items"] !== undefined) {
+    // `items: false` (an empty tuple) admits no item: its path is unreachable.
+    if (node["items"] !== undefined && node["items"] !== false) {
       const path = `${prefix}[]`;
       found.add(path);
       for (const subNode of asNodes(node["items"])) walk(subNode, path, refs);
@@ -306,6 +307,7 @@ const WRITTEN_FORMATS = [
   "plan-overview",
   "plan-lint",
   "revision-record-manifest",
+  "finding-list",
 ];
 
 const encodeRoot = `${repoRoot}tests/behaviourCorpus/cases/encode/`;

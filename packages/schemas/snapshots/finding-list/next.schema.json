@@ -1,0 +1,258 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax finding list",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/finding-list\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The finding-list format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/finding-list/<X.Y.Z>.json"
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "shortName": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "runId": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "created",
+            "running",
+            "failed",
+            "review_open",
+            "completed",
+            "stopped",
+            "archived",
+            "interrupted",
+            "rate_limited",
+            "awaiting_review"
+          ]
+        }
+      },
+      "required": [
+        "namespace",
+        "shortName",
+        "runId",
+        "state"
+      ],
+      "additionalProperties": false
+    },
+    "records": {
+      "type": "string",
+      "enum": [
+        "read",
+        "off",
+        "unavailable"
+      ],
+      "description": "read: the records branch was read; off: records are off, the run folder alone was read; unavailable: the records could not be read, the run folder alone was read."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^F[1-9][0-9]*$",
+                "description": "The finding's id in its run: F<n>, n from 1, given by phax."
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "code-review"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "bug",
+                  "deviation",
+                  "concern",
+                  "info"
+                ]
+              },
+              "file": {
+                "$ref": "#/$defs/NonEmptyString_1"
+              },
+              "line": {
+                "type": "integer",
+                "maximum": 9007199254740991,
+                "exclusiveMinimum": 0,
+                "description": "The 1-based line the finding is about."
+              },
+              "message": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "lens": {
+                "type": "string",
+                "enum": [
+                  "surface",
+                  "acceptance",
+                  "boundary",
+                  "core",
+                  "edge",
+                  "tests",
+                  "architecture",
+                  "docs"
+                ]
+              },
+              "escape": {
+                "type": "string",
+                "enum": [
+                  "wrong-oracle",
+                  "same-author",
+                  "weakened",
+                  "fake-drift",
+                  "unexplored-input",
+                  "omission",
+                  "untestable"
+                ]
+              },
+              "criterion": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The acceptance criterion id the finding is about, or null."
+              },
+              "suggestion": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "fate": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "fixed",
+                  "dismissed",
+                  "deferred",
+                  "unrecorded"
+                ],
+                "description": "What became of the finding: open (no fate record), fixed, dismissed, deferred, or unrecorded (a review persisted before ids existed)."
+              },
+              "history": {
+                "type": "array",
+                "description": "The finding's fate records, oldest first. Empty until fate records exist.",
+                "items": false
+              }
+            },
+            "required": [
+              "id",
+              "source",
+              "severity",
+              "file",
+              "line",
+              "message",
+              "lens",
+              "escape",
+              "criterion",
+              "suggestion",
+              "fate",
+              "history"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^C[1-9][0-9]*$",
+                "description": "The finding's id in its run: C<n>, n from 1, given by phax."
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "compliance-review"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "deviation",
+                  "concern"
+                ]
+              },
+              "phaseId": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "dimension": {
+                "type": "string",
+                "enum": [
+                  "objective",
+                  "excluded-scope",
+                  "files",
+                  "tests",
+                  "boundaries",
+                  "commit",
+                  "handoff"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "fate": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "fixed",
+                  "dismissed",
+                  "deferred",
+                  "unrecorded"
+                ],
+                "description": "What became of the finding: open (no fate record), fixed, dismissed, deferred, or unrecorded (a review persisted before ids existed)."
+              },
+              "history": {
+                "type": "array",
+                "description": "The finding's fate records, oldest first. Empty until fate records exist.",
+                "items": false
+              }
+            },
+            "required": [
+              "id",
+              "source",
+              "severity",
+              "phaseId",
+              "dimension",
+              "message",
+              "fate",
+              "history"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "run",
+    "records",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$"
+    },
+    "NonEmptyString_1": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The path the finding is about, as the reviewer gave it."
+    }
+  }
+}

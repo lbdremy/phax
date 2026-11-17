@@ -6,9 +6,11 @@ import {
 } from "./formats/architecture.js";
 import {
   artifactStatusFormat,
+  findingListFormat,
   planLintFormat,
   planOverviewFormat,
   type ArtifactStatusShapes,
+  type FindingListShapes,
   type PlanLintShapes,
   type PlanOverviewShapes,
 } from "./formats/commandAnswers.js";
@@ -401,14 +403,22 @@ export {
   type PlanLintFile as PlanLint,
 } from "../../../src/schemas/planLint.js";
 export {
+  FindingListFileSchema as FindingListSchema,
+  type FindingListFile as FindingList,
+} from "../../../src/schemas/findingList.js";
+export {
   parseArtifactStatus,
+  parseFindingList,
   parsePlanLint,
   parsePlanOverview,
   toLatestArtifactStatus,
+  toLatestFindingList,
   toLatestPlanLint,
   toLatestPlanOverview,
   type ArtifactStatusShape,
+  type FindingListShape,
   type LatestArtifactStatus,
+  type LatestFindingList,
   type LatestPlanLint,
   type LatestPlanOverview,
   type PlanLintShape,
@@ -860,6 +870,7 @@ type DocumentShapes = EveryFormat<{
   "code-review": CodeReviewShapes;
   "code-review-answer": CodeReviewAnswerShapes;
   "compliance-review-answer": ComplianceReviewAnswerShapes;
+  "finding-list": FindingListShapes;
   "phax-plan-extraction": PhaxPlanExtractionShapes;
   "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
   "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
@@ -919,6 +930,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "code-review": codeReviewFormat,
     "code-review-answer": codeReviewAnswerFormat,
     "compliance-review-answer": complianceReviewAnswerFormat,
+    "finding-list": findingListFormat,
     "phax-plan-extraction": phaxPlanExtractionFormat,
     "spec-hand-decision-answer": specHandDecisionAnswerFormat,
     "plan-hand-decision-answer": planHandDecisionAnswerFormat,
