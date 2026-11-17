@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-17
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-17
+  baseline: "2e29443"
 ---
 # Code repository: a plan's process in one repository, its code in another
 
