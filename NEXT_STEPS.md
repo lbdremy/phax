@@ -49,7 +49,7 @@ briefs of live or unspecced work.
       that made `describeCause` throw, and the review made the argv property bind every exit
       code to evidence. Agents may now run `pnpm test:unit` and `pnpm test:property:deep`
       (`phax.json` agentCommands): `Bash(pnpm test:*)` does not cover `pnpm test:unit`. Also
-      counts for OpenSSF Scorecard's Fuzzing check.
+      counts for OpenSSF Scorecard's Fuzzing check. Shipped in 0.39.0 (2026-11-17).
 
 ### 4. Review findings: ids and fates
 
@@ -218,6 +218,14 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **Release notes hide a run's user-facing fixes.** Found at the 0.39.0 cut (2026-11-17): the
+      notes fold every commit carrying a run's `Short-Name` into that run, and announce a run only
+      through its spec's surfaces. `property-tests` had test-only surfaces, so the parser fixes it
+      found (a phase title taken from a fenced example, a code-span commit subject read as empty,
+      a stack overflow on deep nesting), the `describeCause` fix and the newer-stamped record
+      manifest fix shipped unannounced. Folding stays right for a feature run's review fixes of
+      its own new code; what is missing is a way for a fix of code that predates the run to reach
+      "Fixes". Decide the rule first (a trailer, or a fix outside the run's planned files).
 - [ ] **Teach the reserved test-line words.** Left from `acceptance-tests` (0.33.0): no skill says
       that a spec's criterion ids cannot be the loop words `acceptance` or `in-phase` (nor the
       retired `oracle`); only the schemas refuse them. One line in phax-spec's acceptance-criteria
