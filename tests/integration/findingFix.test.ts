@@ -225,11 +225,25 @@ describe("phax finding fix", () => {
     turnRecordsOff(repo);
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 7;\n");
     const before = runHead();
+    const recordsBefore = recordsHead();
 
     const result = await fix(["F1", "--by", "operator", "--", "src/app/gate.ts"]);
     expect(result.code).toBe(1);
-    expect(result.err).toContain("records");
+    expect(result.err).toContain("add a records key to phax.json");
     expect(runHead()).toBe(before);
+    expect(recordsHead()).toBe(recordsBefore);
+
+    const json = await fix(["F1", "--by", "operator", "--json", "--", "src/app/gate.ts"]);
+    expect(json.code).toBe(1);
+    expect(json.out).toBe("");
+    const errors = json.errLines
+      .map((line) => JSON.parse(line) as { kind: string; error?: string; exit?: number })
+      .filter((line) => line.kind === "error");
+    expect(errors).toEqual([
+      expect.objectContaining({ error: "FindingRecordsOffError", exit: 1, written: [] }),
+    ]);
+    expect(runHead()).toBe(before);
+    expect(recordsHead()).toBe(recordsBefore);
   });
 
   // AC-record-failure

@@ -189,14 +189,39 @@ describe("phax finding dismiss and defer", () => {
   it("refuses a dismissal and a deferral with records off, naming the key", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     turnRecordsOff(repo);
+    const runBefore = head(repo, repo.runBranch);
+    const recordsBefore = recordsHead();
+    const recordsOffTags = (errLines: readonly string[]) =>
+      errLines
+        .map((line) => JSON.parse(line) as { kind: string; error?: string; exit?: number })
+        .filter((line) => line.kind === "error")
+        .map((line) => [line.error, line.exit]);
 
     const dismissed = await dismiss(["F1", "--by", "operator", "--why", "not needed"]);
     expect(dismissed.code).toBe(1);
-    expect(dismissed.err).toContain("records");
+    expect(dismissed.err).toContain("add a records key to phax.json");
+    const dismissedJson = await dismiss(["F1", "--by", "operator", "--why", "no", "--json"]);
+    expect(dismissedJson.code).toBe(1);
+    expect(recordsOffTags(dismissedJson.errLines)).toEqual([["FindingRecordsOffError", 1]]);
 
     const deferred = await defer(["F1", "--by", "operator", "--to", POINTER, "--why", "later"]);
     expect(deferred.code).toBe(1);
-    expect(deferred.err).toContain("records");
+    expect(deferred.err).toContain("add a records key to phax.json");
+    const deferredJson = await defer([
+      "F1",
+      "--by",
+      "operator",
+      "--to",
+      POINTER,
+      "--why",
+      "later",
+      "--json",
+    ]);
+    expect(deferredJson.code).toBe(1);
+    expect(recordsOffTags(deferredJson.errLines)).toEqual([["FindingRecordsOffError", 1]]);
+
+    expect(head(repo, repo.runBranch)).toBe(runBefore);
+    expect(recordsHead()).toBe(recordsBefore);
   });
 
   // AC-lift-settable
