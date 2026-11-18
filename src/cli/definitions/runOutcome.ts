@@ -273,6 +273,9 @@ const Outcome = Schema.Union([
     pullRequest: Schema.NullOr(Schema.String),
     completions: Schema.NullOr(CompletionsSchema),
     finalReport: Schema.String,
+    /** The plan's path in its process repository, present only for a linked run: completing it
+     *  stays the operator's, from there. */
+    processPlanPath: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({ kind: Schema.Literal("stopped"), report: StopReportSchema }),
   Schema.Struct({
@@ -312,6 +315,15 @@ export function stoppedOutcome(err: AwaitingReviewStopError): Outcome {
 const shortNameOf = (qualifiedName: string): string =>
   qualifiedName.slice(qualifiedName.lastIndexOf(".") + 1);
 
+/** What a linked run prints at review: the plan lives in the process repository, where the
+ *  operator completes it. */
+function processPlanLines(processPlanPath: string): ReadonlyArray<string> {
+  return [
+    "The plan lives in the process repository: once merged, run there",
+    `  phax artifact complete ${processPlanPath}`,
+  ];
+}
+
 /** Today's stdout lines of an outcome, each as the command logged it: the dry-run report whole,
  *  every other line one by one. `headline` writes run's `reached review` line. */
 function outcomeSections(value: RunAnswer, headline: boolean): ReadonlyArray<string> {
@@ -327,6 +339,7 @@ function outcomeSections(value: RunAnswer, headline: boolean): ReadonlyArray<str
             ]
           : []),
         ...(outcome.completions === null ? [] : renderArtifactCompletions(outcome.completions)),
+        ...(outcome.processPlanPath === undefined ? [] : processPlanLines(outcome.processPlanPath)),
         `See ${outcome.finalReport} for details.`,
       ];
     case "stopped":

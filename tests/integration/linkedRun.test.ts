@@ -83,7 +83,7 @@ describe(
     const text = (r: { stdout: string; stderr: string }): string => `${r.stderr}${r.stdout}`;
 
     // ac-run-refuses-stale
-    it.fails("refuses a plan whose footprint changed in the code, and names nothing", async () => {
+    it("refuses a plan whose footprint changed in the code, and names nothing", async () => {
       const w = linked();
       w.commitInProcess(PLAN_REL, exportPlanMd());
       await w.approve(PLAN_REL);
@@ -98,7 +98,7 @@ describe(
     });
 
     // ac-run-refuses-unrecorded, a Draft plan
-    it.fails("refuses a Draft plan exactly as a plan living with its code", async () => {
+    it("refuses a Draft plan exactly as a plan living with its code", async () => {
       const w = linked();
       w.commitInProcess(PLAN_REL, exportPlanMd());
       control = createControlRepo();
@@ -115,7 +115,7 @@ describe(
     });
 
     // ac-run-refuses-unrecorded, an Approved plan with no approval record
-    it.fails("refuses an Approved plan with no approval record exactly as a plan living with its code", async () => {
+    it("refuses an Approved plan with no approval record exactly as a plan living with its code", async () => {
       const w = linked();
       const approvedByHand = exportPlanMd().replace("status: Draft", "status: Approved");
       w.commitInProcess(PLAN_REL, approvedByHand);
@@ -132,7 +132,7 @@ describe(
     });
 
     // ac-run-review-no-complete
-    it.fails("reaches review, leaves the plan and spec alone and prints the complete command", async () => {
+    it("reaches review, leaves the plan and spec alone and prints the complete command", async () => {
       const w = linked();
       const spec = w.writeSpec("csv-export");
       await w.approve(spec);

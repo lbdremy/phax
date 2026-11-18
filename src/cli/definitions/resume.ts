@@ -10,7 +10,7 @@
 // The definition reads run-status.json, publication.json and plan.md directly, as runResume did:
 // its entry in the architectural guard's direct-I/O allowlist says so.
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { Effect, Result, type Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { executePlan } from "../../app/executePlan.js";
@@ -19,6 +19,7 @@ import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { withRunLock } from "../../app/lock.js";
+import { resolvePlanLink } from "../../app/planLink.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { inspectResumeOfRun } from "../../app/resume.js";
 import { decodeRunId, decodeShortName, type RunId } from "../../domain/branded.js";
@@ -35,6 +36,7 @@ import {
 } from "../../domain/routing/priorityOverride.js";
 import type { ProviderId } from "../../domain/routing/types.js";
 import { runKey } from "../../domain/runRef.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import type { Backend } from "../../ports/backend.js";
 import type { GitHub } from "../../ports/github.js";
 import type { Shell } from "../../ports/shell.js";
@@ -396,6 +398,27 @@ function runResumeCommand(
     }
 
     const execResult = result.success;
+    // A run of a plan that lives in a linked process repository records a path that leaves this
+    // repository: the link is derived again from it. A refusal never fails the resume.
+    let processPlanPath: string | undefined;
+    if (runStatus.planRepoRelPath !== undefined) {
+      const planLinkResult = yield* Effect.result(
+        resolvePlanLink({
+          runRepoRoot: config.repoRoot,
+          planAbsolute: resolve(config.repoRoot, runStatus.planRepoRelPath),
+        }).pipe(
+          Effect.provide(makeRepoRootedFileSystemLayer(config)),
+          Effect.provide(makeNodeGitLayer()),
+        ),
+      );
+      if (Result.isFailure(planLinkResult)) {
+        yield* call.progress(
+          `Warning: the plan's process repository could not be read, so the artifact complete command is not printed: ${planLinkResult.failure.message}`,
+        );
+      } else if (planLinkResult.success.kind === "linked") {
+        processPlanPath = planLinkResult.success.planPath;
+      }
+    }
     const answer: RunAnswer = {
       qualifiedName,
       crossProject,
@@ -405,6 +428,7 @@ function runResumeCommand(
         pullRequest: execResult.prUrl ?? null,
         completions: completionsValue(execResult.artifactCompletions),
         finalReport: join(runPath, "final-report.md"),
+        ...(processPlanPath === undefined ? {} : { processPlanPath }),
       },
     };
     return answer;

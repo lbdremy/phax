@@ -471,6 +471,8 @@ A phase the plan declares interactive (`**Mode:** interactive`) stops the run. p
 
 A gate attempt fails when the phase changed a path listed in phax.json "protectedPaths", or the phax.json phax loaded: the fix loop is told which paths to put back, and a phase that does not pauses as on gates_exhausted. The same check runs before a commit-only resume commits, after the handoff turn, and when a held phase is re-entered; a stop's close is not checked. A skill edit grant (--allow-skill-edits) on a protected path is refused before the run is named, with exit 11.
 
+A plan under docs/plans/ of a process repository whose phax.json "code.root" names this repository is gated as that repository's artifact: it must be Approved, recorded and fresh against this code, with the refusals a plan living with its code gets, and the run reaches review as any other. At review the run leaves the plan and spec alone and prints the phax artifact complete command to run in the process repository instead of completing anything. A plan in any other place outside this repository runs loose, as before. A process phax.json whose link names this repository but cannot be read, or whose code.root is not ignored by that repository, refuses with exit 2.
+
 Side effects: creates worktrees, commits files, writes to ~/.phax/runs/.
 
 ### Arguments

@@ -23,6 +23,7 @@ import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { withRunLock } from "../../app/lock.js";
 import { resolveCodeLink } from "../../app/codeLink.js";
+import { type PlanLink, resolvePlanLink } from "../../app/planLink.js";
 import { computeStalenessForPlan } from "../../app/planStaleness.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { freshRunPreflight } from "../../app/runPreflight.js";
@@ -48,6 +49,7 @@ import {
 import type { ProviderId } from "../../domain/routing/types.js";
 import { nextAvailableShortName, runKey } from "../../domain/runRef.js";
 import type { SecurityMode } from "../../domain/security/types.js";
+import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import type { Backend } from "../../ports/backend.js";
@@ -310,6 +312,23 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       priorityOverride = parsed.value;
     }
 
+    // A plan outside this repository may be the artifact of a process repository that links
+    // this one: it is then gated as that repository's plan. Anything else stays loose.
+    const planLinkResult = yield* Effect.result(
+      resolvePlanLink({ runRepoRoot: config.repoRoot, planAbsolute: planMdPath }).pipe(
+        Effect.provide(makeRepoRootedFileSystemLayer(config)),
+        Effect.provide(makeNodeGitLayer()),
+      ),
+    );
+    if (Result.isFailure(planLinkResult)) {
+      const err = planLinkResult.failure;
+      return yield* refuse(
+        err instanceof ConfigValidationError ? 2 : exitCodeForError(err),
+        `phax run refused: ${err.message}`,
+      );
+    }
+    const planLink: PlanLink = planLinkResult.success;
+
     // Gate on the plan's lifecycle status before wiring extraction. If the file
     // itself is unreadable, skip the gate and let loadOrExtractPlan's existing
     // error path report it — this gate must not invent a new missing-file error.
@@ -324,7 +343,10 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       // (docs/plans/...), so normalize the absolute plan path against the repo
       // root before handing it over — otherwise the location guard never fires.
       const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
-      const runnable = checkPlanRunnable(planMdForGate, planRepoRel);
+      const runnable = checkPlanRunnable(
+        planMdForGate,
+        planLink.kind === "linked" ? planLink.planPath : planRepoRel,
+      );
       if (Result.isFailure(runnable)) {
         return yield* refuse(exitCodeForError(runnable.failure), runnable.failure.message);
       }
@@ -383,21 +405,27 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     // Gate on staleness for repo-tracked artifact plans, reusing the extraction
     // we already paid for. Loose plan.md files outside docs/plans/ cannot carry
     // an approval record, so they skip this gate entirely (same scope as the
-    // lifecycle-status gate above).
+    // lifecycle-status gate above). A plan of a linked process repository is gated there, as
+    // that repository's artifact, against the code it links.
     const planRepoRel = relative(config.repoRoot, planMdPath).split(sep).join("/");
-    if (classifyArtifactPath(planRepoRel) !== null) {
-      const footprint = buildFootprint(planInputFromPhaxPlan(plan, planRepoRel, planRepoRel));
+    const gatePath = planLink.kind === "linked" ? planLink.planPath : planRepoRel;
+    if (planLink.kind === "linked" || classifyArtifactPath(planRepoRel) !== null) {
+      const footprint = buildFootprint(planInputFromPhaxPlan(plan, gatePath, gatePath));
+      const staleness =
+        planLink.kind === "linked"
+          ? computeStalenessForPlan(gatePath, planMd, Array.from(footprint.all), {
+              repoRoot: planLink.processRoot,
+              codeLink: planLink.link,
+            }).pipe(Effect.provide(makeRootedNodeFileSystemLayer(planLink.processRoot)))
+          : Effect.gen(function* () {
+              const codeLink = yield* resolveCodeLink(config);
+              return yield* computeStalenessForPlan(gatePath, planMd, Array.from(footprint.all), {
+                repoRoot: config.repoRoot,
+                codeLink,
+              });
+            }).pipe(Effect.provide(makeRepoRootedFileSystemLayer(config)));
       const stalenessResult = yield* Effect.result(
-        Effect.gen(function* () {
-          const codeLink = yield* resolveCodeLink(config);
-          return yield* computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
-            repoRoot: config.repoRoot,
-            codeLink,
-          });
-        }).pipe(
-          Effect.provide(makeRepoRootedFileSystemLayer(config)),
-          Effect.provide(makeNodeGitLayer()),
-        ),
+        staleness.pipe(Effect.provide(makeNodeGitLayer())),
       );
       if (Result.isFailure(stalenessResult)) {
         const err = stalenessResult.failure;
@@ -408,7 +436,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       }
       const verdict = stalenessResult.success;
       if (verdict.kind !== "fresh") {
-        const staleError = new PlanStaleError({ path: planRepoRel, verdict });
+        const staleError = new PlanStaleError({ path: gatePath, verdict });
         return yield* refuse(exitCodeForError(staleError), staleError.message);
       }
     }
@@ -596,6 +624,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         pullRequest: execResult.prUrl ?? null,
         completions: completionsValue(execResult.artifactCompletions),
         finalReport: join(runFolder, "final-report.md"),
+        ...(planLink.kind === "linked" ? { processPlanPath: planLink.planPath } : {}),
       },
     };
     return answer;
@@ -603,7 +632,7 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
 }
 
 const RUN_HELP =
-  'Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile\'s every-phase steps after execution; the final phase also runs the profile\'s terminal steps. Each step\'s surface (local, structural, or product) is recorded per phase and the run\'s verified surfaces are reported at run end.\n\nA gate step with "output": "gate-report" is judged from the gate report it prints on stdout, saved as checks-attempt-NN.report-SS.json beside the attempt\'s log: a checked report with any finding fails the step whatever the exit code, and one with no finding passes it on exit 0; the fix prompt lists each finding with its rule, location, message, related locations and guide. A refused report stops the phase without a fix attempt and exits 4, naming the step, the reason and the remedy; the phase pauses as on gates_exhausted and phax resume runs the gate again with the full fix budget. Anything else is a broken step that gets the raw-log fix prompt. Review notes in a checked report fail nothing and go to the review handoff\'s Review notes section, never to the agent.\n\nAcceptance step: at the gate of an acceptance phase and of the phase that passes it, after every configured step passed, phax runs the acceptance provider (phax.json "acceptance": { "command" }). The command is split on whitespace and run without a shell, in the phase worktree before the commit, under a 120 s limit. It reads one acceptance-request on stdin, {$schema, verdict, phase, acceptancePhase, base, files}, where verdict is "authored" for the acceptance phase and "passed" for the passing phase, which also carries acceptanceCommit; phax saves it as checks-attempt-NN.acceptance-request.json beside the attempt\'s log. The provider prints a gate report on stdout, judged as a report step and saved as report-SS: findings go to the fix loop, a refused report stops the phase and exits 4, and a provider that cannot be spawned, times out or prints nothing usable fails the step. The step is recorded under the acceptance surface. A passing phase whose acceptance phase was skipped (it produced no changes, so it noted no commit) is refused before its agent runs, with exit 11, and the run fails. A committed acceptance phase is not reset. An acceptance step that exhausts the fix loop or refuses pauses the run with exit 4, and the next steps name both phax resume <run> and the --skip-acceptance correction for a wrong acceptance test.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nThe start preflight also holds every phase to the owner\'s assignment bounds (phax.json "assignments"): a bound that names an unknown model or effort, or a phase that departs from its governing bound without an **Assignment reason:** line, refuses before the run is named, with exit 11 and "Assignment preflight failed". A part bound makes the preflight run the architecture provider.\n\nThe preflight also checks the plan\'s acceptance phases: a malformed declaration, a broken pair, or an acceptance phase with no "acceptance" provider configured refuses before the run is named, with exit 11 and "Acceptance preflight failed". The provider is never spawned by the preflight.\n\nA phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop.\n\n--hold [selection] stops the run for review at headless phases too: no value holds every headless phase but the final one, `--hold acceptance` the plan\'s acceptance phases, and `--hold phase-02,phase-04` the phases listed (exactly `phase-NN`, no repeats). A malformed value exits 1 before the run is named, and a selection the plan cannot honour (an unknown, interactive or final phase) exits 11 with "Hold preflight failed". A held phase does its work, passes its gate, commits and validates its handoff, then stops in awaiting_review before its record and its cleanup, with no agent turn, and exits 13. The hold is recorded with the run: phax resume takes no --hold and holds exactly those phases. A bare --hold takes the next word as its value, so put the run name before it or write --hold=<selection>. With --dry-run, the hold is resolved and printed as one line, `Hold: none` or `Hold: listed — phase-02, phase-04`, with any hold preflight errors under it; the dry run still exits 0 and names no run. A hold may stop inside an acceptance pair: see phax resume. Transcripts are not part of this release.\n\nA gate attempt fails when the phase changed a path listed in phax.json "protectedPaths", or the phax.json phax loaded: the fix loop is told which paths to put back, and a phase that does not pauses as on gates_exhausted. The same check runs before a commit-only resume commits, after the handoff turn, and when a held phase is re-entered; a stop\'s close is not checked. A skill edit grant (--allow-skill-edits) on a protected path is refused before the run is named, with exit 11.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.';
+  'Extracts a plan from the plan.md given by --plan, creates a run entry in the registry, and executes each phase sequentially in its own Git worktree using the configured AI agent. Each phase runs its gate profile\'s every-phase steps after execution; the final phase also runs the profile\'s terminal steps. Each step\'s surface (local, structural, or product) is recorded per phase and the run\'s verified surfaces are reported at run end.\n\nA gate step with "output": "gate-report" is judged from the gate report it prints on stdout, saved as checks-attempt-NN.report-SS.json beside the attempt\'s log: a checked report with any finding fails the step whatever the exit code, and one with no finding passes it on exit 0; the fix prompt lists each finding with its rule, location, message, related locations and guide. A refused report stops the phase without a fix attempt and exits 4, naming the step, the reason and the remedy; the phase pauses as on gates_exhausted and phax resume runs the gate again with the full fix budget. Anything else is a broken step that gets the raw-log fix prompt. Review notes in a checked report fail nothing and go to the review handoff\'s Review notes section, never to the agent.\n\nAcceptance step: at the gate of an acceptance phase and of the phase that passes it, after every configured step passed, phax runs the acceptance provider (phax.json "acceptance": { "command" }). The command is split on whitespace and run without a shell, in the phase worktree before the commit, under a 120 s limit. It reads one acceptance-request on stdin, {$schema, verdict, phase, acceptancePhase, base, files}, where verdict is "authored" for the acceptance phase and "passed" for the passing phase, which also carries acceptanceCommit; phax saves it as checks-attempt-NN.acceptance-request.json beside the attempt\'s log. The provider prints a gate report on stdout, judged as a report step and saved as report-SS: findings go to the fix loop, a refused report stops the phase and exits 4, and a provider that cannot be spawned, times out or prints nothing usable fails the step. The step is recorded under the acceptance surface. A passing phase whose acceptance phase was skipped (it produced no changes, so it noted no commit) is refused before its agent runs, with exit 11, and the run fails. A committed acceptance phase is not reset. An acceptance step that exhausts the fix loop or refuses pauses the run with exit 4, and the next steps name both phax resume <run> and the --skip-acceptance correction for a wrong acceptance test.\n\nExtraction results are cached by content hash under ~/.phax/cache/plans/; a repeated run of the same plan.md reuses the cached extraction without calling the LLM again. Use --refresh to force a fresh extraction.\n\nThe start preflight also holds every phase to the owner\'s assignment bounds (phax.json "assignments"): a bound that names an unknown model or effort, or a phase that departs from its governing bound without an **Assignment reason:** line, refuses before the run is named, with exit 11 and "Assignment preflight failed". A part bound makes the preflight run the architecture provider.\n\nThe preflight also checks the plan\'s acceptance phases: a malformed declaration, a broken pair, or an acceptance phase with no "acceptance" provider configured refuses before the run is named, with exit 11 and "Acceptance preflight failed". The provider is never spawned by the preflight.\n\nA phase the plan declares interactive (`**Mode:** interactive`) stops the run. phax sets the phase up like any phase, writes the seed into .phax-context/ and runs one read-only first turn, then leaves the run in awaiting_review, writes review-stop.json in the run folder and exits 13 without waiting for input. The output names the worktree, the command that continues the agent session (or starts a fresh one) and phax resume. The person works in the worktree with any editor or agent; phax resume closes the stop.\n\n--hold [selection] stops the run for review at headless phases too: no value holds every headless phase but the final one, `--hold acceptance` the plan\'s acceptance phases, and `--hold phase-02,phase-04` the phases listed (exactly `phase-NN`, no repeats). A malformed value exits 1 before the run is named, and a selection the plan cannot honour (an unknown, interactive or final phase) exits 11 with "Hold preflight failed". A held phase does its work, passes its gate, commits and validates its handoff, then stops in awaiting_review before its record and its cleanup, with no agent turn, and exits 13. The hold is recorded with the run: phax resume takes no --hold and holds exactly those phases. A bare --hold takes the next word as its value, so put the run name before it or write --hold=<selection>. With --dry-run, the hold is resolved and printed as one line, `Hold: none` or `Hold: listed — phase-02, phase-04`, with any hold preflight errors under it; the dry run still exits 0 and names no run. A hold may stop inside an acceptance pair: see phax resume. Transcripts are not part of this release.\n\nA gate attempt fails when the phase changed a path listed in phax.json "protectedPaths", or the phax.json phax loaded: the fix loop is told which paths to put back, and a phase that does not pauses as on gates_exhausted. The same check runs before a commit-only resume commits, after the handoff turn, and when a held phase is re-entered; a stop\'s close is not checked. A skill edit grant (--allow-skill-edits) on a protected path is refused before the run is named, with exit 11.\n\nA plan under docs/plans/ of a process repository whose phax.json "code.root" names this repository is gated as that repository\'s artifact: it must be Approved, recorded and fresh against this code, with the refusals a plan living with its code gets, and the run reaches review as any other. At review the run leaves the plan and spec alone and prints the phax artifact complete command to run in the process repository instead of completing anything. A plan in any other place outside this repository runs loose, as before. A process phax.json whose link names this repository but cannot be read, or whose code.root is not ignored by that repository, refuses with exit 2.\n\nSide effects: creates worktrees, commits files, writes to ~/.phax/runs/.';
 
 export function makeRunCommand(deps: RunDeps = {}) {
   return defineCommand({

@@ -57,7 +57,13 @@ vi.mock("../../../src/cli/interruptHandler.js", () => ({
 }));
 vi.mock("../../../src/infra/fs.js", async () => {
   const { Layer } = await import("effect");
-  return { NodeFileSystemLayer: Layer.empty };
+  return { NodeFileSystemLayer: Layer.empty, makeRootedNodeFileSystemLayer: () => Layer.empty };
+});
+// These tests run with no Git adapter: every plan is a loose one. The linked run is proven by
+// tests/integration/planLink.test.ts, linkedRun.test.ts and linkedRunInPhase.test.ts.
+vi.mock("../../../src/app/planLink.js", async () => {
+  const effect = await import("effect");
+  return { resolvePlanLink: vi.fn(() => effect.Effect.succeed({ kind: "loose" })) };
 });
 vi.mock("../../../src/infra/git.js", async () => {
   const { Layer } = await import("effect");
