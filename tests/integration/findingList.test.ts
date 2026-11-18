@@ -60,7 +60,7 @@ describe("phax finding list", () => {
   };
 
   // AC-lift-unrecorded
-  it.fails("lists reviews persisted before finding ids by position as unrecorded, leaving the files untouched", async () => {
+  it("lists reviews persisted before finding ids by position as unrecorded, leaving the files untouched", async () => {
     const before = writeOlderReviews(repo);
     const codePath = join(repo.runFolder, "code-review.json");
     const compliancePath = join(repo.runFolder, "compliance-review.json");
@@ -92,7 +92,7 @@ describe("phax finding list", () => {
   });
 
   // AC-list-json
-  it.fails("writes one finding-list document with $schema first and only message lines on stderr", async () => {
+  it("writes one finding-list document with $schema first and only message lines on stderr", async () => {
     writeCurrentReviews(repo);
 
     const { result, document } = await listJson();
@@ -140,7 +140,7 @@ describe("phax finding list", () => {
   });
 
   // AC-rereview-continues
-  it.fails("keeps every earlier finding after a re-review: F1 to F5, F1 to F3 read from the records branch", async () => {
+  it("keeps every earlier finding after a re-review: F1 to F5, F1 to F3 read from the records branch", async () => {
     await reviewOnce(repo, ["first one", "first two", "first three"]);
     await reviewOnce(repo, ["second one", "second two"]);
 

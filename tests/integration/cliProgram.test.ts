@@ -28,6 +28,7 @@ const TOP_LEVEL_COMMANDS = [
   "publish-pr",
   "review-compliance",
   "review-code",
+  "finding",
   "plans",
   "adjust-plan",
   "brief",

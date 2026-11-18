@@ -19,6 +19,7 @@ import { artifactGroup } from "./artifact.js";
 import { briefCommand } from "./brief.js";
 import { completionsCommand } from "./completions.js";
 import { costGroup } from "./cost.js";
+import { findingGroup } from "./finding.js";
 import { lsCommand } from "./ls.js";
 import { pathCommand } from "./path.js";
 import { plansEstimateCommand } from "./plansEstimate.js";
@@ -118,6 +119,7 @@ export const phaxProgram = defineProgram({
     publishPrCommand,
     reviewComplianceCommand,
     reviewCodeCommand,
+    findingGroup,
     adjustPlanCommand,
     briefCommand,
     architectureCommand,
