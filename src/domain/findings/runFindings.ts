@@ -17,6 +17,7 @@ import type {
   PersistedComplianceReview,
   Severity,
 } from "../../schemas/complianceReview.js";
+import type { FindingFateEntry } from "../../schemas/findingFateRecord.js";
 import type { FindingFate } from "../../schemas/findingList.js";
 
 /** One review of a run, as read: with the ids it was persisted with, or without. */
@@ -62,12 +63,43 @@ interface RunComplianceFinding {
 export type RunFinding = RunCodeFinding | RunComplianceFinding;
 
 /**
- * What became of a finding. Until fate records exist, a finding persisted with
- * its id is `open` and one lifted by position from a review persisted before
- * ids is `unrecorded`.
+ * What became of a finding: the fate of its latest fate record, else `open` for a finding
+ * persisted with its id and `unrecorded` for one lifted by position from a review persisted
+ * before ids.
  */
-export function findingFate(finding: RunFinding): FindingFate {
+export function findingFate(
+  finding: RunFinding,
+  history: readonly FindingFateEntry[],
+): FindingFate {
+  const latest = history.at(-1);
+  if (latest !== undefined) return latest.fate;
   return finding.origin === "persisted" ? "open" : "unrecorded";
+}
+
+/**
+ * Each finding's fate entries in the order given (oldest first), and the ids that hold records
+ * but no finding of the run.
+ */
+export function groupFateRecords(
+  findings: readonly RunFinding[],
+  records: readonly { readonly finding: string; readonly entry: FindingFateEntry }[],
+): {
+  readonly histories: ReadonlyMap<string, readonly FindingFateEntry[]>;
+  readonly orphans: readonly string[];
+} {
+  const known = new Set(findings.map((finding) => finding.id));
+  const histories = new Map<string, FindingFateEntry[]>();
+  const orphans: string[] = [];
+  for (const { finding, entry } of records) {
+    if (!known.has(finding)) {
+      if (!orphans.includes(finding)) orphans.push(finding);
+      continue;
+    }
+    const list = histories.get(finding) ?? [];
+    list.push(entry);
+    histories.set(finding, list);
+  }
+  return { histories, orphans };
 }
 
 /** The numbered findings of a run's reviews, and the highest number given to each kind. */

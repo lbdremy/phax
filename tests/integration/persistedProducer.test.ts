@@ -31,6 +31,7 @@ import { reviewCodeHeadless } from "../../src/app/reviewCode.js";
 import { reviewCompliance } from "../../src/app/reviewCompliance.js";
 import { createRunFolder } from "../../src/app/runFolder.js";
 import { writeDecisionRecord } from "../../src/app/writeDecisionRecord.js";
+import { writeFateRecord } from "../../src/app/findingFateRecords.js";
 import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import { writeRevisionRecord } from "../../src/app/writeRevisionRecord.js";
 import { writeRecord } from "../../src/app/writeRecord.js";
@@ -340,6 +341,10 @@ function formatAt(
   if (name.endsWith(".acceptance-request.json")) return "acceptance-request";
   if (name.endsWith(".request.json")) return "gate-request";
   if (name === "record.json") {
+    // A fate record's key is `<runId>/finding/<id>/<NN>`.
+    if (/^records:[^/]+\/finding\/[FC][1-9][0-9]*\/[0-9]{2,}\/record\.json$/.test(location)) {
+      return "finding-fate-record-manifest";
+    }
     if (location.startsWith("records:decision/")) return "decision-record-manifest";
     if (location.startsWith("records:revision/")) return "revision-record-manifest";
     // A review entry's key is `<runId>/<review>`, beside the run's phase records.
@@ -829,6 +834,23 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
     throw new Error("writeReviewRecord wrote no code-review entry");
   }
 
+  // A finding's fate, committed as a fate record beside the run's review entries.
+  const fateEntry = await run(
+    writeFateRecord({
+      destination: { repo: REPO_ROOT, remote: "origin" },
+      runId: created.success.runId,
+      finding: "F1",
+      entry: {
+        fate: "deferred",
+        to: "docs/next.md",
+        why: "Later.",
+        by: { kind: "operator", name: "Ada" },
+        at: "2026-01-01T12:00:00.000Z",
+      },
+    }),
+  );
+  if (Result.isFailure(fateEntry)) throw new Error("writeFateRecord wrote no fate record");
+
   // Every file phax wrote: on the file system, and in every records commit.
   const locations = new Map<string, string>();
   for (const [path, content] of fs.impl.files) {
@@ -905,9 +927,6 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "plan-lint",
   // `phax finding list --json` prints the finding list on stdout and never saves it.
   "finding-list",
-  // No writer of the finding fate record exists yet: the fate record writer
-  // lands in phase-03 of plan finding-fates, which removes this entry.
-  "finding-fate-record-manifest",
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",

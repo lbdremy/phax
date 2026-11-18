@@ -89,6 +89,57 @@ describe("renderFindingList", () => {
     ]);
   });
 
+  it("adds detail lines under a fixed, dismissed and deferred finding, aligned to the fate column", () => {
+    const by = { kind: "operator", name: "Ada" } as const;
+    const at = "2026-11-01T10:00:00.000Z";
+    const fix = (sha: string, pathClasses: readonly ["code"] | readonly ["code", "tests"]) =>
+      ({ fate: "fixed", commit: sha.repeat(40), pathClasses, by, at }) as const;
+    const fixed = {
+      ...code("F1", "open", "src/a.ts", 1, "one"),
+      fate: "fixed" as const,
+      history: [fix("a", ["code"]), fix("b", ["code", "tests"])],
+    };
+    const dismissed = {
+      ...code("F2", "open", "src/a.ts", 2, "two"),
+      fate: "dismissed" as const,
+      history: [
+        {
+          fate: "dismissed" as const,
+          verdict: {
+            kind: "decided" as const,
+            chosen: "dismiss" as const,
+            abandoned: ["fix", "defer"] as ["fix", "defer"],
+            why: "Not worth it.",
+            advocate: "Fix it.",
+            principles: [] as [],
+            reversibility: "cheap" as const,
+            by,
+            at,
+            revised: [] as [],
+          },
+        },
+      ],
+    };
+    const deferred = {
+      ...code("F3", "open", "src/a.ts", 3, "three"),
+      fate: "deferred" as const,
+      history: [{ fate: "deferred" as const, to: "docs/next.md", why: "Later.", by, at }],
+    };
+    const lines = renderFindingList(
+      listOf([fixed, dismissed, deferred, code("F4", "open", "src/a.ts", 4, "four")]),
+    ).split("\n");
+    expect(lines.slice(2)).toEqual([
+      "F1  concern  fixed      src/a.ts:1  one",
+      "             aaaaaaa (code)",
+      "             bbbbbbb (code, tests)",
+      "F2  concern  dismissed  src/a.ts:2  two",
+      "             Ada: Not worth it.",
+      "F3  concern  deferred   src/a.ts:3  three",
+      "             → docs/next.md",
+      "F4  concern  open       src/a.ts:4  four",
+    ]);
+  });
+
   it("says there is no finding for a run with none", () => {
     expect(renderFindingList(listOf([]))).toBe("gate-retry (review_open) — no findings");
   });
