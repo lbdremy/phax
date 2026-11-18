@@ -36,7 +36,7 @@ function entryOf(
 }
 
 describe("plans status under the code link", { timeout: 60_000 }, () => {
-  it.fails("a code change in the footprint makes the plan stale (ac-code-change-stale)", async () => {
+  it("a code change in the footprint makes the plan stale (ac-code-change-stale)", async () => {
     const p = linked();
     const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
     await p.approve(plan);
@@ -59,7 +59,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
     expect(readFileSync(join(p.processRepo, plan), "utf8")).toContain("status: Stale");
   });
 
-  it.fails("a process-repository change at a footprint path is not ground (ac-process-change-not-ground)", async () => {
+  it("a process-repository change at a footprint path is not ground (ac-process-change-not-ground)", async () => {
     const p = linked();
     const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
     await p.approve(plan);
@@ -69,7 +69,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
     expect(entryOf(json.json!, plan).kind).toBe("fresh");
   });
 
-  it.fails("a vanished code baseline is missing-record (ac-code-baseline-gone)", async () => {
+  it("a vanished code baseline is missing-record (ac-code-baseline-gone)", async () => {
     const p = linked();
     p.commitInCode("src/extra.ts", "export const extra = 1;\n");
     const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
@@ -88,7 +88,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
   });
 
   describe("a plan approved before the link (ac-prelink-record)", () => {
-    it.fails("with a null-code record is missing-record", async () => {
+    it("with a null-code record is missing-record", async () => {
       const p = linked({ link: false });
       const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
       await p.approve(plan);
@@ -100,7 +100,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
       expect(result.detail).toContain("without a code baseline");
     });
 
-    it.fails("with a 0.25.0 record is missing-record", async () => {
+    it("with a 0.25.0 record is missing-record", async () => {
       const p = linked();
       const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
       const approvedMd = readFileSync(join(p.processRepo, plan), "utf8").replace(
@@ -132,7 +132,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
     });
   });
 
-  it.fails("a code baseline without a link is missing-record (ac-unlinked-code-record)", async () => {
+  it("a code baseline without a link is missing-record (ac-unlinked-code-record)", async () => {
     const p = linked();
     const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
     await p.approve(plan);
@@ -144,7 +144,7 @@ describe("plans status under the code link", { timeout: 60_000 }, () => {
     expect(result.detail).toContain("declares no code link");
   });
 
-  it.fails("a code root no longer ignored makes each Approved plan an error (ac-root-not-ignored)", async () => {
+  it("a code root no longer ignored makes each Approved plan an error (ac-root-not-ignored)", async () => {
     const p = linked();
     const first = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
     const second = p.writePlan("other", { edits: ["src/other.ts"], sourceSpec: null });

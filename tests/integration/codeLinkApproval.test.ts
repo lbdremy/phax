@@ -183,7 +183,13 @@ describe("approving a plan in a linked project", { timeout: 30_000 }, () => {
         .filter((line) => line !== "")
         .map((line) => {
           const [key, ...rest] = line.trim().split(":");
-          return [key, rest.join(":").trim().replace(/^'|'$/g, "")];
+          return [
+            key,
+            rest
+              .join(":")
+              .trim()
+              .replace(/^['"]|['"]$/g, ""),
+          ];
         }),
     );
     expect(fields["code"]).toBe(codeHead.slice(0, 7));

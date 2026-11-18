@@ -148,6 +148,12 @@ export type StalenessEvidence =
       readonly baseline: string;
       readonly files: readonly string[];
     }
+  | {
+      readonly reason: "ground-changed";
+      readonly baseline: string;
+      readonly files: readonly string[];
+      readonly codeRoot: string;
+    }
   | { readonly reason: "self-changed" };
 
 export type PlanStalenessVerdict =
@@ -160,7 +166,18 @@ export interface ApprovalRecordLike {
   readonly approvedAt: string;
   readonly baseline: string;
   readonly sourceSpec: { readonly path: string; readonly fingerprint: string } | null;
+  readonly code: { readonly root: string; readonly baseline: string } | null;
 }
+
+export type CodeStalenessInput =
+  | { readonly kind: "unlinked" }
+  | {
+      readonly kind: "linked";
+      readonly root: string;
+      readonly baselineExists: boolean;
+      /** The code repository's changed files, relative to the code root. */
+      readonly changedFilesSinceBaseline: readonly string[];
+    };
 
 export interface ComputeStalenessInput {
   // The repo-relative path of the plan being judged.
@@ -171,6 +188,7 @@ export interface ComputeStalenessInput {
   readonly currentSpecFingerprint: string | null;
   readonly changedFilesSinceBaseline: readonly string[];
   readonly footprint: readonly string[];
+  readonly code: CodeStalenessInput;
 }
 
 /**
@@ -199,6 +217,26 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
     };
   }
 
+  const { code } = input;
+  if (code.kind === "linked" && record.code === null) {
+    return {
+      kind: "missing-record",
+      detail: `approved without a code baseline — the project now links ${code.root}/`,
+    };
+  }
+  if (code.kind === "unlinked" && record.code !== null) {
+    return {
+      kind: "missing-record",
+      detail: `the approval recorded code baseline ${record.code.baseline} but the project declares no code link`,
+    };
+  }
+  if (code.kind === "linked" && !code.baselineExists && record.code !== null) {
+    return {
+      kind: "missing-record",
+      detail: `the recorded code baseline ${record.code.baseline} no longer exists in ${code.root}/`,
+    };
+  }
+
   const evidence: StalenessEvidence[] = [];
 
   const specChanged = specChangedEvidence(record.sourceSpec, input.currentSpecFingerprint);
@@ -212,11 +250,24 @@ export function computeStaleness(input: ComputeStalenessInput): PlanStalenessVer
     ownRecordPath === null ? [input.planPath] : [input.planPath, ownRecordPath],
   );
   const footprintSet = new Set(input.footprint);
-  const groundChanged = input.changedFilesSinceBaseline.filter(
-    (file) => !notGround.has(file) && footprintSet.has(file),
-  );
-  if (groundChanged.length > 0) {
-    evidence.push({ reason: "ground-changed", baseline: record.baseline, files: groundChanged });
+  if (code.kind === "linked" && record.code !== null) {
+    // Under the link ground is the code repository's diff alone.
+    const groundChanged = code.changedFilesSinceBaseline.filter((file) => footprintSet.has(file));
+    if (groundChanged.length > 0) {
+      evidence.push({
+        reason: "ground-changed",
+        baseline: record.code.baseline,
+        files: groundChanged,
+        codeRoot: code.root,
+      });
+    }
+  } else {
+    const groundChanged = input.changedFilesSinceBaseline.filter(
+      (file) => !notGround.has(file) && footprintSet.has(file),
+    );
+    if (groundChanged.length > 0) {
+      evidence.push({ reason: "ground-changed", baseline: record.baseline, files: groundChanged });
+    }
   }
 
   if (record.planFingerprint !== input.currentPlanFingerprint) {
@@ -251,4 +302,14 @@ export function approvalVerdict(
     kind: "recorded",
     editedSinceApproval: recordedFingerprint !== currentFingerprint,
   };
+}
+
+/** One ground-changed evidence line, shared by the staleness report and the run's refusal. */
+export function renderGroundChanged(
+  e: Extract<StalenessEvidence, { readonly reason: "ground-changed" }>,
+): string {
+  const files = e.files.join(", ");
+  return "codeRoot" in e
+    ? `ground-changed: ${files} changed in ${e.codeRoot}/ since baseline ${e.baseline}`
+    : `ground-changed: ${files} changed since baseline ${e.baseline}`;
 }

@@ -116,6 +116,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "artifact decide",
   "artifact schema",
   "plans overview",
+  // code-repository: ground-changed is judged in the code repository under a code link.
+  "plans status",
   "records explain",
   "resume",
   "validate",

@@ -1,5 +1,5 @@
 import { Data } from "effect";
-import type { PlanStalenessVerdict } from "./artifact/lineage.js";
+import { renderGroundChanged, type PlanStalenessVerdict } from "./artifact/lineage.js";
 import type { GateFinding } from "../schemas/gateReport.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import type { DeclaredReviewStop, HeldReviewStop, LastClose } from "../schemas/reviewStop.js";
@@ -871,7 +871,7 @@ export class PlanStaleError extends Data.TaggedError("PlanStaleError")<{
     const lines = this.verdict.evidence.map((e) => {
       if (e.reason === "spec-changed") return `spec-changed: ${e.specPath} changed since approval`;
       if (e.reason === "ground-changed") {
-        return `ground-changed: ${e.files.join(", ")} changed since baseline ${e.baseline}`;
+        return renderGroundChanged(e);
       }
       return "self-changed: the plan itself changed since approval";
     });

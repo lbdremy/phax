@@ -22,13 +22,14 @@ import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import type { SpecApprovalRecord } from "../../../src/schemas/specApprovalRecord.js";
 import {
   clearApproved,
-  computeStaleness,
+  computeStaleness as computeStalenessWithCode,
   readSourceSpec,
   resolveCompletesSpec,
   specApprovalVerdict,
   stampApproved,
   STALENESS_REASONS,
   type ApprovalRecordLike,
+  type ComputeStalenessInput,
   type PlanStalenessVerdict,
   type StalenessEvidence,
   type StalenessReason,
@@ -320,12 +321,20 @@ describe("specApprovalVerdict", () => {
   });
 });
 
+// The unlinked-project default: most cases below do not concern the code link.
+function computeStaleness(
+  input: Omit<ComputeStalenessInput, "code"> & { readonly code?: ComputeStalenessInput["code"] },
+): PlanStalenessVerdict {
+  return computeStalenessWithCode({ code: { kind: "unlinked" }, ...input });
+}
+
 function record(overrides: Partial<ApprovalRecordLike> = {}): ApprovalRecordLike {
   return {
     planFingerprint: "plan-fp",
     approvedAt: "2026-08-10T00:00:00.000Z",
     baseline: "a".repeat(40),
     sourceSpec: { path: "docs/specs/2609101222-foo.md", fingerprint: "spec-fp" },
+    code: null,
     ...overrides,
   };
 }
@@ -998,5 +1007,128 @@ describe("approval record store over a copied record file", () => {
       expect(result.failure).toBeInstanceOf(ApprovalRecordUnreadableError);
       expect((result.failure as ApprovalRecordUnreadableError).recordPath).toBe(SPEC_RECORD);
     }
+  });
+});
+
+describe("computeStaleness under the code link", () => {
+  const CODE_SHA = "c".repeat(40);
+  const FOOTPRINT = ["src/export/csv.ts"];
+  const linkedRecord = { root: "code", baseline: CODE_SHA };
+
+  interface Row {
+    readonly name: string;
+    readonly linked: boolean;
+    readonly recordCode: ApprovalRecordLike["code"];
+    readonly codeBaselineExists?: boolean;
+    readonly codeChanged?: readonly string[];
+    readonly processChanged?: readonly string[];
+    readonly expected: PlanStalenessVerdict;
+  }
+
+  const rows: readonly Row[] = [
+    {
+      name: "linked, code baseline recorded, nothing changed",
+      linked: true,
+      recordCode: linkedRecord,
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "linked, footprint file changed in the code",
+      linked: true,
+      recordCode: linkedRecord,
+      codeChanged: ["src/export/csv.ts"],
+      expected: {
+        kind: "stale",
+        evidence: [
+          {
+            reason: "ground-changed",
+            baseline: CODE_SHA,
+            files: ["src/export/csv.ts"],
+            codeRoot: "code",
+          },
+        ],
+      },
+    },
+    {
+      name: "linked, code change outside the footprint",
+      linked: true,
+      recordCode: linkedRecord,
+      codeChanged: ["src/other.ts"],
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "linked, process change at a footprint path is not ground",
+      linked: true,
+      recordCode: linkedRecord,
+      processChanged: ["src/export/csv.ts"],
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "linked, record without a code baseline",
+      linked: true,
+      recordCode: null,
+      expected: {
+        kind: "missing-record",
+        detail: "approved without a code baseline — the project now links code/",
+      },
+    },
+    {
+      name: "linked, code baseline gone",
+      linked: true,
+      recordCode: linkedRecord,
+      codeBaselineExists: false,
+      expected: {
+        kind: "missing-record",
+        detail: `the recorded code baseline ${CODE_SHA} no longer exists in code/`,
+      },
+    },
+    {
+      name: "unlinked, record with a code baseline",
+      linked: false,
+      recordCode: linkedRecord,
+      expected: {
+        kind: "missing-record",
+        detail: `the approval recorded code baseline ${CODE_SHA} but the project declares no code link`,
+      },
+    },
+    {
+      name: "unlinked, record without code, nothing changed",
+      linked: false,
+      recordCode: null,
+      expected: { kind: "fresh" },
+    },
+    {
+      name: "unlinked, process change in the footprint is ground as before",
+      linked: false,
+      recordCode: null,
+      processChanged: ["src/export/csv.ts"],
+      expected: {
+        kind: "stale",
+        evidence: [
+          { reason: "ground-changed", baseline: "a".repeat(40), files: ["src/export/csv.ts"] },
+        ],
+      },
+    },
+  ];
+
+  it.each(rows)("$name", (row) => {
+    const verdict = computeStaleness({
+      planPath: JUDGED_PLAN,
+      record: record({ code: row.recordCode }),
+      baselineExists: true,
+      currentPlanFingerprint: "plan-fp",
+      currentSpecFingerprint: "spec-fp",
+      changedFilesSinceBaseline: row.processChanged ?? [],
+      footprint: FOOTPRINT,
+      code: row.linked
+        ? {
+            kind: "linked",
+            root: "code",
+            baselineExists: row.codeBaselineExists ?? true,
+            changedFilesSinceBaseline: row.codeChanged ?? [],
+          }
+        : { kind: "unlinked" },
+    });
+    expect(verdict).toEqual(row.expected);
   });
 });
