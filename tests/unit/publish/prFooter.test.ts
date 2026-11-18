@@ -62,6 +62,20 @@ describe("renderPrFooter", () => {
     expect(footer).toContain("\n**Plan** loose plan\\\n");
   });
 
+  it("leaves the whole Plan and Spec line out of a withheld plan", () => {
+    const generated =
+      "🛤️ Generated with [phax](https://docs.phax.run) 9.8.7 — the golden path, just facts\\";
+    const agents =
+      "**Agents** claude `claude-made-up-1` at medium: 2 phases; codex `gpt-made-up` at high: 1 phase\\";
+    const withheld = { plan: { kind: "withheld" }, spec: { kind: "none" } } as const;
+    expect(renderPrFooter({ ...full, ...withheld })).toBe(
+      ["---", "", generated, agents, "**Run** `acme.greet-cli`"].join("\n"),
+    );
+    expect(renderPrFooter({ ...full, ...withheld, agents: [] })).toBe(
+      ["---", "", generated, "**Run** `acme.greet-cli`"].join("\n"),
+    );
+  });
+
   it("leaves the Agents line out when no phase has a binding", () => {
     const footer = renderPrFooter({ ...full, agents: [] });
     expect(footer).not.toContain("**Agents**");
