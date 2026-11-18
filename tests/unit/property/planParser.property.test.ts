@@ -228,10 +228,16 @@ function timedCalls(text: string): ReadonlyArray<readonly [string, () => unknown
   ];
 }
 
+// The CPU time `call` takes, in milliseconds, user and system together. Not the wall-clock time: in a
+// phase gate the unit tier runs beside the rest of the suite, and an input that parses in 0.4 s took
+// 2 to 4.5 s of wall time there, every attempt, for about 0.4 s of CPU. A worker process of vitest's
+// `forks` pool runs one test file at a time, so the count holds only this parse and the engine's own
+// helper threads (garbage collection), never another test.
 const timeOnce = (call: () => unknown): number => {
-  const start = performance.now();
+  const start = process.cpuUsage();
   call();
-  return performance.now() - start;
+  const used = process.cpuUsage(start);
+  return (used.user + used.system) / 1000;
 };
 
 // The timings of `call`: one, or three when the first is over the bound (the property judges the
@@ -299,8 +305,8 @@ describe("plan parser", () => {
             }
             if (Math.min(...timings) > TIME_BOUND_MS) {
               throw new Error(
-                `${name} took over ${TIME_BOUND_MS} ms on ${bytes} bytes (origin: ${origin}); ` +
-                  `timings: ${timings.map((t) => `${Math.round(t)} ms`).join(", ")}`,
+                `${name} used over ${TIME_BOUND_MS} ms of CPU on ${bytes} bytes (origin: ${origin}); ` +
+                  `CPU timings: ${timings.map((t) => `${Math.round(t)} ms`).join(", ")}`,
               );
             }
           }
