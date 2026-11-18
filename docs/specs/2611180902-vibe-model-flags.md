@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-18
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-18
+  baseline: 911b368
 ---
 # Vibe model and thinking level by Vibe's own flags
 
