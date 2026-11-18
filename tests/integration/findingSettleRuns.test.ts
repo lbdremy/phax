@@ -134,6 +134,49 @@ describe("phax finding dismiss and defer: runs and refusals", () => {
     expect(head(repo, RECORDS_BRANCH)).toBe(before);
   });
 
+  it("refuses every finding while one fate record is unreadable, naming its path, commit and remedy", async () => {
+    await reviewOnce(repo, ["one", "two"]);
+    expect((await dismiss(["F1", "--by", "operator", "--why", "obsolete"])).code).toBe(0);
+    // A fate record this phax cannot read, as a later phax with a new fate would write it.
+    const path = `${repo.runId}/finding/F1/02/record.json`;
+    const text = JSON.stringify({ kind: "finding-fate", runId: repo.runId, finding: "F1" });
+    const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+      cwd: repo.repoDir,
+      input: text,
+      encoding: "utf8",
+    }).trim();
+    execFileSync("git", ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], {
+      cwd: repo.repoDir,
+      env: { ...process.env, GIT_INDEX_FILE: join(repo.repoDir, ".git", "fate-test-index") },
+    });
+    const tree = execFileSync("git", ["write-tree"], {
+      cwd: repo.repoDir,
+      encoding: "utf8",
+      env: { ...process.env, GIT_INDEX_FILE: join(repo.repoDir, ".git", "fate-test-index") },
+    }).trim();
+    const tip = head(repo, RECORDS_BRANCH) ?? "";
+    const commit = git(repo, [
+      "commit-tree",
+      tree,
+      "-p",
+      tip,
+      "-m",
+      "records(finding): F1 later",
+    ]).trim();
+    git(repo, ["update-ref", `refs/heads/${RECORDS_BRANCH}`, commit, tip]);
+
+    const listed = await runnerCall([findingGroup], ["finding", "list", repo.shortName]);
+    const result = await dismiss(["F2", "--by", "operator", "--why", "covered"]);
+
+    for (const refused of [listed, result]) {
+      expect(refused.code).toBe(1);
+      expect(refused.err).toContain(`the fate record ${path} on ${RECORDS_BRANCH}`);
+      expect(refused.err).toContain(`records commit ${commit.slice(0, 8)}`);
+      expect(refused.err).toContain("if a later phax wrote it, upgrade phax");
+    }
+    expect(head(repo, RECORDS_BRANCH)).toBe(commit);
+  });
+
   it("refuses a dedicated records destination whose clone is missing, naming phax records sync", async () => {
     await reviewOnce(repo, ["one"]);
     const file = join(repo.repoDir, "phax.json");
