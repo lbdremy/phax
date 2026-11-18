@@ -159,7 +159,7 @@ describe("fingerprintSource (approval-fingerprint neutrality)", () => {
 describe("stampApproved", () => {
   it("adds the approved mapping after the other keys", () => {
     const md = planFm({ sourceSpec: "null" });
-    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
       expect(updated.success).toContain("approved:");
@@ -168,12 +168,25 @@ describe("stampApproved", () => {
     }
   });
 
+  it("writes the code key only when given one, leaving every other byte as it was", () => {
+    const md = planFm({ sourceSpec: "null", body: "Body." });
+    const without = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
+    const withCode = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", "def5678");
+    expect(Result.isSuccess(without) && Result.isSuccess(withCode)).toBe(true);
+    if (Result.isSuccess(without) && Result.isSuccess(withCode)) {
+      expect(without.success).not.toContain("code:");
+      expect(withCode.success).toContain("baseline: abc1234");
+      expect(withCode.success).toContain("code: def5678");
+      expect(withCode.success.replace(/\n {2}code: def5678/, "")).toBe(without.success);
+    }
+  });
+
   it("replaces an existing approved mapping in place", () => {
     const md = planFm({
       sourceSpec: "null",
       approved: "approved:\n  date: 2020-01-01\n  baseline: '0000000'",
     });
-    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
       expect(updated.success).toContain("date: 2026-08-10");
@@ -184,7 +197,7 @@ describe("stampApproved", () => {
 
   it("leaves the document body byte-identical", () => {
     const md = planFm({ sourceSpec: "null", body: "Untouched body line.\n\nSecond paragraph." });
-    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const updated = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(updated)).toBe(true);
     if (Result.isSuccess(updated)) {
       const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);
@@ -195,7 +208,7 @@ describe("stampApproved", () => {
 
   it("never affects the approval fingerprint", () => {
     const md = planFm({ sourceSpec: "null" });
-    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(stamped)).toBe(true);
     if (Result.isSuccess(stamped)) {
       expect(fingerprintSource(stamped.success)).toBe(fingerprintSource(md));
@@ -203,7 +216,12 @@ describe("stampApproved", () => {
   });
 
   it("fails with missing-block when there is no frontmatter", () => {
-    const result = stampApproved("# Plan\n\n## Overview\n", "2026-08-10T12:00:00.000Z", "abc1234");
+    const result = stampApproved(
+      "# Plan\n\n## Overview\n",
+      "2026-08-10T12:00:00.000Z",
+      "abc1234",
+      null,
+    );
     expect(Result.isFailure(result)).toBe(true);
     if (Result.isFailure(result)) {
       expect(result.failure.kind).toBe("missing-block");
@@ -214,7 +232,7 @@ describe("stampApproved", () => {
 describe("clearApproved", () => {
   it("removes an approved mapping added by stampApproved, restoring the frontmatter", () => {
     const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
-    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(stamped)).toBe(true);
     if (!Result.isSuccess(stamped)) return;
     const cleared = clearApproved(stamped.success);
@@ -232,7 +250,7 @@ describe("clearApproved", () => {
 
   it("is fingerprint-neutral: clearing never changes the approval fingerprint", () => {
     const md = planFm({ sourceSpec: "docs/specs/2609101222-foo.md" });
-    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234");
+    const stamped = stampApproved(md, "2026-08-10T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(stamped)).toBe(true);
     if (!Result.isSuccess(stamped)) return;
     const cleared = clearApproved(stamped.success);
@@ -263,7 +281,7 @@ Body text.
 
 describe("stampApproved on a spec", () => {
   it("leaves other keys byte-identical when stamping a spec", () => {
-    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
+    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(updated)).toBe(true);
     if (!Result.isSuccess(updated)) return;
     expect(updated.success).toContain("date: 2026-08-11");
@@ -273,7 +291,7 @@ describe("stampApproved on a spec", () => {
   });
 
   it("leaves the body byte-identical when stamping a spec", () => {
-    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234");
+    const updated = stampApproved(SPEC_DOC, "2026-08-11T12:00:00.000Z", "abc1234", null);
     expect(Result.isSuccess(updated)).toBe(true);
     if (!Result.isSuccess(updated)) return;
     const bodyAfter = updated.success.slice(updated.success.indexOf("---\n", 3) + 4);

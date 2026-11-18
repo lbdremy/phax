@@ -120,9 +120,14 @@ export function stampApproved(
   md: string,
   dateIso: string,
   shortBaseline: string,
+  shortCode: string | null,
 ): Result.Result<string, FrontmatterProblem> {
   const date = (dateIso.split("T")[0] as string) ?? dateIso;
-  return setFrontmatterKeys(md, [{ key: "approved", value: { date, baseline: shortBaseline } }]);
+  const value =
+    shortCode === null
+      ? { date, baseline: shortBaseline }
+      : { date, baseline: shortBaseline, code: shortCode };
+  return setFrontmatterKeys(md, [{ key: "approved", value }]);
 }
 
 // Removes the `approved` frontmatter mapping, the mirror of stampApproved. Used

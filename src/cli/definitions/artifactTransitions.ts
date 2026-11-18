@@ -4,9 +4,11 @@
 // lists the files its commit holds as written-file records. Without `--json` each prints today's
 // lines. `approve` and `reopen` name their arbiter with `--by`: a call without it would let a
 // terminal stand for the operator, a person's gesture, so it is refused under `--json`.
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { transitionArtifactBy } from "../../app/artifactStatus.js";
+import { resolveCodeLink } from "../../app/codeLink.js";
+import { loadConfig, locatePhaxConfig } from "../../app/loadConfig.js";
 import { describeArbiter } from "../../domain/artifact/arbiter.js";
 import type { ArtifactStatus } from "../../domain/artifact/status.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
@@ -61,15 +63,32 @@ const TransitionOutput = Schema.Struct({
 
 type TransitionOutput = typeof TransitionOutput.Type;
 
+/**
+ * The project's code link for an approval, resolved before anything is written; null when the
+ * project has no phax.json or declares no link. A link that fails its checks refuses.
+ */
+function approvalCodeLink(repoRoot: string, target: ArtifactStatus) {
+  return Effect.gen(function* () {
+    if (target !== "Approved" || locatePhaxConfig(repoRoot) === undefined) return null;
+    const config = loadConfig(repoRoot);
+    if (Result.isFailure(config)) return yield* Effect.fail(config.failure);
+    return yield* resolveCodeLink(config.success).pipe(
+      Effect.provide(Layer.mergeAll(makeRootedNodeFileSystemLayer(repoRoot), makeNodeGitLayer())),
+    );
+  });
+}
+
 /** The transition to `target` of the artifact at `pathArg`, with the files it wrote read back. */
 function transition(pathArg: string, target: ArtifactStatus, by: string | undefined) {
   return Effect.gen(function* () {
     const repoRoot = findGitRoot(process.cwd());
     const { repoRelPath } = repoPaths(pathArg, repoRoot);
+    const codeLink = yield* approvalCodeLink(repoRoot, target);
     const result = yield* transitionArtifactBy(repoRelPath, target, {
       repoRoot,
       nowIso: new Date().toISOString(),
       commit: true,
+      codeLink,
       by,
     }).pipe(
       Effect.provide(
@@ -136,6 +155,7 @@ function renderTransition(value: TransitionOutput): string {
 // The exit codes of exitCodeForError: the lifecycle refusals are 12, a read or git failure and a
 // failed commit are 1.
 const exits = {
+  ConfigValidationError: 2,
   FsError: 1,
   GitError: 1,
   ArtifactCommitFailedError: 1,
@@ -157,6 +177,7 @@ const exits = {
 } as const;
 
 const errors = {
+  ConfigValidationError: MessageFields,
   FsError: MessageFields,
   GitError: MessageFields,
   ArtifactCommitFailedError: CommitFailedFields,
@@ -180,6 +201,7 @@ const errors = {
 const sentence = (error: { readonly message: string }): string => error.message;
 
 const texts = {
+  ConfigValidationError: sentence,
   FsError: sentence,
   GitError: sentence,
   ArtifactCommitFailedError: sentence,
@@ -203,7 +225,7 @@ const texts = {
 export const artifactApproveCommand = defineCommand({
   name: "approve",
   summary: "Transition an artifact to Approved",
-  help: "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place. An Approved artifact goes back to Draft only through `phax artifact reopen`, which voids the approval.\n\nEvery approval names its approver, and the approval record file records it as approvedBy. `--by machine:<grant>` declares a machine — a loop or a script — by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: approve refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator approval refuses with exit 12 when neither is set, naming `git config user.name`. A malformed --by or grant refuses with exit 12. Every refusal comes before anything is written. Approval records written before phax named the approver read as unattributed.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\nFor headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.\nWhile any live spec or plan sidecar is stamped below its document format's current shape, approval refuses with exit 12 before anything is written, naming each such sidecar and `phax artifact migrate-documents`.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus its own approval record file under docs/plans/approvals/ or docs/specs/approvals/) in a single commit; no transition touches another artifact's record file. Refuses with exit code 12 if any write-set path already has uncommitted changes.",
+  help: "Transitions an artifact to Approved. Legal from Draft (both kinds) and from Stale (plans only); re-approving an already-Approved artifact re-records the approval, refreshing its timestamp and baseline — this is the correct way to record an in-place revision of a spec, not editing the date by hand. Rewrites the frontmatter status key in place. An Approved artifact goes back to Draft only through `phax artifact reopen`, which voids the approval.\n\nEvery approval names its approver, and the approval record file records it as approvedBy. `--by machine:<grant>` declares a machine — a loop or a script — by its grant, a kebab-case slug matching ^[a-z0-9]+(-[a-z0-9]+)*$. `--by operator`, or no --by from a terminal, names the operator as git commits: GIT_COMMITTER_NAME, else the repository's git user.name, never a guessed name. Without a terminal there is no default: approve refuses with exit 12 unless --by is given, naming `--by operator` and `--by machine:<grant>`. An operator approval refuses with exit 12 when neither is set, naming `git config user.name`. A malformed --by or grant refuses with exit 12. Every refusal comes before anything is written. Approval records written before phax named the approver read as unattributed. In a project that declares a code link (`code` in phax.json), a plan approval also records the code repository's HEAD as the code baseline, and refuses with exit 2 when the link's root is missing, is not a repository's top level or is not ignored.\n\nFor specs: stamps `approved: { date, baseline }` in the frontmatter and writes the spec's approval record file, docs/specs/approvals/<spec file name>.json.\nFor plans: stamps `approved: { date, baseline }` in the frontmatter and writes the plan's approval record file, docs/plans/approvals/<plan file name>.json. Plan approval refuses with exit 12 if the declared Source-Spec is Approved but its approval is unrecorded or edited since approval — re-approve the spec first.\nFor headless-authored artifacts (either kind): approval refuses with exit 12 when the JSON document sidecar is diverged (the body differs from the sidecar's rendering) or invalid, naming the two remedies — re-author the artifact with --headless, or delete the sidecar to demote the artifact to hand-authored.\nWhile any live spec or plan sidecar is stamped below its document format's current shape, approval refuses with exit 12 before anything is written, naming each such sidecar and `phax artifact migrate-documents`.\n\nSide effects: writes the artifact file and commits the transition's write-set (the artifact file, its JSON document sidecar when headless-authored, plus its own approval record file under docs/plans/approvals/ or docs/specs/approvals/) in a single commit; no transition touches another artifact's record file. Refuses with exit code 12 if any write-set path already has uncommitted changes.",
   examples: [
     "phax artifact approve docs/plans/2607101056-typescript-7-migration-plan.md",
     "phax artifact approve docs/specs/2609030749-spec-approval-ground.md --by operator",

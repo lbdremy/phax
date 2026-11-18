@@ -118,6 +118,7 @@ const DEFAULT_OPTS = {
   repoRoot: "/fake-repo",
   nowIso: "2026-08-10T12:00:00.000Z",
   commit: false,
+  codeLink: null,
   arbiter: { kind: "machine", grant: "roadmap-loop" },
 } as const;
 

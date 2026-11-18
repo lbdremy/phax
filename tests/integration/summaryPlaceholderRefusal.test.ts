@@ -131,6 +131,7 @@ function transition(target: ArtifactStatus) {
         repoRoot: repoDir,
         nowIso: NOW,
         commit: true,
+        codeLink: null,
         by: "operator",
       }).pipe(Effect.provide(layer)),
     ),

@@ -111,6 +111,8 @@ const REWORDED_JSON: ReadonlyArray<string> = [
  *  decoder, the same documents as the published one, no longer its bytes (Effect 4). */
 const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "ls",
+  // code-repository: a plan approval also records the code baseline of a linked project.
+  "artifact approve",
   "artifact decide",
   "artifact schema",
   "plans overview",

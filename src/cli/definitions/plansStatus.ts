@@ -99,6 +99,7 @@ export const plansStatusCommand = defineCommand({
         repoRoot: config.repoRoot,
         nowIso,
         commit: true,
+        codeLink: null,
       }).pipe(Effect.provide(layer));
       // Each flipped plan, as the working tree holds it now.
       const writtenFiles = yield* Effect.forEach(applied, (flip) =>

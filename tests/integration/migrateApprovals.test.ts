@@ -640,7 +640,13 @@ describe("Old formats stay readable and are never written", () => {
 
   async function transition(path: string, target: ArtifactStatus): Promise<void> {
     // Run from a script: no terminal, so an approval names its machine.
-    const opts = { repoRoot: repoDir, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
+    const opts = {
+      repoRoot: repoDir,
+      nowIso: NOW,
+      commit: true,
+      codeLink: null,
+      by: "machine:roadmap-loop",
+    };
     const result = await runEither(
       transitionArtifactBy(path, target, opts).pipe(
         Effect.provide(Layer.merge(repoLayer(), makeFakeTerminal(false).layer)),

@@ -46,7 +46,11 @@ export type FrontmatterEdit =
   | { readonly key: "status"; readonly value: string }
   | {
       readonly key: "approved";
-      readonly value: { readonly date: string; readonly baseline: string };
+      readonly value: {
+        readonly date: string;
+        readonly baseline: string;
+        readonly code?: string;
+      };
     };
 
 function parseYamlMapping(yamlText: string): Result.Result<Document, FrontmatterProblem> {
@@ -112,7 +116,8 @@ export function setFrontmatterKeys(
     if (edit.key === "status") {
       doc.set("status", edit.value);
     } else {
-      doc.set("approved", { date: edit.value.date, baseline: edit.value.baseline });
+      const { date, baseline, code } = edit.value;
+      doc.set("approved", code === undefined ? { date, baseline } : { date, baseline, code });
     }
   }
 

@@ -111,7 +111,13 @@ async function transition(
     NodeGitLayer,
     makeFakeTerminal(false).layer,
   );
-  const opts = { repoRoot: root, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
+  const opts = {
+    repoRoot: root,
+    nowIso: NOW,
+    commit: true,
+    codeLink: null,
+    by: "machine:roadmap-loop",
+  };
   const result = await Effect.runPromise(
     Effect.result(transitionArtifactBy(path, target, opts).pipe(Effect.provide(layer))),
   );

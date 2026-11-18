@@ -54,7 +54,13 @@ function layer() {
 
 // Run from a script: no terminal, so an approval names its machine.
 async function transition(path: string, target: ArtifactStatus): Promise<void> {
-  const opts = { repoRoot: repoDir, nowIso: NOW, commit: true, by: "machine:roadmap-loop" };
+  const opts = {
+    repoRoot: repoDir,
+    nowIso: NOW,
+    commit: true,
+    codeLink: null,
+    by: "machine:roadmap-loop",
+  };
   const result = await Effect.runPromise(
     Effect.result(
       transitionArtifactBy(path, target, opts).pipe(

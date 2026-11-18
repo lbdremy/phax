@@ -54,6 +54,8 @@ vi.mock("../../../src/app/authorArtifact.js", async (importOriginal) => ({
 
 vi.mock("../../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
+  // No phax.json under the invocation directory: an approval resolves no code link.
+  locatePhaxConfig: vi.fn(() => undefined),
 }));
 
 vi.mock("../../../src/app/loadRouting.js", () => ({

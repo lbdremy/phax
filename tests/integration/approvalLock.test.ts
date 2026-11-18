@@ -240,6 +240,7 @@ function approve(path: string) {
         repoRoot: repoDir,
         nowIso: NOW,
         commit: true,
+        codeLink: null,
         by: undefined,
       }).pipe(Effect.provide(layer)),
     ),

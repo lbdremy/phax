@@ -126,6 +126,7 @@ function approve(path: string, by: string | undefined, stdinIsTerminal: boolean)
         repoRoot: repoDir,
         nowIso: NOW,
         commit: true,
+        codeLink: null,
         by,
       }).pipe(Effect.provide(layer)),
     ),

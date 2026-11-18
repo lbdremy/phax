@@ -233,6 +233,7 @@ async function approveByMachine(path: string): Promise<void> {
         repoRoot: repoDir,
         nowIso: "2026-10-21T09:28:11.427Z",
         commit: true,
+        codeLink: null,
         by: "machine:roadmap-loop",
       }).pipe(Effect.provide(layer)),
     ),
