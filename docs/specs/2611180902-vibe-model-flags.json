@@ -543,103 +543,7 @@
       ]
     }
   ],
-  "openQuestions": [
-    {
-      "id": "q-setup-command",
-      "question": "What happens to `phax agent setup mistral-vibe`?",
-      "options": [
-        {
-          "id": "remove",
-          "label": "Remove the command; the upgrade notes say how to delete the PHAX alias blocks by hand",
-          "abandons": "Any in-product signal to a user who still has PHAX alias blocks in their Vibe config that phax no longer uses them"
-        },
-        {
-          "id": "report",
-          "label": "Keep it as a read-only report of leftover PHAX alias blocks",
-          "abandons": "The guiding rule that phax never reads Vibe's home: a phax command keeps parsing `~/.vibe/config.toml` only to tell users about blocks that still work and harm nothing"
-        },
-        {
-          "id": "remover",
-          "label": "Turn it into a remover of the PHAX alias blocks",
-          "abandons": "The promise that phax never writes Vibe's config: phax would edit the user's file once more, with backup and parsing risk, for blocks the user may now rely on in their own sessions"
-        }
-      ],
-      "recommendation": "remove",
-      "rationale": "The leftover blocks are harmless: they still work in the user's own Vibe sessions and phax ignores them. The lost signal is therefore cheap, and one upgrade-notes entry replaces it. Both alternatives keep phax in Vibe's home directory, which is exactly what this change exists to end."
-    },
-    {
-      "id": "q-fresh-start",
-      "question": "What does the interactive fresh-start command carry, given that Vibe's TUI takes neither `--model` nor `--thinking`?",
-      "options": [
-        {
-          "id": "env-model",
-          "label": "Keep `VIBE_ACTIVE_MODEL=mistral-medium-3.5` in the command, and print a note that the thinking level is the model's default, naming the phase's level",
-          "abandons": "A headless-path purity: one place still selects the model through an environment variable, and a phase at `off` reopens interactively at Vibe's default level"
-        },
-        {
-          "id": "no-model",
-          "label": "Print the command with no model at all",
-          "abandons": "Model continuity: the person reviewing lands on Vibe's default model, now `mistral-large-4-0`, which is a different model, price and behaviour from the phase they are reviewing"
-        }
-      ],
-      "recommendation": "env-model",
-      "rationale": "Reviewing a phase on a different model than the one that wrote it is the worse loss, and it is silent. A thinking-level mismatch is named in the note, and the person can change it in the TUI. `VIBE_ACTIVE_MODEL` is Vibe's documented override, not a phax alias, so keeping it costs nothing in Vibe's home."
-    },
-    {
-      "id": "q-model-env-var",
-      "question": "Does `modelEnvVar` stay in the provider entry schema?",
-      "options": [
-        {
-          "id": "drop",
-          "label": "Drop the field: an old file carrying it is refused by name and `phax agent setup providers --write` rewrites it",
-          "abandons": "Configurability of the TUI's model variable name: if Vibe renamed `VIBE_ACTIVE_MODEL`, the fix would be a phax release, not a config edit"
-        },
-        {
-          "id": "keep-for-tui",
-          "label": "Keep the field, used only by the fresh-start command",
-          "abandons": "A config surface that means what it says: a field named for model selection that the headless path ignores, kept for one interactive command, on Vibe only"
-        }
-      ],
-      "recommendation": "drop",
-      "rationale": "Vibe was the field's only user, and the variable is Vibe's own documented name, so the fresh-start command can name it itself. A Vibe rename would need a phax release anyway, for the flags. Dropping it follows the no-shim policy: the old file is refused and rewritten by the existing command."
-    },
-    {
-      "id": "q-retired-successor",
-      "question": "When `phax agent setup providers --write` drops the two alias ids, does it list `mistral-medium-3.5` in their place?",
-      "options": [
-        {
-          "id": "replace",
-          "label": "List `mistral-medium-3.5` (off, high) in the family the alias ids leave",
-          "abandons": "The rewrite's narrow role of only removing what phax retired: it now also adds a catalog entry the user did not write"
-        },
-        {
-          "id": "drop-only",
-          "label": "Only drop them, as for the earlier retired aliases",
-          "abandons": "Vibe routing for every upgraded user: their `mistral-medium` family empties and is dropped, so Vibe is never chosen again until they hand-edit the file, with nothing telling them so"
-        }
-      ],
-      "recommendation": "replace",
-      "rationale": "Dropping only turns the one documented fix into a silent loss of the provider. The added entry is exactly the built-in one, so the user ends up with what a fresh install would have."
-    },
-    {
-      "id": "q-routing-file",
-      "question": "What does phax do with a `model-routing.json` whose equivalence is keyed on a retired id?",
-      "options": [
-        {
-          "id": "refuse",
-          "label": "Refuse it, naming each id and `mistral-medium-3.5` as the key to use",
-          "abandons": "Uninterrupted runs for a user whose table also carries edges for the earlier retired `-low`/`-medium`/`-max` ids, which were harmless until now"
-        },
-        {
-          "id": "ignore",
-          "label": "Leave it as is: edges on ids that are not in the catalog are never selected",
-          "abandons": "Vibe routing for any user with a scaffolded routing table: no edge points at `mistral-medium-3.5`, so hub-to-spoke never picks Vibe, and nothing says why"
-        }
-      ],
-      "recommendation": "refuse",
-      "rationale": "A silent loss of a provider is the failure this change must not introduce, and the refusal names its own fix. Edges on the earlier retired ids were dead weight, so refusing them costs one rename or deletion."
-    }
-  ],
+  "openQuestions": [],
   "arbitratedQuestions": [
     {
       "id": "q-thinking-check",
@@ -683,6 +587,207 @@
           "§8 Acceptance criteria",
           "§10 Implementation-planning note"
         ]
+      },
+      "history": []
+    },
+    {
+      "id": "q-setup-command",
+      "question": "What happens to `phax agent setup mistral-vibe`?",
+      "options": [
+        {
+          "id": "remove",
+          "label": "Remove the command; the upgrade notes say how to delete the PHAX alias blocks by hand",
+          "abandons": "Any in-product signal to a user who still has PHAX alias blocks in their Vibe config that phax no longer uses them"
+        },
+        {
+          "id": "report",
+          "label": "Keep it as a read-only report of leftover PHAX alias blocks",
+          "abandons": "The guiding rule that phax never reads Vibe's home: a phax command keeps parsing `~/.vibe/config.toml` only to tell users about blocks that still work and harm nothing"
+        },
+        {
+          "id": "remover",
+          "label": "Turn it into a remover of the PHAX alias blocks",
+          "abandons": "The promise that phax never writes Vibe's config: phax would edit the user's file once more, with backup and parsing risk, for blocks the user may now rely on in their own sessions"
+        }
+      ],
+      "recommendation": "remove",
+      "rationale": "The leftover blocks are harmless: they still work in the user's own Vibe sessions and phax ignores them. The lost signal is therefore cheap, and one upgrade-notes entry replaces it. Both alternatives keep phax in Vibe's home directory, which is exactly what this change exists to end.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "remove",
+        "abandoned": [
+          "report",
+          "remover"
+        ],
+        "why": "The leftover blocks are harmless: they still work in the user's own Vibe sessions and phax ignores them. The lost signal is therefore cheap, and one upgrade-notes entry replaces it. Both alternatives keep phax in Vibe's home directory, which is exactly what this change exists to end.",
+        "advocate": "The strongest case for report: a user with leftover PHAX alias blocks gets told in the product that phax no longer uses them, instead of having to find that in the upgrade notes.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:23:03.972Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-fresh-start",
+      "question": "What does the interactive fresh-start command carry, given that Vibe's TUI takes neither `--model` nor `--thinking`?",
+      "options": [
+        {
+          "id": "env-model",
+          "label": "Keep `VIBE_ACTIVE_MODEL=mistral-medium-3.5` in the command, and print a note that the thinking level is the model's default, naming the phase's level",
+          "abandons": "A headless-path purity: one place still selects the model through an environment variable, and a phase at `off` reopens interactively at Vibe's default level"
+        },
+        {
+          "id": "no-model",
+          "label": "Print the command with no model at all",
+          "abandons": "Model continuity: the person reviewing lands on Vibe's default model, now `mistral-large-4-0`, which is a different model, price and behaviour from the phase they are reviewing"
+        }
+      ],
+      "recommendation": "env-model",
+      "rationale": "Reviewing a phase on a different model than the one that wrote it is the worse loss, and it is silent. A thinking-level mismatch is named in the note, and the person can change it in the TUI. `VIBE_ACTIVE_MODEL` is Vibe's documented override, not a phax alias, so keeping it costs nothing in Vibe's home.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "env-model",
+        "abandoned": [
+          "no-model"
+        ],
+        "why": "Reviewing a phase on a different model than the one that wrote it is the worse loss, and it is silent. A thinking-level mismatch is named in the note, and the person can change it in the TUI. `VIBE_ACTIVE_MODEL` is Vibe's documented override, not a phax alias, so keeping it costs nothing in Vibe's home.",
+        "advocate": "The strongest case for no-model: the headless path then selects nothing through an environment variable, so no model setting survives anywhere in phax, and the person simply uses Vibe's own default.",
+        "principles": [
+          "S1",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:23:03.972Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-model-env-var",
+      "question": "Does `modelEnvVar` stay in the provider entry schema?",
+      "options": [
+        {
+          "id": "drop",
+          "label": "Drop the field: an old file carrying it is refused by name and `phax agent setup providers --write` rewrites it",
+          "abandons": "Configurability of the TUI's model variable name: if Vibe renamed `VIBE_ACTIVE_MODEL`, the fix would be a phax release, not a config edit"
+        },
+        {
+          "id": "keep-for-tui",
+          "label": "Keep the field, used only by the fresh-start command",
+          "abandons": "A config surface that means what it says: a field named for model selection that the headless path ignores, kept for one interactive command, on Vibe only"
+        }
+      ],
+      "recommendation": "drop",
+      "rationale": "Vibe was the field's only user, and the variable is Vibe's own documented name, so the fresh-start command can name it itself. A Vibe rename would need a phax release anyway, for the flags. Dropping it follows the no-shim policy: the old file is refused and rewritten by the existing command.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "drop",
+        "abandoned": [
+          "keep-for-tui"
+        ],
+        "why": "Vibe was the field's only user, and the variable is Vibe's own documented name, so the fresh-start command can name it itself. A Vibe rename would need a phax release anyway, for the flags. Dropping it follows the no-shim policy: the old file is refused and rewritten by the existing command.",
+        "advocate": "The strongest case for keep-for-tui: if Vibe renamed its model variable, an operator could fix the fresh-start command with a config edit instead of waiting for a phax release.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:23:03.972Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-retired-successor",
+      "question": "When `phax agent setup providers --write` drops the two alias ids, does it list `mistral-medium-3.5` in their place?",
+      "options": [
+        {
+          "id": "replace",
+          "label": "List `mistral-medium-3.5` (off, high) in the family the alias ids leave",
+          "abandons": "The rewrite's narrow role of only removing what phax retired: it now also adds a catalog entry the user did not write"
+        },
+        {
+          "id": "drop-only",
+          "label": "Only drop them, as for the earlier retired aliases",
+          "abandons": "Vibe routing for every upgraded user: their `mistral-medium` family empties and is dropped, so Vibe is never chosen again until they hand-edit the file, with nothing telling them so"
+        }
+      ],
+      "recommendation": "replace",
+      "rationale": "Dropping only turns the one documented fix into a silent loss of the provider. The added entry is exactly the built-in one, so the user ends up with what a fresh install would have.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "replace",
+        "abandoned": [
+          "drop-only"
+        ],
+        "why": "Dropping only turns the one documented fix into a silent loss of the provider. The added entry is exactly the built-in one, so the user ends up with what a fresh install would have.",
+        "advocate": "The strongest case for drop-only: the rewrite keeps one narrow job, removing what phax retired, and never writes a catalog entry the user did not choose.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:23:03.972Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-routing-file",
+      "question": "What does phax do with a `model-routing.json` whose equivalence is keyed on a retired id?",
+      "options": [
+        {
+          "id": "refuse",
+          "label": "Refuse it, naming each id and `mistral-medium-3.5` as the key to use",
+          "abandons": "Uninterrupted runs for a user whose table also carries edges for the earlier retired `-low`/`-medium`/`-max` ids, which were harmless until now"
+        },
+        {
+          "id": "ignore",
+          "label": "Leave it as is: edges on ids that are not in the catalog are never selected",
+          "abandons": "Vibe routing for any user with a scaffolded routing table: no edge points at `mistral-medium-3.5`, so hub-to-spoke never picks Vibe, and nothing says why"
+        }
+      ],
+      "recommendation": "refuse",
+      "rationale": "A silent loss of a provider is the failure this change must not introduce, and the refusal names its own fix. Edges on the earlier retired ids were dead weight, so refusing them costs one rename or deletion.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse",
+        "abandoned": [
+          "ignore"
+        ],
+        "why": "A silent loss of a provider is the failure this change must not introduce, and the refusal names its own fix. Edges on the earlier retired ids were dead weight, so refusing them costs one rename or deletion.",
+        "advocate": "The strongest case for ignore: edges on ids outside the catalog are harmless, so refusing a file over them stops runs that would have worked on Claude Code anyway.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:23:03.972Z",
+        "revised": []
       },
       "history": []
     }
