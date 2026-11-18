@@ -751,7 +751,7 @@ phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator
 
 ## `phax finding dismiss`
 
-- **Usage**: `phax finding dismiss <FLAGS> <short-name> [operand]…`
+- **Usage**: `phax finding dismiss <FLAGS> <short-name> [id]…`
 
 Records each named finding as dismissed on the phax/records/v1 branch, with --why as the reason: a decided verdict that chooses dismiss and abandons fix and defer, whose case for fixing is the finding's suggestion (a code-review finding) or its message (a compliance finding). One record per id, in the order named. Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.
 
@@ -761,9 +761,9 @@ Records each named finding as dismissed on the phax/records/v1 branch, with --wh
 
 Run short name, e.g. usage-cli
 
-#### `[operand]…`
+#### `[id]…`
 
-Finding ids (F2, C1), then — after -- — the paths to commit
+Finding ids (F2, C1)
 
 ### Flags
 
@@ -782,16 +782,12 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 ### Examples
 
 ```
-phax finding dismiss gate-retry F3 --why "the helper is internal, no caller can reach it"
-```
-
-```
-phax finding dismiss gate-retry F2 C1 --why "out of scope for this run" --by operator
+phax finding dismiss gate-retry F3 --why "the second check guards --resume"
 ```
 
 ## `phax finding defer`
 
-- **Usage**: `phax finding defer <FLAGS> <short-name> [operand]…`
+- **Usage**: `phax finding defer <FLAGS> <short-name> [id]…`
 
 Records each named finding as deferred on the phax/records/v1 branch, to the tracked file --to names (a brief, a spec, NEXT_STEPS.md), with --why as the reason. The path is read relative to the current directory within its checkout, must be a file tracked at HEAD, and is recorded relative to the repository root. One record per id, in the order named. Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.
 
@@ -801,9 +797,9 @@ Records each named finding as deferred on the phax/records/v1 branch, to the tra
 
 Run short name, e.g. usage-cli
 
-#### `[operand]…`
+#### `[id]…`
 
-Finding ids (F2, C1), then — after -- — the paths to commit
+Finding ids (F2, C1)
 
 ### Flags
 
@@ -826,11 +822,7 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 ### Examples
 
 ```
-phax finding defer gate-retry F4 --to NEXT_STEPS.md --why "needs its own plan"
-```
-
-```
-phax finding defer gate-retry F1 F6 --to docs/specs/gate.md --why "belongs to the gate spec" --by operator
+phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why "docs pass after the gate rework"
 ```
 
 ## `phax adjust-plan`

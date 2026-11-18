@@ -152,6 +152,14 @@ const FixOperand = Schema.String.annotate({
 
 const FixArgs = reject(Schema.TupleWithRest(Schema.Tuple([ShortNameArg]), [FixOperand]));
 
+const SettleOperand = Schema.String.annotate({
+  identifier: "id",
+  description: "Finding ids (F2, C1)",
+});
+
+/** `dismiss` and `defer` take finding ids only: no paths. */
+const SettleArgs = reject(Schema.TupleWithRest(Schema.Tuple([ShortNameArg]), [SettleOperand]));
+
 const FixFlags = reject(
   Schema.Struct({
     by: Schema.optionalKey(
@@ -425,11 +433,8 @@ const dismissCommand = defineCommand({
   name: "dismiss",
   summary: "Record findings as dismissed",
   help: `Records each named finding as dismissed on the phax/records/v1 branch, with --why as the reason: a decided verdict that chooses dismiss and abandons fix and defer, whose case for fixing is the finding's suggestion (a code-review finding) or its message (a compliance finding). One record per id, in the order named. ${SETTLE_TAIL}`,
-  examples: [
-    'phax finding dismiss gate-retry F3 --why "the helper is internal, no caller can reach it"',
-    'phax finding dismiss gate-retry F2 C1 --why "out of scope for this run" --by operator',
-  ],
-  input: { args: FixArgs, flags: DismissFlags },
+  examples: ['phax finding dismiss gate-retry F3 --why "the second check guards --resume"'],
+  input: { args: SettleArgs, flags: DismissFlags },
   output: reject(FindingFixOutput),
   prompts: (input) => input.flags.by === undefined,
   unprompted: "pass --by",
@@ -457,10 +462,9 @@ const deferCommand = defineCommand({
   summary: "Record findings as deferred to a file",
   help: `Records each named finding as deferred on the phax/records/v1 branch, to the tracked file --to names (a brief, a spec, NEXT_STEPS.md), with --why as the reason. The path is read relative to the current directory within its checkout, must be a file tracked at HEAD, and is recorded relative to the repository root. One record per id, in the order named. ${SETTLE_TAIL}`,
   examples: [
-    'phax finding defer gate-retry F4 --to NEXT_STEPS.md --why "needs its own plan"',
-    'phax finding defer gate-retry F1 F6 --to docs/specs/gate.md --why "belongs to the gate spec" --by operator',
+    'phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why "docs pass after the gate rework"',
   ],
-  input: { args: FixArgs, flags: DeferFlags },
+  input: { args: SettleArgs, flags: DeferFlags },
   output: reject(FindingFixOutput),
   prompts: (input) => input.flags.by === undefined,
   unprompted: "pass --by",
