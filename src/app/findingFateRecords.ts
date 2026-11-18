@@ -160,8 +160,18 @@ export interface ReadFateRecord {
 export interface RunFateRecordsRead {
   /** Oldest first, in branch order. */
   readonly records: readonly ReadFateRecord[];
-  readonly unreadable: readonly { readonly where: string; readonly message: string }[];
+  /** Each record that cannot be read, with its path on the records branch and its commit. */
+  readonly unreadable: readonly UnreadableFateRecord[];
   readonly notes: readonly string[];
+}
+
+export interface UnreadableFateRecord {
+  /** `<sha8>:<path>`, as the reader's message names it. */
+  readonly where: string;
+  readonly message: string;
+  /** The record's `record.json` path on the records branch. */
+  readonly path: string;
+  readonly recordCommit: string;
 }
 
 const NO_RECORDS: RunFateRecordsRead = { records: [], unreadable: [], notes: [] };
@@ -191,7 +201,7 @@ export function readRunFateRecords(input: {
     const git = yield* Git;
     if (!(yield* fs.exists(path).pipe(Effect.orElseSucceed(() => false)))) return NO_RECORDS;
     const records: ReadFateRecord[] = [];
-    const unreadable: { where: string; message: string }[] = [];
+    const unreadable: UnreadableFateRecord[] = [];
     const walked = yield* Effect.gen(function* () {
       const tip = yield* resolveRecordsTip(path, remoteRef);
       if (tip === null) return;
@@ -211,12 +221,22 @@ export function readRunFateRecords(input: {
           try {
             parsedJson = JSON.parse(text);
           } catch (error) {
-            unreadable.push({ where, message: `${where} is not JSON (${String(error)})` });
+            unreadable.push({
+              where,
+              message: `${where} is not JSON (${String(error)})`,
+              path: hit.path,
+              recordCommit: commit.sha,
+            });
             continue;
           }
           const read = readFindingFateRecordManifestFile(where, parsedJson);
           if (Result.isFailure(read)) {
-            unreadable.push({ where, message: read.failure.message });
+            unreadable.push({
+              where,
+              message: read.failure.message,
+              path: hit.path,
+              recordCommit: commit.sha,
+            });
             continue;
           }
           const manifest = read.success;
@@ -224,6 +244,8 @@ export function readRunFateRecords(input: {
             unreadable.push({
               where,
               message: `${where} names ${manifest.runId}/${manifest.finding}, not the finding its key names`,
+              path: hit.path,
+              recordCommit: commit.sha,
             });
             continue;
           }

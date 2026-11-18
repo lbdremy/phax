@@ -27,6 +27,7 @@ import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { RunStateSchema } from "../schemas/status.js";
 import { runFolderOf } from "./costBackfill.js";
 import { readRunFateRecords } from "./findingFateRecords.js";
+import { RECORDS_BRANCH_NAME } from "./recordPlumbing.js";
 import { readRegistry } from "./registry.js";
 import { resolveRunRef } from "./resolveRunRef.js";
 import {
@@ -249,7 +250,11 @@ export function listRunFindings(input: {
         : `${unreadableFate.where}: ${unreadableFate.message}`;
       return yield* Effect.fail(
         new FindingFateRecordUnreadableError({
-          message: `Cannot list the findings of "${runKey(run.namespace, run.shortName)}": ${named}`,
+          message:
+            `Cannot list the findings of "${runKey(run.namespace, run.shortName)}": ${named}. ` +
+            `This phax cannot read the fate record ${unreadableFate.path} on ${RECORDS_BRANCH_NAME} ` +
+            `(records commit ${unreadableFate.recordCommit.slice(0, 8)}); ` +
+            `if a later phax wrote it, upgrade phax and run the command again`,
         }),
       );
     }

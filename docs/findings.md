@@ -192,3 +192,5 @@ With records off, only the run folder is read and nothing is kept: a replaced re
 An archived run is read from its archive folder, with the records of its project when they can be read. When the archive folder is gone, only the records are listed, and a note on stderr says so. A run the registry no longer knows cannot be listed.
 
 A review document `phax finding list` cannot read (a damaged file, or one stamped by a newer phax) is refused with exit 1, naming it. Persisting a new review continues the numbering after the readable ones, with a warning.
+
+A fate record phax cannot read refuses the whole run the same way: `phax finding list`, `fix`, `dismiss` and `defer` all exit 1, for every finding of the run. The refusal names the record's path on `phax/records/v1` and its records commit. When a later phax wrote it, upgrade phax.
