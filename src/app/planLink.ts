@@ -1,18 +1,23 @@
 // Where a plan given to `phax run --plan` lives: with this repository's code, or in a process
 // repository that links this one (spec code-repository). A plan inside the run's repository is
-// not linked. Otherwise the plan's own repository is read — its phax.json `code` key and nothing
-// else, none of its commands, gates or providers — and the plan is linked only when that link
-// names the run's repository. Everything else stays loose, as it always was, with no warning.
-import { dirname, join, relative, sep } from "node:path";
-import { Effect, Result } from "effect";
+// not linked. Otherwise the plan's own repository is read — the `code` key of its phax.json and
+// nothing else, none of its commands, gates or providers — and the plan is linked only when that
+// link names the run's repository. Everything else stays loose, as it always was, with no
+// warning: phax refuses only where it cannot tell whether a plan of that repository's
+// docs/plans/ is linked to this one, or where the link names this repository and is unusable.
+import { dirname, relative, resolve, sep } from "node:path";
+import { Effect } from "effect";
 import { classifyArtifactPath } from "../domain/artifact/document.js";
-import { codeRootMessage, codeRootNotIgnored, codeRootProblem } from "../domain/config/codeLink.js";
 import { ConfigValidationError } from "../domain/errors.js";
-import { FileSystem, type FsError } from "../ports/fs.js";
+import type { FileSystem, FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
-import { decodePhaxConfig } from "../schemas/phaxConfig.js";
-import { formatConfigParseError } from "../schemas/formatError.js";
-import type { CodeLink } from "./codeLink.js";
+import {
+  checkCodeRoot,
+  type CodeLink,
+  declaredCodeRoot,
+  findProjectConfig,
+  readPhaxJsonObject,
+} from "./codeLink.js";
 
 export type PlanLink =
   | { readonly kind: "loose" }
@@ -34,8 +39,16 @@ const isInside = (root: string, path: string): boolean => {
 
 /**
  * The link of a plan: `loose` (today's behaviour, untouched), `linked` (the plan is the process
- * repository's artifact at `planPath`), or a `ConfigValidationError` naming the process repository's
- * phax.json when its link is declared but unusable.
+ * repository's artifact at `planPath`), or a `ConfigValidationError` naming the process
+ * repository's phax.json. The phax.json is the one phax finds walking up from the plan's
+ * directory to the process repository's top level, as from a command run there.
+ *
+ * Loose: no phax.json, an object with no `code` key, or a `code.root` that resolves to another
+ * repository than this one, whatever else the file holds. Refused: a phax.json that is not a
+ * JSON object, or a `code` key with no `root` string, since phax cannot tell whether the plan is
+ * linked; and a link that names this repository but does not decode, is not canonical, or fails
+ * the checks against the process repository (not this repository's top level, tracked, not
+ * ignored).
  */
 export function resolvePlanLink(input: {
   readonly runRepoRoot: string;
@@ -52,43 +65,33 @@ export function resolvePlanLink(input: {
     const planPath = relative(processRoot, planAbsolute).split(sep).join("/");
     if (classifyArtifactPath(planPath)?.kind !== "plan") return LOOSE;
 
-    const fs = (yield* FileSystem).rootedAt(processRoot);
-    const configPath = join(processRoot, "phax.json");
-    if (!(yield* fs.exists(configPath))) return LOOSE;
-    const refuse = (message: string) =>
-      Effect.fail(new ConfigValidationError({ message, path: configPath }));
-
-    const text = yield* fs.readText(configPath);
-    let raw: unknown;
-    try {
-      raw = JSON.parse(text);
-    } catch (e) {
-      return yield* refuse(
-        `Invalid phax.json at "${configPath}": ${e instanceof Error ? e.message : String(e)}`,
+    const configPath = yield* findProjectConfig(dirname(planAbsolute), processRoot);
+    if (configPath === null) return LOOSE;
+    const cannotTell = (reason: string) =>
+      Effect.fail(
+        new ConfigValidationError({
+          message: `Cannot tell whether ${planPath} is linked to this repository: "${configPath}" ${reason}`,
+          path: configPath,
+        }),
       );
-    }
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
-      return yield* refuse(`Invalid phax.json at "${configPath}": not a JSON object`);
-    }
-    if (!Object.hasOwn(raw, "code")) return LOOSE;
 
-    const decoded = decodePhaxConfig(raw);
-    if (Result.isFailure(decoded)) {
-      return yield* refuse(
-        `Invalid phax.json at "${configPath}":\n${formatConfigParseError(raw, decoded.failure)}`,
-      );
-    }
-    const declared = decoded.success.code;
-    if (declared === undefined) return LOOSE;
-    const root = declared.root;
-    const problem = codeRootProblem(root);
-    if (problem !== null) return yield* refuse(codeRootMessage(root, problem));
+    const read = yield* readPhaxJsonObject(configPath);
+    if (read.kind === "unreadable") return yield* cannotTell(read.reason);
+    if (!Object.hasOwn(read.raw, "code")) return LOOSE;
+    const code = read.raw["code"];
+    const named =
+      typeof code === "object" && code !== null && !Array.isArray(code)
+        ? (code as Record<string, unknown>)["root"]
+        : undefined;
+    if (typeof named !== "string")
+      return yield* cannotTell('declares "code" with no "root" string');
 
-    const codePath = join(processRoot, root);
-    if ((yield* git.repoTopLevel(codePath)) !== runRepoRoot) return LOOSE;
-    if (!(yield* git.isIgnored(processRoot, root))) {
-      return yield* refuse(codeRootMessage(root, codeRootNotIgnored(root)));
-    }
-    return { kind: "linked", processRoot, planPath, link: { root, path: codePath } };
+    // Where the link points, before anything of it is judged: a link to another repository
+    // leaves the plan loose, even when it would not pass the checks below.
+    if ((yield* git.repoTopLevel(resolve(processRoot, named))) !== runRepoRoot) return LOOSE;
+
+    const root = yield* declaredCodeRoot(read.raw, configPath);
+    const link = yield* checkCodeRoot({ repoRoot: processRoot, root, configPath });
+    return { kind: "linked", processRoot, planPath, link };
   });
 }
