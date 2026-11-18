@@ -131,6 +131,7 @@ import { PlanExtractionAnswerSchema } from "../../../src/schemas/planExtraction.
 import { ReviewStopFileSchema } from "../../../src/schemas/reviewStop.js";
 import { RunListFileSchema } from "../../../src/schemas/runList.js";
 import { ArtifactStatusFileSchema } from "../../../src/schemas/artifactStatusDocument.js";
+import { FindingFateRecordManifestFileSchema } from "../../../src/schemas/findingFateRecord.js";
 import { FindingListFileSchema } from "../../../src/schemas/findingList.js";
 import { PlanLintFileSchema } from "../../../src/schemas/planLint.js";
 import { PlanOverviewFileSchema } from "../../../src/schemas/planOverview.js";
@@ -1302,6 +1303,19 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           message: "phase-02 has no gate",
         },
       ],
+    }),
+  ),
+  "finding-fate-record-manifest": encoded(
+    FindingFateRecordManifestFileSchema,
+    withSchemaUrl("finding-fate-record-manifest", {
+      kind: "finding-fate",
+      runId: "2611011300-garden-sync",
+      finding: "F1",
+      fate: "fixed",
+      commit: "0123456789abcdef0123456789abcdef01234567",
+      pathClasses: ["code", "tests"],
+      by: { kind: "operator", name: "Ada Example" },
+      at: "2026-11-01T13:30:00Z",
     }),
   ),
   "finding-list": encoded(

@@ -124,6 +124,10 @@ import {
 import { decodeCostLedgerFile, type CostLedger } from "./costLedger.js";
 import { decodeDecisionRecordManifestFile, liftFrozenDecisionManifest } from "./decisionRecord.js";
 import { decodeReviewRecordManifestFile } from "./reviewRecord.js";
+import {
+  decodeFindingFateRecordManifestFile,
+  type FindingFateRecordManifest,
+} from "./findingFateRecord.js";
 import { decodeRevisionRecordManifestFile } from "./revisionRecord.js";
 import { decodeFirstReadingFile, type FirstReadingFile } from "./firstReading.js";
 import { formatFirstViolation, formatPlanDocumentViolation } from "./formatError.js";
@@ -2181,6 +2185,20 @@ const readRevisionRecordManifest: Reader<RecordManifest> = (file, input) =>
     label: "revision record manifest",
     file,
     decodeCurrent: decodeRevisionRecordManifestFile,
+    fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
+  });
+
+/**
+ * Reads a finding's fate record `record.json`. Born with `$schema`, so one
+ * without it is unreadable. Not a member of the record-manifest union: fate
+ * records stay outside `readRecordManifestFile`.
+ */
+export const readFindingFateRecordManifestFile: Reader<FindingFateRecordManifest> = (file, input) =>
+  readSchemaBornPersisted(input, {
+    format: "finding-fate-record-manifest",
+    label: "finding fate record manifest",
+    file,
+    decodeCurrent: decodeFindingFateRecordManifestFile,
     fromCurrent: ({ $schema: _schema, ...manifest }) => manifest,
   });
 

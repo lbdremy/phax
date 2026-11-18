@@ -905,6 +905,9 @@ const NEVER_WRITTEN: ReadonlyArray<FormatId> = [
   "plan-lint",
   // `phax finding list --json` prints the finding list on stdout and never saves it.
   "finding-list",
+  // No writer of the finding fate record exists yet: the fate record writer
+  // lands in phase-03 of plan finding-fates, which removes this entry.
+  "finding-fate-record-manifest",
   // phax never writes a decide verdicts file: a person writes it, and phax
   // reads it for `phax artifact decide --verdicts`.
   "decide-verdicts",

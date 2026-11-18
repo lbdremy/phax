@@ -169,6 +169,179 @@
       }
     },
     {
+      "name": "accepts a finding with a dismissal, a deferral and two fixes",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "run": {
+            "namespace": "garden",
+            "shortName": "garden-sync",
+            "runId": "2611011300-garden-sync",
+            "state": "completed"
+          },
+          "records": "read",
+          "findings": [
+            {
+              "id": "F1",
+              "source": "code-review",
+              "severity": "bug",
+              "file": "src/example.ts",
+              "line": 12,
+              "message": "An empty name is accepted.",
+              "lens": "edge",
+              "escape": "unexplored-input",
+              "criterion": "AC-empty-name",
+              "suggestion": "Refuse an empty name.",
+              "fate": "fixed",
+              "history": [
+                {
+                  "fate": "dismissed",
+                  "verdict": {
+                    "kind": "decided",
+                    "chosen": "dismiss",
+                    "abandoned": [
+                      "fix",
+                      "defer"
+                    ],
+                    "why": "The input is validated by the caller.",
+                    "advocate": "Refuse an empty name.",
+                    "principles": [],
+                    "reversibility": "cheap",
+                    "by": {
+                      "kind": "operator",
+                      "name": "Ada Example"
+                    },
+                    "at": "2026-11-01T13:30:00Z",
+                    "revised": []
+                  }
+                },
+                {
+                  "fate": "deferred",
+                  "to": "NEXT_STEPS.md",
+                  "why": "Needs a design of its own.",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z"
+                },
+                {
+                  "fate": "fixed",
+                  "commit": "0123456789abcdef0123456789abcdef01234567",
+                  "pathClasses": [
+                    "docs"
+                  ],
+                  "by": {
+                    "kind": "machine",
+                    "grant": "ci-fixer"
+                  },
+                  "at": "2026-11-01T13:30:00Z"
+                },
+                {
+                  "fate": "fixed",
+                  "commit": "0123456789abcdef0123456789abcdef01234567",
+                  "pathClasses": [
+                    "code",
+                    "tests"
+                  ],
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "refuses a document that is not an object",
       "input": [
         "not",
@@ -423,43 +596,6 @@
       "expected": {
         "ok": false,
         "refusal": "findings.0.file: is unexpected, expected: \"id\" | \"source\" | \"severity\" | \"phaseId\" | \"dimension\" | \"message\" | \"fate\" | \"history\""
-      }
-    },
-    {
-      "name": "refuses a non-empty history",
-      "input": {
-        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
-        "run": {
-          "namespace": "garden",
-          "shortName": "garden-sync",
-          "runId": "2611011300-garden-sync",
-          "state": "completed"
-        },
-        "records": "read",
-        "findings": [
-          {
-            "id": "F1",
-            "source": "code-review",
-            "severity": "bug",
-            "file": "src/example.ts",
-            "line": 12,
-            "message": "An empty name is accepted.",
-            "lens": "edge",
-            "escape": "unexplored-input",
-            "criterion": "AC-empty-name",
-            "suggestion": "Refuse an empty name.",
-            "fate": "open",
-            "history": [
-              {
-                "fate": "fixed"
-              }
-            ]
-          }
-        ]
-      },
-      "expected": {
-        "ok": false,
-        "refusal": "findings.0.history.0: is unexpected, expected: never"
       }
     },
     {
@@ -2171,6 +2307,3831 @@
       "expected": {
         "ok": false,
         "refusal": "run.state: is missing"
+      }
+    },
+    {
+      "name": "refuses a history entry with a fate of open",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "open"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.fate: Expected \"fixed\" | \"dismissed\" | \"deferred\", actual \"open\""
+      }
+    },
+    {
+      "name": "refuses a history entry with an unknown key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z",
+                "extra": 1
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.extra: is unexpected, expected: \"fate\" | \"to\" | \"why\" | \"by\" | \"at\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].fate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.fate: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].commit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.commit: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].pathClasses required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.pathClasses: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.by: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].at required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                }
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.at: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].fate enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "nonsense",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.fate: Expected \"fixed\" | \"dismissed\" | \"deferred\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].commit pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "not a url",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.commit: Expected a string matching the pattern ^([0-9a-f]{40}|[0-9a-f]{64})$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].pathClasses minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.pathClasses: Expected an array of at least 1 item(s), actual []"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].pathClasses[] enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "nonsense"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.pathClasses.0: \"nonsense\" is not a path class (expected one of code, docs, gate-config, tests)"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.by.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.by.name: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "nonsense",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.by.kind: Expected \"operator\" | \"machine\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.name pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": ""
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": ""
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.by.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.grant required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.by.grant: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].by.grant pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "not a url"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.2.by.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].at pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "not a url"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.at: Expected a string matching the pattern ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed"
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.chosen required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.chosen: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.abandoned required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.abandoned: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.why required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.why: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.advocate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.advocate: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.principles required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.principles: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.reversibility required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.reversibility: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.by required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.by: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.at required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.at: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.revised required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z"
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.revised: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "nonsense",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.kind: Expected \"decided\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.chosen enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "nonsense",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.chosen: Expected \"dismiss\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.abandoned minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.abandoned.0: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.abandoned[] enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "nonsense",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.abandoned.0: Expected \"fix\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.why pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.why: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.advocate pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.advocate: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.reversibility enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "nonsense",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.reversibility: Expected \"cheap\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.by.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.by.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.by.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.by.name: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.by.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "nonsense",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "nonsense",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "nonsense",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.by.kind: Expected \"operator\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.by.name pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": ""
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": ""
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": ""
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.by.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].verdict.at pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "not a url",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.0.verdict.at: Expected a string matching the pattern ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].to required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.to: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].why required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.why: is missing"
+      }
+    },
+    {
+      "name": "constraint findings[].history[].to pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "",
+                "why": "Needs a design of its own.",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.to: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint findings[].history[].why pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "run": {
+          "namespace": "garden",
+          "shortName": "garden-sync",
+          "runId": "2611011300-garden-sync",
+          "state": "completed"
+        },
+        "records": "read",
+        "findings": [
+          {
+            "id": "F1",
+            "source": "code-review",
+            "severity": "bug",
+            "file": "src/example.ts",
+            "line": 12,
+            "message": "An empty name is accepted.",
+            "lens": "edge",
+            "escape": "unexplored-input",
+            "criterion": "AC-empty-name",
+            "suggestion": "Refuse an empty name.",
+            "fate": "fixed",
+            "history": [
+              {
+                "fate": "dismissed",
+                "verdict": {
+                  "kind": "decided",
+                  "chosen": "dismiss",
+                  "abandoned": [
+                    "fix",
+                    "defer"
+                  ],
+                  "why": "The input is validated by the caller.",
+                  "advocate": "Refuse an empty name.",
+                  "principles": [],
+                  "reversibility": "cheap",
+                  "by": {
+                    "kind": "operator",
+                    "name": "Ada Example"
+                  },
+                  "at": "2026-11-01T13:30:00Z",
+                  "revised": []
+                }
+              },
+              {
+                "fate": "deferred",
+                "to": "NEXT_STEPS.md",
+                "why": "",
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "docs"
+                ],
+                "by": {
+                  "kind": "machine",
+                  "grant": "ci-fixer"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              },
+              {
+                "fate": "fixed",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "pathClasses": [
+                  "code",
+                  "tests"
+                ],
+                "by": {
+                  "kind": "operator",
+                  "name": "Ada Example"
+                },
+                "at": "2026-11-01T13:30:00Z"
+              }
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "findings.0.history.1.why: Expected a non empty string, actual \"\""
       }
     }
   ],

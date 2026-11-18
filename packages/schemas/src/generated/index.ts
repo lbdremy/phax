@@ -54,4 +54,5 @@ export const CURRENT_SHAPES = {
   "code-review-answer": "next",
   "compliance-review-answer": "next",
   "finding-list": "next",
+  "finding-fate-record-manifest": "next",
 } as const;

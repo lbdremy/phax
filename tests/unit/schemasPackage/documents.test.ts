@@ -20,6 +20,7 @@ import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
+import { decodeFindingFateRecordManifestFile } from "../../../src/schemas/findingFateRecord.js";
 import { decodeFindingListFile } from "../../../src/schemas/findingList.js";
 import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
@@ -130,6 +131,7 @@ const PHAX_DECODERS: { readonly [F in FormatId]: Decode } = {
   "plan-overview": decodePlanOverviewFile,
   "plan-lint": decodePlanLintFile,
   "finding-list": decodeFindingListFile,
+  "finding-fate-record-manifest": decodeFindingFateRecordManifestFile,
   "first-reading": decodeFirstReadingFile,
   "interactive-handoff": decodeInteractiveHandoffFile,
   "interactive-session": decodeInteractiveSessionFile,

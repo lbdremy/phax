@@ -13,6 +13,7 @@ import { briefRecordFormat, briefRequestFormat } from "../src/formats/brief.js";
 import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
+  findingFateRecordManifestFormat,
   phaseRecordManifestFormat,
   reviewRecordManifestFormat,
   revisionRecordManifestFormat,
@@ -129,6 +130,7 @@ export const FORMAT_DEFINITIONS: { readonly [F in FormatId]: CurrentShape } = {
   "code-review-answer": codeReviewAnswerFormat,
   "compliance-review-answer": complianceReviewAnswerFormat,
   "finding-list": findingListFormat,
+  "finding-fate-record-manifest": findingFateRecordManifestFormat,
   "cost-ledger": costLedgerFormat,
   "architecture-request": architectureRequestFormat,
   "architecture-report": architectureReportFormat,
@@ -180,6 +182,7 @@ const EXCESS: { readonly [F in JsonSchemaFormatId]: Excess } = {
   "code-review-answer": "error",
   "compliance-review-answer": "error",
   "finding-list": "error",
+  "finding-fate-record-manifest": "error",
   "cost-ledger": "error",
   "architecture-request": "error",
   "architecture-report": "error",

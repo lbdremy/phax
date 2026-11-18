@@ -6,6 +6,7 @@ import {
   parseArchitectureRequest,
   parseAcceptanceRequest,
   parseArtifactStatus,
+  parseFindingFateRecordManifest,
   parseFindingList,
   parsePlanLint,
   parsePlanOverview,
@@ -70,6 +71,7 @@ import { decodePlanExtractionAnswer } from "../../../src/schemas/planExtraction.
 import { decodeReviewStopFile } from "../../../src/schemas/reviewStop.js";
 import { decodeRunListFile } from "../../../src/schemas/runList.js";
 import { decodeArtifactStatusFile } from "../../../src/schemas/artifactStatusDocument.js";
+import { decodeFindingFateRecordManifestFile } from "../../../src/schemas/findingFateRecord.js";
 import { decodeFindingListFile } from "../../../src/schemas/findingList.js";
 import { decodePlanLintFile } from "../../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../../src/schemas/planOverview.js";
@@ -450,6 +452,14 @@ const FORMATS: { readonly [F in FormatId]: FormatParity } = {
     phax: decodePlanLintFile,
     wrongType: ["findings", {}],
     required: "plan",
+    excess: "error",
+  },
+  "finding-fate-record-manifest": {
+    id: "finding-fate-record-manifest",
+    parse: parseFindingFateRecordManifest,
+    phax: decodeFindingFateRecordManifestFile,
+    wrongType: ["fate", 2],
+    required: "runId",
     excess: "error",
   },
   "finding-list": {

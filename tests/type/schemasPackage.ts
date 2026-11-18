@@ -124,6 +124,8 @@ import type {
   ReviewRecordManifestShape,
   RevisionRecordManifest,
   RevisionRecordManifestShape,
+  FindingFateRecordManifest,
+  FindingFateRecordManifestShape,
   DecisionRecordManifestV0_25_0,
   DecisionRecordManifestV0_28_0,
   DecisionRecordManifestV0_30_0,
@@ -146,6 +148,7 @@ import type {
   LatestDecisionRecordManifest,
   LatestReviewRecordManifest,
   LatestRevisionRecordManifest,
+  LatestFindingFateRecordManifest,
   LatestGateAttribution,
   LatestGateReport,
   LatestGateRequest,
@@ -246,6 +249,7 @@ import {
   parseDecisionRecordManifest,
   parseReviewRecordManifest,
   parseRevisionRecordManifest,
+  parseFindingFateRecordManifest,
   parseDocument,
   parseGateAttribution,
   parseGateReport,
@@ -274,6 +278,7 @@ import {
   toLatestDecisionRecordManifest,
   toLatestReviewRecordManifest,
   toLatestRevisionRecordManifest,
+  toLatestFindingFateRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
@@ -413,6 +418,10 @@ import type {
   RevisionRecordManifest as PhaxRevisionRecordManifest,
   RevisionRecordManifestFile as PhaxRevisionRecordManifestFile,
 } from "../../src/schemas/revisionRecord.js";
+import type {
+  FindingFateRecordManifest as PhaxFindingFateRecordManifest,
+  FindingFateRecordManifestFile as PhaxFindingFateRecordManifestFile,
+} from "../../src/schemas/findingFateRecord.js";
 import type {
   DecisionRecordManifest as PhaxDecisionRecordManifest,
   DecisionRecordManifestFile as PhaxDecisionRecordManifestFile,
@@ -710,6 +719,7 @@ const formats: Equals<
   | "code-review-answer"
   | "compliance-review-answer"
   | "finding-list"
+  | "finding-fate-record-manifest"
   | "architecture-request"
   | "architecture-report"
   | "oracle-request"
@@ -1411,6 +1421,26 @@ declare const latestRevisionManifest: LatestRevisionRecordManifest;
 void latestRevisionManifest.$schema;
 if (document.ok && document.format === "revision-record-manifest") {
   const exact: Equals<typeof document.value, PhaxRevisionRecordManifestFile> = true;
+  void exact;
+}
+// The finding fate record manifest is born with $schema too, and sits outside the
+// record manifest union: one current shape, and an in-memory value without $schema.
+const findingFateManifestTypes: [
+  Equals<FindingFateRecordManifest, PhaxFindingFateRecordManifestFile>,
+  Equals<FindingFateRecordManifestShape, Current<"finding-fate-record-manifest">>,
+  Equals<Value<typeof parseFindingFateRecordManifest>, PhaxFindingFateRecordManifestFile>,
+  Equals<LatestFindingFateRecordManifest, PhaxFindingFateRecordManifest>,
+  Equals<
+    Parameters<typeof toLatestFindingFateRecordManifest>,
+    [value: PhaxFindingFateRecordManifestFile]
+  >,
+] = [true, true, true, true, true];
+void findingFateManifestTypes;
+declare const latestFindingFateManifest: LatestFindingFateRecordManifest;
+// @ts-expect-error: the in-memory finding fate record manifest carries no $schema
+void latestFindingFateManifest.$schema;
+if (document.ok && document.format === "finding-fate-record-manifest") {
+  const exact: Equals<typeof document.value, PhaxFindingFateRecordManifestFile> = true;
   void exact;
 }
 // The decide verdicts file is born with $schema: phax's own types, both ways,

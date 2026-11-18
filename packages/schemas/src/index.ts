@@ -77,11 +77,13 @@ import {
 import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
+  findingFateRecordManifestFormat,
   phaseRecordManifestFormat,
   reviewRecordManifestFormat,
   revisionRecordManifestFormat,
   type AuthoringRecordManifestShapes,
   type DecisionRecordManifestShapes,
+  type FindingFateRecordManifestShapes,
   type PhaseRecordManifestShapes,
   type ReviewRecordManifestShapes,
   type RevisionRecordManifestShapes,
@@ -248,6 +250,12 @@ export {
   type ReviewRecordManifestFile as ReviewRecordManifest,
 } from "../../../src/schemas/reviewRecord.js";
 export {
+  FindingFateEntrySchema,
+  FindingFateRecordManifestFileSchema as FindingFateRecordManifestSchema,
+  type FindingFateEntry,
+  type FindingFateRecordManifestFile as FindingFateRecordManifest,
+} from "../../../src/schemas/findingFateRecord.js";
+export {
   RevisionRecordManifestFileSchema as RevisionRecordManifestSchema,
   type RevisionRecordManifestFile as RevisionRecordManifest,
 } from "../../../src/schemas/revisionRecord.js";
@@ -255,19 +263,23 @@ export {
   PhaseRecordManifestSchema,
   parseAuthoringRecordManifest,
   parseDecisionRecordManifest,
+  parseFindingFateRecordManifest,
   parsePhaseRecordManifest,
   parseRecordManifest,
   parseReviewRecordManifest,
   parseRevisionRecordManifest,
   toLatestAuthoringRecordManifest,
   toLatestDecisionRecordManifest,
+  toLatestFindingFateRecordManifest,
   toLatestPhaseRecordManifest,
   toLatestReviewRecordManifest,
   toLatestRevisionRecordManifest,
   type AuthoringRecordManifestShape,
   type DecisionRecordManifestShape,
+  type FindingFateRecordManifestShape,
   type LatestAuthoringRecordManifest,
   type LatestDecisionRecordManifest,
+  type LatestFindingFateRecordManifest,
   type LatestPhaseRecordManifest,
   type LatestReviewRecordManifest,
   type LatestRevisionRecordManifest,
@@ -876,6 +888,7 @@ type DocumentShapes = EveryFormat<{
   "code-review-answer": CodeReviewAnswerShapes;
   "compliance-review-answer": ComplianceReviewAnswerShapes;
   "finding-list": FindingListShapes;
+  "finding-fate-record-manifest": FindingFateRecordManifestShapes;
   "phax-plan-extraction": PhaxPlanExtractionShapes;
   "spec-hand-decision-answer": SpecHandDecisionAnswerShapes;
   "plan-hand-decision-answer": PlanHandDecisionAnswerShapes;
@@ -936,6 +949,7 @@ export const parseDocument: (input: unknown) => ParsedDocument<DocumentShapes> =
     "code-review-answer": codeReviewAnswerFormat,
     "compliance-review-answer": complianceReviewAnswerFormat,
     "finding-list": findingListFormat,
+    "finding-fate-record-manifest": findingFateRecordManifestFormat,
     "phax-plan-extraction": phaxPlanExtractionFormat,
     "spec-hand-decision-answer": specHandDecisionAnswerFormat,
     "plan-hand-decision-answer": planHandDecisionAnswerFormat,
