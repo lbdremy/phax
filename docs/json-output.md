@@ -12,7 +12,7 @@ phax plans lint --json-schema
 
 A successful command writes its answer on stdout: one JSON value, indented by two spaces, with one trailing newline. It carries the facts, not the text a person reads, with two exceptions where the text is the fact: a `paused` outcome's `lines` (the lines phax prints on stderr at that pause) and an `already-in-review` outcome's `message`.
 
-- When the answer is a published document (`artifact-status`, `plan-overview`, `plan-lint`, `run-list`), `$schema` is its first key and names the format and the release that shapes it. `@lbdremy/phax-schemas` reads these. See [Read phax files from code](../README.md#read-phax-files-from-code).
+- When the answer is a published document (`artifact-status`, `plan-overview`, `plan-lint`, `run-list`, `finding-list`), `$schema` is its first key and names the format and the release that shapes it. `@lbdremy/phax-schemas` reads these. See [Read phax files from code](../README.md#read-phax-files-from-code).
 - Any other answer is an object described by the command's contract (see [Contracts](#contracts)). It has no `$schema`, every key is required, and an absent value is `null`.
 
 `phax run` and `phax resume` answer `{ qualifiedName, crossProject, outcome }`. The outcome is tagged by `kind`: `dry-run`, `preview`, `already-in-review`, `review_open`, `stopped`, or `paused` with its reason, phase, resume command, resume-instructions path and, when known, the time the limit resets. `phax reset-phase` answers `preview` or `reset` the same way. The other commands that run or review a run (`review-handoff`, `publish-pr`, `review-compliance`, `review-code --headless`) answer an object that starts with `qualifiedName` and `crossProject`.

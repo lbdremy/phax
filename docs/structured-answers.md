@@ -34,7 +34,9 @@ See [Read-only review sessions](security.md#read-only-review-sessions) for what 
 
 Its answer carries the verdict, a summary, one entry per phase, the two ledgers (`unplannedChanges` and `unmetPromises`, each possibly empty), the attention points and the pointers.
 
-phax writes `compliance-review.json` (the answer as given) and renders `compliance-review.md` from the answer alone, in the run folder, replacing both together. A failed review writes neither: an earlier review's two files stay as they were, and no records entry is made. A review whose answer is refused twice is a failure, not a review with an unknown verdict.
+The code review and compliance review sessions answer `code-review-answer` and `compliance-review-answer`, which carry no finding ids; phax gives each finding its id and keeps the result as `code-review.json` and `compliance-review.json` (see [Review findings](findings.md)).
+
+phax writes `compliance-review.json` (the answer with each finding's id added) and renders `compliance-review.md` from the answer alone, in the run folder, replacing both together. A failed review writes neither: an earlier review's two files stay as they were, and no records entry is made. A review whose answer is refused twice is a failure, not a review with an unknown verdict.
 
 For example, a three-phase run (`phase-01` to `phase-03`) gets an answer that names `phase-01`, `phase-02` and `phase-04`. The schema lets it through; the coverage check refuses it (`perPhase: phase "phase-04" is not a phase of this run; perPhase: phase "phase-03" is missing`). phax prints the refusal and resumes the session once, the model answers again naming the three phases of the run, and the second answer is the one phax writes.
 

@@ -545,6 +545,7 @@ A run at `review_open` has done its work on the last phase's branch; nothing has
 ```bash
 phax review-code <run>          # an agent session in the final worktree, primed to review the change
 phax review-code <run> --headless  # the same review without a person: findings in code-review.json
+phax finding list <run>          # every finding of the run's reviews with its id and fate (see docs/findings.md)
 phax enter <run>                # back into the last phase's agent session
 phax shell <run>                # a shell in the final worktree
 phax open <run>                 # the final worktree in your editor
