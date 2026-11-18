@@ -411,6 +411,7 @@ describe("review and publication commands", () => {
         pullRequest: PR_URL,
       });
       expect(result.out).toBe(`${JSON.stringify(value, null, 2)}\n`);
+      expect([...t.git.impl.pushedBranches]).toEqual([`feature/${SHORT_NAME}--phase-01`]);
     });
   });
 
