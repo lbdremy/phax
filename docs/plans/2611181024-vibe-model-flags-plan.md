@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611180902-vibe-model-flags.md
 completes-spec: true
+approved:
+  date: 2026-11-18
+  baseline: 9e44a2d
 ---
 # Vibe model and thinking level by Vibe's own flags
 
