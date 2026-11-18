@@ -1,8 +1,10 @@
 /**
  * `phax plans status` in a process repository that links its code repository (spec
- * code-repository, acceptance criteria for staleness under the link). Each test is an acceptance
- * test frozen before its code exists: it is marked `it.fails` and fails today on its own
- * assertion. The phase that implements staleness under the link removes the markers.
+ * code-repository, the acceptance criteria for staleness under the link). Ground is judged in
+ * the code repository from the recorded code baseline: a footprint change in the code is
+ * ground-changed and `--apply` flips the plan, a process-repository change is not ground, and a
+ * vanished code baseline, a record without a code baseline under the link, a code baseline
+ * without a link, and a code root that is not ignored are each reported.
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
