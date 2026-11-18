@@ -73,9 +73,9 @@
     }
   ],
   "context": "When phax first drove Mistral Vibe, Vibe had no per-run way to choose a model or a thinking level. phax worked around that in three places.\n\nSetup: `phax agent setup mistral-vibe --install-model-aliases` appends one `[[models]]` block per thinking level to the user's `~/.vibe/config.toml`. Each block is marked `# Added by PHAX.` and has the alias `phax-mistral-medium-3.5-off` or `phax-mistral-medium-3.5-high`. It copies the base alias `mistral-medium-3.5`'s name, provider, temperature, prices and auto_compact_threshold, and sets `thinking = \"<level>\"`. The command writes a backup and reports any `-low`/`-medium`/`-max` aliases an older phax left behind.\n\nCatalog: the `mistral-vibe` provider entry carries `\"modelEnvVar\": \"VIBE_ACTIVE_MODEL\"`. Its `mistral-medium` family lists the two alias ids, one effort each. The equivalence table anchors `phax-mistral-medium-3.5-off`/off to `claude-haiku-4-5-20251001`/none and `phax-mistral-medium-3.5-high`/high to `claude-sonnet-4-6`/high. `RETIRED_MODEL_IDS` already holds the `-low`, `-medium` and `-max` aliases. phax refuses a `providers.json` that lists them, and `phax agent setup providers --write` drops them, together with any family they leave empty.\n\nInvocation: every headless turn runs `vibe -p <prompt> --agent … --output streaming [--output-dir <dir>] --workdir … [--resume <id>]` and sets `VIBE_ACTIVE_MODEL=<alias>` in the environment. A sealed completion does the same. The fresh-start command a review stop prints runs Vibe's TUI: `cd '<worktree>' && VIBE_ACTIVE_MODEL='<alias>' 'vibe' '--workdir' '<worktree>' … '<prompt>'`. It is persisted as `{ cwd, argv, env }` in the stop record. After a confined turn, phax reads the export's `config` and compares it with the confinement it set: permissions, outside_workdir, MCP, tools and enabled_tools, but not the model. phax refuses a Vibe older than 3.0.3 before any session spawns, with `mistral-vibe <v> is installed; phax needs 3.0.3 or later.` and `Upgrade it: uv tool upgrade mistral-vibe`.\n\nMistral Vibe 3.1.3, installed 2026-11-18, adds what phax lacked. `--model ALIAS` selects a model for a new headless session without saving it, and an unknown alias is a usage error (exit 1). `--thinking LEVEL` selects the thinking level for a new headless session; a level that an agent profile or the admin config fixes is a usage error. Vibe's built-in table has the alias `mistral-medium-3.5`, with thinking levels off and high and a default of high. A resumed session keeps the model and agent it last ran. `--output-dir` still writes `export.json` at `schema_version: 1`, and its effective `config` includes `active_model`. phax's real-CLI Vibe e2e passes on 3.1.3 unchanged, on the alias path.\n\nVibe 3.1.3's own source, read on 2026-11-18 from the installed package (`vibe/app_server/`), shows where `--thinking` lands. In `_session_model.py`, `set_session_reasoning_effort_override` writes a session's thinking level as a patch at `model_thinking_path(alias)`, and `_config_paths.py` defines that path as `/models/<alias>/thinking`. The patch goes into the overrides layer, the same layer where `--model` writes `/active_model`. Agent-profile and admin layers outrank it, which is why a level they fix is a usage error. `run_export.py` describes the export's `config` as \"the redacted config the session ran with, as the server resolved it\". In `_config_introspect.py`, `redact_config` replaces header, environment and MCP argument values and strips URL user info and query strings, \"keeping its shape\"; it does not drop `models`. A 3.1.3 export should therefore carry the level beside `active_model`, as the `thinking` of the `models` entry for the alias that `active_model` names. This comes from the source only and has not yet been seen in a real export. The exact shape of `models` in the dumped config is not confirmed: it may be a table keyed by alias, or a list of entries that each carry `alias`.",
-  "problem": "phax edits a file it does not own. Before a Vibe phase can run, the user's `~/.vibe/config.toml` must carry blocks that phax wrote. phax copies prices and compaction thresholds into those blocks, and the copies drift as Vibe changes its own table. A user who never ran the installer gets a model alias Vibe does not know. A user who did run it keeps phax-shaped config in Vibe's home directory, with a backup file beside it. The catalog names models (`phax-mistral-medium-3.5-*`) that exist only because of the workaround. Each one needs equivalence edges, retirement entries and an installer to maintain.\n\nVibe now offers per-run `--model` and `--thinking` flags, so none of this machinery is needed. The model selection is also unchecked. A confined turn that ran under a model other than the one phax chose is accepted, because the post-turn check never looks at `active_model`. That can happen when an agent profile overrides it, or when a resumed session restores something else.\n\nRemoving the workaround has two traps. First, an existing `providers.json` lists only the two alias ids in its `mistral-medium` family, and today's rewrite drops a family that it empties. Second, a scaffolded `model-routing.json` keys its Vibe edges on those ids. Either way, Vibe would silently stop being routed.",
+  "problem": "phax edits a file it does not own. Before a Vibe phase can run, the user's `~/.vibe/config.toml` must carry blocks that phax wrote. phax copies prices and compaction thresholds into those blocks, and the copies drift as Vibe changes its own table. A user who never ran the installer gets a model alias Vibe does not know. A user who did run it keeps phax-shaped config in Vibe's home directory, with a backup file beside it. The catalog names models (`phax-mistral-medium-3.5-*`) that exist only because of the workaround. Each one needs equivalence edges, retirement entries and an installer to maintain.\n\nVibe now offers per-run `--model` and `--thinking` flags, so none of this machinery is needed. The model selection and the thinking level are also unchecked. A confined turn that ran under a model or a level other than the one phax chose is accepted, because the post-turn check never looks at `active_model` or at the thinking level. That can happen when an agent profile overrides it, or when a resumed session restores something else.\n\nRemoving the workaround has two traps. First, an existing `providers.json` lists only the two alias ids in its `mistral-medium` family, and today's rewrite drops a family that it empties. Second, a scaffolded `model-routing.json` keys its Vibe edges on those ids. Either way, Vibe would silently stop being routed.",
   "productGoal": {
-    "statement": "phax chooses a Vibe session's model and thinking level per invocation, with Vibe's own `--model` and `--thinking` flags and Vibe's own `mistral-medium-3.5` alias. It never writes Vibe's config to make this work. It confirms afterwards that a confined turn ran under the model it asked for. The catalog, the version floor, the stop command and the setup commands change to match. An old `providers.json` or `model-routing.json` is refused by name and fixed by one documented step, never read leniently or ignored silently.",
+    "statement": "phax chooses a Vibe session's model and thinking level per invocation, with Vibe's own `--model` and `--thinking` flags and Vibe's own `mistral-medium-3.5` alias. It never writes Vibe's config to make this work. It confirms afterwards that a confined turn ran under the model and the thinking level it asked for. The catalog, the version floor, the stop command and the setup commands change to match. An old `providers.json` or `model-routing.json` is refused by name and fixed by one documented step, never read leniently or ignored silently.",
     "guidingRule": "phax picks a Vibe model only through what Vibe exposes per run (its flags and its own model table), and never through files in Vibe's home directory."
   },
   "terminology": [
@@ -136,6 +136,12 @@
       "title": "A confined turn ran under the model phax chose",
       "pattern": "unwanted",
       "statement": "IF a confined Vibe turn's export reports a `config.active_model` other than the model phax resolved for the session, on a new or a resumed turn THEN the system SHALL refuse the turn's result, naming `active_model`, the reported value, the value phax set and the export it read."
+    },
+    {
+      "id": "r-level-check",
+      "title": "A confined turn ran at the thinking level phax chose",
+      "pattern": "unwanted",
+      "statement": "IF a confined Vibe turn's export reports, for the alias `config.active_model` names, a thinking level other than the effort phax resolved for the session, or reports none, on a new or a resumed turn THEN the system SHALL refuse the turn's result, naming the thinking level, the reported value (or its absence), the value phax set and the export it read."
     },
     {
       "id": "r-catalog",
@@ -226,17 +232,17 @@
     },
     {
       "surface": "file: export.json (Vibe's turn export)",
-      "summary": "phax accepts a confined Vibe turn only when its export reports the model phax asked for.",
-      "binding": "normative",
+      "summary": "phax accepts a confined Vibe turn only when its export reports the model and the thinking level phax asked for.",
+      "binding": "indicative",
       "before": "{\n  \"schema_version\": 1,\n  \"vibe_version\": \"3.0.3\",\n  \"config\": { \"active_model\": \"phax-mistral-medium-3.5-high\", \"outside_workdir\": \"deny\", … },\n  …\n}",
-      "after": "{\n  \"schema_version\": 1,\n  \"vibe_version\": \"3.1.3\",\n  \"config\": { \"active_model\": \"mistral-medium-3.5\", \"outside_workdir\": \"deny\", … },\n  …\n}"
+      "after": "{\n  \"schema_version\": 1,\n  \"vibe_version\": \"3.1.3\",\n  \"config\": {\n    \"active_model\": \"mistral-medium-3.5\",\n    \"models\": [ { \"alias\": \"mistral-medium-3.5\", \"thinking\": \"high\", … } ],\n    \"outside_workdir\": \"deny\",\n    …\n  },\n  …\n}"
     },
     {
       "surface": "cli: refused Vibe turn (model mismatch)",
-      "summary": "A confined Vibe turn that ran under a model phax did not choose is refused, naming both models.",
+      "summary": "A confined Vibe turn that ran under a model or thinking level phax did not choose is refused, naming both values.",
       "binding": "indicative",
       "before": null,
-      "after": "✗ vibe ran this turn under a config phax did not set (active_model is \"mistral-large-4-0\", phax set \"mistral-medium-3.5\", read from .phax/runs/<run>/phase-02/vibe-export/export.json), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings."
+      "after": "✗ vibe ran this turn under a config phax did not set (active_model is \"mistral-large-4-0\", phax set \"mistral-medium-3.5\", read from .phax/runs/<run>/phase-02/vibe-export/export.json), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings.\n\n✗ vibe ran this turn under a config phax did not set (thinking of mistral-medium-3.5 is \"high\", phax set \"off\", read from .phax/runs/<run>/phase-02/vibe-export/export.json), so its result is refused. A Vibe agent profile or a resumed session's restored agent can override phax's settings."
     },
     {
       "surface": "config: ~/.phax/providers.json mistral-vibe entry",
@@ -361,11 +367,32 @@
     {
       "id": "ac-model-match",
       "name": "A turn under the chosen model is accepted",
-      "given": "a confined resumed Vibe turn whose `export.json` reports `config.active_model` `\"mistral-medium-3.5\"`, the model phax resolved for the session",
+      "given": "a confined resumed Vibe turn whose `export.json` reports `config.active_model` `\"mistral-medium-3.5\"`, the model phax resolved for the session, and the thinking level phax resolved for it",
       "when": "the turn ends with an answer",
       "then": "the answer is accepted",
       "refs": [
-        "r-model-check"
+        "r-model-check",
+        "r-level-check"
+      ]
+    },
+    {
+      "id": "ac-level-mismatch",
+      "name": "A turn at another thinking level is refused",
+      "given": "a confined Vibe turn for which phax resolved `mistral-medium-3.5` at effort `off` and whose `export.json` reports `config.active_model` `\"mistral-medium-3.5\"` with a thinking level `\"high\"` for that alias",
+      "when": "the turn ends",
+      "then": "its result is refused, the message names the thinking level, `\"high\"`, `\"off\"` and the export path, and the phase records no answer from that turn",
+      "refs": [
+        "r-level-check"
+      ]
+    },
+    {
+      "id": "ac-level-absent",
+      "name": "A turn whose export holds no thinking level is refused",
+      "given": "a confined Vibe turn whose `export.json` reports `config.active_model` `\"mistral-medium-3.5\"` and no thinking level for that alias",
+      "when": "the turn ends",
+      "then": "its result is refused, the message names the thinking level as absent, the value phax set and the export path",
+      "refs": [
+        "r-level-check"
       ]
     },
     {
@@ -373,11 +400,12 @@
       "name": "Real Vibe runs both levels without PHAX aliases",
       "given": "Mistral Vibe 3.1.3 with `MISTRAL_API_KEY` set and a `VIBE_HOME` whose `config.toml` holds no PHAX alias blocks",
       "when": "phax runs one secure session at `mistral-medium-3.5`/`off` and one at `mistral-medium-3.5`/`high`",
-      "then": "both complete, each `export.json` reports `config.active_model` `\"mistral-medium-3.5\"`, and the `config.toml` bytes are unchanged",
+      "then": "both complete, each `export.json` reports `config.active_model` `\"mistral-medium-3.5\"` and the thinking level `\"off\"` or `\"high\"` that phax set, and the `config.toml` bytes are unchanged",
       "refs": [
         "r-new-flags",
         "r-catalog",
-        "r-no-vibe-home"
+        "r-no-vibe-home",
+        "r-level-check"
       ]
     },
     {
@@ -385,10 +413,11 @@
       "name": "Real Vibe resume keeps the model",
       "given": "a real Vibe 3.1.3 session that phax started at `mistral-medium-3.5`/`high`",
       "when": "phax resumes it with `--resume` and neither flag",
-      "then": "the resumed turn's `export.json` reports `config.active_model` `\"mistral-medium-3.5\"` and phax accepts the turn",
+      "then": "the resumed turn's `export.json` reports `config.active_model` `\"mistral-medium-3.5\"` and the thinking level `\"high\"`, and phax accepts the turn",
       "refs": [
         "r-resume",
-        "r-model-check"
+        "r-model-check",
+        "r-level-check"
       ]
     },
     {
@@ -575,24 +604,6 @@
       "rationale": "Vibe was the field's only user, and the variable is Vibe's own documented name, so the fresh-start command can name it itself. A Vibe rename would need a phax release anyway, for the flags. Dropping it follows the no-shim policy: the old file is refused and rewritten by the existing command."
     },
     {
-      "id": "q-thinking-check",
-      "question": "After a confined turn, does phax compare the thinking level as well as the model?",
-      "options": [
-        {
-          "id": "model-only",
-          "label": "Compare `config.active_model` only; trust `--thinking` and Vibe's own refusal of a profile-fixed level",
-          "abandons": "Detection of a turn that ran at a level phax did not ask for without Vibe refusing it, for example a resumed session that restored another level"
-        },
-        {
-          "id": "model-and-level",
-          "label": "Also compare the thinking level, from the export field that records it",
-          "abandons": "A contract pinned on a field nobody has seen: no export read for this spec shows a thinking level, so the plan would have to find the field and might find there is none"
-        }
-      ],
-      "recommendation": "model-only",
-      "rationale": "A level fixed by a profile or by the admin config already makes Vibe exit with a usage error, so the silent case is narrow. The model is the costly and visible substitution, and `active_model` is known to be in the export. If a real 3.1.3 export does show the level, a later change can add the comparison against a field it has seen."
-    },
-    {
       "id": "q-retired-successor",
       "question": "When `phax agent setup providers --write` drops the two alias ids, does it list `mistral-medium-3.5` in their place?",
       "options": [
@@ -629,7 +640,53 @@
       "rationale": "A silent loss of a provider is the failure this change must not introduce, and the refusal names its own fix. Edges on the earlier retired ids were dead weight, so refusing them costs one rename or deletion."
     }
   ],
-  "arbitratedQuestions": [],
+  "arbitratedQuestions": [
+    {
+      "id": "q-thinking-check",
+      "question": "After a confined turn, does phax compare the thinking level as well as the model?",
+      "options": [
+        {
+          "id": "model-only",
+          "label": "Compare `config.active_model` only; trust `--thinking` and Vibe's own refusal of a profile-fixed level",
+          "abandons": "Detection of a turn that ran at a level phax did not ask for without Vibe refusing it, for example a resumed session that restored another level"
+        },
+        {
+          "id": "model-and-level",
+          "label": "Also compare the thinking level, from the export field that records it",
+          "abandons": "A contract pinned on a field nobody has seen: no export read for this spec shows a thinking level, so the plan would have to find the field and might find there is none"
+        }
+      ],
+      "recommendation": "model-only",
+      "rationale": "A level fixed by a profile or by the admin config already makes Vibe exit with a usage error, so the silent case is narrow. The model is the costly and visible substitution, and `active_model` is known to be in the export. If a real 3.1.3 export does show the level, a later change can add the comparison against a field it has seen.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "model-and-level",
+        "abandoned": [
+          "model-only"
+        ],
+        "why": "Vibe 3.1.3's source puts the level at /models/<alias>/thinking in the overrides layer, and the export's config is the whole resolved config with only credentials redacted (§1). So the field the recommendation feared nobody had seen should sit beside active_model, and comparing it costs the same as comparing the model. The plan confirms the shape of config.models on a real 3.1.3 export first.",
+        "advocate": "The strongest case for model-only: the thinking level's place in the export is known from source only, so a contract pinned on it may rest on a field that is shaped differently or absent, and a profile-fixed level already makes Vibe refuse, leaving the silent case narrow.",
+        "principles": [
+          "S2",
+          "S3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-18T09:16:26.732Z",
+        "revised": [
+          "§3 Product goal",
+          "§5 Functional requirements",
+          "§6 Surface",
+          "§8 Acceptance criteria",
+          "§10 Implementation-planning note"
+        ]
+      },
+      "history": []
+    }
+  ],
   "planningNote": {
     "settled": [
       "New headless Vibe sessions pass `--model <model> --thinking <effort>`. Resumed turns pass neither, and Vibe keeps the session's model and level.",
@@ -638,7 +695,7 @@
       "The `mistral-medium` family lists one model, `mistral-medium-3.5`, with efforts `off` and `high`. `phax-mistral-medium-3.5-off` and `-high` join `RETIRED_MODEL_IDS`, and the equivalence edges move to the new id, edge for edge.",
       "The Vibe version floor is 3.1.3, enforced before any session spawns, like the 3.0.3 floor today.",
       "Mistral Large 4 is a separate change.",
-      "The requirements follow each open question's recommendation. A different decision revises the matching requirement and criterion."
+      "The requirements follow each open question's recommendation, except q-thinking-check, decided as model-and-level: after a confined turn phax compares the thinking level of the active alias as well as the model. A different decision on another question revises the matching requirement and criterion."
     ],
     "open": [
       "Where `--model`/`--thinking` sit in the argv. Tests check presence and values, not position.",
@@ -649,8 +706,8 @@
     "constraints": [
       "No back-compat shims. An old `providers.json` or `model-routing.json` is refused and fixed by the existing setup command or by hand, never read leniently. Only `phax agent setup providers` may read the old `providers.json` shape, and only to rewrite it.",
       "phax never reads Vibe's home directory to choose a model. The flags, Vibe's own table and the export are the whole contract. The existing `accept-edits.toml` override check is confinement, not model choice, and stays.",
-      "The secure-mode confinement is unchanged: `--agent accept-edits`, the `VIBE_*` variables, `VIBE_TOOLS` and the refusals. The model check joins the existing post-turn comparison and keeps its scope: confined turns only.",
-      "Before relying on it, verify on a real 3.1.3 export that `config.active_model` holds the alias passed to `--model`, including with Mistral's model catalog on.",
+      "The secure-mode confinement is unchanged: `--agent accept-edits`, the `VIBE_*` variables, `VIBE_TOOLS` and the refusals. The model and thinking-level checks join the existing post-turn comparison and keep its scope: confined turns only.",
+      "Before relying on it, verify on a real 3.1.3 export that `config.active_model` holds the alias passed to `--model`, including with Mistral's model catalog on, and confirm the shape of `config.models` and the level field before the level comparison is built on it.",
       "The persisted stop command stays `{ cwd, argv, env }`. The fresh-start note is printed text only.",
       "The real-CLI e2e (`tests/e2e/vibeSecure.test.ts`) moves off the alias path. It covers `off`, `high`, a resumed turn and a `VIBE_HOME` without PHAX blocks; the `MISTRAL_API_KEY` case stays skippable.",
       "Docs to update: `docs/model-catalog.md` (catalog entry and a change-log line), `docs/model-routing.md` (examples, providers entry, Vibe setup steps), the README's Vibe setup (drop the installer line, add the 3.1.3 floor) and a `docs/upgrading.md` entry. Earlier upgrade entries that mention the installer stay as history."
