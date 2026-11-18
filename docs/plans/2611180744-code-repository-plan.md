@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611171616-code-repository.md
 completes-spec: true
+approved:
+  date: 2026-11-18
+  baseline: 77dbe32
 ---
 # Process and code in two repositories
 
