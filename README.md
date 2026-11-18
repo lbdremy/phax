@@ -83,6 +83,8 @@ chmod +x phax-darwin-arm64 && sudo mv phax-darwin-arm64 /usr/local/bin/phax
 xattr -dr com.apple.quarantine /usr/local/bin/phax   # macOS: the binary is not notarized yet
 ```
 
+**Two repositories.** To keep specs and plans private and the code public, link the code repository checked out inside the process repository with `"code": { "root": "code" }`: see [Process and code in two repositories](docs/code-repository.md).
+
 **Upgrading.** See [Upgrading phax](docs/upgrading.md) for what to run after an upgrade, release by release.
 
 **An agent.** phax drives an agent CLI that must be on your `$PATH`: `claude` (Claude Code), and optionally `codex` (OpenAI Codex) or `vibe` (Mistral Vibe). Keep `claude` installed even if you prefer another provider: phax falls back to it when the preferred one is missing or cannot meet the run's security mode.

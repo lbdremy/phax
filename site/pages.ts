@@ -202,6 +202,13 @@ export default definePageMap({
         "What a finding's F and C id is, the five fates, how older reviews get ids, and phax finding list to see every finding of a run.",
     },
     {
+      route: "/guide/code-repository",
+      title: "Process and code in two repositories",
+      source: "docs/code-repository.md",
+      description:
+        "Keep specs and plans in a private process repository and the code in a public one: link them, approve against the code and run from the code repository.",
+    },
+    {
       route: "/guide/arbitration",
       title: "Deciding open questions",
       source: "docs/arbitration.md",
