@@ -72,6 +72,8 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "plans overlap": "refused",
   "plans estimate": "refused",
   "finding fix": "refused",
+  "finding dismiss": "refused",
+  "finding defer": "refused",
   "records init": "refused",
   "records sync": "refused",
 };

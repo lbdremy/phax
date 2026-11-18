@@ -43,6 +43,8 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "review-code",
   "finding list",
   "finding fix",
+  "finding dismiss",
+  "finding defer",
   "adjust-plan",
   "brief",
   "architecture",

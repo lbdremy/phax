@@ -65,7 +65,7 @@ describe("phax finding dismiss and defer", () => {
   };
 
   // AC-dismiss
-  it.fails("records a dismissal as one decided verdict that chooses dismiss", async () => {
+  it("records a dismissal as one decided verdict that chooses dismiss", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     const before = recordsCount();
 
@@ -79,7 +79,8 @@ describe("phax finding dismiss and defer", () => {
     expect(result.code).toBe(0);
 
     expect(recordsCount()).toBe(before + 1);
-    const tree = git(repo, ["show", "--name-only", "--format=", RECORDS_BRANCH])
+    // A records commit holds only its own record: the tip's tree is the dismissal's record.
+    const tree = git(repo, ["ls-tree", "-r", "--name-only", RECORDS_BRANCH])
       .split("\n")
       .filter((line) => line !== "");
     expect(tree).toEqual([`${repo.runId}/finding/F3/01/record.json`]);
@@ -105,7 +106,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-defer
-  it.fails("records a deferral naming its pointer, reason and operator", async () => {
+  it("records a deferral naming its pointer, reason and operator", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
 
     const result = await defer([
@@ -132,7 +133,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-settle-refusals
-  it.fails("refuses a missing reason, an untracked pointer and an unknown id", async () => {
+  it("refuses a missing reason, an untracked pointer and an unknown id", async () => {
     await reviewOnce(repo, ["one", "two", "three", "four", "five"]);
     const before = recordsHead();
 
@@ -160,7 +161,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-machine-never-settles
-  it.fails("refuses a machine that dismisses or defers, leaving the finding open", async () => {
+  it("refuses a machine that dismisses or defers, leaving the finding open", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     const before = recordsHead();
 
@@ -185,7 +186,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-records-off (dismiss and defer)
-  it.fails("refuses a dismissal and a deferral with records off, naming the key", async () => {
+  it("refuses a dismissal and a deferral with records off, naming the key", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     turnRecordsOff(repo);
 
@@ -199,7 +200,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-lift-settable
-  it.fails("dismisses an unrecorded finding of an older review and lists it dismissed", async () => {
+  it("dismisses an unrecorded finding of an older review and lists it dismissed", async () => {
     writeOlderReviews(repo);
 
     const result = await dismiss([
@@ -216,6 +217,9 @@ describe("phax finding dismiss and defer", () => {
       ["F1", "unrecorded"],
       ["F2", "dismissed"],
       ["F3", "unrecorded"],
+      ["C1", "unrecorded"],
+      ["C2", "unrecorded"],
+      ["C3", "unrecorded"],
     ]);
     expect(JSON.stringify((await entryOf("F2")).history)).toContain(
       "superseded by the gate rework",
@@ -230,7 +234,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-latest-wins
-  it.fails("lists a finding dismissed then fixed as fixed, with both records oldest first", async () => {
+  it("lists a finding dismissed then fixed as fixed, with both records oldest first", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     const dismissed = await dismiss(["F3", "--by", "operator", "--why", "not worth it"]);
     expect(dismissed.code).toBe(0);
@@ -245,7 +249,7 @@ describe("phax finding dismiss and defer", () => {
   });
 
   // AC-list-text
-  it.fails("prints every finding with its fate and the details of that fate", async () => {
+  it("prints every finding with its fate and the details of that fate", async () => {
     await reviewOnce(repo, ["one", "two", "three", "four"]);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
     const fixed = await fix(["F1", "--by", "operator", "--", "tests/gate.test.ts"]);
@@ -282,7 +286,7 @@ describe("phax finding dismiss and defer", () => {
     expect(result.out).toContain(POINTER);
   });
 
-  it.fails("records one commit per id when a dismissal names two", async () => {
+  it("records one commit per id when a dismissal names two", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     const before = recordsCount();
 

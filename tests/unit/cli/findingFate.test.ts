@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { renderFindingFix, type FindingFixOutput } from "../../../src/cli/definitions/finding.js";
+import {
+  renderFindingDefer,
+  renderFindingDismiss,
+  renderFindingFix,
+  type FindingFixOutput,
+} from "../../../src/cli/definitions/finding.js";
 
 const SHA = "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432";
 
@@ -49,5 +54,37 @@ describe("renderFindingFix", () => {
     expect(renderFindingFix(backfilled).split("\n")).toEqual([
       "✓ recorded F3 fixed by 9f8e7d6 (code, docs, tests) on phax/records/v1",
     ]);
+  });
+});
+
+describe("renderFindingDismiss and renderFindingDefer", () => {
+  const operator = { kind: "operator", name: "Ada" };
+  const base = {
+    run: { namespace: "phax", shortName: "gate-retry", runId: "run-1", state: "review_open" },
+    commit: null,
+    recorded: [],
+  };
+  const dismissed = (id: string) => ({
+    id,
+    history: [{ fate: "dismissed", verdict: { by: operator } }],
+  });
+
+  it("prints one recorded line per dismissed id, with the operator", () => {
+    const out = renderFindingDismiss({
+      ...base,
+      findings: [dismissed("F2"), dismissed("F3")],
+    } as unknown as FindingFixOutput);
+    expect(out.split("\n")).toEqual([
+      "✓ recorded F2 dismissed on phax/records/v1 (by Ada)",
+      "✓ recorded F3 dismissed on phax/records/v1 (by Ada)",
+    ]);
+  });
+
+  it("prints one recorded line per deferred id, with its pointer", () => {
+    const out = renderFindingDefer({
+      ...base,
+      findings: [{ id: "F5", history: [{ fate: "deferred", to: "docs/next.md", by: operator }] }],
+    } as unknown as FindingFixOutput);
+    expect(out).toBe("✓ recorded F5 deferred → docs/next.md on phax/records/v1");
   });
 });
