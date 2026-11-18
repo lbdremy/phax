@@ -128,6 +128,7 @@ function loadRunReviewInfo(
     if (!lastPlanPhase) {
       return Result.fail(`No phase statuses found at "${runPath}"`);
     }
+    // No phase recorded a branch, so the name is derived; a recorded one wins below.
     const finalPhaseBranchResult = decodeBranchName(`${branch}--${lastPlanPhase.id}`);
     if (Result.isFailure(finalPhaseBranchResult)) {
       return Result.fail(`Cannot compute final phase branch for run at "${runPath}"`);
