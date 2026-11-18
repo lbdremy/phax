@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611041509-finding-ids-and-fates.md
 completes-spec: false
+approved:
+  date: 2026-11-18
+  baseline: ab3c763
 ---
 # Finding fates: fix, dismiss and defer
 
