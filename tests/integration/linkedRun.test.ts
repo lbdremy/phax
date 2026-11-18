@@ -1,7 +1,9 @@
 /**
- * Acceptance tests of the linked run (code-repository spec, phase-06): `phax run --plan
+ * The linked run (code-repository spec, §5.13 and §5.14): `phax run --plan
  * ../docs/plans/<plan>.md`, started in the code repository, gates the plan as the process
- * repository's artifact. Each test is expected to fail until phase-07 lands it.
+ * repository's artifact. A stale, Draft or unrecorded plan is refused before anything is named,
+ * as a plan living with its code is; a fresh one reaches review, leaves the plan, its spec and
+ * the process repository's history alone, and prints the `phax artifact complete` command.
  *
  * Both repositories are temporary git repositories (`createLinkedProject`), HOME is a temporary
  * directory and git is isolated, so no real ~/.phax or global git config is read. Only the
