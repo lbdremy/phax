@@ -12,6 +12,7 @@ import { createRunFolder } from "../../src/app/runFolder.js";
 import type { ShortName } from "../../src/domain/branded.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
@@ -129,7 +130,7 @@ function lint(
       reportPath: "plan.md",
       repoRelPath: "plan.md",
       config,
-    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, makeFakeGit().layer))),
   );
 }
 

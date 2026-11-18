@@ -15,6 +15,7 @@ import { buildFootprint, computePlanOverlap } from "../../src/domain/planOverlap
 import { planInputFromPhaxPlan } from "../../src/domain/planOverlap/fromPhaxPlan.js";
 import { renderPlanOverlap } from "../../src/domain/planOverlap/render.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
@@ -103,7 +104,7 @@ function lintOutput(path: string): Promise<string> {
       reportPath: "plan.md",
       repoRelPath: "plan.md",
       config,
-    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, makeFakeGit().layer))),
   ).then((report) => renderLintReport(report));
 }
 

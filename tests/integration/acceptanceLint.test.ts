@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { Effect, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan, type LintReport } from "../../src/app/lintPlan.js";
 import { hasLintErrors } from "../../src/domain/plan/lint.js";
@@ -87,7 +88,7 @@ function lint(plan: string, config: ResolvedConfig = withProvider): Promise<Lint
       reportPath: PLAN_PATH,
       repoRelPath: PLAN_REL,
       config,
-    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, makeFakeGit().layer))),
   );
 }
 

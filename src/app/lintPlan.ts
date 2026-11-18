@@ -4,6 +4,8 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import type { ArtifactValidationError, ConfigValidationError } from "../domain/errors.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { Shell } from "../ports/shell.js";
+import type { Git, GitError } from "../ports/git.js";
+import { resolveCodeLink } from "./codeLink.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
 import { readSourceSpec } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
@@ -94,8 +96,8 @@ export function lintPlan(
   opts: LintPlanOptions,
 ): Effect.Effect<
   LintReport,
-  FsError | ConfigValidationError | ArtifactValidationError,
-  FileSystem | Shell
+  FsError | GitError | ConfigValidationError | ArtifactValidationError,
+  FileSystem | Shell | Git
 > {
   const { planMdPath, reportPath, repoRelPath, config } = opts;
   return Effect.gen(function* () {
@@ -189,10 +191,13 @@ export function lintPlan(
     // The run preflight's locating rule; a parsed phase fails it only through a parser bug.
     findings.push(...unlocatableFindings(planMd, plan.phases));
 
-    // Files: probe exactly the paths the plan names, against the working tree.
+    // Files: probe exactly the paths the plan names, against the working tree — the code
+    // root's when the project links one (a refusal of the link fails the lint).
+    const link = yield* resolveCodeLink(config);
+    const filesRoot = link === null ? config.repoRoot : link.path;
     const existing = new Set<string>();
     for (const path of plannedPaths(plan.phases)) {
-      const present = yield* fs.exists(join(config.repoRoot, path));
+      const present = yield* fs.exists(join(filesRoot, path));
       if (present) existing.add(path);
     }
     findings.push(...filePlanFindings(plan.phases, existing));

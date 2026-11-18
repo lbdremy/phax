@@ -118,6 +118,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "plans overview",
   // code-repository: ground-changed is judged in the code repository under a code link.
   "plans status",
+  // code-repository: the files check walks the code root's working tree under a code link.
+  "plans lint",
   "records explain",
   "resume",
   // code-repository: a plan of a linked process repository is gated as its artifact.
