@@ -433,6 +433,7 @@ describe("A gone artifact's entry migrates as an orphan", () => {
     const { layer: backendLayer } = makeFakeBackend();
     const report = await runEither(
       plansStalenessReport({
+        config: null,
         repoRoot: repoDir,
         stateRoot: join(repoDir, ".phax-state"),
         model: "claude-sonnet-5",

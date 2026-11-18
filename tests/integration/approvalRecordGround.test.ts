@@ -74,7 +74,7 @@ async function transition(path: string, target: ArtifactStatus): Promise<void> {
 async function stalenessOfP(footprint: readonly string[]): Promise<PlanStalenessVerdict> {
   const md = readFileSync(join(repoDir, PLAN_P), "utf8");
   return Effect.runPromise(
-    computeStalenessForPlan(PLAN_P, md, footprint, { repoRoot: repoDir }).pipe(
+    computeStalenessForPlan(PLAN_P, md, footprint, { codeLink: null, repoRoot: repoDir }).pipe(
       Effect.provide(layer()),
     ),
   );

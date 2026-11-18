@@ -353,6 +353,7 @@ describe("Records written before attribution read as unattributed", { timeout: 3
     const report = () =>
       Effect.runPromise(
         plansStalenessReport({
+          config: null,
           repoRoot: repoDir,
           stateRoot: join(configDir, "state"),
           model: "claude-sonnet-5",
@@ -384,6 +385,7 @@ describe("Records written before attribution read as unattributed", { timeout: 3
     const { layer: backendLayer } = makeFakeBackend();
     await Effect.runPromise(
       plansStalenessReport({
+        config: null,
         repoRoot: repoDir,
         stateRoot: join(configDir, "state"),
         model: "claude-sonnet-5",

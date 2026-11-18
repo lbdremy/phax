@@ -193,6 +193,7 @@ describe("An old ledger refuses until migrated", () => {
         const { impl: backendImpl, layer: backendLayer } = makeFakeBackend();
         const result = await runEither(
           plansStalenessReport({
+            config: null,
             repoRoot: repoDir,
             stateRoot: join(repoDir, ".phax-state"),
             model: "claude-sonnet-5",
@@ -209,6 +210,7 @@ describe("An old ledger refuses until migrated", () => {
       it("computeStalenessForPlan (the phax run staleness gate) refuses with exit 12", async () => {
         const result = await runEither(
           computeStalenessForPlan(APPROVED_PLAN, planMd("Approved", SPEC), [], {
+            codeLink: null,
             repoRoot: repoDir,
           }).pipe(Effect.provide(repoLayer())),
         );
