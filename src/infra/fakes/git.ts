@@ -53,6 +53,7 @@ export type GitCall =
   | { method: "branchExists"; branch: string; repo: string }
   | { method: "repoTopLevel"; path: string }
   | { method: "isIgnored"; repo: string; path: string }
+  | { method: "isTracked"; repo: string; path: string }
   | { method: "deleteBranch"; name: string; force: boolean; repo: string }
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
@@ -227,6 +228,18 @@ export class FakeGitImpl implements GitOps {
   isIgnored(repo: string, path: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "isIgnored", repo, path });
     return Effect.succeed(this.ignoredPaths.get(`${repo}\0${path}`) ?? false);
+  }
+
+  private readonly trackedPaths = new Set<string>();
+
+  /** Marks `path` as held in `repo`'s index (a tracked file, directory or gitlink). */
+  setTracked(repo: string, path: string): void {
+    this.trackedPaths.add(`${repo}\0${path}`);
+  }
+
+  isTracked(repo: string, path: string): Effect.Effect<boolean, GitError> {
+    this.calls.push({ method: "isTracked", repo, path });
+    return Effect.succeed(this.trackedPaths.has(`${repo}\0${path}`));
   }
 
   private nextDeleteBranchError: string | undefined;

@@ -87,6 +87,12 @@ export interface GitOps {
    * (`git check-ignore -q --no-index -- <path>/`; exit 1 means not ignored).
    */
   isIgnored(repo: string, path: string): Effect.Effect<boolean, GitError>;
+  /**
+   * Whether `repo`'s index holds `path`, given relative to `repo`, or any file under it: a
+   * tracked file, a tracked directory's files, or a gitlink (an embedded repository added with
+   * `git add`). `git ls-files --cached` on the literal path; an ignore rule does not hide it.
+   */
+  isTracked(repo: string, path: string): Effect.Effect<boolean, GitError>;
   deleteBranch(name: BranchName, force: boolean, repo: string): Effect.Effect<void, GitError>;
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError>;
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError>;

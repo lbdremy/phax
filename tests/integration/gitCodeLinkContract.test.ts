@@ -29,8 +29,14 @@ function sh(args: readonly string[], cwd: string): void {
   execFileSync("git", [...args], { cwd, stdio: "pipe" });
 }
 
+/** What the repository's index holds besides nothing: a gitlink at `code`, a file in `visible`. */
+interface Index {
+  readonly gitlink?: boolean;
+  readonly visibleFile?: boolean;
+}
+
 /** `ignoreRules` is the repository's .gitignore; `code` and `visible` are directories of it. */
-function realWorld(ignoreRules: string): World {
+function realWorld(ignoreRules: string, index: Index = {}): World {
   const restoreGit = isolateGit();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-git-codelink-contract-")));
   const repo = join(root, "repo");
@@ -43,6 +49,17 @@ function realWorld(ignoreRules: string): World {
   sh(["init"], repo);
   sh(["init"], nested);
   writeFileSync(join(repo, ".gitignore"), ignoreRules);
+  if (index.gitlink === true) {
+    // `git add code` on an embedded repository records a gitlink; it needs a commit there.
+    writeFileSync(join(nested, "a.ts"), "export {};\n");
+    sh(["add", "a.ts"], nested);
+    sh(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c"], nested);
+    sh(["add", "-f", "code"], repo);
+  }
+  if (index.visibleFile === true) {
+    writeFileSync(join(repo, "visible", "a.ts"), "export {};\n");
+    sh(["add", "visible/a.ts"], repo);
+  }
   return {
     repo,
     nested,
@@ -57,7 +74,7 @@ function realWorld(ignoreRules: string): World {
   };
 }
 
-function fakeWorld(ignoreRules: string): World {
+function fakeWorld(ignoreRules: string, index: Index = {}): World {
   const fake = makeFakeGit();
   const repo = "/fake/repo";
   const nested = `${repo}/code`;
@@ -66,6 +83,8 @@ function fakeWorld(ignoreRules: string): World {
   fake.impl.setRepoTopLevel(sub, repo);
   fake.impl.setRepoTopLevel(nested, nested);
   fake.impl.setIgnored(repo, "code", /^\/?code\/$/m.test(ignoreRules));
+  if (index.gitlink === true) fake.impl.setTracked(repo, "code");
+  if (index.visibleFile === true) fake.impl.setTracked(repo, "visible");
   return {
     repo,
     nested,
@@ -126,6 +145,24 @@ describe.each([
     it("is false when nothing ignores the directory", async () => {
       world = makeWorld("");
       expect(await world.run((g) => g.isIgnored(world.repo, "code"))).toBe(false);
+    });
+  });
+
+  describe("isTracked", () => {
+    it("is false for an ignored directory the index does not hold", async () => {
+      world = makeWorld("/code/\n");
+      expect(await world.run((g) => g.isTracked(world.repo, "code"))).toBe(false);
+    });
+
+    it("is true for a gitlink added at code/, even once /code/ is ignored", async () => {
+      world = makeWorld("/code/\n", { gitlink: true });
+      expect(await world.run((g) => g.isIgnored(world.repo, "code"))).toBe(true);
+      expect(await world.run((g) => g.isTracked(world.repo, "code"))).toBe(true);
+    });
+
+    it("is true for a directory whose files the index holds", async () => {
+      world = makeWorld("", { visibleFile: true });
+      expect(await world.run((g) => g.isTracked(world.repo, "visible"))).toBe(true);
     });
   });
 });

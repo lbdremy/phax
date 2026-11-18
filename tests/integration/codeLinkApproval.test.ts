@@ -247,3 +247,106 @@ describe("a code root that fails its checks refuses the approval (ac-root-not-re
     });
   }
 });
+
+/** A commit in the code repository, so a plan approval has a code HEAD to record; its sha. */
+function commitCode(): string {
+  const codeDir = join(processRepo, "code");
+  writeFileSync(join(codeDir, "garden.ts"), "export const garden = 1;\n");
+  sh(codeDir, ["add", "-A"]);
+  sh(codeDir, ["commit", "-q", "-m", "code"]);
+  return sh(codeDir, ["rev-parse", "HEAD"]);
+}
+
+describe("an approval reads only the code key of phax.json (ac-approve-unlinked)", () => {
+  it("approves a spec and a plan whose phax.local.json is malformed", async () => {
+    const codeHead = commitCode();
+    write("phax.local.json", "{ not json");
+    await seedProcessRepo();
+
+    const result = await phaxCall(["artifact", "approve", PLAN, "--by", "operator"]);
+    expect(result.code).toBe(0);
+    const record = JSON.parse(read(recordPath())) as Record<string, unknown>;
+    expect(record["code"]).toEqual({ root: "code", baseline: codeHead });
+  });
+
+  it("approves a spec and a plan whose phax.json has a problem outside its code key", async () => {
+    const codeHead = commitCode();
+    write(
+      "phax.json",
+      JSON.stringify({ ...CONFIG, gateProfiles: "not a profile map", unknownKey: 1 }, null, 2),
+    );
+    write(".gitignore", "/code/\n");
+    write(SPEC, SPEC_MD);
+    write(PLAN, PLAN_MD);
+    sh(processRepo, ["add", "-A"]);
+    sh(processRepo, ["commit", "-q", "-m", "seed"]);
+    const spec = await phaxCall(["artifact", "approve", SPEC, "--by", "operator"]);
+    expect(spec.code).toBe(0);
+
+    const result = await phaxCall(["artifact", "approve", PLAN, "--by", "operator"]);
+    expect(result.code).toBe(0);
+    const record = JSON.parse(read(recordPath())) as Record<string, unknown>;
+    expect(record["code"]).toEqual({ root: "code", baseline: codeHead });
+  });
+
+  it.each([
+    ["a root that is not a string", { root: 5 }, "code.root"],
+    ["an unknown key beside the root", { root: "code", extra: true }, "extra"],
+  ])(
+    "refuses a plan approval whose code key has %s, but approves the spec",
+    async (_label, code, named) => {
+      commitCode();
+      write("phax.json", JSON.stringify({ ...CONFIG, code }, null, 2));
+      write(".gitignore", "/code/\n");
+      write(SPEC, SPEC_MD);
+      write(PLAN, PLAN_MD);
+      sh(processRepo, ["add", "-A"]);
+      sh(processRepo, ["commit", "-q", "-m", "seed"]);
+      const spec = await phaxCall(["artifact", "approve", SPEC, "--by", "operator"]);
+      expect(spec.code).toBe(0);
+      const before = sh(processRepo, ["rev-parse", "HEAD"]);
+
+      const result = await phaxCall(["artifact", "approve", PLAN, "--by", "operator"]);
+      expect(result.code).toBe(2);
+      expect(result.err + result.out).toContain(named);
+      expect(result.err + result.out).toContain(join(processRepo, "phax.json"));
+      expect(read(PLAN)).toContain("status: Draft");
+      expect(existsSync(join(processRepo, recordPath()))).toBe(false);
+      expect(sh(processRepo, ["rev-parse", "HEAD"])).toBe(before);
+    },
+  );
+});
+
+describe("an approval from a subdirectory reads the phax.json validate reads there", () => {
+  it("records the code baseline of the link that sub/phax.json declares", async () => {
+    const codeHead = commitCode();
+    await seedProcessRepo();
+    // The root phax.json declares no link; the one nearest the working directory does.
+    write("phax.json", JSON.stringify({ ...CONFIG, code: undefined }, null, 2));
+    write("sub/phax.json", JSON.stringify(CONFIG, null, 2));
+    sh(processRepo, ["add", "-A"]);
+    sh(processRepo, ["commit", "-q", "-m", "sub config"]);
+    process.chdir(join(processRepo, "sub"));
+
+    const validate = await phaxCall(["validate"]);
+    expect(validate.code).toBe(0);
+    const result = await phaxCall(["artifact", "approve", `../${PLAN}`, "--by", "operator"]);
+    expect(result.code).toBe(0);
+    const record = JSON.parse(read(recordPath())) as Record<string, unknown>;
+    expect(record["code"]).toEqual({ root: "code", baseline: codeHead });
+  });
+
+  it("names the subdirectory's phax.json when its link refuses", async () => {
+    commitCode();
+    await seedProcessRepo();
+    write("sub/phax.json", JSON.stringify({ ...CONFIG, code: { root: "gone" } }, null, 2));
+    sh(processRepo, ["add", "-A"]);
+    sh(processRepo, ["commit", "-q", "-m", "sub config"]);
+    process.chdir(join(processRepo, "sub"));
+
+    const result = await phaxCall(["artifact", "approve", `../${PLAN}`, "--by", "operator"]);
+    expect(result.code).toBe(2);
+    expect(result.err + result.out).toContain('code.root "gone": does not exist');
+    expect(result.err + result.out).toContain(join(processRepo, "sub", "phax.json"));
+  });
+});

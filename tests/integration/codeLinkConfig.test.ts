@@ -140,4 +140,33 @@ describe("phax validate with a code link", () => {
     expect(result.err).toContain('code.root "code"');
     expect(result.err).toContain("add /code/ to .gitignore");
   });
+
+  it("refuses an ignored root the repository still tracks, saying how to untrack it", async () => {
+    const code = join(processRepo, "code");
+    writeFileSync(join(code, "a.ts"), "export {};\n");
+    sh(["add", "a.ts"], code);
+    sh(["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c"], code);
+    // A gitlink, as `git add code` records it, then the root ignored after the fact.
+    sh(["add", "-f", "code"], processRepo);
+    writeConfig({ code: { root: "code" } });
+    const result = await phaxCall(["validate"]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain('code.root "code": tracked by this repository');
+    expect(result.err).toContain("git rm -r --cached code");
+  });
+
+  it("checks the link of the phax.json found from a subdirectory, and names that file", async () => {
+    writeConfig({});
+    const sub = join(processRepo, "sub");
+    mkdirSync(sub);
+    writeFileSync(
+      join(sub, "phax.json"),
+      JSON.stringify({ ...BASE_CONFIG, code: { root: "gone" } }, null, 2),
+    );
+    process.chdir(sub);
+    const result = await phaxCall(["validate"]);
+    expect(result.code).toBe(2);
+    expect(result.err).toContain('code.root "gone": does not exist');
+    expect(result.err).toContain(join(sub, "phax.json"));
+  });
 });
