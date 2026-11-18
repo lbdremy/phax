@@ -246,6 +246,14 @@ export interface GitOps {
    * touched. An untracked ignored file is never seen.
    */
   snapshotWorktree(path: string): Effect.Effect<string, GitError>;
+  /**
+   * The repository-relative paths `commit` changes against its first parent:
+   * every path of its tree for a root commit, a merge commit diffed against its
+   * first parent only. Renames are not detected, so a rename lists both its
+   * paths. Sorted, unique and never quoted. A GitError for a commit that does
+   * not exist.
+   */
+  commitChangedPaths(repo: string, commit: string): Effect.Effect<readonly string[], GitError>;
   /** The paths that differ between two trees, with no rename detection. */
   changedPathsBetween(
     path: string,

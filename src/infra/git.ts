@@ -1252,6 +1252,31 @@ export const NodeGitLayer = Layer.succeed(Git, {
 
   snapshotWorktree: (path) => snapshotWorktreeEffect(path),
 
+  commitChangedPaths: (repo, commit) =>
+    Effect.gen(function* () {
+      const target = `${commit}^{commit}`;
+      const { stdout: parents } = yield* gitRun(
+        ["rev-list", "--parents", "-n", "1", target, "--"],
+        repo,
+      );
+      const firstParent = parents.trim().split(" ")[1];
+      const { stdout } = yield* gitRun(
+        [
+          "-c",
+          "core.quotePath=false",
+          "diff-tree",
+          "-r",
+          "--no-commit-id",
+          "--name-only",
+          "--no-renames",
+          "-z",
+          ...(firstParent === undefined ? ["--root", target] : [firstParent, target]),
+        ],
+        repo,
+      );
+      return [...new Set(stdout.split("\0").filter((p) => p.length > 0))].toSorted();
+    }),
+
   changedPathsBetween: (path, fromTree, toTree) => {
     const args = ["diff-tree", "-r", "-z", "--name-status", "--no-renames", fromTree, toTree];
     return gitRun(args, path).pipe(
