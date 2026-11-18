@@ -71,6 +71,7 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "artifact migrate-documents": "refused",
   "plans overlap": "refused",
   "plans estimate": "refused",
+  "finding fix": "refused",
   "records init": "refused",
   "records sync": "refused",
 };

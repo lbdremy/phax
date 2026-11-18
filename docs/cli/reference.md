@@ -695,6 +695,60 @@ phax finding list gate-retry
 phax finding list gate-retry --json
 ```
 
+## `phax finding fix`
+
+- **Usage**: `phax finding fix [FLAGS] <short-name> [operand]…`
+
+Commits exactly the paths named after -- in the run's final worktree, while the run is open for review (review_open), and records each named finding as fixed on the phax/records/v1 branch. Other staged or unstaged changes stay where they are. The commit's subject is fix(review): <ids> of <short-name>, or -m; --body adds a paragraph. Its last paragraph holds phax's trailers: Short-Name: <short-name>, then one Finding: <id> per id, in the order named, and never a Run-Id. Each record holds the commit, its path classes (code, docs, gate-config or tests, from the paths the commit changed) and who fixed it: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> declares a machine. Without a terminal and without --by the call is refused. The ids come first (F2 F5), every operand from the first one not spelled like an id is a path, relative to the current directory when it is inside the worktree and to the worktree's root otherwise; a path spelled like an id must follow another path or be written ./F2. A named directory commits every change under it.
+
+--commit <sha> records an existing commit and makes none: it takes no path, -m or --body. The commit must be on the run's final-phase branch or on the base branch (publish.baseBranch, else main). It works on a run that is no longer open for review and on an archived run, and is the retry when a record failed after the commit landed. Every refusal comes before anything is written: no id, no path, an unchanged path, a path outside the worktree, an id the run does not have, a run not open for review, records off, a records clone that is missing, and an unknown or unreachable commit. A record that fails after the commit landed keeps the commit, exits 1, names the ids not recorded and the --commit retry. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, the named findings as phax finding list reads them after the write. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.
+
+### Arguments
+
+#### `<short-name>`
+
+Run short name, e.g. usage-cli
+
+#### `[operand]…`
+
+Finding ids (F2, C1), then — after -- — the paths to commit
+
+### Flags
+
+#### `--by <arbiter>`
+
+operator or machine:<grant>; required without a terminal
+
+#### `--commit <sha>`
+
+Record this existing commit instead of making one
+
+#### `-m --message <subject>`
+
+The commit's subject, instead of the default
+
+#### `--body <text>`
+
+A body paragraph for the commit, before phax's trailers
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
+### Examples
+
+```
+phax finding fix gate-retry F2 -- tests/gate.test.ts
+```
+
+```
+phax finding fix gate-retry F2 F5 -m "fix(gate): keep the exit code" -- src/app/gate.ts
+```
+
+```
+phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator
+```
+
 ## `phax adjust-plan`
 
 - **Usage**: `phax adjust-plan <FLAGS> <plan>`

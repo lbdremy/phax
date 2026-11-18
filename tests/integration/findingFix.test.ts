@@ -60,7 +60,7 @@ describe("phax finding fix", () => {
   };
 
   // AC-fix-commits-named-paths
-  it.fails("commits exactly the named paths with the trailers and leaves other changes alone", async () => {
+  it("commits exactly the named paths with the trailers and leaves other changes alone", async () => {
     await reviewOnce(repo, ["one", "two", "three", "four", "five"]);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 2;\n");
@@ -91,7 +91,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-fix-records and AC-list-json
-  it.fails("records each finding fixed with its commit, classes and operator, and lists it", async () => {
+  it("records each finding fixed with its commit, classes and operator, and lists it", async () => {
     await reviewOnce(repo, ["one", "two", "three", "four", "five"]);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
 
@@ -129,7 +129,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-path-classes
-  it.fails("classes a commit of a test, a source and a docs file as code, docs, tests, also when backfilled", async () => {
+  it("classes a commit of a test, a source and a docs file as code, docs, tests, also when backfilled", async () => {
     await reviewOnce(repo, ["one", "two", "three"]);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 3;\n");
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 3;\n");
@@ -163,7 +163,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-fix-refusals
-  it.fails("refuses no path, an unchanged path and an unknown id, committing and recording nothing", async () => {
+  it("refuses no path, an unchanged path and an unknown id, committing and recording nothing", async () => {
     await reviewOnce(repo, ["one", "two"]);
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 4;\n");
     const runBefore = runHead();
@@ -186,7 +186,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-fix-state
-  it.fails("refuses a run that is not review_open, naming its state", async () => {
+  it("refuses a run that is not review_open, naming its state", async () => {
     await reviewOnce(repo, ["one"]);
     setRunState(repo, "running");
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 5;\n");
@@ -201,7 +201,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-machine-fix
-  it.fails("lets a machine fix with its grant, and refuses a call without --by and without a terminal", async () => {
+  it("lets a machine fix with its grant, and refuses a call without --by and without a terminal", async () => {
     await reviewOnce(repo, ["one", "two"]);
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 6;\n");
 
@@ -220,7 +220,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-records-off (fix)
-  it.fails("refuses with records off, naming the records key, before any commit", async () => {
+  it("refuses with records off, naming the records key, before any commit", async () => {
     await reviewOnce(repo, ["one"]);
     turnRecordsOff(repo);
     writeInWorktree(repo, "src/app/gate.ts", "export const gate = 7;\n");
@@ -233,7 +233,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-record-failure
-  it.fails("keeps the commit when its record fails and names the --commit retry", async () => {
+  it("keeps the commit when its record fails and names the --commit retry", async () => {
     await reviewOnce(repo, ["one", "two"]);
     lockRecordsBranch(repo);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 8;\n");
@@ -250,7 +250,7 @@ describe("phax finding fix", () => {
   });
 
   // AC-rereview-continues
-  it.fails("lists F1 to F5 after a re-review, with F2 fixed and the rest open", async () => {
+  it("lists F1 to F5 after a re-review, with F2 fixed and the rest open", async () => {
     await reviewOnce(repo, ["first one", "first two", "first three"]);
     await reviewOnce(repo, ["second one", "second two"]);
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 9;\n");

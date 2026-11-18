@@ -391,7 +391,8 @@ describe("review and publication commands", () => {
       seedRun("review_open");
       writeFileSync(join(runPath, "review-handoff.md"), "# Run Review Handoff\n");
       const t = fakes();
-      t.git.impl.addExistingBranch("phax/thing--phase-01");
+      // The final phase's recorded branch, which publication pushes.
+      t.git.impl.addExistingBranch(`feature/${SHORT_NAME}--phase-01`);
       t.git.impl.addExistingRemote("origin");
 
       const result = await runnerCall(
