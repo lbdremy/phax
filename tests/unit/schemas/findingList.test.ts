@@ -71,8 +71,58 @@ describe("the finding-list format", () => {
     expect(refusal(withFindings([{ ...compliance, file: "src/a.ts" }]))).toContain("file");
   });
 
-  it("refuses a non-empty history", () => {
-    expect(refusal(withFindings([{ ...code, history: [{}] }]))).toContain("history");
+  it("decodes histories of each fate variant, oldest first, and round-trips them", () => {
+    const at = "2026-11-01T13:30:00Z";
+    const operator = { kind: "operator", name: "Ada Example" } as const;
+    const history = [
+      {
+        fate: "dismissed",
+        verdict: {
+          kind: "decided",
+          chosen: "dismiss",
+          abandoned: ["fix", "defer"],
+          why: "The caller validates it.",
+          advocate: "Refuse an empty name.",
+          principles: [],
+          reversibility: "cheap",
+          by: operator,
+          at,
+          revised: [],
+        },
+      },
+      { fate: "deferred", to: "NEXT_STEPS.md", why: "Needs its own design.", by: operator, at },
+      {
+        fate: "fixed",
+        commit: "0123456789abcdef0123456789abcdef01234567",
+        pathClasses: ["code", "tests"],
+        by: { kind: "machine", grant: "ci-fixer" },
+        at,
+      },
+    ];
+    const input = withFindings([{ ...code, fate: "fixed", history }]);
+    const decoded = decodeFindingListFile(input);
+    if (Result.isFailure(decoded)) throw new Error("the document was refused");
+    expect(encodeFindingListFile(decoded.success)).toEqual(input);
+  });
+
+  it("refuses a history entry with a fate of open, naming its path", () => {
+    const input = withFindings([{ ...code, history: [{ fate: "open" }] }]);
+    expect(refusal(input)).toContain("history");
+    const parsed = parseFindingList(input);
+    expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.error.path).toContain("findings.0.history");
+  });
+
+  it("refuses a history entry with an unknown key", () => {
+    const entry = {
+      fate: "deferred",
+      to: "NEXT_STEPS.md",
+      why: "Needs its own design.",
+      by: { kind: "operator", name: "Ada Example" },
+      at: "2026-11-01T13:30:00Z",
+      extra: 1,
+    };
+    expect(refusal(withFindings([{ ...code, history: [entry] }]))).toContain("extra");
   });
 
   it("refuses a document without $schema and an unknown records value", () => {

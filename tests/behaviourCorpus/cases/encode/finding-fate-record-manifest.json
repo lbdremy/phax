@@ -1,0 +1,173 @@
+{
+  "subject": "encode/finding-fate-record-manifest",
+  "cases": [
+    {
+      "name": "accepts a fix by an operator",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F1",
+          "fate": "fixed",
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "pathClasses": [
+            "code",
+            "tests"
+          ],
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a fix by a machine",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F2",
+          "fate": "fixed",
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "pathClasses": [
+            "docs"
+          ],
+          "by": {
+            "kind": "machine",
+            "grant": "ci-fixer"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a dismissal",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "C1",
+          "fate": "dismissed",
+          "verdict": {
+            "kind": "decided",
+            "chosen": "dismiss",
+            "abandoned": [
+              "fix",
+              "defer"
+            ],
+            "why": "The input is validated by the caller.",
+            "advocate": "Refuse an empty name.",
+            "principles": [],
+            "reversibility": "cheap",
+            "by": {
+              "kind": "operator",
+              "name": "Ada Example"
+            },
+            "at": "2026-11-01T13:30:00Z",
+            "revised": []
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a deferral",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "NEXT_STEPS.md",
+        "why": "Needs a design of its own.",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F3",
+          "fate": "deferred",
+          "to": "NEXT_STEPS.md",
+          "why": "Needs a design of its own.",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    }
+  ]
+}

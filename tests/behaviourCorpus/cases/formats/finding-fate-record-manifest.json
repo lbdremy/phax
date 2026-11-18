@@ -1,0 +1,1823 @@
+{
+  "format": "finding-fate-record-manifest",
+  "current": [
+    {
+      "name": "accepts a fix by an operator",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F1",
+          "fate": "fixed",
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "pathClasses": [
+            "code",
+            "tests"
+          ],
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a fix by a machine",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F2",
+          "fate": "fixed",
+          "commit": "0123456789abcdef0123456789abcdef01234567",
+          "pathClasses": [
+            "docs"
+          ],
+          "by": {
+            "kind": "machine",
+            "grant": "ci-fixer"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "accepts a dismissal",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "C1",
+          "fate": "dismissed",
+          "verdict": {
+            "kind": "decided",
+            "chosen": "dismiss",
+            "abandoned": [
+              "fix",
+              "defer"
+            ],
+            "why": "The input is validated by the caller.",
+            "advocate": "Refuse an empty name.",
+            "principles": [],
+            "reversibility": "cheap",
+            "by": {
+              "kind": "operator",
+              "name": "Ada Example"
+            },
+            "at": "2026-11-01T13:30:00Z",
+            "revised": []
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a deferral",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "NEXT_STEPS.md",
+        "why": "Needs a design of its own.",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+          "kind": "finding-fate",
+          "runId": "2611011300-garden-sync",
+          "finding": "F3",
+          "fate": "deferred",
+          "to": "NEXT_STEPS.md",
+          "why": "Needs a design of its own.",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      }
+    },
+    {
+      "name": "refuses an unknown key",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z",
+        "extra": 1
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "extra: is unexpected, expected: \"$schema\" | \"kind\" | \"runId\" | \"finding\" | \"fate\" | \"commit\" | \"pathClasses\" | \"by\" | \"at\""
+      }
+    },
+    {
+      "name": "refuses a document without $schema",
+      "input": {
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: finding fate record manifest has no $schema — every finding fate record manifest is written with one"
+      }
+    },
+    {
+      "name": "refuses a fate of open",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "open",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "fate: Expected \"dismissed\" | \"deferred\", actual \"open\""
+      }
+    },
+    {
+      "name": "refuses a kind other than finding-fate",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "review",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"finding-fate\", actual \"review\""
+      }
+    },
+    {
+      "name": "refuses a fix without a commit",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "commit: is missing"
+      }
+    },
+    {
+      "name": "refuses a fix with no path class",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses: Expected an array of at least 1 item(s), actual []"
+      }
+    },
+    {
+      "name": "refuses path classes out of order",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "tests",
+          "code"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses: must list each class once, in the order code, docs, gate-config, tests"
+      }
+    },
+    {
+      "name": "refuses a duplicated path class",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "code"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses: must list each class once, in the order code, docs, gate-config, tests"
+      }
+    },
+    {
+      "name": "refuses a dismissal that chooses fix",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "fix",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.chosen: Expected \"dismiss\", actual \"fix\""
+      }
+    },
+    {
+      "name": "refuses a dismissal with a revision",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": [
+            "x"
+          ]
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.revised.0: is unexpected, expected: never"
+      }
+    },
+    {
+      "name": "refuses a dismissal by a machine",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "machine",
+            "grant": "ci-fixer"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by.grant: is unexpected, expected: \"kind\" | \"name\""
+      }
+    },
+    {
+      "name": "refuses a deferral by a machine",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "NEXT_STEPS.md",
+        "why": "Needs a design of its own.",
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.grant: is unexpected, expected: \"kind\" | \"name\""
+      }
+    },
+    {
+      "name": "refuses a finding id of X1",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "X1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "finding: \"X1\" is not a finding id (expected the form F<n> or C<n>)"
+      }
+    },
+    {
+      "name": "constraint $schema required",
+      "input": {
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: finding fate record manifest has no $schema — every finding fate record manifest is written with one"
+      }
+    },
+    {
+      "name": "constraint kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: is missing"
+      }
+    },
+    {
+      "name": "constraint runId required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: is missing"
+      }
+    },
+    {
+      "name": "constraint finding required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "finding: is missing"
+      }
+    },
+    {
+      "name": "constraint fate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "fate: is missing"
+      }
+    },
+    {
+      "name": "constraint commit required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "commit: is missing"
+      }
+    },
+    {
+      "name": "constraint pathClasses required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses: is missing"
+      }
+    },
+    {
+      "name": "constraint by required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by: is missing"
+      }
+    },
+    {
+      "name": "constraint at required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "at: is missing"
+      }
+    },
+    {
+      "name": "constraint $schema pattern",
+      "input": {
+        "$schema": "not a url",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "$schema: expected https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json, got \"not a url\""
+      }
+    },
+    {
+      "name": "constraint kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "nonsense",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "kind: Expected \"finding-fate\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint runId pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "runId: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint finding pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "not a url",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "finding: \"not a url\" is not a finding id (expected the form F<n> or C<n>)"
+      }
+    },
+    {
+      "name": "constraint fate enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "nonsense",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "fate: Expected \"dismissed\" | \"deferred\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint commit pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "not a url",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "commit: Expected a string matching the pattern ^([0-9a-f]{40}|[0-9a-f]{64})$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint pathClasses minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses: Expected an array of at least 1 item(s), actual []"
+      }
+    },
+    {
+      "name": "constraint pathClasses[] enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "nonsense"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "pathClasses.0: \"nonsense\" is not a path class (expected one of code, docs, gate-config, tests)"
+      }
+    },
+    {
+      "name": "constraint by.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint by.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.name: is missing"
+      }
+    },
+    {
+      "name": "constraint by.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "nonsense",
+          "grant": "ci-fixer"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.kind: Expected \"operator\" | \"machine\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint by.name pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F1",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "code",
+          "tests"
+        ],
+        "by": {
+          "kind": "operator",
+          "name": ""
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint by.grant required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.grant: is missing"
+      }
+    },
+    {
+      "name": "constraint by.grant pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "not a url"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "by.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint at pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F2",
+        "fate": "fixed",
+        "commit": "0123456789abcdef0123456789abcdef01234567",
+        "pathClasses": [
+          "docs"
+        ],
+        "by": {
+          "kind": "machine",
+          "grant": "ci-fixer"
+        },
+        "at": "not a url"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "at: Expected a string matching the pattern ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint verdict required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.chosen required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.chosen: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.abandoned required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.abandoned: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.why required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.why: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.advocate required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.advocate: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.principles required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.principles: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.reversibility required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.reversibility: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.by required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.at required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.at: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.revised required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.revised: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "nonsense",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.kind: Expected \"decided\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint verdict.chosen enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "nonsense",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.chosen: Expected \"dismiss\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint verdict.abandoned minItems",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.abandoned.0: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.abandoned[] enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "nonsense",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.abandoned.0: Expected \"fix\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint verdict.why pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.why: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdict.advocate pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.advocate: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdict.reversibility enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "nonsense",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.reversibility: Expected \"cheap\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint verdict.by.kind required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by.kind: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.by.name required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by.name: is missing"
+      }
+    },
+    {
+      "name": "constraint verdict.by.kind enum",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "nonsense",
+            "name": "Ada Example"
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by.kind: Expected \"operator\", actual \"nonsense\""
+      }
+    },
+    {
+      "name": "constraint verdict.by.name pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": ""
+          },
+          "at": "2026-11-01T13:30:00Z",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.by.name: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint verdict.at pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "C1",
+        "fate": "dismissed",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "dismiss",
+          "abandoned": [
+            "fix",
+            "defer"
+          ],
+          "why": "The input is validated by the caller.",
+          "advocate": "Refuse an empty name.",
+          "principles": [],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Ada Example"
+          },
+          "at": "not a url",
+          "revised": []
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "verdict.at: Expected a string matching the pattern ^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$, actual \"not a url\""
+      }
+    },
+    {
+      "name": "constraint to required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "why": "Needs a design of its own.",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "to: is missing"
+      }
+    },
+    {
+      "name": "constraint why required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "NEXT_STEPS.md",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "why: is missing"
+      }
+    },
+    {
+      "name": "constraint to pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "",
+        "why": "Needs a design of its own.",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "to: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint why pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/finding-fate-record-manifest/0.40.0.json",
+        "kind": "finding-fate",
+        "runId": "2611011300-garden-sync",
+        "finding": "F3",
+        "fate": "deferred",
+        "to": "NEXT_STEPS.md",
+        "why": "",
+        "by": {
+          "kind": "operator",
+          "name": "Ada Example"
+        },
+        "at": "2026-11-01T13:30:00Z"
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "why: Expected a non empty string, actual \"\""
+      }
+    }
+  ],
+  "shapes": {}
+}

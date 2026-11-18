@@ -38,6 +38,7 @@ import {
   PlanApprovalsSchema,
   PlanDocumentSchema,
   PlanHandDecisionAnswerSchema,
+  FindingFateRecordManifestSchema,
   FindingListSchema,
   PlanLintSchema,
   PlanOverviewSchema,
@@ -83,6 +84,7 @@ import {
   parsePlanApprovals,
   parsePlanDocument,
   parsePlanHandDecisionAnswer,
+  parseFindingFateRecordManifest,
   parseFindingList,
   parsePlanLint,
   parsePlanOverview,
@@ -188,6 +190,7 @@ import {
   readPhaxPlanFile,
   readPlanApprovalsFile,
   readPlanRecordFile,
+  readFindingFateRecordManifestFile,
   readRecordManifestFile,
   readRegistryFile,
   readReviewStopFile,
@@ -1214,6 +1217,11 @@ export const FORMAT_REGISTRY: { readonly [F in FormatId]: FormatEntry & { readon
     schema: RevisionRecordManifestSchema,
     phax: read(persisted(readRecordManifestFile)),
     parse: fromPackage(parseRevisionRecordManifest),
+  }),
+  "finding-fate-record-manifest": entry("finding-fate-record-manifest", {
+    schema: FindingFateRecordManifestSchema,
+    phax: read(persisted(readFindingFateRecordManifestFile)),
+    parse: fromPackage(parseFindingFateRecordManifest),
   }),
 };
 

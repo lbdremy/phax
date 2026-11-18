@@ -22,6 +22,7 @@ import {
   parseArchitectureRequest,
   parseAcceptanceRequest,
   parseArtifactStatus,
+  parseFindingFateRecordManifest,
   parseFindingList,
   parsePlanLint,
   parsePlanOverview,
@@ -85,6 +86,7 @@ import {
   toLatestCostLedger,
   toLatestDecisionRecordManifest,
   toLatestReviewRecordManifest,
+  toLatestFindingFateRecordManifest,
   toLatestRevisionRecordManifest,
   toLatestGateAttribution,
   toLatestGateReport,
@@ -123,6 +125,7 @@ import {
   readPlanApprovalsFile,
   readPlanDocumentFile,
   readPlanRecordFile,
+  readFindingFateRecordManifestFile,
   readRecordManifestFile,
   readRegistryFile,
   readRunStatusFile,
@@ -306,6 +309,10 @@ const PACKAGE_LATEST: { readonly [F in FormatId]: PackageLatest } = {
   "plan-overview": latest(parsePlanOverview, toLatestPlanOverview),
   "plan-lint": latest(parsePlanLint, toLatestPlanLint),
   "finding-list": latest(parseFindingList, toLatestFindingList),
+  "finding-fate-record-manifest": latest(
+    parseFindingFateRecordManifest,
+    toLatestFindingFateRecordManifest,
+  ),
   "first-reading": latest(parseFirstReading, toLatestFirstReading),
   "interactive-handoff": latest(parseInteractiveHandoff, toLatestInteractiveHandoff),
   "interactive-session": latest(parseInteractiveSession, toLatestInteractiveSession),
@@ -375,6 +382,8 @@ const BRIDGE_READERS: { readonly [F in FormatId]: BridgeReader | undefined } = {
   "plan-overview": undefined,
   "plan-lint": undefined,
   "finding-list": undefined,
+  // A fate record is read by its own reader, outside the record-manifest union.
+  "finding-fate-record-manifest": readFindingFateRecordManifestFile,
   // phax reads the first reading and the interactive handoff only as a turn's
   // answer, through readFirstReadingAnswer and readInteractiveHandoffAnswer,
   // which name no file.

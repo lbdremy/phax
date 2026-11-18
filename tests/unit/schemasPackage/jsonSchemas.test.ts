@@ -17,6 +17,7 @@ import {
 import {
   authoringRecordManifestFormat,
   decisionRecordManifestFormat,
+  findingFateRecordManifestFormat,
   phaseRecordManifestFormat,
   reviewRecordManifestFormat,
   revisionRecordManifestFormat,
@@ -166,6 +167,7 @@ const DECODERS: { readonly [F in JsonSchemaFormatId]: Decode } = {
   "plan-overview": planOverviewFormat.current.shape.decode,
   "plan-lint": planLintFormat.current.shape.decode,
   "finding-list": findingListFormat.current.shape.decode,
+  "finding-fate-record-manifest": findingFateRecordManifestFormat.current.shape.decode,
   "first-reading": firstReadingFormat.current.shape.decode,
   "interactive-handoff": interactiveHandoffFormat.current.shape.decode,
   "interactive-session": interactiveSessionFormat.current.shape.decode,
@@ -248,6 +250,7 @@ describe("the JSON Schema table", () => {
       planOverviewFormat,
       planLintFormat,
       findingListFormat,
+      findingFateRecordManifestFormat,
       firstReadingFormat,
       interactiveHandoffFormat,
       interactiveSessionFormat,
@@ -276,10 +279,10 @@ describe("the JSON Schema table", () => {
 });
 
 describe("renderJsonSchemas over the real table", () => {
-  it("renders 45 files and no failure", () => {
+  it("renders 47 files and no failure", () => {
     expect(rendered.failures).toEqual([]);
     expect([...rendered.files.keys()]).toEqual(JSON_SCHEMA_FORMATS.map(({ fileName }) => fileName));
-    expect(rendered.files.size).toBe(46);
+    expect(rendered.files.size).toBe(47);
   });
 
   it.each(JSON_SCHEMA_FORMATS)(

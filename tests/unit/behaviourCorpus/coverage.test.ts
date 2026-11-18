@@ -308,6 +308,7 @@ const WRITTEN_FORMATS = [
   "plan-lint",
   "revision-record-manifest",
   "finding-list",
+  "finding-fate-record-manifest",
 ];
 
 const encodeRoot = `${repoRoot}tests/behaviourCorpus/cases/encode/`;

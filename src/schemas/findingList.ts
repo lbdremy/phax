@@ -12,6 +12,7 @@ import {
   CodeReviewSeveritySchema,
 } from "./codeReview.js";
 import { ComplianceFindingIdSchema, DimensionSchema, SeveritySchema } from "./complianceReview.js";
+import { FindingFateEntrySchema } from "./findingFateRecord.js";
 import { refusalOverride } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { RunStateSchema } from "./status.js";
@@ -39,8 +40,9 @@ export const FindingListRecordsSchema = Schema.Literals(["read", "off", "unavail
 });
 export type FindingListRecords = Schema.Schema.Type<typeof FindingListRecordsSchema>;
 
-const historySchema = Schema.Tuple([]).annotate({
-  description: "The finding's fate records, oldest first. Empty until fate records exist.",
+const historySchema = Schema.Array(FindingFateEntrySchema).annotate({
+  description:
+    "The finding's fate records, oldest first: each a fix, a dismissal or a deferral. The latest decides the fate.",
 });
 
 export const CodeReviewFindingEntrySchema = Schema.Struct({

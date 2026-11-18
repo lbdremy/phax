@@ -51,4 +51,5 @@ export const CURRENT_STAMPS = {
   "code-review-answer": "0.40.0",
   "compliance-review-answer": "0.40.0",
   "finding-list": "0.40.0",
+  "finding-fate-record-manifest": "0.40.0",
 } as const;

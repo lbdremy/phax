@@ -36,7 +36,7 @@ const DateSchema = Schema.String.check(isExportedPattern(/^\d{4}-\d{2}-\d{2}$/))
   Schema.annotate({ description: "A date, YYYY-MM-DD." }),
 );
 
-const TimestampSchema = Schema.String.check(
+export const TimestampSchema = Schema.String.check(
   isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),
 ).pipe(Schema.annotate({ description: "An ISO-8601 UTC timestamp." }));
 

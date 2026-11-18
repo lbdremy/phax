@@ -19,6 +19,12 @@ import {
   type DecisionRecordManifestFile,
 } from "../../../../src/schemas/decisionRecord.js";
 import {
+  FindingFateRecordManifestFileSchema,
+  decodeFindingFateRecordManifestFile,
+  type FindingFateRecordManifest,
+  type FindingFateRecordManifestFile,
+} from "../../../../src/schemas/findingFateRecord.js";
+import {
   ReviewRecordManifestFileSchema,
   decodeReviewRecordManifestFile,
   type ReviewRecordManifest,
@@ -468,6 +474,49 @@ export type LatestRevisionRecordManifest = RevisionRecordManifest;
 export function toLatestRevisionRecordManifest(
   value: RevisionRecordManifestFile,
 ): LatestRevisionRecordManifest {
+  const { $schema: _schema, ...recorded } = value;
+  return recorded;
+}
+
+// ── finding fate record manifest
+
+// Born with `$schema`, with no older shape. Not a member of the record manifest
+// union below: `parseRecordManifest` does not read it, so a reader of every
+// `record.json` calls `parseFindingFateRecordManifest` for a fate record.
+
+export type FindingFateRecordManifestShapes = {
+  [K in CurrentShapeName<"finding-fate-record-manifest">]: FindingFateRecordManifestFile;
+};
+
+/** The id of every finding fate record manifest shape the package reads. */
+export type FindingFateRecordManifestShape = keyof FindingFateRecordManifestShapes;
+
+export const findingFateRecordManifestFormat = defineFormat<FindingFateRecordManifestShapes>({
+  id: "finding-fate-record-manifest",
+  label: "finding fate record manifest",
+  preSchema: null,
+  releases: [],
+  current: {
+    name: CURRENT_SHAPES["finding-fate-record-manifest"],
+    shape: {
+      schema: FindingFateRecordManifestFileSchema,
+      decode: decodeFindingFateRecordManifestFile,
+    },
+  },
+});
+
+/** Reads a finding fate record's `record.json`. Never throws. */
+export const parseFindingFateRecordManifest: (
+  input: unknown,
+) => ParsedShape<FindingFateRecordManifestShapes> = findingFateRecordManifestFormat.parse;
+
+/** The latest finding fate record manifest: phax's in-memory value, with no `$schema`. */
+export type LatestFindingFateRecordManifest = FindingFateRecordManifest;
+
+/** Upgrades a parsed fate record in memory: drops `$schema`, keeps every other fact. */
+export function toLatestFindingFateRecordManifest(
+  value: FindingFateRecordManifestFile,
+): LatestFindingFateRecordManifest {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }
