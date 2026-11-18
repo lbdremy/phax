@@ -85,8 +85,8 @@ briefs of live or unspecced work.
       for model and level (`config.models[active_model].thinking`); `phax agent setup mistral-vibe`
       goes. Run with `--allow-skill-edits`; the operator runs the Vibe e2e at review.
       Not in parallel with `code-repository` (operator, 2026-11-18): `phax plans overlap` shares
-      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Its run follows
-      that run's merge. Mistral Large 4 in the catalog is a separate, later change.
+      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Its run waits
+      for `finding-ids-and-fates` plan 2's merge (operator, 2026-11-18: plan 2 first). Mistral Large 4 in the catalog is a separate, later change.
 
 ### 6. The project doctrine
 
