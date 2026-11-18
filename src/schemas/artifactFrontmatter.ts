@@ -7,6 +7,13 @@ export const ApprovedStampSchema = Schema.Struct({
   baseline: Schema.NonEmptyString,
 });
 
+// A plan's stamp also carries the short code baseline when its project links a code repository.
+export const PlanApprovedStampSchema = Schema.Struct({
+  date: Schema.String,
+  baseline: Schema.NonEmptyString,
+  code: Schema.optional(Schema.NonEmptyString),
+});
+
 export const SpecFrontmatterSchema = Schema.Struct({
   status: SpecStatusSchema,
   date: Schema.String,
@@ -20,7 +27,7 @@ export type SpecFrontmatter = Schema.Schema.Type<typeof SpecFrontmatterSchema>;
 export const SpecLessPlanFrontmatterSchema = Schema.Struct({
   status: PlanStatusSchema,
   "source-spec": Schema.Null,
-  approved: Schema.optional(ApprovedStampSchema),
+  approved: Schema.optional(PlanApprovedStampSchema),
 });
 
 // A plan naming a source spec states whether its run completes that spec.
@@ -36,7 +43,7 @@ export const SpecBoundPlanFrontmatterSchema = Schema.Struct({
     messageMissingKey:
       "is missing — a plan with a source-spec must say completes-spec: true (its run completes the spec) or false (more plans follow)",
   }),
-  approved: Schema.optional(ApprovedStampSchema),
+  approved: Schema.optional(PlanApprovedStampSchema),
 });
 
 export const PlanFrontmatterSchema = Schema.Union([

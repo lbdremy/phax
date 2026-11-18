@@ -127,7 +127,7 @@ function completeInWorktree(
   return Effect.gen(function* () {
     const { worktreePath, planRepoRelPath, nowIso } = input;
     const fs = yield* FileSystem;
-    const opts = { repoRoot: worktreePath, nowIso, commit: true };
+    const opts = { repoRoot: worktreePath, nowIso, commit: true, codeLink: null };
     const transitions: RunCompletionTransition[] = [];
 
     // The plan. Its markdown is read before any move so the ride-along can read

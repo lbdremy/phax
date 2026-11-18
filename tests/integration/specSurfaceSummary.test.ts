@@ -150,9 +150,13 @@ function transition(path: string, target: ArtifactStatus, by = "operator") {
   );
   return Effect.runPromise(
     Effect.result(
-      transitionArtifactBy(path, target, { repoRoot: repoDir, nowIso: NOW, commit: true, by }).pipe(
-        Effect.provide(layer),
-      ),
+      transitionArtifactBy(path, target, {
+        repoRoot: repoDir,
+        nowIso: NOW,
+        commit: true,
+        codeLink: null,
+        by,
+      }).pipe(Effect.provide(layer)),
     ),
   );
 }

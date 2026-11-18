@@ -24,6 +24,7 @@ const APPROVE_OPTS = {
   repoRoot: REPO_ROOT,
   nowIso: NOW_ISO,
   commit: false,
+  codeLink: null,
   arbiter: { kind: "machine", grant: "roadmap-loop" },
 } as const;
 

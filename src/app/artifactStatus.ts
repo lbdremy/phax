@@ -74,6 +74,7 @@ import {
   removeSpecApprovalRecord,
   specApprovalRecordExists,
 } from "./approvalRecordStore.js";
+import type { CodeLink } from "./codeLink.js";
 import {
   approvalRecordPathFor,
   type OrphanApprovalRecord,
@@ -339,6 +340,8 @@ export interface TransitionArtifactOptions {
   readonly repoRoot: string;
   readonly nowIso: string;
   readonly commit: boolean;
+  /** The project's resolved code link; only a plan's approval reads it. */
+  readonly codeLink: CodeLink | null;
 }
 
 /** The targets whose gesture names who performs it: the caller resolves the arbiter first. */
@@ -621,7 +624,7 @@ export function transitionArtifact(
 
     if (kind === "spec" && approver !== null) {
       const baseline = yield* git.headCommit(opts.repoRoot);
-      const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
+      const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7), null);
       if (Result.isFailure(stamped)) {
         return yield* Effect.fail(
           new ArtifactValidationError({
@@ -696,7 +699,16 @@ export function transitionArtifact(
       }
 
       const baseline = yield* git.headCommit(opts.repoRoot);
-      const stamped = stampApproved(updatedMd, opts.nowIso, baseline.slice(0, 7));
+      const codeBaseline =
+        opts.codeLink === null
+          ? null
+          : { root: opts.codeLink.root, baseline: yield* git.headCommit(opts.codeLink.path) };
+      const stamped = stampApproved(
+        updatedMd,
+        opts.nowIso,
+        baseline.slice(0, 7),
+        codeBaseline === null ? null : codeBaseline.baseline.slice(0, 7),
+      );
       if (Result.isFailure(stamped)) {
         return yield* Effect.fail(
           new ArtifactValidationError({
@@ -710,7 +722,7 @@ export function transitionArtifact(
       yield* putPlanApprovalRecord(
         repoRelPath,
         { planFingerprint, approvedAt: opts.nowIso, baseline, sourceSpec },
-        null,
+        codeBaseline,
         approver,
       );
       approvedBaseline = baseline;

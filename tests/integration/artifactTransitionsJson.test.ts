@@ -110,7 +110,14 @@ beforeAll(() => {
   disableGitAutoMaintenance(repo);
   write(
     "phax.json",
-    JSON.stringify({ version: 1, name: "made-up", state: { root: join(base, "state") } }),
+    JSON.stringify({
+      version: 1,
+      name: "made-up",
+      state: { root: join(base, "state") },
+      gateProfiles: {
+        standard: [{ command: "pnpm test", surface: "local", firing: "every-phase" }],
+      },
+    }),
   );
   write(SPEC, specMd("Garden sync"));
   write(SPEC_UNTOUCHED, specMd("Orchard care"));

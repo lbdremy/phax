@@ -162,6 +162,7 @@ describe("An old ledger refuses until migrated", () => {
             repoRoot: repoDir,
             nowIso: NOW,
             commit: true,
+            codeLink: null,
             arbiter: { kind: "machine", grant: "roadmap-loop" },
           }).pipe(Effect.provide(repoLayer())),
         );
@@ -175,6 +176,7 @@ describe("An old ledger refuses until migrated", () => {
             repoRoot: repoDir,
             nowIso: NOW,
             commit: true,
+            codeLink: null,
           }).pipe(Effect.provide(repoLayer())),
         );
         expectRefused(result, ledger.path);

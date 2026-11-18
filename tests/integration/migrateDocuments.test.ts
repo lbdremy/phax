@@ -441,6 +441,7 @@ function approve(path: string) {
         repoRoot: repoDir,
         nowIso: NOW,
         commit: true,
+        codeLink: null,
         by: "machine:roadmap-loop",
       }).pipe(Effect.provide(layer())),
     ),
