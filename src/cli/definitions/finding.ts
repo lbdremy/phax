@@ -6,6 +6,7 @@
 import { Effect, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { fixFindings } from "../../app/findingFix.js";
+import { deferFindings, dismissFindings } from "../../app/findingSettle.js";
 import { listRunFindings } from "../../app/findingList.js";
 import { NodeGitLayer } from "../../infra/git.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
@@ -188,12 +189,14 @@ export const FindingFixOutput = Schema.Struct({
     runId: Schema.String,
     state: RunStateSchema,
   }),
-  commit: Schema.Struct({
-    sha: Schema.String,
-    made: Schema.Boolean,
-    subject: Schema.NullOr(Schema.String),
-    paths: Schema.Array(Schema.Struct({ path: Schema.String, pathClass: PathClassSchema })),
-  }),
+  commit: Schema.NullOr(
+    Schema.Struct({
+      sha: Schema.String,
+      made: Schema.Boolean,
+      subject: Schema.NullOr(Schema.String),
+      paths: Schema.Array(Schema.Struct({ path: Schema.String, pathClass: PathClassSchema })),
+    }),
+  ),
   recorded: Schema.Array(
     Schema.Struct({ finding: Schema.String, key: Schema.String, recordCommit: Schema.String }),
   ),
@@ -206,6 +209,7 @@ export type FindingFixOutput = typeof FindingFixOutput.Type;
 /** The lines of a fix's answer, from the answer alone. */
 export function renderFindingFix(answer: FindingFixOutput): string {
   const { commit } = answer;
+  if (commit === null) return "";
   const short = commit.sha.slice(0, 7);
   const classes = PATH_CLASSES.filter((pathClass) =>
     commit.paths.some((path) => path.pathClass === pathClass),
@@ -280,7 +284,7 @@ const fixCommand = defineCommand({
     FindingRecordsUnavailableError: MessageFields,
     FindingFateNotRecordedError: Schema.Struct({
       message: Schema.String,
-      commit: Schema.String,
+      commit: Schema.NullOr(Schema.String),
       recorded: Schema.Array(Schema.String),
       unrecorded: Schema.Array(Schema.String),
       retry: Schema.String,
@@ -309,8 +313,180 @@ const fixCommand = defineCommand({
   render: renderFindingFix,
 });
 
+const SettleReason = Schema.String.check(Schema.isNonEmpty()).annotate({
+  identifier: "reason",
+  description: "Why the finding is settled this way",
+});
+
+const SettleBy = Schema.optionalKey(
+  Schema.String.annotate({
+    identifier: "arbiter",
+    description: "operator; required without a terminal",
+  }),
+);
+
+const DismissFlags = reject(Schema.Struct({ why: SettleReason, by: SettleBy }));
+const DeferFlags = reject(
+  Schema.Struct({
+    to: Schema.String.check(Schema.isNonEmpty()).annotate({
+      identifier: "path",
+      description: "The tracked file that takes the finding over",
+    }),
+    why: SettleReason,
+    by: SettleBy,
+  }),
+);
+
+/** The lines of a dismissal's answer, from the answer alone. */
+export function renderFindingDismiss(answer: FindingFixOutput): string {
+  return answer.findings
+    .map((finding) => {
+      const last = finding.history[finding.history.length - 1];
+      const name =
+        last?.fate === "dismissed" && last.verdict.by.kind === "operator"
+          ? last.verdict.by.name
+          : "operator";
+      return `✓ recorded ${finding.id} dismissed on phax/records/v1 (by ${name})`;
+    })
+    .join("\n");
+}
+
+/** The lines of a deferral's answer, from the answer alone. */
+export function renderFindingDefer(answer: FindingFixOutput): string {
+  return answer.findings
+    .map((finding) => {
+      const last = finding.history[finding.history.length - 1];
+      const to = last?.fate === "deferred" ? last.to : "";
+      return `✓ recorded ${finding.id} deferred → ${to} on phax/records/v1`;
+    })
+    .join("\n");
+}
+
+const settleExits = {
+  FindingSettleRefusedError: 1,
+  FindingRecordsOffError: 1,
+  FindingRecordsUnavailableError: 1,
+  FindingFateNotRecordedError: 1,
+  FindingRunRefError: 1,
+  FindingReviewUnreadableError: 1,
+  FindingFateRecordUnreadableError: 1,
+  GitError: 1,
+  FsError: 1,
+  RegistryCorruptionError: 1,
+  ConfigValidationError: 2,
+} as const;
+
+const settleErrors = {
+  FindingSettleRefusedError: MessageFields,
+  FindingRecordsOffError: MessageFields,
+  FindingRecordsUnavailableError: MessageFields,
+  FindingFateNotRecordedError: Schema.Struct({
+    message: Schema.String,
+    commit: Schema.NullOr(Schema.String),
+    recorded: Schema.Array(Schema.String),
+    unrecorded: Schema.Array(Schema.String),
+    retry: Schema.String,
+  }),
+  FindingRunRefError: MessageFields,
+  FindingReviewUnreadableError: MessageFields,
+  FindingFateRecordUnreadableError: MessageFields,
+  GitError: MessageFields,
+  FsError: MessageFields,
+  RegistryCorruptionError: MessageFields,
+  ConfigValidationError: MessageFields,
+};
+
+type Msg = { readonly message: string };
+const plain = (error: Msg) => error.message;
+const settleTexts = (verb: string) => {
+  const refused = (error: Msg) => `✗ ${verb} refused: ${error.message}`;
+  return {
+    FindingSettleRefusedError: refused,
+    FindingRecordsOffError: refused,
+    FindingRecordsUnavailableError: refused,
+    FindingFateNotRecordedError: plain,
+    FindingRunRefError: refused,
+    FindingReviewUnreadableError: refused,
+    FindingFateRecordUnreadableError: refused,
+    GitError: refused,
+    FsError: refused,
+    RegistryCorruptionError: refused,
+    ConfigValidationError: plain,
+  };
+};
+
+const settleLayer = (config: Parameters<typeof makeRepoRootedFileSystemLayer>[0]) =>
+  Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer, NodeTerminalLayer);
+
+const SETTLE_TAIL =
+  "Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.";
+
+const dismissCommand = defineCommand({
+  name: "dismiss",
+  summary: "Record findings as dismissed",
+  help: `Records each named finding as dismissed on the phax/records/v1 branch, with --why as the reason: a decided verdict that chooses dismiss and abandons fix and defer, whose case for fixing is the finding's suggestion (a code-review finding) or its message (a compliance finding). One record per id, in the order named. ${SETTLE_TAIL}`,
+  examples: [
+    'phax finding dismiss gate-retry F3 --why "the helper is internal, no caller can reach it"',
+    'phax finding dismiss gate-retry F2 C1 --why "out of scope for this run" --by operator',
+  ],
+  input: { args: FixArgs, flags: DismissFlags },
+  output: reject(FindingFixOutput),
+  prompts: (input) => input.flags.by === undefined,
+  unprompted: "pass --by",
+  run: ({ input }) =>
+    Effect.gen(function* () {
+      const config = yield* configured();
+      const [ref, ...operands] = input.args;
+      return yield* dismissFindings({
+        ref,
+        operands,
+        why: input.flags.why,
+        by: input.flags.by,
+        nowIso: new Date().toISOString(),
+        config,
+      }).pipe(Effect.provide(settleLayer(config)));
+    }).pipe(Effect.mapError(exposeMessage)),
+  exits: settleExits,
+  errors: settleErrors,
+  texts: settleTexts("dismiss"),
+  render: renderFindingDismiss,
+});
+
+const deferCommand = defineCommand({
+  name: "defer",
+  summary: "Record findings as deferred to a file",
+  help: `Records each named finding as deferred on the phax/records/v1 branch, to the tracked file --to names (a brief, a spec, NEXT_STEPS.md), with --why as the reason. The path is read relative to the current directory within its checkout, must be a file tracked at HEAD, and is recorded relative to the repository root. One record per id, in the order named. ${SETTLE_TAIL}`,
+  examples: [
+    'phax finding defer gate-retry F4 --to NEXT_STEPS.md --why "needs its own plan"',
+    'phax finding defer gate-retry F1 F6 --to docs/specs/gate.md --why "belongs to the gate spec" --by operator',
+  ],
+  input: { args: FixArgs, flags: DeferFlags },
+  output: reject(FindingFixOutput),
+  prompts: (input) => input.flags.by === undefined,
+  unprompted: "pass --by",
+  run: ({ input }) =>
+    Effect.gen(function* () {
+      const config = yield* configured();
+      const [ref, ...operands] = input.args;
+      return yield* deferFindings({
+        ref,
+        operands,
+        to: input.flags.to,
+        why: input.flags.why,
+        by: input.flags.by,
+        cwd: process.cwd(),
+        nowIso: new Date().toISOString(),
+        config,
+      }).pipe(Effect.provide(settleLayer(config)));
+    }).pipe(Effect.mapError(exposeMessage)),
+  exits: settleExits,
+  errors: settleErrors,
+  texts: settleTexts("defer"),
+  render: renderFindingDefer,
+});
+
 export const findingGroup = defineGroup({
   name: "finding",
   summary: "Read the findings of a run's reviews and their fates",
-  commands: [listCommand, fixCommand],
+  commands: [listCommand, fixCommand, dismissCommand, deferCommand],
 });

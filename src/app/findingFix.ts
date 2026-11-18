@@ -41,7 +41,8 @@ export class FindingFixRefusedError extends Data.TaggedError("FindingFixRefusedE
 /** Some fate records could not be written after the commit landed: the commit stays. */
 export class FindingFateNotRecordedError extends Data.TaggedError("FindingFateNotRecordedError")<{
   readonly message: string;
-  readonly commit: string;
+  /** The commit that stays, or null when the call made none (dismiss, defer). */
+  readonly commit: string | null;
   readonly recorded: readonly string[];
   readonly unrecorded: readonly string[];
   readonly retry: string;
