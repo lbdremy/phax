@@ -24,6 +24,7 @@ import type { FreshRunPreflightStep } from "../../src/app/runPreflight.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { lintPlan } from "../../src/app/lintPlan.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
@@ -650,7 +651,11 @@ describe("phax run — a preflight refusal precedes naming", () => {
           reportPath: "plan.md",
           repoRelPath: "plan.md",
           config,
-        }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeShell().layer))),
+        }).pipe(
+          Effect.provide(
+            Layer.mergeAll(NodeFileSystemLayer, makeFakeShell().layer, makeFakeGit().layer),
+          ),
+        ),
       );
       const lintRows = report.findings
         .filter((f) => f.check === "acceptance" && f.severity === "error")
@@ -677,7 +682,11 @@ describe("phax run — a preflight refusal precedes naming", () => {
         reportPath: "plan.md",
         repoRelPath: "plan.md",
         config,
-      }).pipe(Effect.provide(Layer.merge(NodeFileSystemLayer, makeFakeShell().layer))),
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(NodeFileSystemLayer, makeFakeShell().layer, makeFakeGit().layer),
+        ),
+      ),
     );
     const lintRows = report.findings
       .filter((f) => f.check === "interactive" && f.severity === "error")

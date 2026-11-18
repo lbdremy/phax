@@ -1,4 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { phaxCall } from "../helpers/runnerCall.js";
+
+// The routing loaders compute their ~/.phax paths when they load: keep them in a temporary home.
+vi.mock("node:os", async (importOriginal) =>
+  (await import("../helpers/isolatePhaxHome.js")).isolatedOs(await importOriginal()),
+);
+import { createLinkedProject, type LinkedProject } from "../fixtures/codeLink/linkedProject.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { Effect, Result, Exit, Layer } from "effect";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -184,7 +192,7 @@ function lintEffect(
     reportPath: planPath,
     repoRelPath: planRel,
     config: opts.config ?? config,
-  }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer)));
+  }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, makeFakeGit().layer)));
 }
 
 function runLint(plan: string, files: Readonly<Record<string, string>> = {}, opts: LintOpts = {}) {
@@ -829,7 +837,7 @@ describe("lintPlan", () => {
         reportPath: PLAN_PATH,
         repoRelPath: PLAN_REL,
         config,
-      }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+      }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer, makeFakeGit().layer))),
     );
 
     expect(Exit.isFailure(exit)).toBe(true);
@@ -1403,5 +1411,42 @@ Does phase ${i + 1}.
         ["error", `claude-sonnet-5-5 / medium: outside ${B0} with no **Assignment reason:** line`],
       ]);
     });
+  });
+});
+
+describe("plans lint under the code link", { timeout: 60_000 }, () => {
+  const EDIT = "src/export/csv.ts";
+  let project: LinkedProject | undefined;
+
+  afterEach(() => {
+    project?.dispose();
+    project = undefined;
+  });
+
+  async function lintCli(opts: Parameters<typeof createLinkedProject>[0]) {
+    project = createLinkedProject(opts);
+    const path = project.writePlan("export-csv", { edits: [EDIT], sourceSpec: null });
+    return phaxCall(["plans", "lint", path, "--json"]);
+  }
+
+  it("checks planned files against the code root (ac-lint-files)", async () => {
+    const result = await lintCli({});
+    const findings = (JSON.parse(result.out) as { findings: LintFinding[] }).findings;
+    expect(findings.filter((f) => f.check === "files")).toEqual([]);
+  });
+
+  it("without the link the same plan reports the file missing", async () => {
+    const result = await lintCli({ link: false });
+    const findings = (JSON.parse(result.out) as { findings: LintFinding[] }).findings;
+    expect(findings.filter((f) => f.check === "files").map((f) => f.message)).toEqual([
+      `edit ${EDIT}: does not exist and no earlier phase creates it`,
+    ]);
+    expect(result.code).toBe(1);
+  });
+
+  it("refuses the lint when the linked root is not ignored", async () => {
+    const result = await lintCli({ ignored: false });
+    expect(result.code).toBe(2);
+    expect(result.out + result.err).toContain("not ignored by this repository");
   });
 });
