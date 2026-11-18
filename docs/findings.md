@@ -153,6 +153,7 @@ phax finding defer gate-retry F4 --to NEXT_STEPS.md --why "needs its own plan"
 ```
 
 - Only an operator dismisses or defers: `--by machine:<grant>` is refused (`only an operator dismisses a finding`). `--by operator` is the default from a terminal and required without one.
+- `--by operator` is a declaration the caller makes, not a check: a program without a terminal that passes it dismisses or defers as the committer git config names. phax refuses it only inside its own phase sessions, where every fate command is refused.
 - `--why` is required and not empty. `--to` names a file tracked at HEAD (`<to> is not a tracked file` otherwise), read from the current directory and recorded relative to the repository root.
 - Several ids in one call write one record each, in the order named.
 - Both run on any run whose records exist, archived runs and `unrecorded` findings included.
