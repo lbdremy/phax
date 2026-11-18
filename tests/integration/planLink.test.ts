@@ -1,8 +1,9 @@
 /**
  * `resolvePlanLink` over real git in temporary directories: where a plan given to `phax run`
- * lives, as the discovery arbitration of the code-repository spec says — loose for every layout
- * that is not a process repository linking the run's repository, linked for the one that is, and
- * a refusal naming the process phax.json when its link is declared but unusable.
+ * lives. Loose for every layout that is not a process repository linking the run's repository,
+ * whatever else that repository's phax.json holds; linked for the one that is; and a refusal
+ * naming the process phax.json only where phax cannot tell whether a plan of its docs/plans/ is
+ * linked, or where the link names the run's repository but is unusable.
  */
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
@@ -58,7 +59,12 @@ describe("resolvePlanLink", () => {
     restoreGit = undefined;
   });
 
-  function build(opts: { readonly config?: string | null; readonly ignore?: string }): Layout {
+  function build(opts: {
+    readonly config?: string | null;
+    readonly ignore?: string;
+    /** The process repository's index holds the code root as a gitlink (`git add code`). */
+    readonly tracked?: boolean;
+  }): Layout {
     restoreGit = isolateGit();
     root = realpathSync(mkdtempSync(join(tmpdir(), "phax-plan-link-")));
     const layout: Layout = {
@@ -78,6 +84,13 @@ describe("resolvePlanLink", () => {
     put(join(layout.processRepo, PLAN_REL), "# plan\n");
     put(join(layout.processRepo, "notes", "plan.md"), "# notes\n");
     put(join(layout.bare, "plan.md"), "# bare\n");
+    mkdirSync(join(layout.codeRepo, "src"), { recursive: true });
+    put(join(layout.codeRepo, "src", "a.ts"), "export {};\n");
+    if (opts.tracked === true) {
+      sh(layout.codeRepo, "add", "-A");
+      sh(layout.codeRepo, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "c");
+      sh(layout.processRepo, "add", "-f", "code");
+    }
     return layout;
   }
 
@@ -137,6 +150,36 @@ describe("resolvePlanLink", () => {
       options: {},
       run: (l) => [l.otherRepo, join(l.processRepo, PLAN_REL)],
     },
+    {
+      name: "a process phax.json with no code whose other keys do not decode",
+      options: { config: JSON.stringify({ version: 99, gateProfiles: "none" }) },
+      run: (l) => [l.codeRepo, join(l.processRepo, PLAN_REL)],
+    },
+    {
+      name: "a link to another repository in a phax.json whose other keys do not decode",
+      options: { config: JSON.stringify({ code: { root: "code" } }) },
+      run: (l) => [l.otherRepo, join(l.processRepo, PLAN_REL)],
+    },
+    {
+      name: "a link to another repository that would not decode",
+      options: { config: JSON.stringify({ code: { root: "code", extra: 1 } }) },
+      run: (l) => [l.otherRepo, join(l.processRepo, PLAN_REL)],
+    },
+    {
+      name: "a link whose root is not canonical and resolves to another repository",
+      options: { config: phaxJson("../other") },
+      run: (l) => [l.codeRepo, join(l.processRepo, PLAN_REL)],
+    },
+    {
+      name: "a link whose root does not exist",
+      options: { config: phaxJson("gone") },
+      run: (l) => [l.codeRepo, join(l.processRepo, PLAN_REL)],
+    },
+    {
+      name: "a plan outside docs/plans/ of a repository whose phax.json is not JSON",
+      options: { config: "{ not json" },
+      run: (l) => [l.codeRepo, join(l.processRepo, "notes", "plan.md")],
+    },
   ];
 
   it.each(layouts)("is loose for $name", async ({ options, run: pick }) => {
@@ -162,23 +205,59 @@ describe("resolvePlanLink", () => {
     expect(answer.kind).toBe("linked");
   });
 
-  it("refuses a process phax.json that is not JSON, naming it", async () => {
-    const layout = build({ config: "{ not json" });
-    const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
-    expect(text).toContain(join(layout.processRepo, "phax.json"));
+  it("is linked when the phax.json's other keys do not decode: only code is read", async () => {
+    const layout = build({ config: JSON.stringify({ code: { root: "code" }, version: 99 }) });
+    const answer = await run(layout.codeRepo, join(layout.processRepo, PLAN_REL));
+    expect(answer.kind).toBe("linked");
   });
 
-  it("refuses a process phax.json that is not a JSON object, naming it", async () => {
-    const layout = build({ config: "[]" });
+  it.each([
+    ["is not JSON", "{ not json", "is not valid JSON"],
+    ["is not a JSON object", "[]", "is not a JSON object"],
+    ["declares code with no root string", JSON.stringify({ code: "code" }), '"root" string'],
+  ])(
+    "refuses a plan of docs/plans/ whose process phax.json %s: phax cannot tell whether it is linked",
+    async (_name, config, reason) => {
+      const layout = build({ config });
+      const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
+      expect(text).toContain(join(layout.processRepo, "phax.json"));
+      expect(text).toContain(`Cannot tell whether ${PLAN_REL} is linked to this repository`);
+      expect(text).toContain(reason);
+    },
+  );
+
+  it("refuses a link to this repository whose code key does not decode, naming the phax.json", async () => {
+    const layout = build({ config: JSON.stringify({ code: { root: "code", extra: 1 } }) });
     const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
     expect(text).toContain(join(layout.processRepo, "phax.json"));
-    expect(text).toContain("not a JSON object");
+    expect(text).toContain("extra");
   });
 
-  it("refuses a process phax.json that declares code but does not decode, naming it", async () => {
-    const layout = build({ config: JSON.stringify({ code: { root: "code" } }) });
+  it("refuses a link to this repository whose root is not written canonically", async () => {
+    const layout = build({ config: phaxJson("./code") });
+    const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
+    expect(text).toContain('code.root "./code": must be written code');
+  });
+
+  it("refuses a link into this repository that is not its top level", async () => {
+    const layout = build({ config: phaxJson("code/src") });
+    const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
+    expect(text).toContain('code.root "code/src": not the top level of a git repository');
+  });
+
+  it("refuses a link to this repository that the process repository ignores but tracks", async () => {
+    const layout = build({ tracked: true });
     const text = await refusal(layout.codeRepo, join(layout.processRepo, PLAN_REL));
     expect(text).toContain(join(layout.processRepo, "phax.json"));
+    expect(text).toContain('code.root "code": tracked by this repository');
+    expect(text).toContain("git rm -r --cached code");
+  });
+
+  it("reads the phax.json nearest the plan, walking up to the process repository's root", async () => {
+    const layout = build({ config: phaxJson(null) });
+    put(join(layout.processRepo, "docs", "phax.json"), phaxJson("code"));
+    const answer = await run(layout.codeRepo, join(layout.processRepo, PLAN_REL));
+    expect(answer.kind).toBe("linked");
   });
 
   it("refuses a link that is not ignored by the process repository", async () => {
