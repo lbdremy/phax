@@ -11,7 +11,12 @@ phax gives every finding an id when it persists a review:
 
 The review session never writes an id. Its answer is a `code-review-answer` or `compliance-review-answer` document, which has no `id` key and refuses one. phax reads the answer, gives each finding its id, and writes `code-review.json` or `compliance-review.json`, whose findings carry it.
 
-The numbering continues across the reviews of the same run. `gate-retry` is reviewed once and its code review has three findings, `F1` to `F3`. After a re-review of two findings, they are `F4` and `F5`, and `F1` to `F3` are still listed. An id is never reused for another finding.
+The numbering continues across the reviews of the same run. `gate-retry` is reviewed once and its code review has three findings, `F1` to `F3`. After a re-review of two findings, they are `F4` and `F5`, and `F1` to `F3` are still listed.
+
+A new review is numbered after the highest id of every review phax can read for the run, so an id is not given twice, with two exceptions:
+
+- With records off, or records unavailable, phax sees only the run folder. A review with no findings then resets the count: the next review starts again at `F1` (or `C1`).
+- A recorded review phax cannot read, such as one stamped by a newer phax, is not counted. The next review is numbered after the readable ones and can give again an id that review holds.
 
 ## Fates
 
@@ -86,10 +91,11 @@ The command reads local files and git only.
 A run's reviews of one kind are read from two places:
 
 - the run's records on the `phax/records/v1` branch, oldest first: every earlier review, so a re-review drops no finding;
+- then the unrecorded reviews kept in the run folder, `code-review.unrecorded-<NN>.json` and `compliance-review.unrecorded-<NN>.json`, oldest first. When a review's record write failed, the next review keeps its file under that name before replacing it, so its findings stay listed;
 - then the review file in the run folder, as the newest, when it differs from the newest record. That is the case when its record write failed, or when records were off.
 
-With records off, only the run folder is read: a replaced review's findings are no longer listed, and `phax finding list` says so on stderr. When the records branch cannot be read, it reads the run folder alone, says why on stderr, and the document says `"records": "unavailable"`. A review being persisted is never refused for it.
+With records off, only the run folder is read and nothing is kept: a replaced review's findings are no longer listed, and `phax finding list` says so on stderr. When the records branch cannot be read (a missing records clone, a git failure, or a run of another project whose records cannot be located), it reads the run folder alone, says why on stderr, and the document says `"records": "unavailable"`. A review being persisted is never refused for it.
 
-An archived run is read from its archive folder, with the records of its project when they can be read. A run the registry no longer knows cannot be listed.
+An archived run is read from its archive folder, with the records of its project when they can be read. When the archive folder is gone, only the records are listed, and a note on stderr says so. A run the registry no longer knows cannot be listed.
 
 A review document `phax finding list` cannot read (a damaged file, or one stamped by a newer phax) is refused with exit 1, naming it. Persisting a new review continues the numbering after the readable ones, with a warning.

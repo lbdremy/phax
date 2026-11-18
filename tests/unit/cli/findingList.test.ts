@@ -80,6 +80,15 @@ describe("renderFindingList", () => {
     expect(text).toContain("First line. Second line.");
   });
 
+  it("names a single finding in the singular", () => {
+    const text = renderFindingList(listOf([code("F1", "open", "src/a.ts", 3, "one")]));
+    expect(text.split("\n")).toEqual([
+      "gate-retry (review_open) — 1 finding: 1 open",
+      "",
+      "F1  concern  open  src/a.ts:3  one",
+    ]);
+  });
+
   it("says there is no finding for a run with none", () => {
     expect(renderFindingList(listOf([]))).toBe("gate-retry (review_open) — no findings");
   });
