@@ -162,6 +162,7 @@ const ROWS: ReadonlyArray<Row> = [
   { command: "plans overlap", provedBy: "tests/integration/plansOverlapCommand.test.ts" },
   { command: "plans overview", provedBy: "tests/integration/plansAnswersJson.test.ts" },
   { command: "plans estimate", provedBy: "tests/integration/plansEstimateCommand.test.ts" },
+  { command: "finding list", provedBy: "tests/integration/findingList.test.ts" },
   { command: "records init", provedBy: "tests/integration/recordsJsonContracts.test.ts" },
   { command: "records sync", provedBy: "tests/integration/recordsJsonContracts.test.ts" },
   { command: "records status", provedBy: "tests/integration/recordsJsonContracts.test.ts" },

@@ -29,6 +29,7 @@ Commands:
   publish-pr [options] <short-name>              Push the final branch and create (or reuse) a GitHub PR for a review_open run
   review-compliance [options] <short-name>       Run a plan-compliance review for a review_open run and record its result
   review-code [options] <short-name>             Open an interactive, pre-prompted code-review session for a review_open run, or run the review headless with --headless
+  finding                                        Read the findings of a run's reviews and their fates
   adjust-plan [options] <plan>                   Open an interactive session to adjust a plan after a landed run
   brief [options] [path...]                      Ask the configured brief provider for the rules over the given paths and the findings there; with no path, inside a phase, the phase's brief
   architecture [options] [path...]               Ask the configured architecture provider for the repository's architecture; with paths, for the parts that hold them

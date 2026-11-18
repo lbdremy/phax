@@ -17,6 +17,7 @@ import type {
   PersistedComplianceReview,
   Severity,
 } from "../../schemas/complianceReview.js";
+import type { FindingFate } from "../../schemas/findingList.js";
 
 /** One review of a run, as read: with the ids it was persisted with, or without. */
 export type RunReview =
@@ -58,7 +59,16 @@ interface RunComplianceFinding {
   readonly message: string;
 }
 
-type RunFinding = RunCodeFinding | RunComplianceFinding;
+export type RunFinding = RunCodeFinding | RunComplianceFinding;
+
+/**
+ * What became of a finding. Until fate records exist, a finding persisted with
+ * its id is `open` and one lifted by position from a review persisted before
+ * ids is `unrecorded`.
+ */
+export function findingFate(finding: RunFinding): FindingFate {
+  return finding.origin === "persisted" ? "open" : "unrecorded";
+}
 
 /** The numbered findings of a run's reviews, and the highest number given to each kind. */
 interface NumberedRunFindings {

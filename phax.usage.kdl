@@ -141,6 +141,14 @@ cmd review-code help="Open an interactive, pre-prompted code-review session for 
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
+cmd finding help="Read the findings of a run's reviews and their fates" {
+    cmd list help="List a run's findings with their ids and fates" long_help="Lists every finding of a run's code and compliance reviews: its id (F<n> for a code-review finding, C<n> for a compliance finding, numbered across the run's reviews), severity, location, message and fate. A fate is open (no fate record), fixed, dismissed, deferred, or unrecorded (the review was persisted before finding ids existed, so its ids were given by position). Earlier reviews are read from the run's records on the phax/records/v1 branch, then the run folder's own file when it is newer, so a re-review drops no finding; with records off only the run folder is read, and a note on stderr says so. An archived run is read from its archive folder. With --json it prints the finding-list document: a $schema, the run, whether its records were read, and the findings, F before C, each by number. Reads local files and git only; it never calls GitHub. Exits 1 for a run that cannot be resolved, a review document that cannot be read, or a git or file failure, and 2 for an invalid configuration." {
+        example "phax finding list gate-retry"
+        example "phax finding list gate-retry --json"
+        flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
+        arg <short-name> help="Run short name, e.g. usage-cli"
+    }
+}
 cmd adjust-plan help="Open an interactive session to adjust a plan after a landed run" long_help="Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md." {
     example "phax adjust-plan docs/plans/2609101030-plan-prune-plan.md --landed my-feature"
     flag "--landed <run>" help="The landed run whose actual changes drive the adjustment" required=#true

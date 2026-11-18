@@ -657,6 +657,40 @@ phax review-code usage-cli
 phax review-code usage-cli --headless
 ```
 
+## `phax finding`
+
+- **Usage**: `phax finding <SUBCOMMAND>`
+
+Read the findings of a run's reviews and their fates
+
+## `phax finding list`
+
+- **Usage**: `phax finding list [--json] <short-name>`
+
+Lists every finding of a run's code and compliance reviews: its id (F<n> for a code-review finding, C<n> for a compliance finding, numbered across the run's reviews), severity, location, message and fate. A fate is open (no fate record), fixed, dismissed, deferred, or unrecorded (the review was persisted before finding ids existed, so its ids were given by position). Earlier reviews are read from the run's records on the phax/records/v1 branch, then the run folder's own file when it is newer, so a re-review drops no finding; with records off only the run folder is read, and a note on stderr says so. An archived run is read from its archive folder. With --json it prints the finding-list document: a $schema, the run, whether its records were read, and the findings, F before C, each by number. Reads local files and git only; it never calls GitHub. Exits 1 for a run that cannot be resolved, a review document that cannot be read, or a git or file failure, and 2 for an invalid configuration.
+
+### Arguments
+
+#### `<short-name>`
+
+Run short name, e.g. usage-cli
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
+### Examples
+
+```
+phax finding list gate-retry
+```
+
+```
+phax finding list gate-retry --json
+```
+
 ## `phax adjust-plan`
 
 - **Usage**: `phax adjust-plan <FLAGS> <plan>`
