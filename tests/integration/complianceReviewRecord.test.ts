@@ -482,7 +482,7 @@ describe("compliance review entry by hand (real git)", () => {
     );
   }
 
-  it("with records off, a second review continues after the run folder's C ids and warns that records are off", async () => {
+  it("with records off, a second review continues after the run folder's C ids and warns nothing about records", async () => {
     const warnings: string[] = [];
     const target: ReviewRecordTarget = {
       kind: "project",
@@ -504,7 +504,7 @@ describe("compliance review entry by hand (real git)", () => {
       perPhase: ReadonlyArray<{ findings: ReadonlyArray<{ id: string }> }>;
     };
     expect(file.perPhase.flatMap((p) => p.findings.map((f) => f.id))).toEqual(["C2"]);
-    expect(warnings.some((w) => w.includes("records are off"))).toBe(true);
+    expect(warnings).toEqual([]);
   });
 
   // AC-compliance-ids: phax gives each finding its C<n> id across perPhase in

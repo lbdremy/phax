@@ -33,7 +33,12 @@ import {
   type PersistedComplianceReview,
 } from "../schemas/complianceReview.js";
 import { assignComplianceReviewIds, numberRunFindings } from "../domain/findings/runFindings.js";
-import { readRunReviews, reviewSourceOf, runReviewWarnings } from "./runReviews.js";
+import {
+  keepUnrecordedReview,
+  readRunReviews,
+  reviewSourceOf,
+  runReviewWarnings,
+} from "./runReviews.js";
 import { Backend, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
 import type { Git } from "../ports/git.js";
@@ -458,6 +463,14 @@ export function reviewComplianceAndRecord(
       source: reviewSourceOf(target),
     });
     for (const line of runReviewWarnings(earlier)) opts.output.warn(line);
+    // A review whose record write failed is kept under its own name before the
+    // new review can replace it, so its findings stay listed (§5.6).
+    const notKept = yield* keepUnrecordedReview({
+      runFolder: info.runPath,
+      review: "compliance-review",
+      read: earlier,
+    });
+    if (notKept !== undefined) opts.output.warn(notKept);
     const findingsAfter = numberRunFindings(earlier.reviews.map((r) => r.review)).highest.C;
     const review = yield* reviewCompliance(info, config, resolution, security, {
       ...opts,

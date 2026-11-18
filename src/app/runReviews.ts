@@ -1,8 +1,10 @@
 // A run's reviews, read from where phax keeps them: the entries under
 // `<runId>/code-review/` and `<runId>/compliance-review/` on the records branch
-// (oldest first, in branch order), then the run folder's own file when it
-// differs from the newest entry of its kind (its record write failed, or records
-// were off). Local only: no fetch, no GitHub. Spec finding-ids-and-fates §5.1.
+// (oldest first, in branch order), then the unrecorded reviews kept in the run
+// folder (`<kind>.unrecorded-<NN>.json`, oldest first), then the run folder's
+// own file when it differs from the newest entry of its kind (its record write
+// failed, or records were off). Local only: no fetch, no GitHub. Spec
+// finding-ids-and-fates §5.1, §5.6.
 import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { RunReview } from "../domain/findings/runFindings.js";
@@ -11,6 +13,7 @@ import { Git } from "../ports/git.js";
 import { readCodeReviewFile, readComplianceReviewFile } from "../schemas/persisted.js";
 import { REVIEW_RECORD_FILES, type ReviewRecordKind } from "../schemas/reviewRecord.js";
 import { RECORDS_REF } from "./recordsExplain.js";
+import { gitFailureLine } from "./writeReviewRecord.js";
 import type { ReviewRecordTarget, ReviewRecordUnresolved } from "./reviewEntry.js";
 
 /** Where a run's recorded reviews are read from. */
@@ -23,8 +26,10 @@ export type RunReviewSource =
 export interface ReadRunReview {
   readonly review: RunReview;
   readonly from: "records" | "run-folder";
-  /** The records commit that holds it; null for the run folder's file. */
+  /** The records commit that holds it; null for a run folder file. */
   readonly recordCommit: string | null;
+  /** The run folder file it was read from; null for a record. */
+  readonly file: string | null;
 }
 
 export interface RunReviewsRead {
@@ -58,6 +63,29 @@ export function reviewSourceOf(
 }
 
 const KINDS: readonly ReviewRecordKind[] = ["code-review", "compliance-review"];
+
+/** The name an unrecorded review is kept under in the run folder: `<kind>.unrecorded-<NN>.json`. */
+function unrecordedFileName(kind: ReviewRecordKind, n: number): string {
+  return `${kind}.unrecorded-${String(n).padStart(2, "0")}.json`;
+}
+
+/** The number of a kept unrecorded review's file name, or undefined for any other name. */
+function unrecordedNumber(kind: ReviewRecordKind, name: string): number | undefined {
+  if (!name.startsWith(`${kind}.unrecorded-`) || !name.endsWith(".json")) return undefined;
+  const digits = name.slice(`${kind}.unrecorded-`.length, -".json".length);
+  return /^[0-9]+$/.test(digits) ? Number(digits) : undefined;
+}
+
+/** The unrecorded reviews of one kind kept in the run folder, oldest (lowest number) first. */
+function keptUnrecordedFiles(names: readonly string[], kind: ReviewRecordKind): readonly string[] {
+  return names
+    .flatMap((name) => {
+      const n = unrecordedNumber(kind, name);
+      return n === undefined ? [] : [{ name, n }];
+    })
+    .toSorted((a, b) => a.n - b.n)
+    .map((kept) => kept.name);
+}
 
 /** Parse and read one review document; a failure is a message, never a throw. */
 function readDocument(
@@ -94,9 +122,13 @@ interface RecordedFile {
 
 /**
  * A run's reviews, oldest first: the records branch's entries in branch order,
- * then each kind's run folder file when its bytes differ from the newest entry
- * of that kind. A document that cannot be read lands in `unreadable`. A git
- * failure leaves `records` unavailable and the run folder still read.
+ * then each kind's unrecorded reviews kept in the run folder, oldest first, then
+ * its run folder file; the reviews persisted before ids existed come before
+ * those persisted with them. A run folder file is read only when its bytes differ from
+ * the newest entry of its kind and from every run folder file read before it. A
+ * document that cannot be read lands in `unreadable`. A git failure leaves
+ * `records` unavailable and the run folder still read. Records off is no note:
+ * the caller says so where it matters.
  */
 export function readRunReviews(input: {
   readonly runId: string;
@@ -114,7 +146,6 @@ export function readRunReviews(input: {
 
     if (input.source.kind === "off") {
       records = "off";
-      notes.push("records are off: reading the run folder alone");
     } else if (input.source.kind === "unavailable") {
       records = "unavailable";
       notes.push(`records unavailable (${input.source.reason}): reading the run folder alone`);
@@ -151,7 +182,10 @@ export function readRunReviews(input: {
       }).pipe(
         Effect.catch((error) => {
           records = "unavailable";
-          notes.push(`records unavailable (${error.message}): reading the run folder alone`);
+          const reason = gitFailureLine(
+            "stderr" in error ? (error.stderr ?? error.message) : error.message,
+          );
+          notes.push(`records unavailable (${reason}): reading the run folder alone`);
           return Effect.succeed([] as readonly RecordedFile[]);
         }),
       );
@@ -160,30 +194,65 @@ export function readRunReviews(input: {
         const where = `${item.sha.slice(0, 8)}:${item.path}`;
         const read = readDocument(item.kind, where, item.text);
         if (Result.isFailure(read)) unreadable.push({ where, message: read.failure });
-        else reviews.push({ review: read.success, from: "records", recordCommit: item.sha });
+        else {
+          reviews.push({
+            review: read.success,
+            from: "records",
+            recordCommit: item.sha,
+            file: null,
+          });
+        }
       }
     }
 
-    if (input.runFolder !== null) {
+    const runFolder = input.runFolder;
+    if (runFolder !== null) {
+      const names = yield* Effect.gen(function* () {
+        if (!(yield* fs.exists(runFolder))) return [] as readonly string[];
+        return yield* fs.list(runFolder);
+      }).pipe(
+        Effect.catch((error) => {
+          unreadable.push({
+            where: runFolder,
+            message: `could not list ${runFolder}: ${error.message}`,
+          });
+          return Effect.succeed([] as readonly string[]);
+        }),
+      );
       for (const kind of KINDS) {
-        const file = join(input.runFolder, REVIEW_RECORD_FILES[kind]);
-        const text = yield* Effect.gen(function* () {
-          if (!(yield* fs.exists(file))) return null;
-          return yield* fs.readText(file);
-        }).pipe(
-          Effect.catch((error) => {
-            unreadable.push({ where: file, message: `could not read ${file}: ${error.message}` });
-            return Effect.succeed(null);
-          }),
+        const seen = new Set<string>();
+        const newest = newestText.get(kind);
+        if (newest !== undefined) seen.add(newest);
+        const files = [...keptUnrecordedFiles(names, kind), REVIEW_RECORD_FILES[kind]].map((name) =>
+          join(runFolder, name),
         );
-        if (text === null || text === newestText.get(kind)) continue;
-        const read = readDocument(kind, file, text);
-        if (Result.isFailure(read)) unreadable.push({ where: file, message: read.failure });
-        else reviews.push({ review: read.success, from: "run-folder", recordCommit: null });
+        for (const file of files) {
+          const text = yield* Effect.gen(function* () {
+            if (!(yield* fs.exists(file))) return null;
+            return yield* fs.readText(file);
+          }).pipe(
+            Effect.catch((error) => {
+              unreadable.push({ where: file, message: `could not read ${file}: ${error.message}` });
+              return Effect.succeed(null);
+            }),
+          );
+          if (text === null || seen.has(text)) continue;
+          seen.add(text);
+          const read = readDocument(kind, file, text);
+          if (Result.isFailure(read)) unreadable.push({ where: file, message: read.failure });
+          else reviews.push({ review: read.success, from: "run-folder", recordCommit: null, file });
+        }
       }
     }
 
-    return { reviews, records, notes, unreadable } satisfies RunReviewsRead;
+    // A review persisted before ids existed is older than every review persisted
+    // with them, so it comes first: a kept one, read after the records, still
+    // lifts its ids after the reviews that were before it, not after newer ones.
+    const ordered = [
+      ...reviews.filter((r) => r.review.ids === "absent"),
+      ...reviews.filter((r) => r.review.ids === "persisted"),
+    ];
+    return { reviews: ordered, records, notes, unreadable } satisfies RunReviewsRead;
   });
 }
 
@@ -199,4 +268,48 @@ export function runReviewWarnings(read: RunReviewsRead): readonly string[] {
       (u) => `${u.message}; numbering continues after the run's readable reviews`,
     ),
   ];
+}
+
+/**
+ * Keeps the run folder's review file of `review` under its own name,
+ * `<kind>.unrecorded-<NN>.json` (NN the next free number, zero-padded), when a
+ * new review is about to replace it and it is unrecorded: the records were read
+ * and its bytes differ from the newest record of its kind and from every
+ * review already kept (its record write failed). `readRunReviews` then reads it between the records and the run
+ * folder's file, so a later review drops none of its findings (§5.6). Never
+ * fails: a failure to keep it is the warning it answers.
+ */
+export function keepUnrecordedReview(input: {
+  readonly runFolder: string;
+  readonly review: ReviewRecordKind;
+  readonly read: RunReviewsRead;
+}): Effect.Effect<string | undefined, never, FileSystem> {
+  const current = join(input.runFolder, REVIEW_RECORD_FILES[input.review]);
+  if (input.read.records !== "read" || !input.read.reviews.some((r) => r.file === current)) {
+    return Effect.succeed(undefined);
+  }
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const text = yield* fs.readText(current);
+    const taken = (yield* fs.list(input.runFolder)).flatMap((name) => {
+      const n = unrecordedNumber(input.review, name);
+      return n === undefined ? [] : [n];
+    });
+    let next = Math.max(0, ...taken) + 1;
+    while (
+      !(yield* fs.createExclusive(
+        join(input.runFolder, unrecordedFileName(input.review, next)),
+        text,
+      ))
+    ) {
+      next += 1;
+    }
+    return undefined;
+  }).pipe(
+    Effect.catch((error) =>
+      Effect.succeed(
+        `could not keep the unrecorded ${current} before a new review replaces it (${error.message}): its findings will no longer be listed`,
+      ),
+    ),
+  );
 }

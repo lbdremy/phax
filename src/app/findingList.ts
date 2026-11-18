@@ -2,13 +2,15 @@
 // finding-ids-and-fates §5.8). The run is named like `phax path` names one. A live run reads its
 // run folder and the records of its own project; an archived run, which the resolver no longer
 // finds under the state root, is resolved from its registry entry and read from
-// `<archivePath>/runs`. Local only: no fetch, no GitHub, no network.
+// `<archivePath>/runs` (`<stateRoot>/archive/<key>/runs` when the entry names no archive path).
+// A git failure on the records branch is no failure: the records are `unavailable`. Local only:
+// no fetch, no GitHub, no network.
 import { Data, Effect, Result, Schema } from "effect";
 import { numberRunFindings, findingFate, type RunFinding } from "../domain/findings/runFindings.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import type { Git, GitError } from "../ports/git.js";
+import type { Git } from "../ports/git.js";
 import type {
   CodeReviewFindingEntry,
   ComplianceFindingEntry,
@@ -16,7 +18,7 @@ import type {
 } from "../schemas/findingList.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { RunStateSchema } from "../schemas/status.js";
-import { join } from "node:path";
+import { runFolderOf } from "./costBackfill.js";
 import { readRegistry } from "./registry.js";
 import { resolveRunRef } from "./resolveRunRef.js";
 import { reviewRecordTargetFor, runEndReviewRecordTarget } from "./reviewEntry.js";
@@ -35,10 +37,8 @@ export class FindingReviewUnreadableError extends Data.TaggedError("FindingRevie
 /** What listing a run's findings answers. */
 export interface FindingListResult {
   readonly document: FindingListDocument;
-  /** Message lines for stderr: records off or unreadable. */
+  /** Message lines for stderr: records off or unreadable, or an archive folder that is gone. */
   readonly notes: readonly string[];
-  /** True when the run belongs to another project than the current one. */
-  readonly crossProject: boolean;
 }
 
 export const RECORDS_OFF_NOTE =
@@ -52,7 +52,8 @@ interface ListedRun {
   readonly state: typeof RunStateSchema.Type;
   readonly runFolder: string | null;
   readonly source: RunReviewSource;
-  readonly crossProject: boolean;
+  /** Message lines the run itself owes: its archive folder is gone. */
+  readonly notes: readonly string[];
 }
 
 const isRunState = Schema.is(RunStateSchema);
@@ -73,21 +74,22 @@ function resolveArchivedRun(
     );
     if (entry === undefined || entry.state !== "archived") return undefined;
     const fs = yield* FileSystem;
-    const folder = entry.archivePath === undefined ? null : join(entry.archivePath, "runs");
+    const folder = runFolderOf(config.stateRoot, entry);
+    const present = yield* fs.exists(folder);
     const crossProject = namespace !== config.namespace;
     return {
       namespace,
       shortName,
       runId: entry.runId,
       state: "archived",
-      runFolder: folder !== null && (yield* fs.exists(folder)) ? folder : null,
+      runFolder: present ? folder : null,
       source: crossProject
         ? {
             kind: "unavailable",
             reason: `the run is archived and belongs to the project "${namespace}", whose records cannot be located from here`,
           }
         : reviewSourceOf(runEndReviewRecordTarget(config, namespace)),
-      crossProject,
+      notes: present ? [] : [`the archive folder ${folder} is gone: only the records are listed`],
     } satisfies ListedRun;
   });
 }
@@ -114,7 +116,7 @@ function resolveListedRun(
         state: info.runState,
         runFolder: info.runPath,
         source: reviewSourceOf(reviewRecordTargetFor({ config, namespace, info, crossProject })),
-        crossProject,
+        notes: [],
       } satisfies ListedRun;
     }
     const archived = yield* resolveArchivedRun(ref, config);
@@ -155,15 +157,17 @@ function entryOf(finding: RunFinding): CodeReviewFindingEntry | ComplianceFindin
 
 /**
  * Every finding of the run named by `ref`, numbered across its reviews (the records branch's
- * entries, then the run folder's file when it is newer), with its fate and an empty history.
- * Refused: a run that cannot be resolved, and a review document that cannot be read.
+ * entries, then the unrecorded reviews kept in the run folder, then the run folder's file when it
+ * differs from the newest record), with its fate and an empty history. Refused: a run that cannot
+ * be resolved, and a review document that cannot be read. A records branch git cannot read is no
+ * refusal: the answer says `records: "unavailable"` and a note says why.
  */
 export function listRunFindings(input: {
   readonly ref: string;
   readonly config: ResolvedConfig;
 }): Effect.Effect<
   FindingListResult,
-  FindingRunRefError | FindingReviewUnreadableError | FsError | GitError | RegistryCorruptionError,
+  FindingRunRefError | FindingReviewUnreadableError | FsError | RegistryCorruptionError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
@@ -196,8 +200,7 @@ export function listRunFindings(input: {
         records: read.records,
         findings: findings.map(entryOf),
       },
-      notes: read.records === "off" ? [RECORDS_OFF_NOTE] : read.notes,
-      crossProject: run.crossProject,
+      notes: [...run.notes, ...(read.records === "off" ? [RECORDS_OFF_NOTE] : []), ...read.notes],
     };
   });
 }

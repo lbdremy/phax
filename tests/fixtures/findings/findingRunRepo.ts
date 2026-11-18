@@ -279,9 +279,14 @@ const security = {
 /**
  * Runs the headless code review of the run over the fake backend, which answers a
  * `code-review-answer` with one finding per message; the review is persisted with its ids to the
- * run folder and the records branch. Real git; no provider.
+ * run folder and the records branch. Real git; no provider. `record` is what the records entry
+ * is expected to become: `written`, or `write-failed` when the test made the records commit fail.
  */
-export async function reviewOnce(repo: FindingRunRepo, messages: readonly string[]): Promise<void> {
+export async function reviewOnce(
+  repo: FindingRunRepo,
+  messages: readonly string[],
+  record: "written" | "write-failed" = "written",
+): Promise<void> {
   const config = loadConfig(repo.repoDir);
   if (Result.isFailure(config)) throw new Error(config.failure.message);
   const resolved = resolveRun(
@@ -337,7 +342,7 @@ export async function reviewOnce(repo: FindingRunRepo, messages: readonly string
       },
     ).pipe(Effect.provide(layers)),
   );
-  if (outcome.review.kind !== "accepted" || outcome.record.kind !== "written") {
-    throw new Error(`the review was not recorded: ${outcome.review.kind}/${outcome.record.kind}`);
+  if (outcome.review.kind !== "accepted" || outcome.record.kind !== record) {
+    throw new Error(`the review was not ${record}: ${outcome.review.kind}/${outcome.record.kind}`);
   }
 }
