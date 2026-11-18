@@ -248,6 +248,9 @@ export function mergeConfigLayers(input: {
   // loadConfig refuses an overlay that carries it)
   const assignments = project.assignments;
 
+  // code: project-only, never overlaid (loadConfig refuses an overlay that carries it)
+  const code = project.code;
+
   return {
     ...(project.$schema !== undefined ? { $schema: project.$schema } : {}),
     version: project.version,
@@ -345,5 +348,6 @@ export function mergeConfigLayers(input: {
     ...(workspaces !== undefined ? { workspaces } : {}),
     ...(records !== undefined ? { records } : {}),
     ...(assignments !== undefined ? { assignments } : {}),
+    ...(code !== undefined ? { code } : {}),
   };
 }

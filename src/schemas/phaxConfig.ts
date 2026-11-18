@@ -267,6 +267,8 @@ const FileReconciliationConfigSchema = Schema.Struct({
   mode: Schema.Literals(["report_only", "warn"]),
 });
 
+const CodeLinkConfigSchema = Schema.Struct({ root: Schema.NonEmptyString });
+
 export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
@@ -319,6 +321,10 @@ export const PhaxConfigSchema = Schema.Struct({
   assignments: Schema.optional(AssignmentsSchema).annotateKey({
     description:
       "The repository owner's assignment bounds: an ordered, non-empty list of part and globs bounds, each with a model and an effort range, from most to least demanding. The first bound that matches any of a phase's planned files governs it; `phax plans lint` and the `phax run` / `phax resume` start preflight hold every phase to it. Accepted in phax.json only: a user overlay that carries it is refused.",
+  }),
+  code: Schema.optional(CodeLinkConfigSchema).annotateKey({
+    description:
+      "The code repository this process repository links: `root` is the directory, relative to this repository's root, where the code repository is checked out and ignored. phax judges every plan of this project against it. Accepted in phax.json only: a user overlay that carries it is refused.",
   }),
   protectedPaths: Schema.optional(Schema.NonEmptyArray(ArchitectureGlobSchema)).annotateKey({
     description: `The files whose change is the operator's decision, which no phase of a run may create, change, delete or rename. The phax.json phax loads is protected too, by its repo-relative path. Accepted in phax.json only: a user overlay that carries it is refused. Globs are written in phax's glob dialect but matched ignoring letter case: ${GLOB_DIALECT}`,
@@ -373,6 +379,8 @@ export interface ResolvedConfig {
   readonly assignments?: Assignments;
   /** From phax.json alone: no user overlay carries it. Absent when phax.json declares none. */
   readonly protectedPaths?: ProtectedList;
+  /** From phax.json alone: no user overlay carries it. Absent when phax.json declares no code link. */
+  readonly code?: { readonly root: string };
 }
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };

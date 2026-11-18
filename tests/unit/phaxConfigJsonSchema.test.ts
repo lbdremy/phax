@@ -79,6 +79,7 @@ describe("getPhaxConfigJsonSchema", () => {
         "workspaces",
         "records",
         "assignments",
+        "code",
         "protectedPaths",
       ].toSorted(),
     );
@@ -114,6 +115,7 @@ describe("getPhaxConfigJsonSchema", () => {
     );
     expect(Object.keys(schema["properties"] as object)).not.toContain("assignments");
     expect(Object.keys(schema["properties"] as object)).not.toContain("protectedPaths");
+    expect(Object.keys(schema["properties"] as object)).not.toContain("code");
   });
 
   it.each([
@@ -260,6 +262,9 @@ describe("the editor schemas against 0.35.0's", () => {
     ["phax.user.schema.json", getPhaxUserOverlayJsonSchema],
   ] as const)("%s states 0.35.0's contract", (file, generate) => {
     const released = JSON.parse(readFileSync(join(fixtures, file), "utf8"));
-    expect(contract(JSON.parse(JSON.stringify(generate())))).toEqual(contract(released));
+    const generated = JSON.parse(JSON.stringify(generate()));
+    // 0.35.0 predates `code` (spec code-repository): leave it out of the generated schema.
+    delete generated.properties?.code;
+    expect(contract(generated)).toEqual(contract(released));
   });
 });

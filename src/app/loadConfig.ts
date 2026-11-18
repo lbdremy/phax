@@ -7,6 +7,7 @@ import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
 import { parseGitmodulesPaths } from "../domain/config/gitmodules.js";
+import { codeRootMessage, codeRootProblem } from "../domain/config/codeLink.js";
 import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { describePartialRefusal, parsePartialCommand } from "../domain/gate/partialCommand.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
@@ -154,7 +155,7 @@ function validateUniqueGateCommands(
 }
 
 // The keys only phax.json may carry; a user overlay that has one is refused.
-const PROJECT_ONLY_KEYS = ["assignments", "protectedPaths"] as const;
+const PROJECT_ONLY_KEYS = ["assignments", "protectedPaths", "code"] as const;
 
 // The submodule paths of the repository's .gitmodules; none without the file.
 function readSubmodulePaths(
@@ -533,6 +534,18 @@ export function loadConfig(
   const pathError = validateWorkspacePaths(config, gitRoot);
   if (pathError) return Result.fail(pathError);
 
+  if (projectConfig.code !== undefined) {
+    const codeProblem = codeRootProblem(projectConfig.code.root);
+    if (codeProblem !== null) {
+      return Result.fail(
+        new ConfigValidationError({
+          message: codeRootMessage(projectConfig.code.root, codeProblem),
+          path: configPath,
+        }),
+      );
+    }
+  }
+
   const root: string = gitRoot;
   function resolvePathList(paths: readonly string[] | undefined): readonly string[] {
     if (!paths || paths.length === 0) return [];
@@ -580,6 +593,7 @@ export function loadConfig(
     authoring: resolveAuthoringConfig(config.authoring),
     records: resolveRecordsConfig(config.records),
     ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
+    ...(config.code !== undefined ? { code: config.code } : {}),
     // From phax.json alone: read off the decoded project layer, never an overlay.
     ...(protectedPaths !== null ? { protectedPaths } : {}),
   };

@@ -43,6 +43,8 @@ The prefixes that gate steps' partial commands allow a secure session to start a
 
 The assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.
 
+A process repository may link its code repository with "code": { "root": "<dir>" }, accepted only in phax.json. The root must be written as a relative path inside the repository, and three checks run: the directory exists, it is exactly the top level of a git repository, and this repository ignores it. A refusal exits 2 naming code.root and the reason.
+
 Exits 0 when everything is valid, 2 otherwise.
 
 Side effects: none.

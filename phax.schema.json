@@ -643,6 +643,18 @@
         ]
       }
     },
+    "code": {
+      "type": "object",
+      "properties": {
+        "root": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["root"],
+      "additionalProperties": false,
+      "description": "The code repository this process repository links: `root` is the directory, relative to this repository's root, where the code repository is checked out and ignored. phax judges every plan of this project against it. Accepted in phax.json only: a user overlay that carries it is refused."
+    },
     "protectedPaths": {
       "type": "array",
       "minItems": 1,
