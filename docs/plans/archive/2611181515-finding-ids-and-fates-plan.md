@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611041509-finding-ids-and-fates.md
 completes-spec: false
 approved:
