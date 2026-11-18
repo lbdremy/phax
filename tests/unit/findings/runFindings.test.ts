@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   assignCodeReviewIds,
   assignComplianceReviewIds,
+  findingFate,
+  groupFateRecords,
   numberRunFindings,
   type RunReview,
 } from "../../../src/domain/findings/runFindings.js";
+import type { FindingFateEntry } from "../../../src/schemas/findingFateRecord.js";
 import type { CodeReview, PersistedCodeReview } from "../../../src/schemas/codeReview.js";
 import type {
   AnyShapeComplianceReview,
@@ -250,5 +253,69 @@ describe("assignComplianceReviewIds", () => {
   it("continues after the given number", () => {
     const review = assignComplianceReviewIds(complianceOf({ "phase-01": ["a", "b"] }), 5);
     expect(review.perPhase[0]?.findings.map((f) => f.id)).toEqual(["C6", "C7"]);
+  });
+});
+
+const AT = "2026-11-01T10:00:00.000Z";
+const fixedEntry: FindingFateEntry = {
+  fate: "fixed",
+  commit: "a".repeat(40),
+  pathClasses: ["code"],
+  by: { kind: "operator", name: "Ada" },
+  at: AT,
+};
+const dismissedEntry: FindingFateEntry = {
+  fate: "dismissed",
+  verdict: {
+    kind: "decided",
+    chosen: "dismiss",
+    abandoned: ["fix", "defer"],
+    why: "Not worth it.",
+    advocate: "Fix it.",
+    principles: [],
+    reversibility: "cheap",
+    by: { kind: "operator", name: "Ada" },
+    at: AT,
+    revised: [],
+  },
+};
+const deferredEntry: FindingFateEntry = {
+  fate: "deferred",
+  to: "docs/next.md",
+  why: "Later.",
+  by: { kind: "operator", name: "Ada" },
+  at: AT,
+};
+
+describe("findingFate and groupFateRecords", () => {
+  const persisted = numberRunFindings([
+    { source: "code-review", ids: "persisted", review: persistedCode("F1", "F2") },
+  ]).findings;
+  const lifted = numberRunFindings([
+    { source: "code-review", ids: "absent", review: answered("one") },
+  ]).findings;
+
+  it.each([
+    ["no entry, persisted", persisted[0], [], "open"],
+    ["no entry, lifted", lifted[0], [], "unrecorded"],
+    ["a dismissal", persisted[0], [dismissedEntry], "dismissed"],
+    ["a dismissal then a fix", persisted[0], [dismissedEntry, fixedEntry], "fixed"],
+    ["a fix then a deferral", persisted[0], [fixedEntry, deferredEntry], "deferred"],
+  ] as const)("%s", (_name, finding, history, fate) => {
+    expect(finding).toBeDefined();
+    if (finding === undefined) return;
+    expect(findingFate(finding, history)).toBe(fate);
+  });
+
+  it("groups entries by finding in the order given and names the unknown ids", () => {
+    const { histories, orphans } = groupFateRecords(persisted, [
+      { finding: "F1", entry: dismissedEntry },
+      { finding: "F9", entry: fixedEntry },
+      { finding: "F1", entry: fixedEntry },
+      { finding: "F2", entry: deferredEntry },
+    ]);
+    expect(histories.get("F1")).toEqual([dismissedEntry, fixedEntry]);
+    expect(histories.get("F2")).toEqual([deferredEntry]);
+    expect(orphans).toEqual(["F9"]);
   });
 });

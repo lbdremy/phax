@@ -35,10 +35,29 @@ function locationOf(finding: FindingListFile["findings"][number]): string {
     : `${finding.phaseId} ${finding.dimension}`;
 }
 
+/** The detail lines under a finding's row: a fixed finding's commits, a dismissed finding's
+ *  reason, a deferred finding's pointer; none for open and unrecorded. */
+function fateDetails(finding: FindingListFile["findings"][number]): readonly string[] {
+  const latest = finding.history.at(-1);
+  if (finding.fate === "fixed") {
+    return finding.history.flatMap((entry) =>
+      entry.fate === "fixed"
+        ? [`${entry.commit.slice(0, 7)} (${entry.pathClasses.join(", ")})`]
+        : [],
+    );
+  }
+  if (finding.fate === "dismissed" && latest?.fate === "dismissed") {
+    return [`${latest.verdict.by.name}: ${oneLine(latest.verdict.why)}`];
+  }
+  if (finding.fate === "deferred" && latest?.fate === "deferred") return [`→ ${latest.to}`];
+  return [];
+}
+
 /**
  * The list as text, from the document alone: a header with the run's state and its non-zero fate
  * counts, an empty line, then one row per finding — id, severity, fate, location, message — each
- * column padded to its widest value and separated by two spaces.
+ * column padded to its widest value and separated by two spaces. A fixed, dismissed or deferred
+ * finding's row is followed by detail lines indented to the fate column.
  */
 export function renderFindingList(file: FindingListFile): string {
   const { shortName, state } = file.run;
@@ -59,11 +78,14 @@ export function renderFindingList(file: FindingListFile): string {
   const widths = [0, 1, 2, 3].map((column) =>
     Math.max(...rows.map((row) => (row[column] ?? "").length)),
   );
-  const lines = rows.map((row) =>
-    row
+  const indent = " ".repeat((widths[0] ?? 0) + (widths[1] ?? 0) + SEPARATOR.length * 2);
+  const lines = rows.flatMap((row, index) => {
+    const line = row
       .map((cell, column) => (column < 4 ? cell.padEnd(widths[column] ?? 0) : cell))
-      .join(SEPARATOR),
-  );
+      .join(SEPARATOR);
+    const finding = file.findings[index];
+    return [line, ...(finding === undefined ? [] : fateDetails(finding).map((d) => indent + d))];
+  });
   const header = `${shortName} (${state}) — ${total} ${total === 1 ? "finding" : "findings"}`;
   return [`${header}: ${counts.join(", ")}`, "", ...lines].join("\n");
 }
@@ -71,7 +93,7 @@ export function renderFindingList(file: FindingListFile): string {
 const listCommand = defineCommand({
   name: "list",
   summary: "List a run's findings with their ids and fates",
-  help: "Lists every finding of a run's code and compliance reviews: its id (F<n> for a code-review finding, C<n> for a compliance finding, numbered across the run's reviews), severity, location, message and fate. A fate is open (no fate record), fixed, dismissed, deferred, or unrecorded (the review was persisted before finding ids existed, so its ids were given by position). Earlier reviews are read from the run's records on the phax/records/v1 branch, then the unrecorded reviews kept in the run folder (<kind>.unrecorded-<NN>.json, kept when a review whose record write failed is replaced), then the run folder's own file when it differs from the newest record (its record write failed, or records were off), so a re-review drops no finding; with records off only the run folder is read, and a note on stderr says so. When git cannot read the records branch, the run folder alone is read, the answer says records unavailable, and a note on stderr says why. An archived run is read from its archive folder; a note on stderr says when that folder is gone. With --json it prints the finding-list document: a $schema, the run, whether its records were read, and the findings, F before C, each by number. Reads local files and git only; it never calls GitHub. Exits 1 for a run that cannot be resolved, a review document that cannot be read, or a file failure, and 2 for an invalid configuration.",
+  help: "Lists every finding of a run's code and compliance reviews: its id (F<n> for a code-review finding, C<n> for a compliance finding, numbered across the run's reviews), severity, location, message and fate. A fate is open (no fate record), fixed, dismissed, deferred, or unrecorded (the review was persisted before finding ids existed, so its ids were given by position). Earlier reviews are read from the run's records on the phax/records/v1 branch, then the unrecorded reviews kept in the run folder (<kind>.unrecorded-<NN>.json, kept when a review whose record write failed is replaced), then the run folder's own file when it differs from the newest record (its record write failed, or records were off), so a re-review drops no finding; with records off only the run folder is read, and a note on stderr says so. A fate other than open or unrecorded comes from the finding's latest fate record on phax/records/v1; the text shows a fixed finding's commits, a dismissed finding's reason and a deferred finding's pointer. When git cannot read the records branch, the run folder alone is read, the answer says records unavailable, and a note on stderr says why. An archived run is read from its archive folder; a note on stderr says when that folder is gone. With --json it prints the finding-list document: a $schema, the run, whether its records were read, and the findings, F before C, each by number. Reads local files and git only; it never calls GitHub. Exits 1 for a run that cannot be resolved, a review document or fate record that cannot be read, or a file failure, and 2 for an invalid configuration.",
   examples: ["phax finding list gate-retry", "phax finding list gate-retry --json"],
   input: { args: reject(Schema.Tuple([ShortNameArg])) },
   output: reject(FindingListFileSchema.annotate(publishedFormat("finding-list"))),
@@ -87,6 +109,7 @@ const listCommand = defineCommand({
   exits: {
     FindingRunRefError: 1,
     FindingReviewUnreadableError: 1,
+    FindingFateRecordUnreadableError: 1,
     FsError: 1,
     RegistryCorruptionError: 1,
     ConfigValidationError: 2,
@@ -94,6 +117,7 @@ const listCommand = defineCommand({
   errors: {
     FindingRunRefError: MessageFields,
     FindingReviewUnreadableError: MessageFields,
+    FindingFateRecordUnreadableError: MessageFields,
     FsError: MessageFields,
     RegistryCorruptionError: MessageFields,
     ConfigValidationError: MessageFields,
@@ -101,6 +125,7 @@ const listCommand = defineCommand({
   texts: {
     FindingRunRefError: (error) => error.message,
     FindingReviewUnreadableError: (error) => error.message,
+    FindingFateRecordUnreadableError: (error) => error.message,
     FsError: (error) => error.message,
     RegistryCorruptionError: (error) => error.message,
     ConfigValidationError: (error) => error.message,

@@ -3,10 +3,17 @@
 // run folder and the records of its own project; an archived run, which the resolver no longer
 // finds under the state root, is resolved from its registry entry and read from
 // `<archivePath>/runs` (`<stateRoot>/archive/<key>/runs` when the entry names no archive path).
-// A git failure on the records branch is no failure: the records are `unavailable`. Local only:
+// A finding's fate is that of its latest fate record (`findingFateRecords.ts`), its history every
+// record oldest first. A git failure on the records branch is no failure: the records are `unavailable`. Local only:
 // no fetch, no GitHub, no network.
 import { Data, Effect, Result, Schema } from "effect";
-import { numberRunFindings, findingFate, type RunFinding } from "../domain/findings/runFindings.js";
+import {
+  findingFate,
+  groupFateRecords,
+  numberRunFindings,
+  type RunFinding,
+} from "../domain/findings/runFindings.js";
+import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -19,6 +26,7 @@ import type {
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { RunStateSchema } from "../schemas/status.js";
 import { runFolderOf } from "./costBackfill.js";
+import { readRunFateRecords } from "./findingFateRecords.js";
 import { readRegistry } from "./registry.js";
 import { resolveRunRef } from "./resolveRunRef.js";
 import { reviewRecordTargetFor, runEndReviewRecordTarget } from "./reviewEntry.js";
@@ -31,6 +39,13 @@ export class FindingRunRefError extends Data.TaggedError("FindingRunRefError")<{
 
 /** A review document of the run could not be read: its name and why. */
 export class FindingReviewUnreadableError extends Data.TaggedError("FindingReviewUnreadableError")<{
+  readonly message: string;
+}> {}
+
+/** A fate record of the run could not be read: its name and why. */
+export class FindingFateRecordUnreadableError extends Data.TaggedError(
+  "FindingFateRecordUnreadableError",
+)<{
   readonly message: string;
 }> {}
 
@@ -125,8 +140,11 @@ function resolveListedRun(
   });
 }
 
-function entryOf(finding: RunFinding): CodeReviewFindingEntry | ComplianceFindingEntry {
-  const fate = findingFate(finding);
+function entryOf(
+  finding: RunFinding,
+  history: readonly FindingFateEntry[],
+): CodeReviewFindingEntry | ComplianceFindingEntry {
+  const fate = findingFate(finding, history);
   if (finding.source === "code-review") {
     return {
       id: finding.id,
@@ -140,7 +158,7 @@ function entryOf(finding: RunFinding): CodeReviewFindingEntry | ComplianceFindin
       criterion: finding.criterion,
       suggestion: finding.suggestion,
       fate,
-      history: [],
+      history,
     };
   }
   return {
@@ -151,15 +169,15 @@ function entryOf(finding: RunFinding): CodeReviewFindingEntry | ComplianceFindin
     dimension: finding.dimension,
     message: finding.message,
     fate,
-    history: [],
+    history,
   };
 }
 
 /**
  * Every finding of the run named by `ref`, numbered across its reviews (the records branch's
  * entries, then the unrecorded reviews kept in the run folder, then the run folder's file when it
- * differs from the newest record), with its fate and an empty history. Refused: a run that cannot
- * be resolved, and a review document that cannot be read. A records branch git cannot read is no
+ * differs from the newest record), with its fate and its fate history. Refused: a run that cannot
+ * be resolved, and a review document or fate record that cannot be read. A records branch git cannot read is no
  * refusal: the answer says `records: "unavailable"` and a note says why.
  */
 export function listRunFindings(input: {
@@ -167,7 +185,11 @@ export function listRunFindings(input: {
   readonly config: ResolvedConfig;
 }): Effect.Effect<
   FindingListResult,
-  FindingRunRefError | FindingReviewUnreadableError | FsError | RegistryCorruptionError,
+  | FindingRunRefError
+  | FindingReviewUnreadableError
+  | FindingFateRecordUnreadableError
+  | FsError
+  | RegistryCorruptionError,
   FileSystem | Git
 > {
   return Effect.gen(function* () {
@@ -188,7 +210,20 @@ export function listRunFindings(input: {
         }),
       );
     }
+    const fates = yield* readRunFateRecords({ runId: run.runId, source: run.source });
+    const unreadableFate = fates.unreadable[0];
+    if (unreadableFate !== undefined) {
+      const named = unreadableFate.message.includes(unreadableFate.where)
+        ? unreadableFate.message
+        : `${unreadableFate.where}: ${unreadableFate.message}`;
+      return yield* Effect.fail(
+        new FindingFateRecordUnreadableError({
+          message: `Cannot list the findings of "${runKey(run.namespace, run.shortName)}": ${named}`,
+        }),
+      );
+    }
     const { findings } = numberRunFindings(read.reviews.map((item) => item.review));
+    const { histories, orphans } = groupFateRecords(findings, fates.records);
     return {
       document: {
         run: {
@@ -198,9 +233,17 @@ export function listRunFindings(input: {
           state: run.state,
         },
         records: read.records,
-        findings: findings.map(entryOf),
+        findings: findings.map((finding) => entryOf(finding, histories.get(finding.id) ?? [])),
       },
-      notes: [...run.notes, ...(read.records === "off" ? [RECORDS_OFF_NOTE] : []), ...read.notes],
+      notes: [
+        ...run.notes,
+        ...(read.records === "off" ? [RECORDS_OFF_NOTE] : []),
+        ...read.notes,
+        ...fates.notes,
+        ...orphans.map(
+          (id) => `fate records name ${id}, which no review of the run holds: not listed`,
+        ),
+      ],
     };
   });
 }

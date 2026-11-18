@@ -9,7 +9,7 @@ import { Effect, Result } from "effect";
 import { join } from "node:path";
 import type { RunReview } from "../domain/findings/runFindings.js";
 import { FileSystem } from "../ports/fs.js";
-import { Git } from "../ports/git.js";
+import { Git, type GitError } from "../ports/git.js";
 import { readCodeReviewFile, readComplianceReviewFile } from "../schemas/persisted.js";
 import { REVIEW_RECORD_FILES, type ReviewRecordKind } from "../schemas/reviewRecord.js";
 import { RECORDS_REF } from "./recordsExplain.js";
@@ -60,6 +60,18 @@ export function reviewSourceOf(
     path: target.recordsClonePath,
     remoteRef: "refs/remotes/origin/phax/records/v1",
   };
+}
+
+/** The records branch's tip: the local branch, else the remote-tracking ref; null when neither exists. */
+export function resolveRecordsTip(
+  path: string,
+  remoteRef: string,
+): Effect.Effect<string | null, GitError, Git> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const local = yield* git.resolveRef(path, RECORDS_REF);
+    return local !== null ? local : yield* git.resolveRef(path, remoteRef);
+  });
 }
 
 const KINDS: readonly ReviewRecordKind[] = ["code-review", "compliance-review"];
@@ -162,8 +174,7 @@ export function readRunReviews(input: {
           );
           return [] as readonly RecordedFile[];
         }
-        let tip = yield* git.resolveRef(path, RECORDS_REF);
-        if (tip === null) tip = yield* git.resolveRef(path, remoteRef);
+        const tip = yield* resolveRecordsTip(path, remoteRef);
         if (tip === null) return [] as readonly RecordedFile[];
         const found: RecordedFile[] = [];
         for (const commit of yield* git.listCommitFiles(path, tip, null)) {
