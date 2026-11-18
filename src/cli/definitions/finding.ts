@@ -5,15 +5,26 @@
 // message lines. It reads the records branch and the run folder and builds no GitHub layer.
 import { Effect, Layer } from "effect";
 import * as Schema from "effect/Schema";
+import { fixFindings } from "../../app/findingFix.js";
 import { listRunFindings } from "../../app/findingList.js";
 import { NodeGitLayer } from "../../infra/git.js";
+import { NodeTerminalLayer } from "../../infra/terminal.js";
 import {
+  CodeReviewFindingEntrySchema,
+  ComplianceFindingEntrySchema,
   FINDING_FATES,
   FindingListFileSchema,
   type FindingListFile,
 } from "../../schemas/findingList.js";
+import { PATH_CLASSES, PathClassSchema } from "../../schemas/pathClass.js";
 import { withSchemaUrl } from "../../schemas/persisted.js";
-import { defineCommand, defineGroup, reject } from "../commandLibrary/contract/index.js";
+import { RunStateSchema } from "../../schemas/status.js";
+import {
+  AliasAnnotationId,
+  defineCommand,
+  defineGroup,
+  reject,
+} from "../commandLibrary/contract/index.js";
 import { makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
 import {
   configured,
@@ -133,8 +144,173 @@ const listCommand = defineCommand({
   render: (file) => renderFindingList(file),
 });
 
+const FixOperand = Schema.String.annotate({
+  identifier: "operand",
+  description: "Finding ids (F2, C1), then — after -- — the paths to commit",
+});
+
+const FixArgs = reject(Schema.TupleWithRest(Schema.Tuple([ShortNameArg]), [FixOperand]));
+
+const FixFlags = reject(
+  Schema.Struct({
+    by: Schema.optionalKey(
+      Schema.String.annotate({
+        identifier: "arbiter",
+        description: "operator or machine:<grant>; required without a terminal",
+      }),
+    ),
+    commit: Schema.optionalKey(
+      Schema.String.annotate({
+        identifier: "sha",
+        description: "Record this existing commit instead of making one",
+      }),
+    ),
+    message: Schema.optionalKey(
+      Schema.String.check(Schema.isNonEmpty()).annotate({
+        identifier: "subject",
+        description: "The commit's subject, instead of the default",
+      }),
+    ).annotateKey({ [AliasAnnotationId]: "m" }),
+    body: Schema.optionalKey(
+      Schema.String.check(Schema.isNonEmpty()).annotate({
+        identifier: "text",
+        description: "A body paragraph for the commit, before phax's trailers",
+      }),
+    ),
+  }),
+);
+
+/** A fix's answer: the commit, the records written, and the named findings read again. */
+export const FindingFixOutput = Schema.Struct({
+  run: Schema.Struct({
+    namespace: Schema.String,
+    shortName: Schema.String,
+    runId: Schema.String,
+    state: RunStateSchema,
+  }),
+  commit: Schema.Struct({
+    sha: Schema.String,
+    made: Schema.Boolean,
+    subject: Schema.NullOr(Schema.String),
+    paths: Schema.Array(Schema.Struct({ path: Schema.String, pathClass: PathClassSchema })),
+  }),
+  recorded: Schema.Array(
+    Schema.Struct({ finding: Schema.String, key: Schema.String, recordCommit: Schema.String }),
+  ),
+  findings: Schema.Array(
+    Schema.Union([CodeReviewFindingEntrySchema, ComplianceFindingEntrySchema]),
+  ),
+});
+export type FindingFixOutput = typeof FindingFixOutput.Type;
+
+/** The lines of a fix's answer, from the answer alone. */
+export function renderFindingFix(answer: FindingFixOutput): string {
+  const { commit } = answer;
+  const short = commit.sha.slice(0, 7);
+  const classes = PATH_CLASSES.filter((pathClass) =>
+    commit.paths.some((path) => path.pathClass === pathClass),
+  );
+  const lines =
+    commit.made && commit.subject !== null
+      ? [
+          `✓ committed ${short} ${commit.subject}`,
+          `  paths: ${commit.paths.map((path) => `${path.path} (${path.pathClass})`).join(", ")}`,
+        ]
+      : [];
+  for (const { finding } of answer.recorded) {
+    lines.push(
+      commit.made
+        ? `✓ recorded ${finding} fixed on phax/records/v1`
+        : `✓ recorded ${finding} fixed by ${short} (${classes.join(", ")}) on phax/records/v1`,
+    );
+  }
+  return lines.join("\n");
+}
+
+const fixCommand = defineCommand({
+  name: "fix",
+  summary: "Commit a fix for findings and record them fixed",
+  help: "Commits exactly the paths named after -- in the run's final worktree, while the run is open for review (review_open), and records each named finding as fixed on the phax/records/v1 branch. Other staged or unstaged changes stay where they are. The commit's subject is fix(review): <ids> of <short-name>, or -m; --body adds a paragraph. Its last paragraph holds phax's trailers: Short-Name: <short-name>, then one Finding: <id> per id, in the order named, and never a Run-Id. Each record holds the commit, its path classes (code, docs, gate-config or tests, from the paths the commit changed) and who fixed it: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> declares a machine. Without a terminal and without --by the call is refused. The ids come first (F2 F5), every operand from the first one not spelled like an id is a path, relative to the current directory when it is inside the worktree and to the worktree's root otherwise; a path spelled like an id must follow another path or be written ./F2. A named directory commits every change under it.\n\n--commit <sha> records an existing commit and makes none: it takes no path, -m or --body. The commit must be on the run's final-phase branch or on the base branch (publish.baseBranch, else main). It works on a run that is no longer open for review and on an archived run, and is the retry when a record failed after the commit landed. Every refusal comes before anything is written: no id, no path, an unchanged path, a path outside the worktree, an id the run does not have, a run not open for review, records off, a records clone that is missing, and an unknown or unreachable commit. A record that fails after the commit landed keeps the commit, exits 1, names the ids not recorded and the --commit retry. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, the named findings as phax finding list reads them after the write. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.",
+  examples: [
+    "phax finding fix gate-retry F2 -- tests/gate.test.ts",
+    'phax finding fix gate-retry F2 F5 -m "fix(gate): keep the exit code" -- src/app/gate.ts',
+    "phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator",
+  ],
+  input: { args: FixArgs, flags: FixFlags },
+  output: reject(FindingFixOutput),
+  // Without `--by` a terminal stands for the operator: a person's gesture, not a program's.
+  prompts: (input) => input.flags.by === undefined,
+  unprompted: "pass --by",
+  run: ({ input }) =>
+    Effect.gen(function* () {
+      const config = yield* configured();
+      const [ref, ...operands] = input.args;
+      return yield* fixFindings({
+        ref,
+        operands,
+        commit: input.flags.commit,
+        subject: input.flags.message,
+        body: input.flags.body,
+        by: input.flags.by,
+        cwd: process.cwd(),
+        nowIso: new Date().toISOString(),
+        config,
+      }).pipe(
+        Effect.provide(
+          Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer, NodeTerminalLayer),
+        ),
+      );
+    }).pipe(Effect.mapError(exposeMessage)),
+  exits: {
+    FindingFixRefusedError: 1,
+    FindingRecordsOffError: 1,
+    FindingRecordsUnavailableError: 1,
+    FindingFateNotRecordedError: 1,
+    FindingRunRefError: 1,
+    FindingReviewUnreadableError: 1,
+    FindingFateRecordUnreadableError: 1,
+    GitError: 1,
+    FsError: 1,
+    RegistryCorruptionError: 1,
+    ConfigValidationError: 2,
+  },
+  errors: {
+    FindingFixRefusedError: MessageFields,
+    FindingRecordsOffError: MessageFields,
+    FindingRecordsUnavailableError: MessageFields,
+    FindingFateNotRecordedError: Schema.Struct({
+      message: Schema.String,
+      commit: Schema.String,
+      recorded: Schema.Array(Schema.String),
+      unrecorded: Schema.Array(Schema.String),
+      retry: Schema.String,
+    }),
+    FindingRunRefError: MessageFields,
+    FindingReviewUnreadableError: MessageFields,
+    FindingFateRecordUnreadableError: MessageFields,
+    GitError: MessageFields,
+    FsError: MessageFields,
+    RegistryCorruptionError: MessageFields,
+    ConfigValidationError: MessageFields,
+  },
+  texts: {
+    FindingFixRefusedError: (error) => `✗ fix refused: ${error.message}`,
+    FindingRecordsOffError: (error) => `✗ fix refused: ${error.message}`,
+    FindingRecordsUnavailableError: (error) => `✗ fix refused: ${error.message}`,
+    FindingFateNotRecordedError: (error) => error.message,
+    FindingRunRefError: (error) => `✗ fix refused: ${error.message}`,
+    FindingReviewUnreadableError: (error) => `✗ fix refused: ${error.message}`,
+    FindingFateRecordUnreadableError: (error) => `✗ fix refused: ${error.message}`,
+    GitError: (error) => `✗ fix refused: ${error.message}`,
+    FsError: (error) => `✗ fix refused: ${error.message}`,
+    RegistryCorruptionError: (error) => `✗ fix refused: ${error.message}`,
+    ConfigValidationError: (error) => error.message,
+  },
+  render: renderFindingFix,
+});
+
 export const findingGroup = defineGroup({
   name: "finding",
   summary: "Read the findings of a run's reviews and their fates",
-  commands: [listCommand],
+  commands: [listCommand, fixCommand],
 });

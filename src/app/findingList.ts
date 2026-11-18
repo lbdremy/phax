@@ -29,7 +29,12 @@ import { runFolderOf } from "./costBackfill.js";
 import { readRunFateRecords } from "./findingFateRecords.js";
 import { readRegistry } from "./registry.js";
 import { resolveRunRef } from "./resolveRunRef.js";
-import { reviewRecordTargetFor, runEndReviewRecordTarget } from "./reviewEntry.js";
+import {
+  reviewRecordTargetFor,
+  runEndReviewRecordTarget,
+  type ReviewRecordTarget,
+  type ReviewRecordUnresolved,
+} from "./reviewEntry.js";
 import { readRunReviews, reviewSourceOf, type RunReviewSource } from "./runReviews.js";
 
 /** The run reference was refused: the resolver's sentence. */
@@ -59,14 +64,24 @@ export interface FindingListResult {
 export const RECORDS_OFF_NOTE =
   "records are off for this project: only the reviews in the run folder are listed";
 
-/** The run as the list reads it: its identity, state, run folder and where its records are. */
-interface ListedRun {
+/**
+ * The run as the list reads it: its identity, state, run folder and where its records are, plus
+ * where a fate is written (`target`) and, for a live run, its final worktree and branch. The
+ * fate commands share it.
+ */
+export interface ResolvedFindingRun {
   readonly namespace: string;
   readonly shortName: string;
   readonly runId: string;
   readonly state: typeof RunStateSchema.Type;
   readonly runFolder: string | null;
   readonly source: RunReviewSource;
+  /** Where a fate record of this run is written: its project's records, or why it cannot be. */
+  readonly target: ReviewRecordTarget | ReviewRecordUnresolved;
+  /** The run's final worktree; null for an archived run. */
+  readonly worktreePath: string | null;
+  /** The run's final-phase branch; null for an archived run. */
+  readonly runBranch: string | null;
   /** Message lines the run itself owes: its archive folder is gone. */
   readonly notes: readonly string[];
 }
@@ -77,7 +92,7 @@ const isRunState = Schema.is(RunStateSchema);
 function resolveArchivedRun(
   ref: string,
   config: ResolvedConfig,
-): Effect.Effect<ListedRun | undefined, FsError | RegistryCorruptionError, FileSystem> {
+): Effect.Effect<ResolvedFindingRun | undefined, FsError | RegistryCorruptionError, FileSystem> {
   return Effect.gen(function* () {
     const parsed = parseRunRef(ref);
     if (Result.isFailure(parsed)) return undefined;
@@ -92,27 +107,39 @@ function resolveArchivedRun(
     const folder = runFolderOf(config.stateRoot, entry);
     const present = yield* fs.exists(folder);
     const crossProject = namespace !== config.namespace;
+    const target: ReviewRecordTarget | ReviewRecordUnresolved = crossProject
+      ? {
+          kind: "unresolved",
+          reason: `the run is archived and belongs to the project "${namespace}", whose records cannot be located from here`,
+        }
+      : runEndReviewRecordTarget(config, namespace);
     return {
       namespace,
       shortName,
       runId: entry.runId,
       state: "archived",
       runFolder: present ? folder : null,
-      source: crossProject
-        ? {
-            kind: "unavailable",
-            reason: `the run is archived and belongs to the project "${namespace}", whose records cannot be located from here`,
-          }
-        : reviewSourceOf(runEndReviewRecordTarget(config, namespace)),
+      source: reviewSourceOf(target),
+      target,
+      worktreePath: null,
+      runBranch: null,
       notes: present ? [] : [`the archive folder ${folder} is gone: only the records are listed`],
-    } satisfies ListedRun;
+    } satisfies ResolvedFindingRun;
   });
 }
 
-function resolveListedRun(
+/**
+ * The run named by `ref`, as `phax finding list` resolves one: `resolveRunRef`, then an archived
+ * registry entry of the current namespace. A refusal is a `FindingRunRefError`.
+ */
+export function resolveFindingRun(
   ref: string,
   config: ResolvedConfig,
-): Effect.Effect<ListedRun, FindingRunRefError | FsError | RegistryCorruptionError, FileSystem> {
+): Effect.Effect<
+  ResolvedFindingRun,
+  FindingRunRefError | FsError | RegistryCorruptionError,
+  FileSystem
+> {
   return Effect.gen(function* () {
     const resolved = resolveRunRef(ref, config, config.stateRoot);
     if (Result.isSuccess(resolved)) {
@@ -124,15 +151,19 @@ function resolveListedRun(
           }),
         );
       }
+      const target = reviewRecordTargetFor({ config, namespace, info, crossProject });
       return {
         namespace,
         shortName,
         runId: info.runId,
         state: info.runState,
         runFolder: info.runPath,
-        source: reviewSourceOf(reviewRecordTargetFor({ config, namespace, info, crossProject })),
+        source: reviewSourceOf(target),
+        target,
+        worktreePath: info.worktreePath,
+        runBranch: info.finalPhaseBranch,
         notes: [],
-      } satisfies ListedRun;
+      } satisfies ResolvedFindingRun;
     }
     const archived = yield* resolveArchivedRun(ref, config);
     if (archived !== undefined) return archived;
@@ -193,7 +224,7 @@ export function listRunFindings(input: {
   FileSystem | Git
 > {
   return Effect.gen(function* () {
-    const run = yield* resolveListedRun(input.ref, input.config);
+    const run = yield* resolveFindingRun(input.ref, input.config);
     const read = yield* readRunReviews({
       runId: run.runId,
       runFolder: run.runFolder,

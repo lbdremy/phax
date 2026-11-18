@@ -157,11 +157,8 @@ function loadRunReviewInfo(
 
   const finalPlanPhase = planPhases.find((p) => p.id === finalPhaseStatus.phaseId);
 
-  const finalPhaseBranchResult = decodeBranchName(`${branch}--${finalPhaseStatus.phaseId}`);
-  if (Result.isFailure(finalPhaseBranchResult)) {
-    return Result.fail(`Cannot compute final phase branch for run at "${runPath}"`);
-  }
-  const finalPhaseBranch = finalPhaseBranchResult.success;
+  // The branch the final phase recorded when its worktree was made, as its worktree path is.
+  const finalPhaseBranch = finalPhaseStatus.branchName;
 
   return Result.succeed({
     namespace: runStatus.namespace,
