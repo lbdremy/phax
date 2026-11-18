@@ -74,6 +74,18 @@ briefs of live or unspecced work.
       Interleaved with `finding-ids-and-fates` (operator, 2026-11-17): specs and plans in
       parallel, one code run at a time; its first run follows the merge of finding-ids plan 1.
 
+### 5b. Vibe model and thinking level by Vibe's own flags
+
+- [ ] **`vibe-model-flags`** — `docs/specs/2611180902-vibe-model-flags.md` and its only plan
+      `docs/plans/2611181024-vibe-model-flags-plan.md`, both Approved 2026-11-18. Vibe 3.1.3's
+      `--model`/`--thinking` replace the PHAX aliases in `~/.vibe/config.toml`; floor 3.1.3; the
+      `mistral-medium` family becomes `mistral-medium-3.5` (off, high); a confined turn is checked
+      for model and level (`config.models[active_model].thinking`); `phax agent setup mistral-vibe`
+      goes. Run with `--allow-skill-edits`; the operator runs the Vibe e2e at review.
+      Not in parallel with `code-repository` (operator, 2026-11-18): `phax plans overlap` shares
+      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Its run follows
+      that run's merge. Mistral Large 4 in the catalog is a separate, later change.
+
 ### 6. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
