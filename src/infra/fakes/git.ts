@@ -51,6 +51,8 @@ export type GitCall =
   | { method: "currentBranch"; repo: string }
   | { method: "createBranch"; branch: string; from: string; repo: string }
   | { method: "branchExists"; branch: string; repo: string }
+  | { method: "repoTopLevel"; path: string }
+  | { method: "isIgnored"; repo: string; path: string }
   | { method: "deleteBranch"; name: string; force: boolean; repo: string }
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
@@ -204,6 +206,27 @@ export class FakeGitImpl implements GitOps {
   branchExists(branch: BranchName, repo: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "branchExists", branch, repo });
     return Effect.succeed(this.existingBranches.has(branch));
+  }
+
+  private readonly repoTopLevels = new Map<string, string | null>();
+  private readonly ignoredPaths = new Map<string, boolean>();
+
+  setRepoTopLevel(path: string, top: string | null): void {
+    this.repoTopLevels.set(path, top);
+  }
+
+  setIgnored(repo: string, path: string, ignored: boolean): void {
+    this.ignoredPaths.set(`${repo}\0${path}`, ignored);
+  }
+
+  repoTopLevel(path: string): Effect.Effect<string | null, GitError> {
+    this.calls.push({ method: "repoTopLevel", path });
+    return Effect.succeed(this.repoTopLevels.get(path) ?? null);
+  }
+
+  isIgnored(repo: string, path: string): Effect.Effect<boolean, GitError> {
+    this.calls.push({ method: "isIgnored", repo, path });
+    return Effect.succeed(this.ignoredPaths.get(`${repo}\0${path}`) ?? false);
   }
 
   private nextDeleteBranchError: string | undefined;

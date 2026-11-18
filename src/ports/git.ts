@@ -76,6 +76,17 @@ export interface GitOps {
   currentBranch(repo: string): Effect.Effect<BranchName, GitError>;
   createBranch(branch: BranchName, from: BranchName, repo: string): Effect.Effect<void, GitError>;
   branchExists(branch: BranchName, repo: string): Effect.Effect<boolean, GitError>;
+  /**
+   * The top level of the working tree that holds the existing directory `path`
+   * (`git rev-parse --show-toplevel` run there), or null when `path` does not
+   * exist or is in no repository.
+   */
+  repoTopLevel(path: string): Effect.Effect<string | null, GitError>;
+  /**
+   * Whether `repo` ignores the directory `path`, given relative to `repo`
+   * (`git check-ignore -q --no-index -- <path>/`; exit 1 means not ignored).
+   */
+  isIgnored(repo: string, path: string): Effect.Effect<boolean, GitError>;
   deleteBranch(name: BranchName, force: boolean, repo: string): Effect.Effect<void, GitError>;
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError>;
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError>;

@@ -868,6 +868,30 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout, exitCode }) => exitCode === 0 && parseBranchExistsOutput(stdout)),
     ),
 
+  repoTopLevel: (path) =>
+    gitRunAllowFail(["rev-parse", "--show-toplevel"], path).pipe(
+      Effect.map(({ stdout, exitCode }) => {
+        const top = stdout.trim();
+        return exitCode === 0 && top !== "" ? top : null;
+      }),
+    ),
+
+  isIgnored: (repo, path) =>
+    gitRunAllowFail(["check-ignore", "-q", "--no-index", "--", `${path}/`], repo).pipe(
+      Effect.flatMap(({ stderr, exitCode }) =>
+        exitCode === 0
+          ? Effect.succeed(true)
+          : exitCode === 1
+            ? Effect.succeed(false)
+            : Effect.fail(
+                new GitError({
+                  message: `git check-ignore failed: ${stderr.trim()}`,
+                  command: "git check-ignore",
+                }),
+              ),
+      ),
+    ),
+
   deleteBranch: (name, force, repo) =>
     gitRun(["branch", force ? "-D" : "-d", "--", name], repo).pipe(Effect.asVoid),
 

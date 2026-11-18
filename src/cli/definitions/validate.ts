@@ -5,8 +5,11 @@ import { resolve } from "node:path";
 import { Data, Effect, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { invalidBoundMessages } from "../../app/assignmentBounds.js";
+import { resolveCodeLink } from "../../app/codeLink.js";
 import { describeConfigSources, loadConfig } from "../../app/loadConfig.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { loadPlan } from "../../app/loadPlan.js";
+import { ConfigValidationError } from "../../domain/errors.js";
 import { partialPrefixesByProfile } from "../../domain/gate/partialCommand.js";
 import { defineCommand, reject } from "../commandLibrary/contract/index.js";
 import { makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
@@ -72,7 +75,7 @@ export const validateCommand = defineCommand({
   name: "validate",
   summary:
     "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
-  help: "Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe prefixes that gate steps' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.",
+  help: 'Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json\'s "protectedPaths" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe prefixes that gate steps\' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound\'s model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command\'s, lint\'s and the run preflight\'s.\n\nA process repository may link its code repository with "code": { "root": "<dir>" }, accepted only in phax.json. The root must be written as a relative path inside the repository, and three checks run: the directory exists, it is exactly the top level of a git repository, and this repository ignores it. A refusal exits 2 naming code.root and the reason.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.',
   examples: ["phax validate", "phax validate --plan phax-plan.json"],
   input: { flags: reject(ValidateFlags) },
   output: reject(ValidateOutput),
@@ -101,6 +104,23 @@ export const validateCommand = defineCommand({
             new BoundsInvalidError({ message: problems.join("\n"), problems, at }),
           );
         }
+      }
+
+      // The code link is checked against the repository: a root that is missing, not a
+      // repository's top level or not ignored is refused like any other config problem.
+      const link = yield* Effect.result(
+        resolveCodeLink(config).pipe(
+          Effect.provide(makeRepoRootedFileSystemLayer(config)),
+          Effect.provide(makeNodeGitLayer()),
+        ),
+      );
+      if (Result.isFailure(link)) {
+        return yield* Effect.fail(
+          new ConfigInvalidError({
+            message: link.failure.message,
+            path: link.failure instanceof ConfigValidationError ? link.failure.path : undefined,
+          }),
+        );
       }
 
       const parts = config.assignments?.filter((bound) => bound.kind === "part").length ?? 0;
