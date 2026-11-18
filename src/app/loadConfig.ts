@@ -7,7 +7,11 @@ import { ConfigValidationError } from "../domain/errors.js";
 import { decodeNamespace } from "../domain/branded.js";
 import { mergeConfigLayers } from "../domain/config/mergeLayers.js";
 import { parseGitmodulesPaths } from "../domain/config/gitmodules.js";
-import { codeRootMessage, codeRootProblem } from "../domain/config/codeLink.js";
+import {
+  codeRootMessage,
+  codeRootProblem,
+  phaxConfigCandidates,
+} from "../domain/config/codeLink.js";
 import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { describePartialRefusal, parsePartialCommand } from "../domain/gate/partialCommand.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
@@ -71,16 +75,7 @@ function findGitRoot(startDir: string): string | undefined {
 }
 
 function findPhaxConfig(startDir: string, gitRoot: string): string | undefined {
-  let current = startDir;
-  while (true) {
-    const candidate = join(current, "phax.json");
-    if (existsSync(candidate)) return candidate;
-    if (current === gitRoot) break;
-    const parent = dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  return undefined;
+  return phaxConfigCandidates(startDir, gitRoot).find((candidate) => existsSync(candidate));
 }
 
 function expandTilde(p: string): string {
@@ -593,7 +588,7 @@ export function loadConfig(
     authoring: resolveAuthoringConfig(config.authoring),
     records: resolveRecordsConfig(config.records),
     ...(config.assignments !== undefined ? { assignments: config.assignments } : {}),
-    ...(config.code !== undefined ? { code: config.code } : {}),
+    ...(config.code !== undefined ? { code: { root: config.code.root, configPath } } : {}),
     // From phax.json alone: read off the decoded project layer, never an overlay.
     ...(protectedPaths !== null ? { protectedPaths } : {}),
   };

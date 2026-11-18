@@ -892,6 +892,11 @@ export const NodeGitLayer = Layer.succeed(Git, {
       ),
     ),
 
+  isTracked: (repo, path) =>
+    gitRun(["--literal-pathspecs", "ls-files", "-z", "--cached", "--", path], repo).pipe(
+      Effect.map(({ stdout }) => stdout !== ""),
+    ),
+
   deleteBranch: (name, force, repo) =>
     gitRun(["branch", force ? "-D" : "-d", "--", name], repo).pipe(Effect.asVoid),
 

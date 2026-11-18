@@ -269,6 +269,15 @@ const FileReconciliationConfigSchema = Schema.Struct({
 
 const CodeLinkConfigSchema = Schema.Struct({ root: Schema.NonEmptyString });
 
+/**
+ * The `code` key of a phax.json read alone, so a command that needs only the link reads none of
+ * the file's other keys. Decoded as `{ code }`, so a failure names `code.root`.
+ */
+export const decodeCodeLinkDeclaration = Schema.decodeUnknownResult(
+  Schema.Struct({ code: CodeLinkConfigSchema }),
+  { onExcessProperty: "error", errors: "all", reportInput: true },
+);
+
 export const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
@@ -380,7 +389,11 @@ export interface ResolvedConfig {
   /** From phax.json alone: no user overlay carries it. Absent when phax.json declares none. */
   readonly protectedPaths?: ProtectedList;
   /** From phax.json alone: no user overlay carries it. Absent when phax.json declares no code link. */
-  readonly code?: { readonly root: string };
+  readonly code?: {
+    readonly root: string;
+    /** Absolute: the phax.json that declares the link, which a refusal of the link names. */
+    readonly configPath: string;
+  };
 }
 
 export type { ResolvedSecurityConfig, ResolvedRecordsConfig };

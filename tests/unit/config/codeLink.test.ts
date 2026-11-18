@@ -5,6 +5,8 @@ import {
   codeRootMessage,
   codeRootNotIgnored,
   codeRootProblem,
+  codeRootTracked,
+  phaxConfigCandidates,
 } from "../../../src/domain/config/codeLink.js";
 
 const INSIDE = "must be a relative path inside this repository";
@@ -36,5 +38,22 @@ describe("the refusal sentences", () => {
     expect(codeRootNotIgnored("code")).toBe(
       "not ignored by this repository — add /code/ to .gitignore",
     );
+    expect(codeRootTracked("code")).toBe(
+      "tracked by this repository although ignored — untrack it with git rm -r --cached code",
+    );
+  });
+});
+
+describe("phaxConfigCandidates", () => {
+  it("lists phax.json from the start directory up to the root, nearest first", () => {
+    expect(phaxConfigCandidates("/r/a/b", "/r")).toEqual([
+      "/r/a/b/phax.json",
+      "/r/a/phax.json",
+      "/r/phax.json",
+    ]);
+  });
+
+  it("is the root's phax.json alone when it starts at the root", () => {
+    expect(phaxConfigCandidates("/r", "/r")).toEqual(["/r/phax.json"]);
   });
 });
