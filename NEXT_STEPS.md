@@ -54,8 +54,14 @@ briefs of live or unspecced work.
 ### 4. Review findings: ids and fates
 
 
-- [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), no plan yet. Review findings get
+- [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), three plans. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
+      - [x] Plan 1 (#239): `F<n>`/`C<n>` ids, the answer formats split from the files, older reviews
+            lifted to `unrecorded`, `phax finding list [--json]`; a review whose record write failed
+            is kept in the run folder. #238 made the plan parser's bounded-time property measure
+            CPU time (it failed the gate under load).
+      - [ ] Plan 2: `phax finding fix|dismiss|defer` and the fate records.
+      - [ ] Plan 3: the PR description's findings section and the fate comments.
 
 ### 5. Process and code in two repositories
 
