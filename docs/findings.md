@@ -30,7 +30,7 @@ A finding's fate says what became of it:
 | `deferred`   | You decided to leave it for later.                                               |
 | `unrecorded` | Its review was persisted before ids existed, so no record can name it. See below. |
 
-In this release a finding is `open`, or `unrecorded` when its review was persisted before ids existed. Fixing, dismissing and deferring come with `phax finding fix`, `dismiss` and `defer`, which a later release adds.
+A finding is `open` until a command sets its fate: `phax finding fix`, `dismiss` or `defer`. Each writes a [fate record](#fate-records). The latest record decides the fate, and every record stays in the finding's `history`, so a dismissal you change your mind about is superseded by a later fix. A finding is `unrecorded` when its review was persisted before ids existed; a fate command can still settle it.
 
 ## Older reviews
 
@@ -45,16 +45,19 @@ phax finding list gate-retry
 ```
 
 ```text
-gate-retry (review_open) — 5 findings: 3 open, 2 unrecorded
+gate-retry (review_open) — 5 findings: 2 open, 1 fixed, 1 dismissed, 1 deferred
 
-F1  bug        open        src/app/retry.ts:41  The retry count is never reset after a pass
-F2  concern    open        src/app/retry.ts:77  The backoff has no upper bound
-F3  info       open        docs/retry.md:9      The page still names the old flag
-C1  deviation  unrecorded  phase-02 files       src/gate.ts was edited and not planned
-C2  concern    unrecorded  phase-03 tests       No test covers the exhausted case
+F1  bug        fixed      src/app/retry.ts:41  The retry count is never reset after a pass
+                          3fa91c2 (code, tests)
+F2  concern    open       src/app/retry.ts:77  The backoff has no upper bound
+F3  info       dismissed  docs/retry.md:9      The page still names the old flag
+                          Ada Lovelace: the page names it on purpose
+F4  concern    deferred   src/gate.ts:12       The gate reads the config twice
+                          → NEXT_STEPS.md
+C1  deviation  open       phase-02 files       src/gate.ts was edited and not planned
 ```
 
-One row per finding: id, severity, fate, location and message. A code-review finding's location is `<file>:<line>`; a compliance finding's is its phase and dimension. Findings are ordered `F` before `C`, each by number. The command takes a short name in the current project, or `<namespace>.<short-name>`.
+One row per finding: id, severity, fate, location and message. A fixed finding adds a line per fix (commit and path classes), a dismissed one its operator and reason, a deferred one its pointer. A code-review finding's location is `<file>:<line>`; a compliance finding's is its phase and dimension. Findings are ordered `F` before `C`, each by number. The command takes a short name in the current project, or `<namespace>.<short-name>`.
 
 With `--json` it prints a `finding-list` document, shortened here to one finding:
 
@@ -75,16 +78,106 @@ With `--json` it prints a `finding-list` document, shortened here to one finding
       "escape": "omission",
       "criterion": "…",
       "suggestion": "…",
-      "fate": "open",
-      "history": []
+      "fate": "fixed",
+      "history": [
+        {
+          "fate": "fixed",
+          "commit": "3fa91c2…",
+          "pathClasses": ["code", "tests"],
+          "by": { "kind": "operator", "name": "Ada Lovelace" },
+          "at": "2026-11-18T10:00:00.000Z"
+        }
+      ]
     }
   ]
 }
 ```
 
-`records` is `read`, `off` or `unavailable`, so a reader knows whether earlier reviews could be read. `history` is the finding's fate records, oldest first; it is empty in this release. See [Machine answers](json-output.md) for `--json` in general.
+`records` is `read`, `off` or `unavailable`, so a reader knows whether earlier reviews could be read. `history` is the finding's fate records, oldest first; it is empty for an open finding. See [Machine answers](json-output.md) for `--json` in general.
 
 The command reads local files and git only.
+
+## Fixing a finding
+
+Change the files, then name the finding and the paths:
+
+```bash
+phax finding fix gate-retry F2 -- tests/gate.test.ts
+```
+
+```text
+✓ committed 3fa91c2 fix(review): F2 of gate-retry
+  paths: tests/gate.test.ts (tests)
+✓ recorded F2 fixed on phax/records/v1
+```
+
+- It works only while the run is `review_open`, and commits in the run's final worktree.
+- It commits exactly the named paths. Other staged or unstaged changes stay where they are. A named directory commits every change under it. A path with no change is refused.
+- Paths resolve as git does: from the current directory when it is inside the worktree, else from the worktree's root. A path that leaves the worktree is refused.
+- The ids come first (`F2 F5`); every operand from the first one not spelled like an id is a path. `--` is the documented spelling, with flags before it. A path spelled like an id must follow another path or be written `./F2`.
+- The subject is `fix(review): F2, F5 of gate-retry`. `-m, --message <subject>` replaces it and `--body <text>` adds a paragraph.
+- The last paragraph holds phax's trailers: `Short-Name: gate-retry`, then one `Finding: <id>` per id, in the order named. There is no `Run-Id`, so release notes fold the commit into its run by `Short-Name`.
+- `--by operator`, or no `--by` from a terminal, names the operator as git commits. `--by machine:<grant>` records a machine. Without a terminal and without `--by` the call is refused.
+
+The record keeps the set of path classes of the commit, from the paths git reports it changed against its first parent (a rename counts as both its paths). The first rule that matches a path decides:
+
+| Class         | A path is in it when                                                                                                                                  |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `gate-config` | it is under `.github/workflows/`, or its name is a gate tool's config: `phax.json`, `knip.json`, `tsconfig.json`, `vitest.config.*`, `.oxlintrc.json`, `eslint.config.*`, `biome.json`, … |
+| `tests`       | a directory is `test`, `tests`, `__tests__`, `__snapshots__` or `e2e`, or its name matches `*.test.*`, `*.spec.*`, `*_test.*` or `test_*.py`          |
+| `docs`        | it starts with `docs/`, or ends in `.md`, `.mdx`, `.markdown`, `.rst`, `.adoc` or `.txt`                                                              |
+| `code`        | anything else, `package.json` and lockfiles included                                                                                                  |
+
+`tests/gate.test.ts` is `tests`, `docs/retry.md` is `docs`, `src/app/retry.ts` is `code`, and `tests/phax.json` is `gate-config`, because the first rule wins. The list of gate configs is fixed, not read from your project: a gate tool missing from it classes its config as `code`.
+
+## Recording an earlier commit
+
+```bash
+phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator
+```
+
+`--commit <sha>` records a commit that exists and makes none, so it takes no path, `-m` or `--body`. Use it for a finding fixed before ids existed (an `unrecorded` finding), and as the retry that a failed record prints. The commit must be, or be an ancestor of, the run's final-phase branch while the run is live, or the base branch: `publish.baseBranch`, else `main`, local or remote-tracking. A commit that changes no path is refused. A backfilled commit has no `Finding:` trailer and may hold several fixes, so its classes are coarser.
+
+Because it writes only a record, `--commit` runs on any run whose records exist, an archived or merged run included.
+
+## Dismissing and deferring
+
+```bash
+phax finding dismiss gate-retry F3 --why "the helper is internal, no caller can reach it"
+phax finding defer gate-retry F4 --to NEXT_STEPS.md --why "needs its own plan"
+```
+
+```text
+✓ recorded F3 dismissed on phax/records/v1 (by Ada Lovelace)
+✓ recorded F4 deferred → NEXT_STEPS.md on phax/records/v1
+```
+
+- Only an operator dismisses or defers: `--by machine:<grant>` is refused (`only an operator dismisses a finding`). `--by operator` is the default from a terminal and required without one.
+- `--why` is required and not empty. `--to` names a file tracked at HEAD (`<to> is not a tracked file` otherwise), read from the current directory and recorded relative to the repository root.
+- Several ids in one call write one record each, in the order named.
+- Both run on any run whose records exist, archived runs and `unrecorded` findings included.
+- A dismissal is a decided verdict: it chooses `dismiss`, abandons `fix` and `defer`, and gives the finding's suggestion (or its message, for a compliance finding) as the case for fixing.
+
+## Fate records
+
+A fate is one record per finding on the `phax/records/v1` branch, keyed `<runId>/finding/<id>/<NN>/record.json`. `NN` is one more than the highest the branch holds for that finding. Each record is one commit, so a call naming several ids writes several commits. Its format is `finding-fate-record-manifest`, with a fixed, a dismissed or a deferred entry. `phax records list` does not show it; `phax finding list` is its reader.
+
+Records must be on. Before any commit or record, a fate command refuses when:
+
+- there is no `records` key in `phax.json`;
+- the run's project cannot be read (a run of another project, for instance);
+- a dedicated records clone is missing (run `phax records sync`).
+
+A fate command pushes nothing and calls no GitHub, whatever `publish.auto` or `records.autoPush` says. Its records reach the remote with the run's publish. If a record fails after a fix commit landed, the commit stays, the command exits 1 and names the ids not recorded and the `--commit` retry. A failed dismissal or deferral is recorded by running the same command again. The pull request's findings section and fate comments come in a later release.
+
+## Exit codes
+
+| Code | Meaning                                                                                                     |
+| ---- | ----------------------------------------------------------------------------------------------------------- |
+| 0    | The fates are recorded.                                                                                     |
+| 1    | A refusal, a git or file failure, or a fate not recorded.                                                   |
+| 2    | A configuration that does not decode.                                                                       |
+| 64   | A refused call: no `--why` or `--to`, an empty value, an undeclared option, or no `--by` without a terminal. |
 
 ## Where findings come from
 
