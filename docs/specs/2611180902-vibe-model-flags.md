@@ -18,7 +18,7 @@ Invocation: every headless turn runs `vibe -p <prompt> --agent … --output stre
 
 Mistral Vibe 3.1.3, installed 2026-11-18, adds what phax lacked. `--model ALIAS` selects a model for a new headless session without saving it, and an unknown alias is a usage error (exit 1). `--thinking LEVEL` selects the thinking level for a new headless session; a level that an agent profile or the admin config fixes is a usage error. Vibe's built-in table has the alias `mistral-medium-3.5`, with thinking levels off and high and a default of high. A resumed session keeps the model and agent it last ran. `--output-dir` still writes `export.json` at `schema_version: 1`, and its effective `config` includes `active_model`. phax's real-CLI Vibe e2e passes on 3.1.3 unchanged, on the alias path.
 
-This authoring session read only recorded exports (vibe 3.0.3). They show `config.active_model` and no thinking level. Whether a 3.1.3 export records the level that `--thinking` set has not been checked on a real export.
+Vibe 3.1.3's own source, read on 2026-11-18 from the installed package (`vibe/app_server/`), shows where `--thinking` lands. In `_session_model.py`, `set_session_reasoning_effort_override` writes a session's thinking level as a patch at `model_thinking_path(alias)`, and `_config_paths.py` defines that path as `/models/<alias>/thinking`. The patch goes into the overrides layer, the same layer where `--model` writes `/active_model`. Agent-profile and admin layers outrank it, which is why a level they fix is a usage error. `run_export.py` describes the export's `config` as "the redacted config the session ran with, as the server resolved it". In `_config_introspect.py`, `redact_config` replaces header, environment and MCP argument values and strips URL user info and query strings, "keeping its shape"; it does not drop `models`. A 3.1.3 export should therefore carry the level beside `active_model`, as the `thinking` of the `models` entry for the alias that `active_model` names. This comes from the source only and has not yet been seen in a real export. The exact shape of `models` in the dumped config is not confirmed: it may be a table keyed by alias, or a list of entries that each carry `alias`.
 
 Ground read:
 
@@ -513,7 +513,7 @@ Left open:
 
 - Where `--model`/`--thinking` sit in the argv. Tests check presence and values, not position.
 - The final wording of the refusals, the setup output and the fresh-start note, and the JSON field names `setup providers --json` adds for replaced ids and dropped fields.
-- Whether a real 3.1.3 export records the thinking level, and under which field. Record the finding in the plan whichever way q-thinking-check is decided.
+- Before relying on it, confirm on a real 3.1.3 export the shape of `config.models` (a table keyed by alias, or a list of entries that carry `alias`) and the field holding the thinking level for the alias `config.active_model` names.
 - The release number of the upgrade entry. 0.41.0 assumes this ships in the next release after 0.40.0.
 
 Constraints:
