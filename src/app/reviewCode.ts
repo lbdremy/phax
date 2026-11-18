@@ -54,7 +54,12 @@ import {
   type CodeReviewSession,
 } from "../schemas/codeReviewSession.js";
 import { answerJsonSchema } from "../schemas/answerSchemas.js";
-import { readRunReviews, reviewSourceOf, runReviewWarnings } from "./runReviews.js";
+import {
+  keepUnrecordedReview,
+  readRunReviews,
+  reviewSourceOf,
+  runReviewWarnings,
+} from "./runReviews.js";
 import { decodeGlobalFileReconciliation } from "../schemas/globalReconciliation.js";
 import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist.js";
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
@@ -711,6 +716,14 @@ export function reviewCodeAndRecord(
       source: reviewSourceOf(target),
     });
     for (const line of runReviewWarnings(earlier)) opts.output.warn(line);
+    // A review whose record write failed is kept under its own name before the
+    // new review can replace it, so its findings stay listed (§5.6).
+    const notKept = yield* keepUnrecordedReview({
+      runFolder: info.runPath,
+      review: "code-review",
+      read: earlier,
+    });
+    if (notKept !== undefined) opts.output.warn(notKept);
     const findingsAfter = numberRunFindings(earlier.reviews.map((r) => r.review)).highest.F;
     const review = yield* reviewCodeHeadless(info, config, resolution, security, {
       ...opts,

@@ -228,13 +228,13 @@ describe("code review entry (real git)", () => {
     expect(await idsOfRunFile()).toEqual(["F4"]);
   });
 
-  it("with records off, numbers after the run folder's file and warns that records are off", async () => {
+  it("with records off, numbers after the run folder's file and warns nothing about records", async () => {
     const off = { ...RECORDS, enabled: false };
     const warnings: string[] = [];
     await reviewAnswering(["one", "two"], off, warnings);
     await reviewAnswering(["three"], off, warnings);
     expect(await idsOfRunFile()).toEqual(["F3"]);
-    expect(warnings.some((w) => w.includes("records are off"))).toBe(true);
+    expect(warnings).toEqual([]);
   });
 
   it("commits the run's code-review.json byte for byte under the run's code-review key", async () => {

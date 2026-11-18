@@ -1,14 +1,20 @@
-// A run's reviews, read from the records branch (oldest first) and the run
-// folder (only when it differs from the newest record of its kind). Real git in
-// a temporary repository, records written by writeReviewRecord.
+// A run's reviews, read from the records branch (oldest first), then the
+// unrecorded reviews kept in the run folder, then the run folder's file (only
+// when it differs from the newest record of its kind). Real git in a temporary
+// repository, records written by writeReviewRecord.
 import { Effect, Layer } from "effect";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
+import { mkdirSync, mkdtempSync, readdirSync } from "node:fs";
+import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readRunReviews, reviewSourceOf, type RunReviewSource } from "../../src/app/runReviews.js";
+import {
+  keepUnrecordedReview,
+  readRunReviews,
+  reviewSourceOf,
+  type RunReviewSource,
+} from "../../src/app/runReviews.js";
 import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -161,7 +167,7 @@ describe("readRunReviews (real git)", () => {
     });
     const result = await read(runFolder, off);
     expect(result.records).toBe("off");
-    expect(result.notes).toEqual(["records are off: reading the run folder alone"]);
+    expect(result.notes).toEqual([]);
     expect(messagesOf(result)).toEqual([["one"]]);
     expect(result.reviews[0]?.from).toBe("run-folder");
   });
@@ -187,6 +193,94 @@ describe("readRunReviews (real git)", () => {
     expect(result.notes).toHaveLength(1);
     expect(result.notes[0]).toContain("records unavailable");
     expect(messagesOf(result)).toEqual([["one"]]);
+  });
+
+  it("with a records branch git cannot read, is unavailable with a note and reads the run folder", async () => {
+    await writeFile(join(runFolder, "code-review.json"), codeReviewText(["one"]));
+    // phax/records/v1 names an object the repository does not hold.
+    mkdirSync(join(repoDir, ".git", "refs", "heads", "phax", "records"), { recursive: true });
+    await writeFile(
+      join(repoDir, ".git", "refs", "heads", "phax", "records", "v1"),
+      `${"1234567890".repeat(4)}\n`,
+    );
+    const result = await read();
+    expect(result.records).toBe("unavailable");
+    expect(result.notes).toHaveLength(1);
+    expect(result.notes[0]).toMatch(/^records unavailable \(.+\): reading the run folder alone$/);
+    expect(messagesOf(result)).toEqual([["one"]]);
+    expect(result.reviews[0]?.from).toBe("run-folder");
+  });
+
+  it("reads the kept unrecorded reviews oldest first, between the records and the run folder's file", async () => {
+    await record(codeReviewText(["one"]));
+    await writeFile(
+      join(runFolder, "code-review.unrecorded-02.json"),
+      codeReviewText(["three"], 3),
+    );
+    await writeFile(join(runFolder, "code-review.unrecorded-01.json"), codeReviewText(["two"], 2));
+    await writeFile(join(runFolder, "code-review.json"), codeReviewText(["four"], 4));
+    const result = await read();
+    expect(messagesOf(result)).toEqual([["one"], ["two"], ["three"], ["four"]]);
+    expect(result.reviews.map((r) => r.from)).toEqual([
+      "records",
+      "run-folder",
+      "run-folder",
+      "run-folder",
+    ]);
+  });
+
+  it("reads a run folder file once when a kept review holds the same bytes", async () => {
+    await record(codeReviewText(["one"]));
+    await writeFile(join(runFolder, "code-review.unrecorded-01.json"), codeReviewText(["two"], 2));
+    await writeFile(join(runFolder, "code-review.json"), codeReviewText(["two"], 2));
+    const result = await read();
+    expect(messagesOf(result)).toEqual([["one"], ["two"]]);
+  });
+
+  it("keeps an unrecorded run folder file under the next free number, and nothing else", async () => {
+    await record(codeReviewText(["one"]));
+    const keep = async () =>
+      Effect.runPromise(
+        keepUnrecordedReview({ runFolder, review: "code-review", read: await read() }).pipe(
+          Effect.provide(layers),
+        ),
+      );
+    const kept = () =>
+      readdirSync(runFolder)
+        .filter((n) => n.includes(".unrecorded-"))
+        .toSorted();
+
+    // Recorded: nothing to keep.
+    expect(await keep()).toBeUndefined();
+    expect(kept()).toEqual([]);
+
+    // Unrecorded: kept as -01, byte for byte; a second call finds it already kept.
+    const unrecorded = codeReviewText(["two"], 2);
+    await writeFile(join(runFolder, "code-review.json"), unrecorded);
+    expect(await keep()).toBeUndefined();
+    expect(kept()).toEqual(["code-review.unrecorded-01.json"]);
+    expect(await readFile(join(runFolder, "code-review.unrecorded-01.json"), "utf8")).toBe(
+      unrecorded,
+    );
+    await keep();
+    expect(kept()).toEqual(["code-review.unrecorded-01.json"]);
+
+    // Another unrecorded review takes -02.
+    await writeFile(join(runFolder, "code-review.json"), codeReviewText(["three"], 3));
+    await keep();
+    expect(kept()).toEqual(["code-review.unrecorded-01.json", "code-review.unrecorded-02.json"]);
+  });
+
+  it("keeps nothing with records off", async () => {
+    await writeFile(join(runFolder, "code-review.json"), codeReviewText(["one"]));
+    const off: RunReviewSource = { kind: "off" };
+    const result = await read(runFolder, off);
+    await Effect.runPromise(
+      keepUnrecordedReview({ runFolder, review: "code-review", read: result }).pipe(
+        Effect.provide(layers),
+      ),
+    );
+    expect(readdirSync(runFolder)).toEqual(["code-review.json"]);
   });
 
   it("puts an undecodable recorded file in unreadable", async () => {

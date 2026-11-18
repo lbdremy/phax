@@ -143,7 +143,8 @@ export function gitFailureLine(text: string): string {
 /**
  * The warning a review entry's outcome deserves, or undefined when there is
  * nothing to say (written, or records off). A failed commit leaves the
- * review's file in the run folder; `phax records status` reads git alone, so it
+ * review's file in the run folder, and the next review keeps it under its own
+ * name before replacing it; `phax records status` reads git alone, so it
  * cannot list an entry that was never committed — the remedy is a rerun, the
  * caller's `retryCommand` (the review's own command with the run's name).
  */
@@ -162,7 +163,7 @@ export function reviewRecordWarning(
     case "refused":
       return `${review} entry refused: ${status.message} (remedy: ${status.remedy})`;
     case "write-failed":
-      return `the ${review} entry was not committed to ${RECORDS_BRANCH_NAME} (${status.message}) — it is pending: ${REVIEW_RECORD_FILES[review]} stays in the run folder; rerun \`${retryCommand}\` to record a new review`;
+      return `the ${review} entry was not committed to ${RECORDS_BRANCH_NAME} (${status.message}) — it is pending: ${REVIEW_RECORD_FILES[review]} stays in the run folder, and the next review keeps it as ${review}.unrecorded-<NN>.json so its findings stay listed; rerun \`${retryCommand}\` to record a new review`;
   }
 }
 
