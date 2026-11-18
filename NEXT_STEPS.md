@@ -65,14 +65,16 @@ briefs of live or unspecced work.
 
 ### 5. Process and code in two repositories
 
-- [ ] **`code-repository`** — `docs/specs/2611171616-code-repository.md`, Approved 2026-11-17, no
-      plan yet: a project whose process lives in one repository and whose code in another,
-      checked out inside it. Decided: the process repository declares the link, a linked run is
-      gated as an artifact but completes nothing, the code repository's PR names nothing of the
-      process, and `plan-approval-record` gets a required `code` key (`null` unlinked, older
-      records read as `null`).
-      Interleaved with `finding-ids-and-fates` (operator, 2026-11-17): specs and plans in
-      parallel, one code run at a time; its first run follows the merge of finding-ids plan 1.
+- [x] **`code-repository`** — shipped (#241, 2026-11-18): `"code": {"root"}` in the process
+      repository's phax.json links a code repository checked out inside it (ignored, untracked,
+      its own top level). Approving a linked plan records `code: {root, baseline}` and stamps
+      `approved.code`; staleness judges ground-changed in the code repository; `phax run --plan
+      ../docs/plans/…` from the code repository gates the plan as an artifact, completes nothing
+      and names nothing of the process in the PR; `plans lint` checks files against the code
+      root. A process phax.json that cannot be read refuses a run of a plan under its
+      `docs/plans/` (operator, 2026-11-18: refuse rather than run loose). Docs:
+      `docs/code-repository.md`, which says to point `records.destination` at the process
+      repository to keep the plan text private.
 
 ### 5b. Vibe model and thinking level by Vibe's own flags
 
@@ -240,6 +242,15 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **A test that spawns a child with no timeout can hang the suite.** Seen 2026-11-18 on the
+      code-repository review fixes: `tests/integration/groupCommandsJson.test.ts` runs
+      `tsx … cost backfill --json` through `spawnSync` with no `timeout`; the child sat idle for
+      3 hours and vitest's own timeout cannot fire on a blocked worker. Give every `spawnSync`
+      in tests a timeout (a shared helper), and find why that child idled.
+- [ ] **`approve` ignores a `code` key in `phax.local.json`.** Since #241 a plan approval reads only
+      the project phax.json's `code` (so an unrelated overlay error never blocks it); `validate`
+      and `run` refuse `code` outside the project layer, `approve` just does not see it. Decide
+      whether approve should refuse it too.
 - [ ] **Release notes hide a run's user-facing fixes.** Found at the 0.39.0 cut (2026-11-17): the
       notes fold every commit carrying a run's `Short-Name` into that run, and announce a run only
       through its spec's surfaces. `property-tests` had test-only surfaces, so the parser fixes it
