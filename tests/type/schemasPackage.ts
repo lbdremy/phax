@@ -496,6 +496,7 @@ import type { PhaxPlanExtractionV0_32_0 as FrozenPhaxPlanExtractionV0_32_0 } fro
 import type { PhaxPlanExtractionV0_33_0 as FrozenPhaxPlanExtractionV0_33_0 } from "../../src/schemas/history/phax-plan-extraction/0.33.0.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
 import type { PlanApprovalRecordV0_19_0 as FrozenPlanApprovalRecordV0_19_0 } from "../../src/schemas/history/plan-approval-record/0.19.0.js";
+import type { PlanApprovalRecordV0_25_0 as FrozenPlanApprovalRecordV0_25_0 } from "../../src/schemas/history/plan-approval-record/0.25.0.js";
 import type { PlanApprovalsPreSchema as FrozenPlanApprovals } from "../../src/schemas/history/plan-approvals/pre-schema.js";
 import type { SpecApprovalRecordV0_19_0 as FrozenSpecApprovalRecordV0_19_0 } from "../../src/schemas/history/spec-approval-record/0.19.0.js";
 import type { PlanDocumentV0_17_0 as FrozenPlanDocumentV0_17_0 } from "../../src/schemas/history/plan-document/0.17.0.js";
@@ -754,10 +755,12 @@ if (document.ok) {
   if (document.format === "plan-approval-record") {
     const exact: Equals<
       typeof document.value,
-      FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile
+      FrozenPlanApprovalRecordV0_19_0 | FrozenPlanApprovalRecordV0_25_0 | PhaxPlanRecordFile
     > = true;
-    const recordShape: Equals<typeof document.shape, "0.19.0" | Current<"plan-approval-record">> =
-      true;
+    const recordShape: Equals<
+      typeof document.shape,
+      "0.19.0" | "0.25.0" | Current<"plan-approval-record">
+    > = true;
     void exact;
     void recordShape;
   }
@@ -883,7 +886,7 @@ const eachShapeId: [
     PhaseFileReconciliationShape,
     "pre-schema" | "0.17.0" | Current<"phase-file-reconciliation">
   >,
-  Equals<PlanApprovalRecordShape, "0.19.0" | Current<"plan-approval-record">>,
+  Equals<PlanApprovalRecordShape, "0.19.0" | "0.25.0" | Current<"plan-approval-record">>,
   Equals<SpecApprovalRecordShape, "0.19.0" | Current<"spec-approval-record">>,
   Equals<GateRequestShape, Current<"gate-request">>,
 ] = [
@@ -1004,7 +1007,7 @@ const parseValues: [
   >,
   Equals<
     Value<typeof parsePlanApprovalRecord>,
-    FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile
+    FrozenPlanApprovalRecordV0_19_0 | FrozenPlanApprovalRecordV0_25_0 | PhaxPlanRecordFile
   >,
   Equals<
     Value<typeof parseSpecApprovalRecord>,
@@ -1171,7 +1174,7 @@ void specRecordToPhax;
 const recordUpgrades: [
   Equals<
     Parameters<typeof toLatestPlanApprovalRecord>,
-    [value: FrozenPlanApprovalRecordV0_19_0 | PhaxPlanRecordFile]
+    [value: FrozenPlanApprovalRecordV0_19_0 | FrozenPlanApprovalRecordV0_25_0 | PhaxPlanRecordFile]
   >,
   Equals<
     Parameters<typeof toLatestSpecApprovalRecord>,

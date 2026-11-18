@@ -36,6 +36,11 @@ import {
   type PlanApprovalRecordV0_19_0,
 } from "../../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import {
+  PlanApprovalRecordV0_25_0Schema,
+  decodePlanApprovalRecordV0_25_0,
+  type PlanApprovalRecordV0_25_0,
+} from "../../../../src/schemas/history/plan-approval-record/0.25.0.js";
+import {
   SpecApprovalRecordV0_19_0Schema,
   decodeSpecApprovalRecordV0_19_0,
   type SpecApprovalRecordV0_19_0,
@@ -154,7 +159,10 @@ import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../s
 
 // ── plan approval record
 
-export type PlanApprovalRecordShapes = { "0.19.0": PlanApprovalRecordV0_19_0 } & {
+export type PlanApprovalRecordShapes = {
+  "0.19.0": PlanApprovalRecordV0_19_0;
+  "0.25.0": PlanApprovalRecordV0_25_0;
+} & {
   [K in CurrentShapeName<"plan-approval-record">]: PlanRecordFile;
 };
 
@@ -169,6 +177,10 @@ export const planApprovalRecordFormat = defineFormat<PlanApprovalRecordShapes>({
     [
       "0.19.0",
       { schema: PlanApprovalRecordV0_19_0Schema, decode: decodePlanApprovalRecordV0_19_0 },
+    ],
+    [
+      "0.25.0",
+      { schema: PlanApprovalRecordV0_25_0Schema, decode: decodePlanApprovalRecordV0_25_0 },
     ],
   ],
   current: {
@@ -187,17 +199,23 @@ export type LatestPlanApprovalRecord = PlanRecord;
 /**
  * Upgrades a parsed plan approval record in memory. Keeps every recorded fact;
  * never invents one: a 0.19.0 record, written before phax named the approver,
- * is `approvedBy: { kind: "unattributed" }`, never an operator.
+ * is `approvedBy: { kind: "unattributed" }`, never an operator. A record of
+ * either older shape is `code: null`: no record before this release ever had a
+ * code baseline.
  */
 export function toLatestPlanApprovalRecord(
-  value: PlanApprovalRecordV0_19_0 | PlanRecordFile,
+  value: PlanApprovalRecordV0_19_0 | PlanApprovalRecordV0_25_0 | PlanRecordFile,
 ): LatestPlanApprovalRecord {
-  if ("approvedBy" in value) {
+  if ("code" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("approvedBy" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return { ...recorded, code: null };
+  }
   const { $schema: _schema, ...recorded } = value;
-  return { ...recorded, approvedBy: { kind: "unattributed" } };
+  return { ...recorded, code: null, approvedBy: { kind: "unattributed" } };
 }
 
 // ── spec approval record

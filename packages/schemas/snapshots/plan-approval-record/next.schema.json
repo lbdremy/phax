@@ -1,0 +1,152 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan approval record",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-approval-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The plan-approval-record format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/plan-approval-record/<X.Y.Z>.json"
+    },
+    "artifact": {
+      "type": "string",
+      "minLength": 1
+    },
+    "planFingerprint": {
+      "type": "string",
+      "minLength": 1
+    },
+    "approvedAt": {
+      "type": "string",
+      "minLength": 1
+    },
+    "baseline": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "code": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "root": {
+              "type": "string",
+              "minLength": 1
+            },
+            "baseline": {
+              "type": "string",
+              "minLength": 1,
+              "pattern": "^[0-9a-f]{40}$"
+            }
+          },
+          "required": [
+            "root",
+            "baseline"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "sourceSpec": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "fingerprint": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "path",
+            "fingerprint"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "approvedBy": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "machine"
+              ]
+            },
+            "grant": {
+              "type": "string",
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "The grant the machine declared with `--by machine:<grant>`."
+            }
+          },
+          "required": [
+            "kind",
+            "grant"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "operator"
+              ]
+            },
+            "name": {
+              "type": "string",
+              "minLength": 1,
+              "description": "The operator's git user.name when they approved."
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "unattributed"
+              ]
+            }
+          },
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  },
+  "required": [
+    "$schema",
+    "artifact",
+    "planFingerprint",
+    "approvedAt",
+    "baseline",
+    "code",
+    "sourceSpec",
+    "approvedBy"
+  ],
+  "additionalProperties": false
+}

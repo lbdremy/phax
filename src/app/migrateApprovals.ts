@@ -81,7 +81,7 @@ const LEDGER_KINDS: readonly LedgerKind[] = [
           ([artifact, record]) =>
             [
               artifact,
-              renderPlanRecordFile({ artifact, ...record, approvedBy: UNATTRIBUTED }),
+              renderPlanRecordFile({ artifact, ...record, code: null, approvedBy: UNATTRIBUTED }),
             ] as const,
         ),
       ),

@@ -442,6 +442,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         baseline: BASELINE,
         sourceSpec: { path: SOURCE_SPEC, fingerprint: "spec-fingerprint-0001" },
       },
+      null,
       { kind: "machine", grant: "roadmap-loop" },
     ),
   );

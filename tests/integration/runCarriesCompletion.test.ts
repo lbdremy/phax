@@ -124,6 +124,7 @@ function planRecordJson(): string {
       planFingerprint: "planfp",
       approvedAt: "2026-08-14T00:00:00.000Z",
       baseline: "a".repeat(40),
+      code: null,
       sourceSpec: { path: SPEC_REL, fingerprint: "specfp" },
       approvedBy: { kind: "machine", grant: "roadmap-loop" },
     }),

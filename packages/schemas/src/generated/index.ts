@@ -22,7 +22,7 @@ export const CURRENT_SHAPES = {
   "phase-file-reconciliation": "0.26.0",
   "spec-document": "0.32.0",
   "plan-document": "0.38.0",
-  "plan-approval-record": "0.25.0",
+  "plan-approval-record": "next",
   "spec-approval-record": "0.25.0",
   "gate-request": "0.20.0",
   "brief-request": "0.20.0",

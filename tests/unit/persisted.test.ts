@@ -1496,37 +1496,43 @@ describe("documents from another release", () => {
                     ),
               "userConfig",
             )
-          : id === "plan-approval-record" || id === "spec-approval-record"
-            ? withoutKey(validDocuments[id], "approvedBy")
-            : id === "spec-document"
-              ? compareReleases(release, "0.27.0") >= 0
-                ? validDocuments[id]
-                : compareReleases(release, "0.25.0") >= 0
-                  ? withoutSurfaceSummary(validDocuments[id])
-                  : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
-              : id === "plan-document"
-                ? compareReleases(release, "0.33.0") >= 0
+          : id === "plan-approval-record"
+            ? // From 0.25.0, the frozen shape names its approver and has no
+              // `code`; below it, neither.
+              compareReleases(release, "0.25.0") >= 0
+              ? withoutKey(validDocuments[id], "code")
+              : withoutKey(withoutKey(validDocuments[id], "approvedBy"), "code")
+            : id === "spec-approval-record"
+              ? withoutKey(validDocuments[id], "approvedBy")
+              : id === "spec-document"
+                ? compareReleases(release, "0.27.0") >= 0
                   ? validDocuments[id]
-                  : compareReleases(release, "0.28.0") >= 0
-                    ? withOracleKeys(validDocuments[id])
-                    : compareReleases(release, "0.26.0") >= 0
-                      ? withTestStrategyStrings(validDocuments[id])
-                      : compareReleases(release, "0.25.0") >= 0
-                        ? withModelReasons(validDocuments[id])
-                        : withoutPreambleQuestions(validDocuments[id])
-                : id === "compliance-review"
-                  ? compareReleases(release, "0.32.0") >= 0
-                    ? complianceReviewV0_32_0Document
-                    : complianceReviewV0_17_0Document
-                  : id === "phax-plan"
-                    ? compareReleases(release, "0.33.0") >= 0
-                      ? validDocuments[id]
-                      : compareReleases(release, "0.28.0") >= 0
-                        ? withOracleKeys(validDocuments[id])
-                        : compareReleases(release, "0.26.0") >= 0
-                          ? withOracleKeys(withoutTestLines(validDocuments[id]))
-                          : withoutPhaseKinds(validDocuments[id])
-                    : validDocuments[id];
+                  : compareReleases(release, "0.25.0") >= 0
+                    ? withoutSurfaceSummary(validDocuments[id])
+                    : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
+                : id === "plan-document"
+                  ? compareReleases(release, "0.33.0") >= 0
+                    ? validDocuments[id]
+                    : compareReleases(release, "0.28.0") >= 0
+                      ? withOracleKeys(validDocuments[id])
+                      : compareReleases(release, "0.26.0") >= 0
+                        ? withTestStrategyStrings(validDocuments[id])
+                        : compareReleases(release, "0.25.0") >= 0
+                          ? withModelReasons(validDocuments[id])
+                          : withoutPreambleQuestions(validDocuments[id])
+                  : id === "compliance-review"
+                    ? compareReleases(release, "0.32.0") >= 0
+                      ? complianceReviewV0_32_0Document
+                      : complianceReviewV0_17_0Document
+                    : id === "phax-plan"
+                      ? compareReleases(release, "0.33.0") >= 0
+                        ? validDocuments[id]
+                        : compareReleases(release, "0.28.0") >= 0
+                          ? withOracleKeys(validDocuments[id])
+                          : compareReleases(release, "0.26.0") >= 0
+                            ? withOracleKeys(withoutTestLines(validDocuments[id]))
+                            : withoutPhaseKinds(validDocuments[id])
+                      : validDocuments[id];
     const result = read(file, withKey(document, "$schema", schemaUrl(id, release)));
     // An answer format's $schema is a const of its own stamps: a release above
     // its current stamp that this phax did not outgrow names no shape it wrote,
@@ -1957,5 +1963,59 @@ describe("a plan's phase key, acceptance with passedBy", () => {
 
   it("refuses a current run plan that carries the oracle phase key", () => {
     expect(left(readPhaxPlanFile(planFile, withOracleKeys(phaxPlan))).message).toContain("oracle");
+  });
+});
+
+describe("readPlanRecordFile and the code key", () => {
+  const file = "/home/example/docs/plans/approvals/2601010900-example.json";
+  const record = {
+    artifact: "docs/plans/2601010900-example.md",
+    planFingerprint: "plan-fingerprint-0001",
+    approvedAt: "2026-01-01T09:00:00.000Z",
+    baseline: "0123456789abcdef0123456789abcdef01234567",
+    sourceSpec: null,
+  };
+  const operator = { kind: "operator", name: "Ada Example" };
+
+  it("reads a 0.19.0 record as code: null and unattributed", () => {
+    const stamped = { $schema: schemaUrl("plan-approval-record", "0.19.0"), ...record };
+    expect(right(readPlanRecordFile(file, stamped))).toEqual({
+      ...record,
+      code: null,
+      approvedBy: { kind: "unattributed" },
+    });
+  });
+
+  it("reads a 0.25.0 record as code: null, keeping its approver", () => {
+    const stamped = {
+      $schema: schemaUrl("plan-approval-record", "0.25.0"),
+      ...record,
+      approvedBy: operator,
+    };
+    expect(right(readPlanRecordFile(file, stamped))).toEqual({
+      ...record,
+      code: null,
+      approvedBy: operator,
+    });
+  });
+
+  it("refuses a current-stamp record without code, naming code", () => {
+    const stamped = {
+      $schema: currentSchemaUrl("plan-approval-record"),
+      ...record,
+      approvedBy: operator,
+    };
+    expect(left(readPlanRecordFile(file, stamped)).message).toContain("code");
+  });
+
+  it("round-trips a current record with a code baseline", () => {
+    const code = { root: "code", baseline: "fedcba9876543210fedcba9876543210fedcba98" };
+    const stamped = {
+      $schema: currentSchemaUrl("plan-approval-record"),
+      ...record,
+      code,
+      approvedBy: operator,
+    };
+    expect(right(readPlanRecordFile(file, stamped))).toMatchObject({ code });
   });
 });
