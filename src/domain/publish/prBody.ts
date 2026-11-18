@@ -171,13 +171,14 @@ function largestFitting(total: number, fits: (n: number) => boolean): number {
 function renderSummary(input: ShortPrBodyInput): string {
   const plan = renderPlanRef(input.footer.plan);
   const gateProfile = input.gateProfileId !== undefined ? `\`${input.gateProfileId}\`` : "(none)";
-  const spec = input.sourceSpecOutcome?.trim();
+  const withheld = input.footer.plan.kind === "withheld";
+  const spec = withheld ? undefined : input.sourceSpecOutcome?.trim();
   const passed = input.phases.filter((p) => p.status === "passed").length;
   const surfaces = input.verifiedSurfaces.length > 0 ? input.verifiedSurfaces.join(", ") : "none";
   const compliance =
     input.compliance.kind === "reviewed" ? input.compliance.review.verdict : "not reviewed";
   const lines = [
-    `**Run** \`${input.qualifiedName}\` · **Plan** ${plan} · **Gate profile** ${gateProfile}`,
+    `**Run** \`${input.qualifiedName}\`${withheld ? "" : ` · **Plan** ${plan}`} · **Gate profile** ${gateProfile}`,
     ...(spec !== undefined && spec !== "" ? [`**Spec** ${spec}`] : []),
     `**Phases** ${passed}/${input.phases.length} passed · **Verified surfaces** ${surfaces}`,
     `**Compliance** ${compliance}`,

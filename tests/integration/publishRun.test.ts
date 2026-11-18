@@ -796,6 +796,7 @@ describe("publishRun — the phax footer", () => {
     setup?: (s: ReturnType<typeof setupLayers>) => void;
     phaxVersion?: string;
     config?: Partial<ResolvedPublishConfig>;
+    repoRoot?: string;
   }) {
     const s = setupLayers();
     seedSuccessPreconditions({
@@ -808,7 +809,7 @@ describe("publishRun — the phax footer", () => {
     args.setup?.(s);
     const result = await Effect.runPromise(
       publishRun(args.info ?? makeInfo(), defaultConfig(args.config), {
-        repoRoot,
+        repoRoot: args.repoRoot ?? repoRoot,
         now: constNow,
         phaxVersion: args.phaxVersion ?? "0.0.0-test",
         output: processOutput,
@@ -949,6 +950,82 @@ describe("publishRun — the phax footer", () => {
     expect(github.impl.calls.some((c) => c.method === "repoWebUrl")).toBe(false);
     expect(body).toContain(`\n**Plan** \`${ARCHIVED_PLAN}\` · **Spec** \`${ARCHIVED_SPEC}\`\\\n`);
     expect(body).not.toContain("/blob/");
+  });
+
+  describe("a run linked to its process repository (ac-pr-names-nothing)", () => {
+    const PROCESS = "/fake-process";
+    const CODE = `${PROCESS}/code`;
+    const PLAN_FILE = "2610101200-greet-cli-plan.md";
+    const RECORDED = `../docs/plans/${PLAN_FILE}`;
+    const SPEC_FILE = "2610091100-greet-cli.md";
+
+    // The process repository as the resolver reads it.
+    function linkedSetup(link: string | null, ignored = true) {
+      return ({ fs, git }: ReturnType<typeof setupLayers>) => {
+        const body = link === null ? { version: 1 } : { version: 1, code: { root: link } };
+        fs.impl.setFile(`${PROCESS}/phax.json`, JSON.stringify(body));
+        git.impl.setRepoTopLevel(`${PROCESS}/docs/plans`, PROCESS);
+        git.impl.setRepoTopLevel(`${PROCESS}/code`, link === null ? "/elsewhere" : CODE);
+        git.impl.setIgnored(PROCESS, "code", ignored);
+      };
+    }
+
+    function expectNamesNothing(body: string, calls: ReadonlyArray<{ method: string }>) {
+      expect(body).not.toContain("**Plan**");
+      expect(body).not.toContain("**Spec**");
+      for (const forbidden of [
+        "docs/plans",
+        "docs/specs",
+        PLAN_FILE,
+        SPEC_FILE,
+        "greet-cli",
+        "/blob/",
+        PROCESS,
+      ]) {
+        expect(body).not.toContain(forbidden);
+      }
+      expect(body).toContain("**Run** `");
+      expect(calls).not.toContainEqual({ method: "repoWebUrl", repo: PROCESS });
+    }
+
+    it("names neither the plan nor the spec of a linked run", async () => {
+      const { body, result, github } = await publishBody({
+        repoRoot: CODE,
+        planRepoRelPath: RECORDED,
+        planCopy: planCopy(`docs/specs/${SPEC_FILE}`),
+        head: [`docs/specs/${SPEC_FILE}`],
+        setup: linkedSetup("code"),
+      });
+      expect(result.kind).toBe("published");
+      expectNamesNothing(body, github.impl.calls);
+    });
+
+    it("fails closed: a link that cannot be read omits Plan and Spec too", async () => {
+      const { body, result, github } = await publishBody({
+        repoRoot: CODE,
+        planRepoRelPath: RECORDED,
+        planCopy: planCopy(`docs/specs/${SPEC_FILE}`),
+        // The link names this repository but the process repository does not ignore it.
+        setup: linkedSetup("code", false),
+      });
+      expect(result.kind).toBe("published");
+      expectNamesNothing(body, github.impl.calls);
+    });
+
+    it("still names a loose plan path that leaves the repository", async () => {
+      const { body } = await publishBody({
+        repoRoot: CODE,
+        planRepoRelPath: RECORDED,
+        // The link names another repository: the plan is loose.
+        setup: linkedSetup(null),
+      });
+      expect(body).toContain(`\n**Plan** \`${RECORDED}\`\\\n`);
+    });
+
+    it("names a plan path outside any repository as before", async () => {
+      const { body } = await publishBody({ planRepoRelPath: "../elsewhere/greet-plan.md" });
+      expect(body).toContain("\n**Plan** `../elsewhere/greet-plan.md`\\\n");
+    });
   });
 
   it("(i) names the version from the option in the generated line", async () => {

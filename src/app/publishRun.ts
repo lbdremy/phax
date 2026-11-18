@@ -1,6 +1,6 @@
 import { Effect, Result } from "effect";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { runKey } from "../domain/runRef.js";
 import { isPhaseTerminal } from "../domain/state.js";
@@ -44,6 +44,7 @@ import {
   makeStepCompletedTelemetryEvent,
   makeArtifactGeneratedTelemetryEvent,
 } from "../domain/telemetry/events.js";
+import { resolvePlanLink } from "./planLink.js";
 import { writeFinalReport } from "./finalReport.js";
 import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
 import { loadReviewedPhases, loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
@@ -173,6 +174,21 @@ function loadSpecRef(
     const located = locateAtHead(declared.path, head.headPaths);
     return located === null ? none : locatedRef(located, head);
   }).pipe(Effect.orElseSucceed(() => none));
+}
+
+// Whether the recorded plan belongs to a linked process repository, so the
+// pull request must not name it. Only a path leaving the repository calls the
+// resolver. A link that cannot be read fails closed (withheld); a loose answer
+// keeps today's behaviour.
+function isLinkedPlan(
+  repoRoot: string,
+  recorded: string | null,
+): Effect.Effect<boolean, never, FileSystem | Git> {
+  if (recorded === null || !recorded.startsWith("../")) return Effect.succeed(false);
+  return resolvePlanLink({ runRepoRoot: repoRoot, planAbsolute: resolve(repoRoot, recorded) }).pipe(
+    Effect.map((link) => link.kind === "linked"),
+    Effect.orElseSucceed(() => true),
+  );
 }
 
 // The agent each passed phase ran with, in plan order, grouped. A phase
@@ -620,10 +636,11 @@ export function publishRun(
     // keeps its body, so it needs no lookup.
     const qualifiedName = runKey(info.namespace, info.shortName);
     const head = yield* loadHeadFacts(info, opts.repoRoot, pushStatus);
+    const withheld = yield* isLinkedPlan(opts.repoRoot, planResult.success);
     const footer = {
       version: opts.phaxVersion,
-      plan: planRefAtHead(planResult.success, head),
-      spec: yield* loadSpecRef(info.runPath, head),
+      plan: withheld ? ({ kind: "withheld" } as const) : planRefAtHead(planResult.success, head),
+      spec: withheld ? ({ kind: "none" } as const) : yield* loadSpecRef(info.runPath, head),
       agents: yield* loadAgentGroups(
         info.runPath,
         phases.filter((p) => p.status === "passed").map((p) => p.phaseId),

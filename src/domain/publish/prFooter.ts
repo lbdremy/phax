@@ -4,7 +4,9 @@ import { archivePathFor, classifyArtifactPath } from "../artifact/document.js";
 export type PrPlanRef =
   | { readonly kind: "permalink"; readonly path: string; readonly url: string }
   | { readonly kind: "path"; readonly path: string }
-  | { readonly kind: "unrecorded" };
+  | { readonly kind: "unrecorded" }
+  /** A linked run's plan lives in the process repository: the pull request names nothing of it. */
+  | { readonly kind: "withheld" };
 
 /** The plan's source spec as the pull request names it. */
 export type PrSpecRef =
@@ -75,10 +77,13 @@ export function groupAgents(
 /** A plan ref as Markdown: a linked code span, a code span, or `loose plan`. */
 export function renderPlanRef(plan: PrPlanRef): string {
   if (plan.kind === "unrecorded") return "loose plan";
+  if (plan.kind === "withheld") return "";
   return renderLocated(plan);
 }
 
-function renderLocated(ref: Exclude<PrPlanRef, { readonly kind: "unrecorded" }>): string {
+function renderLocated(
+  ref: Exclude<PrPlanRef, { readonly kind: "unrecorded" | "withheld" }>,
+): string {
   return ref.kind === "permalink" ? `[\`${ref.path}\`](${ref.url})` : `\`${ref.path}\``;
 }
 
@@ -92,7 +97,7 @@ export function renderPrFooter(input: PrFooterInput): string {
     (input.spec.kind === "none" ? "" : ` · **Spec** ${renderLocated(input.spec)}`);
   const lines = [
     `🛤️ Generated with [phax](https://docs.phax.run) ${input.version} — the golden path, just facts`,
-    planAndSpec,
+    ...(input.plan.kind === "withheld" ? [] : [planAndSpec]),
     ...(input.agents.length > 0
       ? [`**Agents** ${input.agents.map(renderAgentGroup).join("; ")}`]
       : []),
