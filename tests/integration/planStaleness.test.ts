@@ -1,5 +1,11 @@
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { Effect, Result, Layer } from "effect";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
+import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { createLinkedProject, type LinkedProject } from "../fixtures/codeLink/linkedProject.js";
 import {
   applyStalenessReport,
   computePlanStaleness,
@@ -1094,4 +1100,100 @@ describe("old approval ledger refusal", () => {
       expect(new Map(fsImpl.files)).toEqual(before);
     });
   }
+});
+
+describe("plans status in a linked and an unlinked project", { timeout: 60_000 }, () => {
+  const FOOTPRINT = "src/export/csv.ts";
+  let project: LinkedProject | undefined;
+
+  afterEach(() => {
+    project?.dispose();
+    project = undefined;
+  });
+
+  function linked(opts?: Parameters<typeof createLinkedProject>[0]): LinkedProject {
+    project = createLinkedProject(opts);
+    return project;
+  }
+
+  function resultOf(status: Awaited<ReturnType<LinkedProject["plansStatus"]>>, path: string) {
+    const entry = status.json?.report.find((e) => e.path === path);
+    if (entry === undefined) throw new Error(`no report entry for ${path}`);
+    return entry.result;
+  }
+
+  it("a code change only outside the footprint leaves the plan fresh (ac-code-change-outside-footprint)", async () => {
+    const p = linked();
+    const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
+    await p.approve(plan);
+    p.commitInCode("src/other.ts", "export const other = 2;\n");
+
+    expect(resultOf(await p.plansStatus(["--json"]), plan).kind).toBe("fresh");
+  });
+
+  it("an edited plan is self-changed and an edited spec is spec-changed (ac-self-and-spec)", async () => {
+    const p = linked();
+    const spec = p.writeSpec("export");
+    await p.approve(spec);
+    const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: spec });
+    await p.approve(plan);
+    expect(resultOf(await p.plansStatus(["--json"]), plan).kind).toBe("fresh");
+
+    const planFile = join(p.processRepo, plan);
+    const planText = readFileSync(planFile, "utf8");
+    writeFileSync(planFile, `${planText}\nAn edit.\n`);
+    const selfChanged = resultOf(await p.plansStatus(["--json"]), plan);
+    expect(selfChanged.kind).toBe("stale");
+    expect(selfChanged.evidence?.map((e) => e.reason)).toEqual(["self-changed"]);
+
+    writeFileSync(planFile, planText);
+    const specFile = join(p.processRepo, spec);
+    writeFileSync(specFile, `${readFileSync(specFile, "utf8")}\nAn edit.\n`);
+    const specChanged = resultOf(await p.plansStatus(["--json"]), plan);
+    expect(specChanged.kind).toBe("stale");
+    expect(specChanged.evidence?.map((e) => e.reason)).toEqual(["spec-changed"]);
+    expect(specChanged.evidence?.[0]).toMatchObject({ specPath: spec });
+  });
+
+  it("an unlinked plan's record stamped 0.25.0 keeps its verdict and bytes (ac-older-record-read)", async () => {
+    const p = linked({ link: false });
+    const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
+    const approvedMd = readFileSync(join(p.processRepo, plan), "utf8").replace(
+      "status: Draft",
+      "status: Approved",
+    );
+    writeFileSync(join(p.processRepo, plan), approvedMd);
+    const recordPath = approvalRecordPathFor("plan", plan);
+    if (recordPath === null) throw new Error("no record path");
+    const baseline = p.commitInProcess("notes.md", "notes\n");
+    const record = {
+      $schema: schemaUrl("plan-approval-record", "0.25.0"),
+      artifact: plan,
+      planFingerprint: artifactFingerprint(approvedMd),
+      approvedAt: "2026-11-18T10:00:00.000Z",
+      baseline,
+      sourceSpec: null,
+      approvedBy: { kind: "operator", name: "Ada Example" },
+    };
+    const abs = join(p.processRepo, recordPath);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, JSON.stringify(record, null, 2) + "\n");
+    p.commitInProcess("approved.txt", "approved\n");
+    const before = readFileSync(abs);
+
+    expect(resultOf(await p.plansStatus(["--json"]), plan).kind).toBe("fresh");
+    expect(readFileSync(abs).equals(before)).toBe(true);
+  });
+
+  it("an unlinked project's ground-changed evidence has exactly reason, baseline and files", async () => {
+    const p = linked({ link: false });
+    const plan = p.writePlan("export", { edits: [FOOTPRINT], sourceSpec: null });
+    await p.approve(plan);
+    p.commitInProcess(FOOTPRINT, "process tree file\n");
+
+    const result = resultOf(await p.plansStatus(["--json"]), plan);
+    expect(result.kind).toBe("stale");
+    const ground = result.evidence?.find((e) => e.reason === "ground-changed");
+    expect(Object.keys(ground ?? {}).toSorted()).toEqual(["baseline", "files", "reason"]);
+  });
 });

@@ -22,6 +22,7 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { withRunLock } from "../../app/lock.js";
+import { resolveCodeLink } from "../../app/codeLink.js";
 import { computeStalenessForPlan } from "../../app/planStaleness.js";
 import { createRunFolder } from "../../app/runFolder.js";
 import { freshRunPreflight } from "../../app/runPreflight.js";
@@ -387,8 +388,12 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     if (classifyArtifactPath(planRepoRel) !== null) {
       const footprint = buildFootprint(planInputFromPhaxPlan(plan, planRepoRel, planRepoRel));
       const stalenessResult = yield* Effect.result(
-        computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
-          repoRoot: config.repoRoot,
+        Effect.gen(function* () {
+          const codeLink = yield* resolveCodeLink(config);
+          return yield* computeStalenessForPlan(planRepoRel, planMd, Array.from(footprint.all), {
+            repoRoot: config.repoRoot,
+            codeLink,
+          });
         }).pipe(
           Effect.provide(makeRepoRootedFileSystemLayer(config)),
           Effect.provide(makeNodeGitLayer()),

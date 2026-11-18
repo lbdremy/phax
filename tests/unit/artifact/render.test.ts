@@ -5,7 +5,48 @@ import {
   renderMigrationReport,
   renderOrphanRecordWarning,
   renderQuestionCounts,
+  renderStalenessReport,
 } from "../../../src/domain/artifact/render.js";
+import { PlanStaleError } from "../../../src/domain/errors.js";
+
+describe("ground-changed lines", () => {
+  const unlinked = {
+    reason: "ground-changed",
+    baseline: "abc1234",
+    files: ["src/a.ts", "src/b.ts"],
+  } as const;
+  const linked = { ...unlinked, codeRoot: "code" } as const;
+  const report = (evidence: typeof unlinked | typeof linked) =>
+    renderStalenessReport([
+      { path: "docs/plans/p.md", result: { kind: "stale", evidence: [evidence] } },
+    ]);
+
+  it("an unlinked line keeps today's text", () => {
+    expect(report(unlinked)).toContain(
+      "  ground-changed: src/a.ts, src/b.ts changed since baseline abc1234",
+    );
+  });
+
+  it("a linked line names the code root", () => {
+    expect(report(linked)).toContain(
+      "  ground-changed: src/a.ts, src/b.ts changed in code/ since baseline abc1234",
+    );
+  });
+
+  it("the run's refusal words both lines the same way", () => {
+    const message = (evidence: typeof unlinked | typeof linked) =>
+      new PlanStaleError({
+        path: "docs/plans/p.md",
+        verdict: { kind: "stale", evidence: [evidence] },
+      }).message;
+    expect(message(unlinked)).toContain(
+      "ground-changed: src/a.ts, src/b.ts changed since baseline abc1234",
+    );
+    expect(message(linked)).toContain(
+      "ground-changed: src/a.ts, src/b.ts changed in code/ since baseline abc1234",
+    );
+  });
+});
 
 describe("renderMigrationReport", () => {
   it("says there is nothing to migrate, naming both ledgers", () => {

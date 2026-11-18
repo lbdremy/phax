@@ -143,12 +143,14 @@ describe("ac-staleness: Staleness sees a change to a non-canonical planned file"
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "baseline-0",
           sourceSpec: null,
+          code: null,
         },
         baselineExists: true,
         currentPlanFingerprint: "fixed",
         currentSpecFingerprint: null,
         changedFilesSinceBaseline: ["src/x.ts"],
         footprint: Array.from(buildFootprint(input(plan, "thing")).all),
+        code: { kind: "unlinked" },
       });
 
     expect(verdict(canonical.success)).toEqual({

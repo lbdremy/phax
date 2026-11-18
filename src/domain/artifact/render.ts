@@ -9,7 +9,11 @@ import type {
   DocumentMigrationResult,
   MigratedArtifact,
 } from "./documentMigration.js";
-import type { PlanStalenessVerdict, StalenessEvidence } from "./lineage.js";
+import {
+  renderGroundChanged,
+  type PlanStalenessVerdict,
+  type StalenessEvidence,
+} from "./lineage.js";
 import type { QuestionSummary } from "./questions.js";
 import { describeStampedShape } from "./sidecar.js";
 
@@ -28,7 +32,7 @@ export interface StalenessFlip {
 function renderEvidenceLine(e: StalenessEvidence): string {
   if (e.reason === "spec-changed") return `  spec-changed: ${e.specPath} changed since approval`;
   if (e.reason === "ground-changed") {
-    return `  ground-changed: ${e.files.join(", ")} changed since baseline ${e.baseline}`;
+    return `  ${renderGroundChanged(e)}`;
   }
   return `  self-changed: the plan itself changed since approval`;
 }

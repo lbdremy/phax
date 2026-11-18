@@ -21,7 +21,12 @@ import {
   classifyArtifactPath,
   validateArtifact,
 } from "../domain/artifact/document.js";
-import { computeStaleness, type PlanStalenessVerdict } from "../domain/artifact/lineage.js";
+import {
+  computeStaleness,
+  type CodeStalenessInput,
+  type PlanStalenessVerdict,
+} from "../domain/artifact/lineage.js";
+import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type {
   StalenessFlip,
   StalenessReport,
@@ -36,6 +41,7 @@ import {
   readPlanApprovalRecord,
   refuseOldApprovalLedgers,
 } from "./approvalRecordStore.js";
+import { resolveCodeLink, type CodeLink } from "./codeLink.js";
 import { transitionArtifact, type TransitionArtifactOptions } from "./artifactStatus.js";
 import type { ExtractPlanError } from "./extractPlan.js";
 import { loadOrExtractPlan } from "./loadOrExtractPlan.js";
@@ -58,6 +64,8 @@ function resolveSpecPath(declaredPath: string): Effect.Effect<string | null, FsE
 
 export interface ComputeStalenessOptions {
   readonly repoRoot: string;
+  /** The project's resolved code link; null or absent when the project declares none. */
+  readonly codeLink?: CodeLink | null | undefined;
 }
 
 export function computeStalenessForPlan(
@@ -77,6 +85,16 @@ export function computeStalenessForPlan(
   return Effect.gen(function* () {
     yield* refuseOldApprovalLedgers();
     const record = yield* readPlanApprovalRecord(planPath);
+    const codeLink = opts.codeLink ?? null;
+    const placeholderCode: CodeStalenessInput =
+      codeLink === null
+        ? { kind: "unlinked" }
+        : {
+            kind: "linked",
+            root: codeLink.root,
+            baselineExists: true,
+            changedFilesSinceBaseline: [],
+          };
 
     if (record === null) {
       return computeStaleness({
@@ -87,6 +105,7 @@ export function computeStalenessForPlan(
         currentSpecFingerprint: null,
         changedFilesSinceBaseline: [],
         footprint,
+        code: placeholderCode,
       });
     }
 
@@ -101,6 +120,7 @@ export function computeStalenessForPlan(
         currentSpecFingerprint: null,
         changedFilesSinceBaseline: [],
         footprint,
+        code: placeholderCode,
       });
     }
 
@@ -122,7 +142,25 @@ export function computeStalenessForPlan(
       currentSpecFingerprint = artifactFingerprint(specMd);
     }
 
-    const changedFilesSinceBaseline = yield* git.changedFilesSince(record.baseline, opts.repoRoot);
+    // Under the link the process repository's diff is never ground.
+    const changedFilesSinceBaseline =
+      codeLink !== null ? [] : yield* git.changedFilesSince(record.baseline, opts.repoRoot);
+
+    let code: CodeStalenessInput = { kind: "unlinked" };
+    if (codeLink !== null) {
+      const codeBaseline = record.code?.baseline ?? null;
+      const codeBaselineExists =
+        codeBaseline === null ? true : yield* git.commitExists(codeBaseline, codeLink.path);
+      code = {
+        kind: "linked",
+        root: codeLink.root,
+        baselineExists: codeBaselineExists,
+        changedFilesSinceBaseline:
+          codeBaseline !== null && codeBaselineExists
+            ? yield* git.changedFilesSince(codeBaseline, codeLink.path)
+            : [],
+      };
+    }
 
     return computeStaleness({
       planPath,
@@ -132,12 +170,14 @@ export function computeStalenessForPlan(
       currentSpecFingerprint,
       changedFilesSinceBaseline,
       footprint,
+      code,
     });
   });
 }
 
 export interface ComputePlanStalenessOptions {
   readonly repoRoot: string;
+  readonly codeLink?: CodeLink | null | undefined;
   readonly stateRoot: string;
   readonly model: string;
   readonly effort: string;
@@ -176,12 +216,15 @@ export function computePlanStaleness(
 
     return yield* computeStalenessForPlan(planPath, planMd, Array.from(footprint.all), {
       repoRoot: opts.repoRoot,
+      codeLink: opts.codeLink ?? null,
     });
   });
 }
 
 export interface StalenessReportOptions {
   readonly repoRoot: string;
+  /** The project's config, for resolving its code link. Absent: unlinked. */
+  readonly config?: ResolvedConfig | undefined;
   readonly stateRoot: string;
   readonly model: string;
   readonly effort: string;
@@ -205,7 +248,11 @@ export function plansStalenessReport(
   return Effect.gen(function* () {
     // Fails the whole command, never a per-plan error entry.
     yield* refuseOldApprovalLedgers();
-    const report = yield* approvedPlansReport(opts);
+    const link =
+      opts.config === undefined
+        ? Result.succeed(null)
+        : yield* Effect.result(resolveCodeLink(opts.config));
+    const report = yield* approvedPlansReport(opts, link);
     const orphanRecords = yield* findOrphanApprovalRecords("plan");
     return { report, orphanRecords };
   });
@@ -213,6 +260,7 @@ export function plansStalenessReport(
 
 function approvedPlansReport(
   opts: StalenessReportOptions,
+  link: Result.Result<CodeLink | null, { readonly message: string }>,
 ): Effect.Effect<StalenessReport, FsError, FileSystem | Git | Backend> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -238,7 +286,13 @@ function approvedPlansReport(
       }
       if (validated.success.status !== "Approved") continue;
 
-      const verdict = yield* Effect.result(computePlanStaleness(planPath, opts));
+      if (Result.isFailure(link)) {
+        report.push({ path: planPath, result: { kind: "error", message: link.failure.message } });
+        continue;
+      }
+      const verdict = yield* Effect.result(
+        computePlanStaleness(planPath, { ...opts, codeLink: link.success }),
+      );
       if (Result.isFailure(verdict)) {
         report.push({
           path: planPath,

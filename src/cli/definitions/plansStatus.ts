@@ -20,6 +20,13 @@ import { configured, exposeMessage, MessageFields } from "./shared.js";
 
 const Evidence = Schema.Union([
   Schema.Struct({ reason: Schema.Literal("spec-changed"), specPath: Schema.String }),
+  // The linked variant comes first: a plain struct would strip `codeRoot` as an excess key.
+  Schema.Struct({
+    reason: Schema.Literal("ground-changed"),
+    baseline: Schema.String,
+    files: Schema.Array(Schema.String),
+    codeRoot: Schema.String,
+  }),
   Schema.Struct({
     reason: Schema.Literal("ground-changed"),
     baseline: Schema.String,
@@ -72,7 +79,7 @@ const message = (error: { readonly message: string }): string => error.message;
 export const plansStatusCommand = defineCommand({
   name: "status",
   summary: "Report every Approved plan's staleness against its recorded approval",
-  help: "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' frontmatter status key.",
+  help: "Reports every live, Approved plan's staleness against the ground it was approved against: the declared source spec's content, the plan's own content, and the files changed since the recorded baseline intersected with the plan's footprint. Each stale entry names its reasons (spec-changed, ground-changed, self-changed) with evidence; a plan with no approval record — or one whose baseline commit no longer exists — reports missing-record, which renders as stale. In a project that declares a code link, ground-changed is judged in the code repository from the approval's code baseline. This is a report, not a gate: it exits 0 whether or not stale plans exist. Use --apply to flip stale-computed plans Approved -> Stale as an explicit gesture (the flip is never automatic). Use --json for machine-readable output.\n\nSide effects: read-only unless --apply is set, in which case it writes the flipped plans' frontmatter status key.",
   examples: ["phax plans status", "phax plans status --apply", "phax plans status --json"],
   input: { flags: reject(PlansStatusFlags) },
   output: reject(PlansStatusOutput),
@@ -88,6 +95,7 @@ export const plansStatusCommand = defineCommand({
       const nowIso = new Date().toISOString();
       const { report, orphanRecords } = yield* plansStalenessReport({
         repoRoot: config.repoRoot,
+        config,
         stateRoot: config.stateRoot,
         model: config.extractPlanModel,
         effort: config.extractPlanEffort,
