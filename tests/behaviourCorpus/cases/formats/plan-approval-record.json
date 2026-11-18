@@ -945,6 +945,51 @@
       }
     },
     {
+      "name": "accepts a current document setting every field",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "operator",
+          "name": "text-7"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "kind": "operator",
+            "name": "text-7"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": {
+            "baseline": "fedcba9876543210fedcba9876543210fedcba98",
+            "root": "code"
+          },
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    },
+    {
       "name": "refuses a document missing code",
       "input": {
         "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
