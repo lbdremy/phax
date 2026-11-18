@@ -796,6 +796,7 @@ describe("transitionArtifact", () => {
         "planFingerprint",
         "approvedAt",
         "baseline",
+        "code",
         "sourceSpec",
         "approvedBy",
       ]);
@@ -803,6 +804,7 @@ describe("transitionArtifact", () => {
         planFingerprint: artifactFingerprint(updatedMd as string),
         approvedAt: DEFAULT_OPTS.nowIso,
         baseline: gitImpl.headCommitValue,
+        code: null,
         sourceSpec: {
           path: "docs/specs/2609101222-foo.md",
           fingerprint: artifactFingerprint(specSource),
@@ -1201,6 +1203,7 @@ describe("transitionArtifact", () => {
           planFingerprint: "fp",
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "a".repeat(40),
+          code: null,
           sourceSpec: null,
           approvedBy: { kind: "machine", grant: "roadmap-loop" },
         }),
@@ -1301,6 +1304,7 @@ describe("transitionArtifact", () => {
           planFingerprint: "fp",
           approvedAt: "2026-01-01T00:00:00.000Z",
           baseline: "a".repeat(40),
+          code: null,
           sourceSpec: null,
           approvedBy: { kind: "machine", grant: "roadmap-loop" },
         }),

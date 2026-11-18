@@ -8,6 +8,18 @@ const SourceSpecBindingSchema = Schema.Struct({
   fingerprint: Schema.NonEmptyString,
 });
 
+/**
+ * The code repository's baseline an approval recorded: `root` is the link's
+ * directory (informational: verdicts use the project's link), `baseline` the
+ * code repository's HEAD at approval.
+ */
+export const CodeBaselineSchema = Schema.Struct({
+  root: Schema.NonEmptyString,
+  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+});
+
+export type CodeBaseline = Schema.Schema.Type<typeof CodeBaselineSchema>;
+
 export const ApprovalRecordSchema = Schema.Struct({
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
@@ -47,10 +59,14 @@ export const decodeApprovalRecordFile = Schema.decodeUnknownResult(ApprovalRecor
 export const encodeApprovalRecordFile = Schema.encodeSync(ApprovalRecordFileSchema);
 
 // The ledger's entry shape above stays as it was: only the record file names
-// its approver.
+// its approver and its code baseline.
 const planRecordFields = {
   artifact: Schema.NonEmptyString,
-  ...ApprovalRecordSchema.fields,
+  planFingerprint: Schema.NonEmptyString,
+  approvedAt: Schema.NonEmptyString,
+  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+  code: Schema.NullOr(CodeBaselineSchema),
+  sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
   approvedBy: ApprovedBySchema,
 };
 
@@ -58,14 +74,16 @@ const planRecordFields = {
  * One plan's approval record in memory: the record file without `$schema`.
  * `artifact` is the plan path the record approves; `approvedBy` names who
  * approved it, `unattributed` for a record written before phax named its
- * approver.
+ * approver. `code` is the code repository's baseline when the project linked
+ * one at approval, else `null` (also for every record written before the key).
  */
 export type PlanRecord = Types.Simplify<Schema.Struct.Type<typeof planRecordFields>>;
 
 /**
  * `docs/plans/approvals/<plan>.json`, one plan's approval record file:
- * `$schema` first, then `artifact`, then the record, then `approvedBy`. Born
- * with `$schema`; unknown keys are rejected.
+ * `$schema` first, then `artifact`, then the record (`code` after `baseline`),
+ * then `approvedBy`. Born with `$schema`; unknown keys are rejected, and a
+ * record without `code` is refused.
  */
 export const PlanRecordFileSchema = Schema.Struct({
   $schema: schemaUrlField("plan-approval-record"),

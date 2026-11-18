@@ -173,6 +173,7 @@ import { decodePhaxPlanV0_32_0, type PhaxPlanV0_32_0 } from "./history/phax-plan
 import { decodePhaxPlanV0_33_0, type PhaxPlanV0_33_0 } from "./history/phax-plan/0.33.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
+import { decodePlanApprovalRecordV0_25_0 } from "./history/plan-approval-record/0.25.0.js";
 import { decodePlanApprovalsPreSchema } from "./history/plan-approvals/pre-schema.js";
 import {
   decodePlanDocumentV0_20_0,
@@ -780,9 +781,25 @@ export const readSpecApprovalsFile: Reader<SpecApprovals> = (file, input) =>
 // before phax named the approver: it is read by the frozen 0.19.0 decoder and
 // lifted to `approvedBy: { kind: "unattributed" }`, never to an operator. The
 // file itself is never rewritten by a read.
+//
+// A plan approval record has a second frozen shape: stamped 0.25.0 or later and
+// below the current stamp, it is read by the frozen 0.25.0 decoder (it names its
+// approver but has no `code`). Every record below the current stamp lifts to
+// `code: null`: none before the key had a code baseline. A current-stamp record
+// without `code` is refused.
 
 /** Reads one plan's `docs/plans/approvals/<plan>.json`. Born with `$schema`. */
 export const readPlanRecordFile: Reader<PlanRecord> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("plan-approval-record", input, "0.25.0")) {
+    const older = decodePlanApprovalRecordV0_25_0(input);
+    if (Result.isFailure(older)) {
+      return Result.fail(
+        readError(file, "plan-approval-record", formatFirstViolation(older.failure)),
+      );
+    }
+    const { $schema: _schema, baseline, sourceSpec, ...rest } = older.success;
+    return Result.succeed({ ...rest, baseline, code: null, sourceSpec });
+  }
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-approval-record", input)) {
     const older = decodePlanApprovalRecordV0_19_0(input);
     if (Result.isFailure(older)) {
@@ -790,8 +807,14 @@ export const readPlanRecordFile: Reader<PlanRecord> = (file, input) => {
         readError(file, "plan-approval-record", formatFirstViolation(older.failure)),
       );
     }
-    const { $schema: _schema, ...record } = older.success;
-    return Result.succeed({ ...record, approvedBy: { kind: "unattributed" } });
+    const { $schema: _schema, baseline, sourceSpec, ...rest } = older.success;
+    return Result.succeed({
+      ...rest,
+      baseline,
+      code: null,
+      sourceSpec,
+      approvedBy: { kind: "unattributed" },
+    });
   }
   return readSchemaBornPersisted(input, {
     format: "plan-approval-record",

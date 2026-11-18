@@ -710,6 +710,7 @@ export function transitionArtifact(
       yield* putPlanApprovalRecord(
         repoRelPath,
         { planFingerprint, approvedAt: opts.nowIso, baseline, sourceSpec },
+        null,
         approver,
       );
       approvedBaseline = baseline;

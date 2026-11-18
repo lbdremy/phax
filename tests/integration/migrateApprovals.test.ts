@@ -244,6 +244,7 @@ describe("Migration splits made-up ledgers with no record lost", () => {
         expect(decodedPlanRecord(artifact)).toEqual({
           artifact,
           ...entry,
+          code: null,
           approvedBy: UNATTRIBUTED,
         });
       }
@@ -288,6 +289,7 @@ describe("Migration splits made-up ledgers with no record lost", () => {
       "planFingerprint",
       "approvedAt",
       "baseline",
+      "code",
       "sourceSpec",
       "approvedBy",
     ]);
@@ -329,6 +331,7 @@ describe("Migration splits made-up ledgers with no record lost", () => {
     expect(decodedPlanRecord(PLAN_1)).toEqual({
       artifact: PLAN_1,
       ...PLAN_ENTRIES[PLAN_1],
+      code: null,
       approvedBy: UNATTRIBUTED,
     });
     expect(JSON.parse(readRepoFile(recordOf("plan", PLAN_2)))["approvedBy"]).toEqual(UNATTRIBUTED);
@@ -418,6 +421,7 @@ describe("A gone artifact's entry migrates as an orphan", () => {
       artifact: GONE_PLAN,
       ...PLAN_ENTRIES[PLAN_2],
       planFingerprint: "gonefp",
+      code: null,
       approvedBy: UNATTRIBUTED,
     });
 

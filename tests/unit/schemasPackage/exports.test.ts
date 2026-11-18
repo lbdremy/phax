@@ -151,6 +151,7 @@ describe("schemas package entry", () => {
       "PhaxPlanV0_33_0Schema",
       "PlanApprovalRecordSchema",
       "PlanApprovalRecordV0_19_0Schema",
+      "PlanApprovalRecordV0_25_0Schema",
       "PlanApprovalsPreSchemaSchema",
       "PlanApprovalsSchema",
       "PlanDocumentPreSchemaSchema",

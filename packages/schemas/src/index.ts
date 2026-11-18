@@ -185,6 +185,7 @@ export {
   ApprovalRecordFileSchema as PlanApprovalsSchema,
   PlanRecordFileSchema as PlanApprovalRecordSchema,
   type ApprovalRecordFile as PlanApprovals,
+  type CodeBaseline,
   type PlanRecordFile as PlanApprovalRecord,
 } from "../../../src/schemas/approvalRecord.js";
 export {
@@ -808,6 +809,10 @@ export {
   PlanApprovalRecordV0_19_0Schema,
   type PlanApprovalRecordV0_19_0,
 } from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+export {
+  PlanApprovalRecordV0_25_0Schema,
+  type PlanApprovalRecordV0_25_0,
+} from "../../../src/schemas/history/plan-approval-record/0.25.0.js";
 export {
   SpecApprovalRecordV0_19_0Schema,
   type SpecApprovalRecordV0_19_0,

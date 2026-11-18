@@ -52,6 +52,7 @@ function writePlanRecord(planPath: string, specPath: string): void {
     planFingerprint: "planfp",
     approvedAt: NOW,
     baseline: "a".repeat(40),
+    code: null,
     sourceSpec: { path: specPath, fingerprint: "specfp" },
     approvedBy: { kind: "machine", grant: "roadmap-loop" },
   });

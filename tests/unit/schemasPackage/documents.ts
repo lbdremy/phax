@@ -317,6 +317,7 @@ const planRecord: PlanRecord = {
   planFingerprint: "plan-fingerprint-0001",
   approvedAt: CREATED_AT,
   baseline: BASELINE,
+  code: null,
   sourceSpec: { path: "docs/specs/example.md", fingerprint: "spec-fingerprint-0001" },
   approvedBy: { kind: "machine", grant: "roadmap-loop" },
 };

@@ -859,6 +859,341 @@
         "ok": false,
         "refusal": "sourceSpec.path: is missing"
       }
+    },
+    {
+      "name": "accepts a document with a null code",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": null,
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "roadmap-loop",
+            "kind": "machine"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": null,
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    },
+    {
+      "name": "accepts a document with a code baseline",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "approvedBy": {
+            "grant": "roadmap-loop",
+            "kind": "machine"
+          },
+          "artifact": "docs/plans/example.md",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": {
+            "baseline": "fedcba9876543210fedcba9876543210fedcba98",
+            "root": "code"
+          },
+          "planFingerprint": "plan-fingerprint-0001",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001",
+            "path": "docs/specs/example.md"
+          }
+        }
+      }
+    },
+    {
+      "name": "refuses a document missing code",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code: is missing"
+      }
+    },
+    {
+      "name": "refuses a code baseline that is not 40-hex",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "abc1234"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.baseline: Expected a string matching the pattern ^[0-9a-f]{40}$, actual \"abc1234\""
+      }
+    },
+    {
+      "name": "refuses an empty code root",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.root: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "refuses an unknown key inside code",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98",
+          "extra": 1
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.extra: is unexpected, expected: \"root\" | \"baseline\""
+      }
+    },
+    {
+      "name": "constraint code required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code: is missing"
+      }
+    },
+    {
+      "name": "constraint code.baseline minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": ""
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.baseline: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint code.baseline pattern",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "abc1234"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.baseline: Expected a string matching the pattern ^[0-9a-f]{40}$, actual \"abc1234\""
+      }
+    },
+    {
+      "name": "constraint code.baseline required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.baseline: is missing"
+      }
+    },
+    {
+      "name": "constraint code.root minLength",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.root: Expected a non empty string, actual \"\""
+      }
+    },
+    {
+      "name": "constraint code.root required",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+        "artifact": "docs/plans/example.md",
+        "planFingerprint": "plan-fingerprint-0001",
+        "approvedAt": "2026-01-01T09:00:00.000Z",
+        "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
+        "sourceSpec": {
+          "path": "docs/specs/example.md",
+          "fingerprint": "spec-fingerprint-0001"
+        },
+        "approvedBy": {
+          "kind": "machine",
+          "grant": "roadmap-loop"
+        }
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "code.root: is missing"
+      }
     }
   ],
   "shapes": {
@@ -1261,6 +1596,714 @@
           "baseline": "0123456789abcdef0123456789abcdef01234567",
           "sourceSpec": {
             "fingerprint": "spec-fingerprint-0001"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSpec.path: is missing"
+        }
+      }
+    ],
+    "0.25.0": [
+      {
+        "name": "accepts a typical document",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "approvedBy": {
+              "grant": "roadmap-loop",
+              "kind": "machine"
+            },
+            "artifact": "docs/plans/example.md",
+            "baseline": "0123456789abcdef0123456789abcdef01234567",
+            "planFingerprint": "plan-fingerprint-0001",
+            "sourceSpec": {
+              "fingerprint": "spec-fingerprint-0001",
+              "path": "docs/specs/example.md"
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "operator",
+            "name": "text-7"
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "approvedBy": {
+              "kind": "operator",
+              "name": "text-7"
+            },
+            "artifact": "docs/plans/example.md",
+            "baseline": "0123456789abcdef0123456789abcdef01234567",
+            "planFingerprint": "plan-fingerprint-0001",
+            "sourceSpec": {
+              "fingerprint": "spec-fingerprint-0001",
+              "path": "docs/specs/example.md"
+            }
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+            "approvedAt": "2026-01-01T09:00:00.000Z",
+            "approvedBy": {
+              "grant": "roadmap-loop",
+              "kind": "machine"
+            },
+            "artifact": "docs/plans/example.md",
+            "baseline": "0123456789abcdef0123456789abcdef01234567",
+            "planFingerprint": "plan-fingerprint-0001",
+            "sourceSpec": {
+              "fingerprint": "spec-fingerprint-0001",
+              "path": "docs/specs/example.md"
+            }
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing artifact",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          },
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"artifact\" | \"planFingerprint\" | \"approvedAt\" | \"baseline\" | \"sourceSpec\" | \"approvedBy\""
+        }
+      },
+      {
+        "name": "refuses artifact of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": 42,
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses approvedBy.kind outside its value",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "bogus-value",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.kind: Expected \"machine\" | \"operator\" | \"unattributed\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses artifact when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-approval-record\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedAt minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedAt: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint approvedAt required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedAt: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedBy required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedBy.grant pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": ""
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint approvedBy.grant required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.grant: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedBy.kind enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "bogus-value",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.kind: Expected \"machine\" | \"operator\" | \"unattributed\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint approvedBy.kind required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.kind: is missing"
+        }
+      },
+      {
+        "name": "constraint approvedBy.name minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "operator",
+            "name": ""
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.name: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint approvedBy.name required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "operator"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "approvedBy.name: is missing"
+        }
+      },
+      {
+        "name": "constraint artifact minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint artifact required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "artifact: is missing"
+        }
+      },
+      {
+        "name": "constraint baseline minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint baseline pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint baseline required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "baseline: is missing"
+        }
+      },
+      {
+        "name": "constraint planFingerprint minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "planFingerprint: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint planFingerprint required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "planFingerprint: is missing"
+        }
+      },
+      {
+        "name": "constraint sourceSpec required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSpec: is missing"
+        }
+      },
+      {
+        "name": "constraint sourceSpec.fingerprint minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md",
+            "fingerprint": ""
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSpec.fingerprint: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint sourceSpec.fingerprint required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "docs/specs/example.md"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSpec.fingerprint: is missing"
+        }
+      },
+      {
+        "name": "constraint sourceSpec.path minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "path": "",
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSpec.path: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint sourceSpec.path required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "artifact": "docs/plans/example.md",
+          "planFingerprint": "plan-fingerprint-0001",
+          "approvedAt": "2026-01-01T09:00:00.000Z",
+          "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "sourceSpec": {
+            "fingerprint": "spec-fingerprint-0001"
+          },
+          "approvedBy": {
+            "kind": "machine",
+            "grant": "roadmap-loop"
           }
         },
         "expected": {

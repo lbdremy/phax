@@ -4,11 +4,12 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
         "artifact": "docs/plans/example.md",
         "planFingerprint": "plan-fingerprint-0001",
         "approvedAt": "2026-01-01T09:00:00.000Z",
         "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": null,
         "sourceSpec": {
           "path": "docs/specs/example.md",
           "fingerprint": "spec-fingerprint-0001"
@@ -21,7 +22,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
           "approvedAt": "2026-01-01T09:00:00.000Z",
           "approvedBy": {
             "grant": "roadmap-loop",
@@ -29,6 +30,7 @@
           },
           "artifact": "docs/plans/example.md",
           "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": null,
           "planFingerprint": "plan-fingerprint-0001",
           "sourceSpec": {
             "fingerprint": "spec-fingerprint-0001",
@@ -40,11 +42,15 @@
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
         "artifact": "docs/plans/example.md",
         "planFingerprint": "plan-fingerprint-0001",
         "approvedAt": "2026-01-01T09:00:00.000Z",
         "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": {
+          "root": "code",
+          "baseline": "fedcba9876543210fedcba9876543210fedcba98"
+        },
         "sourceSpec": {
           "path": "docs/specs/example.md",
           "fingerprint": "spec-fingerprint-0001"
@@ -57,7 +63,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
           "approvedAt": "2026-01-01T09:00:00.000Z",
           "approvedBy": {
             "kind": "operator",
@@ -65,6 +71,10 @@
           },
           "artifact": "docs/plans/example.md",
           "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": {
+            "baseline": "fedcba9876543210fedcba9876543210fedcba98",
+            "root": "code"
+          },
           "planFingerprint": "plan-fingerprint-0001",
           "sourceSpec": {
             "fingerprint": "spec-fingerprint-0001",
@@ -76,11 +86,12 @@
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
         "artifact": "docs/plans/example.md",
         "planFingerprint": "plan-fingerprint-0001",
         "approvedAt": "2026-01-01T09:00:00.000Z",
         "baseline": "0123456789abcdef0123456789abcdef01234567",
+        "code": null,
         "sourceSpec": {
           "path": "docs/specs/example.md",
           "fingerprint": "spec-fingerprint-0001"
@@ -93,7 +104,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
           "approvedAt": "2026-01-01T09:00:00.000Z",
           "approvedBy": {
             "grant": "roadmap-loop",
@@ -101,6 +112,7 @@
           },
           "artifact": "docs/plans/example.md",
           "baseline": "0123456789abcdef0123456789abcdef01234567",
+          "code": null,
           "planFingerprint": "plan-fingerprint-0001",
           "sourceSpec": {
             "fingerprint": "spec-fingerprint-0001",

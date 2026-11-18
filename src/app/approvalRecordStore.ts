@@ -20,6 +20,7 @@ import type { ArtifactKind } from "../domain/artifact/status.js";
 import {
   encodePlanRecordFile,
   type ApprovalRecord,
+  type CodeBaseline,
   type PlanRecord,
 } from "../schemas/approvalRecord.js";
 import {
@@ -162,6 +163,7 @@ export function readPlanApprovalRecord(
 export function putPlanApprovalRecord(
   planPath: string,
   record: ApprovalRecord,
+  code: CodeBaseline | null,
   approvedBy: ResolvedArbiter,
 ): Effect.Effect<
   void,
@@ -169,11 +171,11 @@ export function putPlanApprovalRecord(
   FileSystem
 > {
   return putRecordFile("plan", planPath, readPlanRecordFile, () =>
-    renderPlanRecordFile({ artifact: planPath, ...record, approvedBy }),
+    renderPlanRecordFile({ artifact: planPath, ...record, code, approvedBy }),
   );
 }
 
-/** The bytes of a plan record file: `$schema`, `artifact`, the record fields, then `approvedBy`. */
+/** The bytes of a plan record file: `$schema`, `artifact`, the record fields (`code` after `baseline`), then `approvedBy`. */
 export function renderPlanRecordFile(record: PlanRecord): string {
   return JSON.stringify(
     encodePlanRecordFile(withSchemaUrl("plan-approval-record", record)),

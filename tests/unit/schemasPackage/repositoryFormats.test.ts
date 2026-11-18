@@ -273,11 +273,13 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
   });
 
   // A record written before phax named the approver: no approvedBy.
+  // (A plan record of that time had no `code` either.)
   const older = withKey(
-    withoutKey(document, "approvedBy"),
+    withoutKey(withoutKey(document, "approvedBy"), "code"),
     "$schema",
     schemaUrl(format.id, "0.19.0"),
   );
+  const noCode = format.id === "plan-approval-record" ? { code: null } : {};
 
   it("parses a 0.19.0 record as shape 0.19.0 and lifts it to unattributed, never an operator", () => {
     const result = format.parse(older);
@@ -286,9 +288,29 @@ describe.each(RECORD_FORMATS)("$id, born with $schema", (format) => {
     if (!result.ok) throw new Error("document rejected");
     expect(format.toLatest(result.value as never)).toEqual({
       ...withoutKey(older, "$schema"),
+      ...noCode,
       approvedBy: { kind: "unattributed" },
     });
   });
+
+  it.runIf(format.id === "plan-approval-record")(
+    "parses a 0.25.0 plan record as shape 0.25.0 and lifts it to code: null",
+    () => {
+      const v0250 = withKey(
+        withoutKey(document, "code"),
+        "$schema",
+        schemaUrl(format.id, "0.25.0"),
+      );
+      const result = format.parse(v0250);
+      expect(result).toMatchObject({ ok: true, shape: "0.25.0" });
+      if (!result.ok) throw new Error("document rejected");
+      expect(format.toLatest(result.value as never)).toEqual({
+        ...withoutKey(v0250, "$schema"),
+        code: null,
+      });
+      expect(format.parse(withKey(v0250, "code", null)).ok).toBe(false);
+    },
+  );
 
   it("fails a 0.19.0 record carrying approvedBy, and a current record without one", () => {
     expect(format.parse(withKey(older, "approvedBy", { kind: "unattributed" })).ok).toBe(false);

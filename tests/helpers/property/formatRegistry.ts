@@ -142,6 +142,7 @@ import { PhaxPlanV0_32_0Schema } from "../../../src/schemas/history/phax-plan/0.
 import { PhaxPlanV0_33_0Schema } from "../../../src/schemas/history/phax-plan/0.33.0.js";
 import { PhaxPlanPreSchemaSchema } from "../../../src/schemas/history/phax-plan/pre-schema.js";
 import { PlanApprovalRecordV0_19_0Schema } from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
+import { PlanApprovalRecordV0_25_0Schema } from "../../../src/schemas/history/plan-approval-record/0.25.0.js";
 import { PlanApprovalsPreSchemaSchema } from "../../../src/schemas/history/plan-approvals/pre-schema.js";
 import { PlanDocumentV0_17_0Schema } from "../../../src/schemas/history/plan-document/0.17.0.js";
 import { PlanDocumentV0_20_0Schema } from "../../../src/schemas/history/plan-document/0.20.0.js";
@@ -927,7 +928,10 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
     shape("0.32.0", PlanDocumentV0_32_0Schema),
     shape("0.33.0", PlanDocumentV0_33_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
   ],
-  "plan-approval-record": [shape("0.19.0", PlanApprovalRecordV0_19_0Schema)],
+  "plan-approval-record": [
+    shape("0.19.0", PlanApprovalRecordV0_19_0Schema),
+    shape("0.25.0", PlanApprovalRecordV0_25_0Schema),
+  ],
   "spec-approval-record": [shape("0.19.0", SpecApprovalRecordV0_19_0Schema)],
   "brief-record": [shape("0.20.0", BriefRecordV0_20_0Schema)],
   "hand-decision-answer": [shape("0.25.0", HandDecisionAnswerV0_25_0Schema)],
