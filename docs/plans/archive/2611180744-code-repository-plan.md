@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611171616-code-repository.md
 completes-spec: true
 approved:
