@@ -161,7 +161,7 @@ A `phax.json` looks like this:
       { "command": "pnpm build", "surface": "product", "firing": "terminal" }
     ]
   },
-  "protectedPaths": ["**/steme.baseline.json"],
+  "protectedPaths": [".oxlintrc.json", "tsconfig.json"],
   "review": { "compliance": { "enabled": true } },
   "publish": { "auto": true, "remote": "origin", "baseBranch": "main" }
 }

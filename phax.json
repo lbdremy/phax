@@ -2,6 +2,19 @@
   "$schema": "./phax.schema.json",
   "version": 1,
   "name": "phax",
+  "protectedPaths": [
+    ".oxlintrc.json",
+    ".oxfmtrc.json",
+    "knip.json",
+    "tsconfig.json",
+    "tsconfig.build.json",
+    "tsconfig.test.json",
+    "packages/schemas/tsconfig.build.json",
+    "vitest.config.ts",
+    "vitest.e2e.config.ts",
+    ".github/workflows/**",
+    ".github/rulesets/**"
+  ],
   "security": {
     "agentCommands": [
       "deno",
