@@ -566,8 +566,9 @@ function readAs(
 }
 
 /**
- * Reads any `record.json` on phax/records/v1 and names the format it read.
- * Never throws. In order:
+ * Reads any `record.json` on phax/records/v1 and names the format it read,
+ * except a finding's fate record (`<runId>/finding/<id>/<NN>`), which
+ * `parseFindingFateRecordManifest` reads. Never throws. In order:
  * 1. a non-object fails at `""`;
  * 2. a `$schema` naming one of the five manifest formats is read by that
  *    format; another known format fails at `$schema` (`<url> is a <format>
