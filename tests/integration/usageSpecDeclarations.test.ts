@@ -120,6 +120,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "plans status",
   "records explain",
   "resume",
+  // code-repository: a plan of a linked process repository is gated as its artifact.
+  "run",
   "validate",
 ];
 
