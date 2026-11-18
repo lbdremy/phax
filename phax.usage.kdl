@@ -161,23 +161,21 @@ cmd finding help="Read the findings of a run's reviews and their fates" {
         arg "[operand]..." help="Finding ids (F2, C1), then — after -- — the paths to commit"
     }
     cmd dismiss help="Record findings as dismissed" long_help="Records each named finding as dismissed on the phax/records/v1 branch, with --why as the reason: a decided verdict that chooses dismiss and abandons fix and defer, whose case for fixing is the finding's suggestion (a code-review finding) or its message (a compliance finding). One record per id, in the order named. Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration." {
-        example "phax finding dismiss gate-retry F3 --why \"the helper is internal, no caller can reach it\""
-        example "phax finding dismiss gate-retry F2 C1 --why \"out of scope for this run\" --by operator"
+        example "phax finding dismiss gate-retry F3 --why \"the second check guards --resume\""
         flag "--why <reason>" help="Why the finding is settled this way" required=#true
         flag "--by <arbiter>" help="operator; required without a terminal"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
         arg <short-name> help="Run short name, e.g. usage-cli"
-        arg "[operand]..." help="Finding ids (F2, C1), then — after -- — the paths to commit"
+        arg "[id]..." help="Finding ids (F2, C1)"
     }
     cmd defer help="Record findings as deferred to a file" long_help="Records each named finding as deferred on the phax/records/v1 branch, to the tracked file --to names (a brief, a spec, NEXT_STEPS.md), with --why as the reason. The path is read relative to the current directory within its checkout, must be a file tracked at HEAD, and is recorded relative to the repository root. One record per id, in the order named. Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration." {
-        example "phax finding defer gate-retry F4 --to NEXT_STEPS.md --why \"needs its own plan\""
-        example "phax finding defer gate-retry F1 F6 --to docs/specs/gate.md --why \"belongs to the gate spec\" --by operator"
+        example "phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why \"docs pass after the gate rework\""
         flag "--to <path>" help="The tracked file that takes the finding over" required=#true
         flag "--why <reason>" help="Why the finding is settled this way" required=#true
         flag "--by <arbiter>" help="operator; required without a terminal"
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
         arg <short-name> help="Run short name, e.g. usage-cli"
-        arg "[operand]..." help="Finding ids (F2, C1), then — after -- — the paths to commit"
+        arg "[id]..." help="Finding ids (F2, C1)"
     }
 }
 cmd adjust-plan help="Open an interactive session to adjust a plan after a landed run" long_help="Opens an interactive, pre-prompted session to help you adjust a plan.md after a landed run has introduced drift. The session establishes which of the plan's declared files, line references, and decisions are invalidated by the landed run's actual changes, asks clarifying questions where needed, proposes concrete edits and waits for your explicit approval, and only then edits and commits the plan — all interactively within the session. The command itself mutates nothing.\n\nInput: the path to the plan.md to adjust and --landed <run> (the run whose actual changes drive the adjustment). The landed run must have a global-file-reconciliation.json (i.e. it must have reached review); a run in awaiting_review is refused until it lands. Re-invocation without --new-session resumes the same session; --new-session starts a fresh one.\n\nSide effects: spawns a long-lived interactive provider session (network I/O); the session may, after developer approval, edit and commit the plan.md." {
