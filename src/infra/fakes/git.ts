@@ -102,6 +102,7 @@ export type GitCall =
   | { method: "blobSizes"; repo: string; commit: string; paths: readonly string[] }
   | { method: "headTree"; path: string }
   | { method: "snapshotWorktree"; path: string }
+  | { method: "commitChangedPaths"; repo: string; commit: string }
   | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
   | { method: "observeWorktree"; path: string; base: string }
   | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] }
@@ -875,6 +876,26 @@ export class FakeGitImpl implements GitOps {
     this.calls.push({ method: "snapshotWorktree", path });
     const queued = this.snapshotQueue.get(path)?.shift();
     return Effect.succeed(queued ?? this.headTrees.get(path) ?? this.headTreeDefault);
+  }
+
+  private readonly changedByCommit = new Map<string, readonly string[]>();
+
+  /** Scripts the paths `commitChangedPaths` answers for `commit`, sorted and unique. */
+  setCommitChangedPaths(commit: string, paths: readonly string[]): void {
+    this.changedByCommit.set(commit, [...new Set(paths)].toSorted());
+  }
+
+  commitChangedPaths(repo: string, commit: string): Effect.Effect<readonly string[], GitError> {
+    this.calls.push({ method: "commitChangedPaths", repo, commit });
+    const paths = this.changedByCommit.get(commit);
+    return paths === undefined
+      ? Effect.fail(
+          new GitError({
+            message: `Unknown commit ${commit}`,
+            command: `git diff-tree ${commit}`,
+          }),
+        )
+      : Effect.succeed(paths);
   }
 
   changedPathsBetween(
