@@ -21,6 +21,13 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.40.0
+
+- **`code-review` and `compliance-review` move to 0.40.0 shapes whose findings carry an `id`.** An `@lbdremy/phax-schemas` before 0.40.0 refuses them, so upgrade the package. The package reads the 0.32.0 shapes with each id `Unknown`.
+- **The review sessions answer new formats**, `code-review-answer` and `compliance-review-answer`. phax gives each finding its id and keeps the answer as `code-review.json` or `compliance-review.json`.
+- **`phax finding list --json` prints the new `finding-list` document.** See [Review findings](findings.md).
+- No step is needed in a repository.
+
 ### 0.38.0
 
 - **`phax artifact revise` commits leave revision records.** A new record format, `revision-record-manifest` on `phax/records/v1`, keyed `revision/<authoringId>/<NN>`. An `@lbdremy/phax-schemas` before 0.38.0 cannot read it: `parseRecordManifest` fails at `$schema` with an unknown format, so upgrade the package before reading such records. `phax records list` shows a new entry kind, `revision`.

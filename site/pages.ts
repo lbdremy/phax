@@ -195,6 +195,13 @@ export default definePageMap({
         "What --json writes on stdout, the message lines on stderr, the refused and defect exit codes and what --json-schema prints, for agents and scripts.",
     },
     {
+      route: "/guide/findings",
+      title: "Review findings",
+      source: "docs/findings.md",
+      description:
+        "What a finding's F and C id is, the five fates, how older reviews get ids, and phax finding list to see every finding of a run.",
+    },
+    {
       route: "/guide/arbitration",
       title: "Deciding open questions",
       source: "docs/arbitration.md",
