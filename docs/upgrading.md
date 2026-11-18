@@ -26,7 +26,10 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **`code-review` and `compliance-review` move to 0.40.0 shapes whose findings carry an `id`.** An `@lbdremy/phax-schemas` before 0.40.0 refuses them, so upgrade the package. The package reads the 0.32.0 shapes with each id `Unknown`.
 - **The review sessions answer new formats**, `code-review-answer` and `compliance-review-answer`. phax gives each finding its id and keeps the answer as `code-review.json` or `compliance-review.json`.
 - **`phax finding list --json` prints the new `finding-list` document.** See [Review findings](findings.md).
-- No step is needed in a repository.
+- **`plan-approval-record` moves to a new shape with a required `code` key**: `null` without a code link, `{ root, baseline }` with one. An `@lbdremy/phax-schemas` before 0.40.0 cannot read new plan approval records, so upgrade the package.
+- **Records written earlier are read as `code: null` and never rewritten.**
+- **Declaring a code link makes plans approved before it `missing-record`**, so re-approve them. See [Process and code in two repositories](code-repository.md).
+- No step is needed in a repository that declares no code link.
 
 ### 0.38.0
 
