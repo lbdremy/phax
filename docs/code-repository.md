@@ -22,7 +22,9 @@ billing/                  the process repository
 /code/
 ```
 
-The process repository holds specs, plans, briefs and their approvals. The code repository holds the code, its pull requests and its records.
+The process repository holds specs, plans, briefs and their approvals. The code repository holds the code and its pull requests. Where run records go is up to the code repository's configuration: see [Records](#records).
+
+If you added `code/` to the process repository before ignoring it (`git add code` records it as an embedded repository), untrack it with `git rm -r --cached code`. An ignore rule alone does not untrack it, and phax refuses a code root the process repository still tracks.
 
 ## Declaring the link
 
@@ -34,15 +36,28 @@ Declare the link in the process repository's `phax.json`:
 }
 ```
 
-`code` is accepted in `phax.json` only. A `phax.local.json` or `~/.phax/config.json` that carries it is refused, naming the file. `root` is a relative path inside the repository, written with `/` and without `.`, `..`, empty segments or a leading or trailing `/`. It is never the repository root itself.
+`code` is accepted in `phax.json` only. A `phax.local.json` or `~/.phax/config.json` that carries it is refused, naming the file. `root` is a relative path inside the repository, written with `/` and without `.`, `..`, empty segments or a leading or trailing `/`. It is never the repository root itself. It is resolved against the repository's root.
 
-`phax validate` checks the link and exits 2 with the reason when it fails:
+The `phax.json` that declares the link is the one phax reads for every command: the nearest `phax.json` walking up from the directory you run the command in to the repository's root. A refusal names that file.
+
+`phax validate` checks the link and exits 2 with the reason when it fails. Each run below prints one of these refusals on stderr:
 
 ```text
 $ phax validate
-✗ phax.json code.root "code": does not exist
-✗ phax.json code.root "code": not the top level of a git repository
-✗ phax.json code.root "code": not ignored by this repository — add /code/ to .gitignore
+Config validation failed: code.root "code": does not exist
+  at: /home/ada/billing/phax.json
+$ phax validate
+Config validation failed: code.root "code": not the top level of a git repository
+  at: /home/ada/billing/phax.json
+$ phax validate
+Config validation failed: code.root "code": not ignored by this repository — add /code/ to .gitignore
+  at: /home/ada/billing/phax.json
+$ phax validate
+Config validation failed: code.root "code": tracked by this repository although ignored — untrack it with git rm -r --cached code
+  at: /home/ada/billing/phax.json
+$ phax validate
+Config validation failed: "code" is accepted only in phax.json
+  at: /home/ada/billing/phax.local.json
 ```
 
 A project that declares no link behaves as before.
@@ -67,6 +82,8 @@ approved:
   code: 9c8d7e6
 ```
 
+Only a plan approval reads the configuration, and only the `code` key of that `phax.json`: no overlay, and none of its other keys, so an unrelated configuration problem does not block an approval. A spec approval reads no configuration at all. A plan approval refuses with exit 2, writing nothing, when the `phax.json` is not a JSON object, when its `code` key does not decode, or when the link fails the checks `phax validate` makes.
+
 A project with no link records `"code": null` and writes no `approved.code`. The record's `root` is informational: verdicts use the link's root. Only the code repository's committed HEAD is recorded, not uncommitted changes in the checkout.
 
 Records written by an earlier release are read as `code: null` and never rewritten.
@@ -79,10 +96,10 @@ With a link, **ground** is judged in the code repository: `ground-changed` lists
 $ phax plans status
 === Plan Staleness Report ===
 
-docs/plans/2611201030-billing-export-plan.md: STALE
-  ground-changed: src/export/csv.ts changed in code/ since baseline 9c8d7e6f5a4b…
 docs/plans/2611190915-ledger-plan.md: STALE
-  missing-record: the recorded code baseline 1a2b3c4… no longer exists in code/ — re-approve with "phax artifact approve docs/plans/2611190915-ledger-plan.md"
+  missing-record: the recorded code baseline 1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b no longer exists in code/ — re-approve with "phax artifact approve docs/plans/2611190915-ledger-plan.md"
+docs/plans/2611201030-billing-export-plan.md: STALE
+  ground-changed: src/export/csv.ts changed in code/ since baseline 9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d
 ```
 
 `phax plans status --json` gives a linked plan's `ground-changed` evidence a `codeRoot` key beside `baseline` and `files`, which are then the code baseline and paths relative to the code root.
@@ -95,7 +112,14 @@ Three cases give `missing-record`, and the remedy of each is to re-approve the p
 
 Declaring a link therefore makes every plan approved before it `missing-record`. Re-approve them once.
 
-If the link itself is broken, `phax plans status` reports the reason as an error for each approved plan and exits 0.
+If the link itself is broken, `phax plans status` reports the reason as an error for each approved plan and exits 0:
+
+```text
+$ phax plans status
+=== Plan Staleness Report ===
+
+docs/plans/2611201030-billing-export-plan.md: ERROR — code.root "code": not ignored by this repository — add /code/ to .gitignore
+```
 
 ## Running from the code repository
 
@@ -106,16 +130,29 @@ cd code
 phax run --plan ../docs/plans/2611201030-billing-export-plan.md
 ```
 
-phax finds the process repository from the plan's path: the plan's own git top level, whose `phax.json` must declare a `code` root that is exactly the repository you ran in. The plan must sit where plans live (`docs/plans/`). The run is then gated as the process repository's artifact: it refuses a plan that is not approved, or is stale against the code, with the same wording as `phax plans status`:
+phax finds the process repository from the plan's path: the plan's own git top level. The plan must sit where plans live (`docs/plans/`). phax reads the nearest `phax.json` walking up from the plan's directory to that top level, and of it only the `code` key. None of the process repository's commands, gates or providers is applied: the run uses the code repository's configuration. When that `code.root` is exactly the repository you ran in, the run is gated as the process repository's artifact. It refuses a plan that is not approved, has no approval record, or is stale against the code, with exit 12 and the refusal a plan living with its code gets. A stale plan's refusal carries the evidence `phax plans status` gives:
 
 ```text
-phax run refused: docs/plans/2611201030-billing-export-plan.md is stale
-  ground-changed: src/export/csv.ts changed in code/ since baseline 9c8d7e6f5a4b…
+$ phax run --plan ../docs/plans/2611201030-billing-export-plan.md
+docs/plans/2611201030-billing-export-plan.md is stale (ground-changed: src/export/csv.ts changed in code/ since baseline 9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d) — re-approve with "phax artifact approve docs/plans/2611201030-billing-export-plan.md"
 ```
 
-From the process repository's config phax reads `code` only. None of its commands, gates or providers is applied: the run uses the code repository's configuration. A process `phax.json` that declares `code` but does not decode, or a link to this repository that the process repository does not ignore, refuses with exit 2.
+The run is loose, exactly as without this feature and with no warning, when:
 
-When the plan's repository declares no `code`, or its link names another repository, the run is loose, exactly as without this feature, with no warning.
+- the plan is not under `docs/plans/` of its own repository;
+- that repository has no `phax.json`;
+- its `phax.json` has no `code` key, whatever else the file holds, even keys that would not decode;
+- its `code.root` resolves to another repository than the one you ran in, or to nothing, whatever else the file holds.
+
+The run refuses with exit 2, before anything is named, in two cases:
+
+- phax cannot tell whether the plan is linked: the `phax.json` is not JSON, is not a JSON object, or has a `code` key with no `root` string. The refusal says so:
+
+  ```text
+  phax run refused: Cannot tell whether docs/plans/2611201030-billing-export-plan.md is linked to this repository: "/home/ada/billing/phax.json" is not valid JSON (Expected property name or '}' in JSON at position 2 (line 1 column 3))
+  ```
+
+- the link names the repository you ran in but cannot be used: its `code` key does not decode, its root is not written canonically, or it fails a check of `phax validate` (the root is not exactly that repository's top level, or the process repository does not ignore it or still tracks it).
 
 At review, phax completes nothing. It prints the command to run in the process repository once the pull request is merged:
 
@@ -130,15 +167,43 @@ The plan lives in the process repository: once merged, run there
 
 - **The pull request names neither plan nor spec.** Its footer keeps the phax line, the agents and the run, and omits **Plan** and **Spec**. If the link cannot be read at publish, the footer omits them too.
 - **Commits name nothing outside the code repository.** Their trailers carry no plan or spec path of the process repository.
-- **Records are as before.** They stay on `phax/records/v1` of the code repository.
+- **Records, if the code repository's configuration sends them there.** They carry plan text: see below.
+
+## Records
+
+Records are written as for any run, by the code repository's `records` configuration, and the link changes nothing about them. Without a `records` key, no record is written. With `"destination": { "kind": "in-repo" }`, each phase's record is committed on the `phax/records/v1` branch of the code repository itself, and with `"autoPush": true` that branch is pushed to the code repository's remote.
+
+A phase's record carries the files of its phase folder. Among them is `prompt.md`, the prompt phax gave the agent: it holds the plan's preamble and the phase's full text, with the source spec's path. It also carries the phase handoff, the gate logs and the diff. With `"transcript": true` it carries the agent session's transcript too, whose first turn is that same prompt. phax refuses to write transcripts to an in-repo destination of a repository it sees is public, but it writes a record without a transcript there whatever the visibility, and that record still carries `prompt.md`.
+
+So to keep the process private, send the records to the process repository: in the code repository's `phax.json`, set the destination to the process repository's remote:
+
+```json
+{
+  "records": {
+    "transcript": false,
+    "destination": { "kind": "repo", "remote": "git@github.com:acme/billing-process.git" },
+    "autoPush": true
+  }
+}
+```
+
+The `remote` must be an `https://`, `ssh://` or `git@host:path` URL. The records are then committed in a local clone of that remote, on its `phax/records/v1` branch, and pushed to it when `autoPush` is true. The code repository receives none of them.
 
 ## plans lint
 
-`phax plans lint` run in the process repository checks the files a plan creates and edits against `code/`, not against the process repository:
+`phax plans lint` run in the process repository checks the files a plan creates and edits against `code/`, not against the process repository. A plan whose files all exist in `code/` reports nothing for them:
 
 ```text
 $ phax plans lint docs/plans/2611201030-billing-export-plan.md
-✓ files  every planned path checked against code/
+docs/plans/2611201030-billing-export-plan.md: no findings
+```
+
+A planned file missing from `code/` is an error, found in the code repository's tree:
+
+```text
+$ phax plans lint docs/plans/2611201030-billing-export-plan.md
+docs/plans/2611201030-billing-export-plan.md: 1 error, 0 warnings
+error    files        phase-01  edit src/export/pdf.ts: does not exist and no earlier phase creates it
 ```
 
 A broken link refuses with exit 2 rather than reporting a finding.
