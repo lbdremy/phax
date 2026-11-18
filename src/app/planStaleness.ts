@@ -64,8 +64,8 @@ function resolveSpecPath(declaredPath: string): Effect.Effect<string | null, FsE
 
 export interface ComputeStalenessOptions {
   readonly repoRoot: string;
-  /** The project's resolved code link; null or absent when the project declares none. */
-  readonly codeLink?: CodeLink | null | undefined;
+  /** The project's resolved code link; null when the project declares none. */
+  readonly codeLink: CodeLink | null;
 }
 
 export function computeStalenessForPlan(
@@ -85,7 +85,7 @@ export function computeStalenessForPlan(
   return Effect.gen(function* () {
     yield* refuseOldApprovalLedgers();
     const record = yield* readPlanApprovalRecord(planPath);
-    const codeLink = opts.codeLink ?? null;
+    const codeLink = opts.codeLink;
     const placeholderCode: CodeStalenessInput =
       codeLink === null
         ? { kind: "unlinked" }
@@ -177,7 +177,8 @@ export function computeStalenessForPlan(
 
 export interface ComputePlanStalenessOptions {
   readonly repoRoot: string;
-  readonly codeLink?: CodeLink | null | undefined;
+  /** The project's resolved code link; null when the project declares none. */
+  readonly codeLink: CodeLink | null;
   readonly stateRoot: string;
   readonly model: string;
   readonly effort: string;
@@ -216,15 +217,15 @@ export function computePlanStaleness(
 
     return yield* computeStalenessForPlan(planPath, planMd, Array.from(footprint.all), {
       repoRoot: opts.repoRoot,
-      codeLink: opts.codeLink ?? null,
+      codeLink: opts.codeLink,
     });
   });
 }
 
 export interface StalenessReportOptions {
   readonly repoRoot: string;
-  /** The project's config, for resolving its code link. Absent: unlinked. */
-  readonly config?: ResolvedConfig | undefined;
+  /** The project's config, for resolving its code link; null when there is none to read. */
+  readonly config: ResolvedConfig | null;
   readonly stateRoot: string;
   readonly model: string;
   readonly effort: string;
@@ -249,7 +250,7 @@ export function plansStalenessReport(
     // Fails the whole command, never a per-plan error entry.
     yield* refuseOldApprovalLedgers();
     const link =
-      opts.config === undefined
+      opts.config === null
         ? Result.succeed(null)
         : yield* Effect.result(resolveCodeLink(opts.config));
     const report = yield* approvedPlansReport(opts, link);

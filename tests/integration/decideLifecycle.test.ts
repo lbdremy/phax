@@ -411,6 +411,7 @@ async function expectLocked(path: string, open: readonly string[]): Promise<void
 function plansReport() {
   return Effect.runPromise(
     plansStalenessReport({
+      config: null,
       repoRoot: repoDir,
       stateRoot,
       model: "claude-sonnet-5",

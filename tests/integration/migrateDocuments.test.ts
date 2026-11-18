@@ -1130,6 +1130,7 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
     const { layer: backendLayer } = makeFakeBackend();
     const staleness = await Effect.runPromise(
       plansStalenessReport({
+        config: null,
         repoRoot: repoDir,
         stateRoot,
         model: MODEL,

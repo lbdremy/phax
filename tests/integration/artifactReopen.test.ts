@@ -159,6 +159,7 @@ function plansReport() {
   const { layer: backendLayer } = makeFakeBackend();
   return Effect.runPromise(
     plansStalenessReport({
+      config: null,
       repoRoot: repoDir,
       stateRoot: join(configDir, "state"),
       model: "claude-sonnet-5",

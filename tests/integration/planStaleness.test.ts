@@ -63,6 +63,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", planMd("(none)"), [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -88,6 +89,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     const currentPlanMd = fsImpl.getFile("docs/plans/2609101240-thing-plan.md") as string;
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -123,9 +125,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         "docs/plans/2609101240-thing-plan.md",
         currentPlanMd,
         ["src/foo.ts"],
-        {
-          repoRoot: REPO_ROOT,
-        },
+        { codeLink: null, repoRoot: REPO_ROOT },
       ).pipe(Effect.provide(layer)),
     );
 
@@ -157,6 +157,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -196,6 +197,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const before = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", approvedPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -205,6 +207,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     expect(flipped).not.toBe(approvedPlanMd);
     const after = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", flipped, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -226,6 +229,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -251,9 +255,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         "docs/plans/2609101240-thing-plan.md",
         currentPlanMd,
         ["src/foo.ts"],
-        {
-          repoRoot: REPO_ROOT,
-        },
+        { codeLink: null, repoRoot: REPO_ROOT },
       ).pipe(Effect.provide(layer)),
     );
 
@@ -285,9 +287,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
         "docs/plans/2609101240-thing-plan.md",
         currentPlanMd,
         ["src/foo.ts"],
-        {
-          repoRoot: REPO_ROOT,
-        },
+        { codeLink: null, repoRoot: REPO_ROOT },
       ).pipe(Effect.provide(layer)),
     );
 
@@ -309,6 +309,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -346,6 +347,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, ["src/foo.ts"], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -394,6 +396,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
     // strips the approved: key — re-stamping alone does not change the fingerprint.
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -424,6 +427,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const verdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", currentPlanMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -452,6 +456,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const staleVerdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", editedMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -468,6 +473,7 @@ describe("computeStalenessForPlan (core, Backend-free)", () => {
 
     const freshVerdict = await run(
       computeStalenessForPlan("docs/plans/2609101240-thing-plan.md", reapprovedMd, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -541,6 +547,8 @@ function fullHarness() {
 
 const REPORT_OPTS = {
   repoRoot: REPO_ROOT,
+  codeLink: null,
+  config: null,
   stateRoot: "/fake/state",
   model: "claude-sonnet-5",
   effort: "medium",
@@ -890,6 +898,7 @@ describe("per-artifact approval record files", () => {
 
     const verdictA = await run(
       computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -918,6 +927,7 @@ describe("per-artifact approval record files", () => {
 
     const verdict = await run(
       computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -936,6 +946,7 @@ describe("per-artifact approval record files", () => {
 
     const verdict = await run(
       computeStalenessForPlan(PLAN_A, fsImpl.getFile(PLAN_A) as string, [], {
+        codeLink: null,
         repoRoot: REPO_ROOT,
       }).pipe(Effect.provide(layer)),
     );
@@ -1091,7 +1102,7 @@ describe("old approval ledger refusal", () => {
 
       expectRefused(
         await run(
-          computeStalenessForPlan(PLAN, md, [], { repoRoot: REPO_ROOT }).pipe(
+          computeStalenessForPlan(PLAN, md, [], { codeLink: null, repoRoot: REPO_ROOT }).pipe(
             Effect.provide(layer),
           ),
         ),

@@ -117,6 +117,7 @@ describe("repo-rooted FileSystem layer, invoked from a nested subdirectory", () 
     const { layer: backendLayer } = makeFakeBackend();
     const reportOpts = {
       repoRoot: config.repoRoot,
+      config: null,
       stateRoot: config.stateRoot,
       model: "claude-opus-4-8",
       effort: "high",
