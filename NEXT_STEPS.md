@@ -255,14 +255,11 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
-- [ ] **`phax finding fix` after a merge done on GitHub.** From #244's review: the run stays
-      `review_open` until it is archived, so a `fix` after the merge pushes the run branch again
-      (recreating it if GitHub deleted it) and posts "Fixed by <sha>" on the merged pull request,
-      for a commit that is not in main. Recommended: before the push, `fix` reads the pull
-      request's state (`gh pr view --json state`, a call `fix` already makes room for since it
-      comments) and, when merged or closed, pushes and posts nothing and answers `not-posted`
-      with a new reason. `dismiss` and `defer` keep commenting, since they claim nothing about
-      the code. Awaiting the operator's choice (guard, or only document it).
+- [x] **`phax finding fix` after a merge done on GitHub.** Done (#245, 2026-11-19): `fix` asks
+      the pull request's state (`gh pr view --json state`) before pushing; merged or closed, it
+      pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
+      `pull-request-closed`); `finding post` refuses a fixed finding on such a pull request;
+      `dismiss` and `defer` keep commenting.
 - [ ] **The plan parser's bounded-time property still fails main CI.** 3 of 8 main CI runs
       (2026-11-18 to 11-19: 690d4135, 9cdcc5aa, 25e04234) failed `Property tests budget` on
       `tests/unit/property/planParser.property.test.ts` › "parsing finishes in bounded time": the
