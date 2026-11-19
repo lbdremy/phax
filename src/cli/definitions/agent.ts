@@ -4,7 +4,9 @@
 // encoding it gives exactly `JSON.stringify(resolution, null, 2)`; the setup commands answer what
 // the use case did and the files it wrote (providers.json, ~/.vibe/config.toml, their backups and
 // a scaffolded model-routing.json), each with an absolute path since they live outside any
-// repository. A configuration that does not load, an effort outside the thinking levels and a
+// repository. `setup providers` also answers the retired ids it dropped (`retiredRemoved`), the
+// successor ids it listed in their place (`retiredReplaced`) and the fields phax no longer reads
+// that it dropped (`fieldsDropped`). A configuration that does not load, an effort outside the thinking levels and a
 // failed setup exit 2 with today's sentences.
 import { Data, Effect, Layer } from "effect";
 import * as Schema from "effect/Schema";
@@ -455,6 +457,8 @@ const AgentSetupProvidersOutput = Schema.Struct({
   write: Schema.Boolean,
   withRouting: Schema.Boolean,
   retiredRemoved: Schema.Array(Schema.String),
+  retiredReplaced: Schema.Array(Schema.String),
+  fieldsDropped: Schema.Array(Schema.String),
   enabled: Schema.Array(Schema.String),
   disabled: Schema.Array(Schema.String),
   unchanged: Schema.Array(Schema.String),
@@ -513,6 +517,8 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
           write,
           withRouting,
           retiredRemoved: [...plan.retiredRemoved],
+          retiredReplaced: [...plan.retiredReplaced],
+          fieldsDropped: [...plan.fieldsDropped],
           enabled: [...plan.enabled],
           disabled: [...plan.disabled],
           unchanged: [...plan.unchanged],
@@ -538,6 +544,16 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
       if (value.retiredRemoved.length > 0) {
         lines.push(
           `${value.write ? "Dropped" : "Would drop"} models phax no longer routes to (${value.retiredRemoved.length}): ${value.retiredRemoved.join(", ")}`,
+        );
+      }
+      if (value.retiredReplaced.length > 0) {
+        lines.push(
+          `${value.write ? "Listed" : "Would list"} in their place: ${value.retiredReplaced.join(", ")}`,
+        );
+      }
+      if (value.fieldsDropped.length > 0) {
+        lines.push(
+          `${value.write ? "Dropped" : "Would drop"} fields phax no longer reads (${value.fieldsDropped.length}): ${value.fieldsDropped.join(", ")}`,
         );
       }
       const upToDate = value.enabled.length === 0 && value.disabled.length === 0;

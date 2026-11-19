@@ -9,8 +9,6 @@ import type {
   StopPosture,
 } from "./types.js";
 
-const DEFAULT_MODEL_ENV_VAR = "VIBE_ACTIVE_MODEL";
-
 // A fresh vibe session in the worktree carries the phase's writable roots
 // beyond the worktree as `--add-dir`, and `--trust` for an unsafe phase, as
 // the headless argv does.
@@ -43,7 +41,8 @@ export const mistralSessionAdapter: SessionAdapter = {
       executable: "vibe",
       args: ["--workdir", opts.cwd, ...postureFlags(opts.posture, opts.cwd), opts.prompt],
       cwd: opts.cwd,
-      env: { [opts.modelEnvVar ?? DEFAULT_MODEL_ENV_VAR]: opts.model },
+      // Vibe's TUI takes no `--model`, so the variable is the only way to set the model there.
+      env: { VIBE_ACTIVE_MODEL: opts.model },
     };
   },
 

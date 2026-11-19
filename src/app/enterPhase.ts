@@ -126,14 +126,9 @@ function sessionCommands(ctx: CommandContext, sessionId: string | null): Session
       ? codexModelId(entry, ctx.model)
       : ctx.model;
   const opts = { cwd: ctx.cwd, model, effort: ctx.effort, posture: ctx.posture } as const;
-  const modelEnvVar = entry?.modelEnvVar;
   return {
     continue: sessionId === null ? null : adapter.buildContinueCommand({ ...opts, sessionId }),
-    freshStart: adapter.buildFreshStartCommand({
-      ...opts,
-      prompt: freshStartPrompt(ctx.phaseId),
-      ...(modelEnvVar !== undefined ? { modelEnvVar } : {}),
-    }),
+    freshStart: adapter.buildFreshStartCommand({ ...opts, prompt: freshStartPrompt(ctx.phaseId) }),
   };
 }
 

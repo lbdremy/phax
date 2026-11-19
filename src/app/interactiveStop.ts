@@ -514,7 +514,7 @@ export interface DeclaredStopInput {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
-  /** The provider's providers.json entry: codex's model id and vibe's model variable. */
+  /** The provider's providers.json entry: codex's model id. */
   readonly providerEntry: ProviderConfig["providers"][string] | undefined;
   readonly policy: SecurityPolicy;
   /** The phase's frozen agent commands, which the printed commands carry. */
@@ -591,13 +591,8 @@ function buildStopCommands(input: {
       input.sessionId !== null && adapter.interactiveResume === "verified"
         ? builtCommand(adapter.buildContinueCommand({ ...commandOpts, sessionId: input.sessionId }))
         : null;
-    const modelEnvVar = input.providerEntry?.modelEnvVar;
     const freshStart = builtCommand(
-      adapter.buildFreshStartCommand({
-        ...commandOpts,
-        prompt: freshStartPrompt(input.phaseId),
-        ...(modelEnvVar !== undefined ? { modelEnvVar } : {}),
-      }),
+      adapter.buildFreshStartCommand({ ...commandOpts, prompt: freshStartPrompt(input.phaseId) }),
     );
     // A phase worktree is always a writable root, so no adapter refuses it.
     if (freshStart === null) {
@@ -788,7 +783,7 @@ export interface HeldStopInput {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
-  /** The provider's providers.json entry: codex's model id and vibe's model variable. */
+  /** The provider's providers.json entry: codex's model id. */
   readonly providerEntry: ProviderConfig["providers"][string] | undefined;
   readonly policy: SecurityPolicy;
   /** The phase's frozen agent commands, which the printed commands carry. */

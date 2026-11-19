@@ -8,7 +8,6 @@
           "claude-code": {
             "enabled": true,
             "executable": "claude",
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [
@@ -82,8 +81,7 @@
                     }
                   ]
                 }
-              },
-              "modelEnvVar": "ANTHROPIC_MODEL"
+              }
             },
             "mistral-vibe": {
               "defaultAgent": "phax",
@@ -121,7 +119,6 @@
         "providers": {
           "claude-code": {
             "enabled": true,
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [
@@ -166,7 +163,6 @@
           "claude-code": {
             "enabled": true,
             "executable": "claude",
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [
@@ -202,7 +198,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "  providers.claude-code.version: is unexpected, expected: \"enabled\" | \"executable\" | \"modelEnvVar\" | \"defaultAgent\" | \"output\" | \"families\""
+        "refusal": "  providers.claude-code.version: is unexpected, expected: \"enabled\" | \"executable\" | \"defaultAgent\" | \"output\" | \"families\""
       }
     },
     {
@@ -212,7 +208,6 @@
           "claude-code": {
             "enabled": true,
             "executable": "claude",
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [
@@ -264,7 +259,6 @@
           "claude-code": {
             "enabled": "yes",
             "executable": "claude",
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [
@@ -365,7 +359,6 @@
           "claude-code": {
             "enabled": true,
             "executable": "",
-            "modelEnvVar": "ANTHROPIC_MODEL",
             "families": {
               "claude-opus": {
                 "models": [

@@ -663,7 +663,7 @@ describe("stopAtDeclaredPhase — providers", () => {
     const report = await stop(backend, {
       provider: "mistral-vibe",
       model: "mistral-medium-3.5",
-      providerEntry: { enabled: true, executable: "vibe", modelEnvVar: "VIBE_ACTIVE_MODEL" },
+      providerEntry: { enabled: true, executable: "vibe" },
     });
     expect(report.unverifiedProvider).toBe(true);
     expect(report.reviewStop.session?.interactiveResume).toBe("unverified");
@@ -674,6 +674,19 @@ describe("stopAtDeclaredPhase — providers", () => {
     });
     // q-vibe-turns, phase-posture: vibe's turn runs under the phase's policy.
     expect(backend.impl.runCalls[0]?.options.security).toEqual(policy());
+  });
+
+  it("ac-fresh-start: a Vibe stop's fresh start sets VIBE_ACTIVE_MODEL and passes no --model or --thinking", async () => {
+    const report = await stop(answering(), {
+      provider: "mistral-vibe",
+      model: "mistral-medium-3.5",
+      effort: "off",
+      providerEntry: { enabled: true, executable: "vibe" },
+    });
+    const freshStart = report.reviewStop.commands.freshStart;
+    expect(freshStart.env).toEqual({ VIBE_ACTIVE_MODEL: "mistral-medium-3.5" });
+    expect(freshStart.argv).not.toContain("--model");
+    expect(freshStart.argv).not.toContain("--thinking");
   });
 
   it("names codex's model id in the continue command", async () => {

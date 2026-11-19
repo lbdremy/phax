@@ -143,13 +143,98 @@ describe("path constants", () => {
     const listed = withRetiredMistralAliases();
     impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(listed));
     const result = await run(readProviderConfigFile().pipe(Effect.provide(layer)));
-    expect(result).toEqual(listed);
+    expect(result).toEqual({ config: listed, fieldsDropped: [] });
+  });
+
+  it("refuses a providers.json carrying modelEnvVar by its field path, why, and the setup command", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(withModelEnvVar()));
+    const err = await runFail(loadProviderConfig().pipe(Effect.provide(layer)));
+    expect(err.path).toBe(PROVIDER_CONFIG_PATH);
+    expect(err.message).toBe(
+      `"${PROVIDER_CONFIG_PATH}" carries fields phax no longer reads:\n` +
+        "  - providers.mistral-vibe.modelEnvVar: phax picks the Vibe model with --model\n" +
+        "Run `phax agent setup providers --write` to drop them, or delete them from the file.",
+    );
+  });
+
+  it("shows the fields message before the retired ids of a file with both defects", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const both = withRetiredMistralAliases();
+    const vibe = both.providers["mistral-vibe"]!;
+    impl.setFile(
+      PROVIDER_CONFIG_PATH,
+      JSON.stringify({
+        providers: { ...both.providers, "mistral-vibe": { ...vibe, modelEnvVar: "X" } },
+      }),
+    );
+    const err = await runFail(loadProviderConfig().pipe(Effect.provide(layer)));
+    expect(err.message).toContain("carries fields phax no longer reads");
+    expect(err.message).not.toContain("lists models phax no longer routes to");
+  });
+
+  it("still refuses an unexpected key other than modelEnvVar through the strict decode", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      PROVIDER_CONFIG_PATH,
+      JSON.stringify({
+        providers: { "claude-code": { enabled: true, executable: "c", extra: 1 } },
+      }),
+    );
+    const err = await runFail(loadProviderConfig().pipe(Effect.provide(layer)));
+    expect(err.message).toContain("Invalid providers.json");
+  });
+
+  it("readProviderConfigFile strips modelEnvVar and returns where it was", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(withModelEnvVar()));
+    const result = await run(readProviderConfigFile().pipe(Effect.provide(layer)));
+    expect(result.fieldsDropped).toEqual([
+      {
+        path: "providers.mistral-vibe.modelEnvVar",
+        reason: "phax picks the Vibe model with --model",
+      },
+    ]);
+    expect(result.config).toEqual(DEFAULT_PROVIDER_CONFIG);
+  });
+
+  it("loadModelRouting refuses a key on a retired id, naming the successor and what to do", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      MODEL_ROUTING_PATH,
+      JSON.stringify({
+        ...DEFAULT_MODEL_ROUTING,
+        equivalence: {
+          ...DEFAULT_MODEL_ROUTING.equivalence,
+          "phax-mistral-medium-3.5-max": DEFAULT_MODEL_ROUTING.equivalence["mistral-medium-3.5"],
+        },
+      }),
+    );
+    const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
+    expect(err).toBeInstanceOf(ConfigValidationError);
+    expect(err.path).toBe(MODEL_ROUTING_PATH);
+    expect(err.message).toBe(
+      `"${MODEL_ROUTING_PATH}" keys equivalence edges on models phax no longer routes to:\n` +
+        "  - phax-mistral-medium-3.5-max: use mistral-medium-3.5\n" +
+        "Rename the key, keeping its edges, or delete the file to use phax's built-in table.",
+    );
   });
 
   it("PROVIDER_CONFIG_PATH ends with .phax/providers.json", () => {
     expect(PROVIDER_CONFIG_PATH).toMatch(/\.phax[/\\]providers\.json$/);
   });
 });
+
+/** The built-in catalog as an older phax wrote it: the Vibe entry carries `modelEnvVar`. */
+function withModelEnvVar(): object {
+  const vibe = DEFAULT_PROVIDER_CONFIG.providers["mistral-vibe"]!;
+  return {
+    providers: {
+      ...DEFAULT_PROVIDER_CONFIG.providers,
+      "mistral-vibe": { ...vibe, modelEnvVar: "VIBE_ACTIVE_MODEL" },
+    },
+  };
+}
 
 /** The built-in catalog as an older phax wrote it: Mistral with all five aliases. */
 function withRetiredMistralAliases(): typeof DEFAULT_PROVIDER_CONFIG {
