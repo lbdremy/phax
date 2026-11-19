@@ -25,7 +25,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 
 - **phax picks the Vibe model with `--model` and `--thinking`** and needs mistral-vibe 3.1.3: run `uv tool upgrade mistral-vibe`.
 - **Run `phax agent setup providers --write` once.** It lists `mistral-medium-3.5` in place of `phax-mistral-medium-3.5-off` and `-high` and drops `modelEnvVar`. phax refuses the old file until you do.
-- **A `model-routing.json` keyed on the old ids is refused.** Rename each key to `mistral-medium-3.5`, keeping its edges.
+- **A `model-routing.json` keyed on the old ids is refused.** Merge the `off` edge of `phax-mistral-medium-3.5-off` and the `high` edge of `phax-mistral-medium-3.5-high` into one `mistral-medium-3.5` key. Renaming both keys gives the same key twice, and JSON keeps only the last one, so the `off` edge is lost without an error. Delete any `phax-mistral-medium-3.5-low`, `-medium` or `-max` key: `mistral-medium-3.5` offers only `off` and `high`. The refusal names each key and what to do with it.
 - **`phax agent setup mistral-vibe` is gone**, and phax no longer reads `~/.vibe/config.toml`. The `# Added by PHAX.` blocks still work in your own Vibe sessions; to remove them, delete each comment line and the `[[models]]` table under it.
 - **Run, phase and authoring records written before keep the old model ids.**
 
