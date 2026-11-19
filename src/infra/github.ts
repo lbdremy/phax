@@ -1,9 +1,10 @@
 import { Effect, Result, Layer } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
-import { GitHub, GitHubError } from "../ports/github.js";
+import { GitHub, GitHubError, type PullRequestState } from "../ports/github.js";
 import type { BranchName } from "../domain/branded.js";
 import type { RepoVisibility, VisibilityReading } from "../domain/records/destination.js";
 import { formatParseError } from "../schemas/formatError.js";
+import { decodeGithubPrView } from "../schemas/githubPrView.js";
 import { decodeGithubRepoView } from "../schemas/githubRepoView.js";
 
 // A multi-line decode report on one line, for a GitHubError message.
@@ -153,6 +154,36 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
         return trimmed.length > 0 ? trimmed : pullRequest;
       }),
     ),
+
+  pullRequestState: ({ pullRequest, repo }) => {
+    const args = ["pr", "view", pullRequest, "--json", "state"] as const;
+    const command = `gh ${args.join(" ")}`;
+    const refuse = (message: string) => new GitHubError({ message, command, args: [...args] });
+    return ghRun(args, repo).pipe(
+      Effect.flatMap(({ stdout }) =>
+        Effect.try({
+          try: () => JSON.parse(stdout) as unknown,
+          catch: () => refuse(`${command} did not answer JSON`),
+        }),
+      ),
+      Effect.flatMap((parsed) =>
+        decodeGithubPrView(parsed).pipe(
+          Result.match({
+            onFailure: (err) =>
+              Effect.fail(
+                refuse(
+                  `${command} answered an unexpected shape: ${onOneLine(formatParseError(err))}`,
+                ),
+              ),
+            onSuccess: (view): Effect.Effect<PullRequestState> =>
+              Effect.succeed(
+                view.state === "OPEN" ? "open" : view.state === "MERGED" ? "merged" : "closed",
+              ),
+          }),
+        ),
+      ),
+    );
+  },
 
   createIssue: ({ repo, title, bodyFile }) =>
     ghRun(["issue", "create", "--title", title, "--body-file", bodyFile], repo).pipe(

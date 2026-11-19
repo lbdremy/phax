@@ -10,6 +10,9 @@ export class GitHubError extends Data.TaggedError("GitHubError")<{
   args?: readonly string[];
 }> {}
 
+/** A pull request's state as the host reports it: open, merged, or closed without a merge. */
+export type PullRequestState = "open" | "merged" | "closed";
+
 export interface GitHubOps {
   isAvailable(): Effect.Effect<boolean, GitHubError>;
   isAuthenticated(repo: string): Effect.Effect<boolean, GitHubError>;
@@ -53,6 +56,15 @@ export interface GitHubOps {
     body: string;
     repo: string;
   }): Effect.Effect<string, GitHubError>;
+  /**
+   * The state of the pull request named by its URL, as the host reports it.
+   * Fails with a GitHubError when gh fails or cannot run, carrying gh's
+   * stderr, or when its answer is not a state phax knows: never guessed.
+   */
+  pullRequestState(input: {
+    pullRequest: string;
+    repo: string;
+  }): Effect.Effect<PullRequestState, GitHubError>;
   createIssue(input: {
     repo: string;
     title: string;
