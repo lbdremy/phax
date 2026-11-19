@@ -1,11 +1,8 @@
 ---
-status: Approved
+status: Draft
 date: 2026-11-04
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
-approved:
-  date: 2026-11-04
-  baseline: 19a04f5
 ---
 # Finding ids and fates
 
