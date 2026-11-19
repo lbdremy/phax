@@ -147,6 +147,35 @@ const listCommand = defineCommand({
   render: (file) => renderFindingList(file),
 });
 
+const PullRequestPostedOutput = Schema.Struct({
+  url: Schema.String,
+  pushed: Schema.NullOr(
+    Schema.Struct({ remote: Schema.String, branch: Schema.String, sha: Schema.String }),
+  ),
+  comments: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
+});
+
+/** What a fate command did to the run's pull request: nothing (and why), or what it posted. */
+const PullRequestOutcomeOutput = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("not-posted"),
+    reason: Schema.Literals(["publish-auto-off", "no-pull-request", "push-branch-off"]),
+  }),
+  Schema.Struct({ kind: Schema.Literal("posted"), ...PullRequestPostedOutput.fields }),
+]);
+
+/** The error of a push or a comment that failed after the fates were recorded. */
+const PullRequestNotUpdatedFields = Schema.Struct({
+  message: Schema.String,
+  pullRequest: Schema.String,
+  commit: Schema.NullOr(Schema.String),
+  recorded: Schema.Array(Schema.String),
+  pushed: Schema.Boolean,
+  posted: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
+  unposted: Schema.Array(Schema.String),
+  retry: Schema.String,
+});
+
 const FixOperand = Schema.String.annotate({
   identifier: "operand",
   description: "Finding ids (F2, C1), then — after -- — the paths to commit",
@@ -191,7 +220,10 @@ const FixFlags = reject(
   }),
 );
 
-/** A fix's answer: the commit, the records written, and the named findings read again. */
+/**
+ * A fix's answer (shared by dismiss and defer): the commit, the records written, the named
+ * findings read again, and what reached the run's pull request.
+ */
 export const FindingFixOutput = Schema.Struct({
   run: Schema.Struct({
     namespace: Schema.String,
@@ -213,8 +245,20 @@ export const FindingFixOutput = Schema.Struct({
   findings: Schema.Array(
     Schema.Union([CodeReviewFindingEntrySchema, ComplianceFindingEntrySchema]),
   ),
+  pullRequest: PullRequestOutcomeOutput,
 });
 export type FindingFixOutput = typeof FindingFixOutput.Type;
+
+/** The lines for what reached the pull request: the push, one per comment; none when not posted. */
+function pullRequestLines(outcome: FindingFixOutput["pullRequest"]): readonly string[] {
+  if (outcome.kind === "not-posted") return [];
+  return [
+    ...(outcome.pushed === null
+      ? []
+      : [`✓ pushed ${outcome.pushed.branch} to ${outcome.pushed.remote}`]),
+    ...outcome.comments.map(({ finding }) => `✓ commented ${finding} on ${outcome.url}`),
+  ];
+}
 
 /** The lines of a fix's answer, from the answer alone. */
 export function renderFindingFix(answer: FindingFixOutput): string {
@@ -238,13 +282,13 @@ export function renderFindingFix(answer: FindingFixOutput): string {
         : `✓ recorded ${finding} fixed by ${short} (${classes.join(", ")}) on phax/records/v1`,
     );
   }
-  return lines.join("\n");
+  return [...lines, ...pullRequestLines(answer.pullRequest)].join("\n");
 }
 
 const fixCommand = defineCommand({
   name: "fix",
   summary: "Commit a fix for findings and record them fixed",
-  help: "Commits exactly the paths named after -- in the run's final worktree, while the run is open for review (review_open), and records each named finding as fixed on the phax/records/v1 branch. Other staged or unstaged changes stay where they are. The commit's subject is fix(review): <ids> of <short-name>, or -m; --body adds a paragraph. Its last paragraph holds phax's trailers: Short-Name: <short-name>, then one Finding: <id> per id, in the order named, and never a Run-Id. Each record holds the commit, its path classes (code, docs, gate-config or tests, from the paths the commit changed) and who fixed it: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> declares a machine. Without a terminal and without --by the call is refused. The ids come first (F2 F5), every operand from the first one not spelled like an id is a path, relative to the current directory when it is inside the worktree and to the worktree's root otherwise; a path spelled like an id must follow another path or be written ./F2. A named directory commits every change under it.\n\n--commit <sha> records an existing commit and makes none: it takes no path, -m or --body. The commit must be on the run's final-phase branch or on the base branch (publish.baseBranch, else main). It works on a run that is no longer open for review and on an archived run, and is the retry when a record failed after the commit landed. Every refusal comes before anything is written: no id, no path, an unchanged path, a path outside the worktree, an id the run does not have, a run not open for review, records off, a records clone that is missing, and an unknown or unreachable commit. A record that fails after the commit landed keeps the commit, exits 1, names the ids not recorded and the --commit retry. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, the named findings as phax finding list reads them after the write. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.",
+  help: "Commits exactly the paths named after -- in the run's final worktree, while the run is open for review (review_open), and records each named finding as fixed on the phax/records/v1 branch. Other staged or unstaged changes stay where they are. The commit's subject is fix(review): <ids> of <short-name>, or -m; --body adds a paragraph. Its last paragraph holds phax's trailers: Short-Name: <short-name>, then one Finding: <id> per id, in the order named, and never a Run-Id. Each record holds the commit, its path classes (code, docs, gate-config or tests, from the paths the commit changed) and who fixed it: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> declares a machine. Without a terminal and without --by the call is refused. The ids come first (F2 F5), every operand from the first one not spelled like an id is a path, relative to the current directory when it is inside the worktree and to the worktree's root otherwise; a path spelled like an id must follow another path or be written ./F2. A named directory commits every change under it.\n\n--commit <sha> records an existing commit and makes none: it takes no path, -m or --body. The commit must be on the run's final-phase branch or on the base branch (publish.baseBranch, else main). It works on a run that is no longer open for review and on an archived run, and is the retry when a record failed after the commit landed. Every refusal comes before anything is written: no id, no path, an unchanged path, a path outside the worktree, an id the run does not have, a run not open for review, records off, a records clone that is missing, and an unknown or unreachable commit. A record that fails after the commit landed keeps the commit, exits 1, names the ids not recorded and the --commit retry, and pushes and posts nothing. When the run has a pull request phax opened and publish.auto is on, the command then pushes the run's branch to publish.remote (never forced; not with publish.pushBranch off, and not for an archived run) and posts one comment per finding on the pull request, naming the commit. With publish.auto off, or no pull request yet, nothing leaves the machine. A push or a comment that fails keeps the commit and the fates, exits 1 and names the phax finding post retry; a refused push also says to bring the remote's commits in with git pull --no-rebase. The records branch is never pushed. With --json it prints { run, commit, recorded, findings, pullRequest }: the named findings as phax finding list reads them after the write, and pullRequest either { kind: not-posted, reason } or { kind: posted, url, pushed, comments }. Exits 1 for a refusal, a git or file failure, a fate not recorded and a pull request not updated, and 2 for an invalid configuration.",
   examples: [
     "phax finding fix gate-retry F2 -- tests/gate.test.ts",
     'phax finding fix gate-retry F2 F5 -m "fix(gate): keep the exit code" -- src/app/gate.ts',
@@ -271,7 +315,12 @@ const fixCommand = defineCommand({
         config,
       }).pipe(
         Effect.provide(
-          Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer, NodeTerminalLayer),
+          Layer.mergeAll(
+            makeRepoRootedFileSystemLayer(config),
+            NodeGitLayer,
+            NodeGitHubLayer,
+            NodeTerminalLayer,
+          ),
         ),
       );
     }).pipe(Effect.mapError(exposeMessage)),
@@ -280,6 +329,7 @@ const fixCommand = defineCommand({
     FindingRecordsOffError: 1,
     FindingRecordsUnavailableError: 1,
     FindingFateNotRecordedError: 1,
+    FindingPullRequestNotUpdatedError: 1,
     FindingRunRefError: 1,
     FindingReviewUnreadableError: 1,
     FindingFateRecordUnreadableError: 1,
@@ -299,6 +349,7 @@ const fixCommand = defineCommand({
       unrecorded: Schema.Array(Schema.String),
       retry: Schema.String,
     }),
+    FindingPullRequestNotUpdatedError: PullRequestNotUpdatedFields,
     FindingRunRefError: MessageFields,
     FindingReviewUnreadableError: MessageFields,
     FindingFateRecordUnreadableError: MessageFields,
@@ -312,6 +363,7 @@ const fixCommand = defineCommand({
     FindingRecordsOffError: (error) => `✗ fix refused: ${error.message}`,
     FindingRecordsUnavailableError: (error) => `✗ fix refused: ${error.message}`,
     FindingFateNotRecordedError: (error) => error.message,
+    FindingPullRequestNotUpdatedError: (error) => error.message,
     FindingRunRefError: (error) => `✗ fix refused: ${error.message}`,
     FindingReviewUnreadableError: (error) => `✗ fix refused: ${error.message}`,
     FindingFateRecordUnreadableError: (error) => `✗ fix refused: ${error.message}`,
@@ -349,27 +401,25 @@ const DeferFlags = reject(
 
 /** The lines of a dismissal's answer, from the answer alone. */
 export function renderFindingDismiss(answer: FindingFixOutput): string {
-  return answer.findings
-    .map((finding) => {
-      const last = finding.history[finding.history.length - 1];
-      const name =
-        last?.fate === "dismissed" && last.verdict.by.kind === "operator"
-          ? last.verdict.by.name
-          : "operator";
-      return `✓ recorded ${finding.id} dismissed on phax/records/v1 (by ${name})`;
-    })
-    .join("\n");
+  const recorded = answer.findings.map((finding) => {
+    const last = finding.history[finding.history.length - 1];
+    const name =
+      last?.fate === "dismissed" && last.verdict.by.kind === "operator"
+        ? last.verdict.by.name
+        : "operator";
+    return `✓ recorded ${finding.id} dismissed on phax/records/v1 (by ${name})`;
+  });
+  return [...recorded, ...pullRequestLines(answer.pullRequest)].join("\n");
 }
 
 /** The lines of a deferral's answer, from the answer alone. */
 export function renderFindingDefer(answer: FindingFixOutput): string {
-  return answer.findings
-    .map((finding) => {
-      const last = finding.history[finding.history.length - 1];
-      const to = last?.fate === "deferred" ? last.to : "";
-      return `✓ recorded ${finding.id} deferred → ${to} on phax/records/v1`;
-    })
-    .join("\n");
+  const recorded = answer.findings.map((finding) => {
+    const last = finding.history[finding.history.length - 1];
+    const to = last?.fate === "deferred" ? last.to : "";
+    return `✓ recorded ${finding.id} deferred → ${to} on phax/records/v1`;
+  });
+  return [...recorded, ...pullRequestLines(answer.pullRequest)].join("\n");
 }
 
 const settleExits = {
@@ -377,6 +427,7 @@ const settleExits = {
   FindingRecordsOffError: 1,
   FindingRecordsUnavailableError: 1,
   FindingFateNotRecordedError: 1,
+  FindingPullRequestNotUpdatedError: 1,
   FindingRunRefError: 1,
   FindingReviewUnreadableError: 1,
   FindingFateRecordUnreadableError: 1,
@@ -397,6 +448,7 @@ const settleErrors = {
     unrecorded: Schema.Array(Schema.String),
     retry: Schema.String,
   }),
+  FindingPullRequestNotUpdatedError: PullRequestNotUpdatedFields,
   FindingRunRefError: MessageFields,
   FindingReviewUnreadableError: MessageFields,
   FindingFateRecordUnreadableError: MessageFields,
@@ -415,6 +467,7 @@ const settleTexts = (verb: string) => {
     FindingRecordsOffError: refused,
     FindingRecordsUnavailableError: refused,
     FindingFateNotRecordedError: plain,
+    FindingPullRequestNotUpdatedError: plain,
     FindingRunRefError: refused,
     FindingReviewUnreadableError: refused,
     FindingFateRecordUnreadableError: refused,
@@ -426,10 +479,15 @@ const settleTexts = (verb: string) => {
 };
 
 const settleLayer = (config: Parameters<typeof makeRepoRootedFileSystemLayer>[0]) =>
-  Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer, NodeTerminalLayer);
+  Layer.mergeAll(
+    makeRepoRootedFileSystemLayer(config),
+    NodeGitLayer,
+    NodeGitHubLayer,
+    NodeTerminalLayer,
+  );
 
 const SETTLE_TAIL =
-  "Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. It pushes nothing and calls no GitHub: the records reach the remote with the run's publish. With --json it prints { run, commit, recorded, findings }, commit being null. Exits 1 for a refusal, a git or file failure and a fate not recorded, and 2 for an invalid configuration.";
+  "Only an operator may do this: --by operator, or no --by from a terminal, names the operator as git commits; --by machine:<grant> is refused, and without a terminal and without --by the call is refused. It runs on any run whose records exist, an archived run and an unrecorded finding included. A later fate record supersedes it. Every refusal comes before anything is written. A record that fails names the ids not recorded; running the same command again records them. When the run has a pull request phax opened and publish.auto is on, it then posts one comment per finding on the pull request, with the reason or the pointer; it pushes nothing. With publish.auto off, or no pull request yet, nothing leaves the machine. A comment that fails keeps the fates, exits 1 and names the phax finding post retry. The records branch is never pushed. With --json it prints { run, commit, recorded, findings, pullRequest }, commit being null and pullRequest either { kind: not-posted, reason } or { kind: posted, url, pushed, comments }. Exits 1 for a refusal, a git or file failure, a fate not recorded and a pull request not updated, and 2 for an invalid configuration.";
 
 const dismissCommand = defineCommand({
   name: "dismiss",
@@ -491,14 +549,6 @@ const deferCommand = defineCommand({
   render: renderFindingDefer,
 });
 
-const PullRequestPostedOutput = Schema.Struct({
-  url: Schema.String,
-  pushed: Schema.NullOr(
-    Schema.Struct({ remote: Schema.String, branch: Schema.String, sha: Schema.String }),
-  ),
-  comments: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
-});
-
 /** A post's answer: the run, what reached its pull request, and the named findings. */
 export const FindingPostOutput = Schema.Struct({
   run: Schema.Struct({
@@ -553,16 +603,7 @@ const postCommand = defineCommand({
   },
   errors: {
     FindingPostRefusedError: MessageFields,
-    FindingPullRequestNotUpdatedError: Schema.Struct({
-      message: Schema.String,
-      pullRequest: Schema.String,
-      commit: Schema.NullOr(Schema.String),
-      recorded: Schema.Array(Schema.String),
-      pushed: Schema.Boolean,
-      posted: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
-      unposted: Schema.Array(Schema.String),
-      retry: Schema.String,
-    }),
+    FindingPullRequestNotUpdatedError: PullRequestNotUpdatedFields,
     FindingRunRefError: MessageFields,
     FindingReviewUnreadableError: MessageFields,
     FindingFateRecordUnreadableError: MessageFields,

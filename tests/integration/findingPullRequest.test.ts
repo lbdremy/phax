@@ -57,7 +57,7 @@ describe("fate commands update the pull request", () => {
   const runBranchHead = () => head(repo, repo.runBranch) as string;
 
   // AC-pr-fix-pushes-and-comments
-  it.fails("a fix pushes the run branch, then comments on F2 naming the commit", async () => {
+  it("a fix pushes the run branch, then comments on F2 naming the commit", async () => {
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
     const result = await fix(["F2"], "tests/gate.test.ts");
     expect(result.code).toBe(0);
@@ -74,7 +74,7 @@ describe("fate commands update the pull request", () => {
   });
 
   // AC-pr-fix-pushes-and-comments
-  it.fails("a fix naming F2 and F5 posts one comment per finding, in order", async () => {
+  it("a fix naming F2 and F5 posts one comment per finding, in order", async () => {
     writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
     const result = await fix(["F2", "F5"], "tests/gate.test.ts");
     expect(result.code).toBe(0);
@@ -90,7 +90,7 @@ describe("fate commands update the pull request", () => {
   });
 
   // AC-pr-description-not-rewritten
-  it.fails("a fix leaves the description as written and reaches the pull request as a comment", async () => {
+  it("a fix leaves the description as written and reaches the pull request as a comment", async () => {
     const bodyFile = join(repo.runFolder, "pr-body.md");
     const before = readFileSync(bodyFile, "utf8");
     const section = findingsSection(before);
@@ -114,7 +114,7 @@ describe("fate commands update the pull request", () => {
   });
 
   // AC-pr-dismiss-defer-comment
-  it.fails("a dismissal and a deferral each comment with the reason or pointer, and push nothing", async () => {
+  it("a dismissal and a deferral each comment with the reason or pointer, and push nothing", async () => {
     const remoteBefore = remoteHead(repo);
 
     const dismissed = await runnerCall(
