@@ -9,6 +9,10 @@ import {
   vibeConfigMismatch,
   type VibeFlagsInput,
 } from "../../../src/domain/session/vibeFlags.js";
+import {
+  VIBE313_CONFIG_AFTER_CATALOG,
+  VIBE313_CONFIG_BEFORE_CATALOG,
+} from "../../helpers/vibe3Fixtures.js";
 
 const securePolicy: SecurityPolicy = {
   mode: "secure",
@@ -324,6 +328,95 @@ describe("vibeConfigMismatch", () => {
   it("ignores the model and level of an unconfined session", () => {
     const unsafeInput: VibeFlagsInput = { security: unsafePolicy, cwd: "/w", agentCommands: [] };
     expect(vibeConfigMismatch(unsafeInput, { active_model: "x" }, SELECTION)).toBeUndefined();
+  });
+});
+
+// The model and level of two real Vibe 3.1.3 turns started with phax's
+// selection (`--model mistral-medium-3.5 --thinking high`): the first before
+// Vibe had cached its model catalog, the second after, when Vibe reads the
+// alias back as its canonical name. Each is laid over the confinement phax set.
+describe("vibeConfigMismatch on recorded Vibe 3.1.3 configs", () => {
+  const secureInput: VibeFlagsInput = {
+    security: securePolicy,
+    cwd: "/work/tree",
+    agentCommands: AGENT_COMMANDS,
+  };
+  const readOnlyInput: VibeFlagsInput = { ...secureInput, readOnly: true };
+  const before = VIBE313_CONFIG_BEFORE_CATALOG.config;
+  const after = VIBE313_CONFIG_AFTER_CATALOG.config;
+  const recorded = (
+    input: VibeFlagsInput,
+    config: Record<string, unknown>,
+    change: Record<string, unknown> = {},
+  ): Record<string, unknown> => ({ ...resolvedConfig(input), ...config, ...change });
+  const afterWithLevel = (thinking: string, alias: Record<string, unknown> = {}) => ({
+    models: {
+      ...after.models,
+      ...alias,
+      "mistral-medium-latest": { ...after.models["mistral-medium-latest"], thinking },
+    },
+  });
+
+  it.each([
+    ["before the catalog cache", before],
+    ["after the catalog cache", after],
+  ])("accepts phax's selection read %s", (_when, config) => {
+    for (const input of [secureInput, readOnlyInput]) {
+      expect(vibeConfigMismatch(input, recorded(input, config), SELECTION)).toBeUndefined();
+    }
+  });
+
+  it.each([
+    ["another canonical model", after, "mistral-large-4-0"],
+    ["another model before the catalog cache", before, "mistral-large-4-0"],
+    ["a canonical name whose group does not list phax's model", after, "zai-glm-5-3"],
+    ["an alias of phax's model that is not the canonical name", after, "mistral-medium"],
+  ])("refuses %s", (_case, config, active) => {
+    expect(
+      vibeConfigMismatch(
+        secureInput,
+        recorded(secureInput, config, { active_model: active }),
+        SELECTION,
+      ),
+    ).toBe(`active_model is "${active}", phax set "mistral-medium-3.5"`);
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", {}],
+    ["an array", [["mistral-medium-latest", "mistral-medium-3.5"]]],
+    ["a group that is not a list", { "mistral-medium-latest": "mistral-medium-3.5" }],
+  ])("refuses the canonical name when catalog_model_aliases is %s", (_case, aliases) => {
+    const config = recorded(secureInput, after, { catalog_model_aliases: aliases });
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
+      'active_model is "mistral-medium-latest", phax set "mistral-medium-3.5"',
+    );
+  });
+
+  it("refuses a level other than phax's under the canonical name", () => {
+    const config = recorded(secureInput, after, afterWithLevel("low"));
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
+      `thinking of mistral-medium-latest (Vibe's catalog name for mistral-medium-3.5) is "low", phax set "high"`,
+    );
+  });
+
+  it("reads the level under the canonical name, not under phax's alias", () => {
+    const config = recorded(
+      secureInput,
+      after,
+      afterWithLevel("off", { "mistral-medium-3.5": { thinking: "high" } }),
+    );
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
+      `thinking of mistral-medium-latest (Vibe's catalog name for mistral-medium-3.5) is "off", phax set "high"`,
+    );
+  });
+
+  it("names an absent level under the canonical name", () => {
+    const { "mistral-medium-latest": _dropped, ...others } = after.models;
+    const config = recorded(secureInput, after, { models: others });
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
+      `thinking of mistral-medium-latest (Vibe's catalog name for mistral-medium-3.5) is absent, phax set "high"`,
+    );
   });
 });
 

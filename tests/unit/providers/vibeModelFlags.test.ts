@@ -1,5 +1,5 @@
 import { Effect, Result } from "effect";
-import { existsSync, mkdirSync, mkdtempSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import { removeTempDir } from "../../helpers/tempGit.js";
 import {
   VIBE3_EXPORT_SHORT,
   VIBE3_SESSION_ID,
+  VIBE313_CATALOG_ALIASES,
   vibe3ExportText,
   writeFakeVibe,
 } from "../../helpers/vibe3Fixtures.js";
@@ -232,6 +233,54 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     expect(resumeTrace.argv).not.toContain("--model");
     expect(resumeTrace.argv).not.toContain("--thinking");
     expect(resumeTrace.env).not.toHaveProperty("VIBE_ACTIVE_MODEL");
+  });
+
+  const activeModelIn = (path: string): unknown =>
+    (JSON.parse(readFileSync(path, "utf8")) as { config: { active_model: unknown } }).config
+      .active_model;
+
+  it("accepts the canonical model Vibe resolves phax's alias to once it has cached its catalog, on a new session and a resume", async () => {
+    const fake = fakeIn({ exportText: exportText(), catalogAliases: VIBE313_CATALOG_ALIASES });
+    const first = await runAgent(fake.executable, agentOptions("high"));
+    expect(Result.isSuccess(first)).toBe(true);
+    expect(activeModelIn(exportPath())).toBe(MODEL);
+
+    const secondTranscript = join(phaseFolder, "second.jsonl");
+    const second = await runAgent(fake.executable, agentOptions("high", {}, secondTranscript));
+    expect(Result.isSuccess(second)).toBe(true);
+    expect(activeModelIn(join(phaseFolder, "second.vibe-export", "export.json"))).toBe(
+      "mistral-medium-latest",
+    );
+
+    const resumeTranscript = join(phaseFolder, "fix-attempt-01.jsonl");
+    const resumed = await runAgent(
+      fake.executable,
+      agentOptions("high", {}, resumeTranscript),
+      VIBE3_SESSION_ID,
+    );
+    expect(Result.isSuccess(resumed)).toBe(true);
+    expect(activeModelIn(join(phaseFolder, "fix-attempt-01.vibe-export", "export.json"))).toBe(
+      "mistral-medium-latest",
+    );
+  });
+
+  it("refuses a canonicalised turn whose level under the canonical name is not phax's", async () => {
+    // A profile set the canonical model's level, in the shape a turn after the catalog cache reads.
+    const later = fakeIn({
+      exportText: exportText(),
+      configOverride: {
+        active_model: "mistral-medium-latest",
+        catalog_model_aliases: VIBE313_CATALOG_ALIASES,
+        models: { "mistral-medium-latest": { name: "mistral-medium-latest", thinking: "low" } },
+      },
+    });
+
+    const error = await refusalOf(later.executable, agentOptions("high"));
+
+    expect(error.message).toContain(
+      `thinking of mistral-medium-latest (Vibe's catalog name for ${MODEL}) is "low", phax set "high"`,
+    );
+    expect(error.message).toContain(exportPath());
   });
 
   it("refuses a vibe older than 3.1.3 before any session spawns, for a turn and a completion (ac-floor)", async () => {

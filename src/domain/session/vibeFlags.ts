@@ -53,7 +53,8 @@ import type { SecurityPolicy } from "../security/types.js";
 // profile can undo any of it. `vibeConfigMismatch` reads the config a turn
 // actually ran with (its export's `config`) back against what phax set: the
 // confinement above, and the model and thinking level the session was started
-// with (`--model`/`--thinking`, which the adapter builds, not this file).
+// with (`--model`/`--thinking`, which the adapter builds, not this file), the
+// model read under the canonical name Vibe's cached catalog resolves it to.
 
 export interface VibeFlagsInput {
   readonly security: SecurityPolicy;
@@ -237,9 +238,17 @@ export interface VibeSelection {
  * `config`) and the config phax set for it, as `<field> is <actual>, phax set
  * <expected>`; undefined when every value phax set holds. The confinement is
  * compared first, then `active_model` against `selection.model`, and only when
- * that matches `config.models[<model>].thinking` against `selection.thinking`
- * (a missing `models`, entry or level shows as `absent`). A field phax does not
- * set is not compared. An unconfined session is never compared.
+ * that holds `config.models[<active_model>].thinking` against
+ * `selection.thinking` (a missing `models`, entry or level shows as `absent`).
+ * A field phax does not set is not compared. An unconfined session is never
+ * compared.
+ *
+ * `active_model` holds when it is `selection.model`, or when it is the
+ * canonical name of an alias group in the same config's
+ * `catalog_model_aliases` that lists `selection.model`: once Vibe has cached
+ * its model catalog it resolves the alias phax passed to its canonical id and
+ * keys `models` by that id. Any other `active_model` is refused, and a missing
+ * or malformed `catalog_model_aliases` accepts the exact model only.
  */
 export function vibeConfigMismatch(
   input: VibeFlagsInput,
@@ -295,14 +304,36 @@ function selectionMismatch(
   actual: Record<string, unknown>,
   selection: VibeSelection,
 ): string | undefined {
-  if (actual["active_model"] !== selection.model) {
-    return `active_model is ${shown(actual["active_model"])}, phax set ${JSON.stringify(selection.model)}`;
+  const active = actual["active_model"];
+  const canonical =
+    active !== selection.model && isCanonicalNameOf(actual, active, selection.model);
+  if (active !== selection.model && !canonical) {
+    return `active_model is ${shown(active)}, phax set ${JSON.stringify(selection.model)}`;
   }
+  const model = active as string;
   const models = actual["models"];
-  const entry = isPlainObject(models) ? models[selection.model] : undefined;
+  const entry = isPlainObject(models) ? models[model] : undefined;
   const thinking = isPlainObject(entry) ? entry["thinking"] : undefined;
   if (thinking !== selection.thinking) {
-    return `thinking of ${selection.model} is ${shown(thinking)}, phax set ${JSON.stringify(selection.thinking)}`;
+    const named = canonical ? `${model} (Vibe's catalog name for ${selection.model})` : model;
+    return `thinking of ${named} is ${shown(thinking)}, phax set ${JSON.stringify(selection.thinking)}`;
   }
   return undefined;
+}
+
+/**
+ * Whether `active` is the canonical name of an alias group of the config's
+ * `catalog_model_aliases` (canonical name → its aliases) listing `alias`.
+ */
+function isCanonicalNameOf(
+  actual: Record<string, unknown>,
+  active: unknown,
+  alias: string,
+): active is string {
+  const groups = actual["catalog_model_aliases"];
+  if (typeof active !== "string" || !isPlainObject(groups) || !Object.hasOwn(groups, active)) {
+    return false;
+  }
+  const aliases = groups[active];
+  return Array.isArray(aliases) && aliases.includes(alias);
 }
