@@ -74,6 +74,7 @@ export function makePublishPrCommand(deps: PublishPrDeps = {}) {
         const published = yield* Effect.result(
           publishRun(info, config.publish, {
             repoRoot: config.repoRoot,
+            config,
             phaxVersion: readPackageVersion(),
             output: outputPortOf({ say, progress }),
             records: config.records,

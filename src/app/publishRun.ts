@@ -5,16 +5,12 @@ import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { runKey } from "../domain/runRef.js";
 import { isPhaseTerminal } from "../domain/state.js";
 import { COMPLIANCE_REVIEW_JSON_FILENAME } from "../domain/review/compliancePrompt.js";
-import type { ResolvedPublishConfig } from "../schemas/phaxConfig.js";
+import type { ResolvedConfig, ResolvedPublishConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
-import { CODE_REVIEW_JSON_FILENAME } from "../schemas/codeReview.js";
-import {
-  readCodeReviewFile,
-  readComplianceReviewFile,
-  readRunStatusFile,
-} from "../schemas/persisted.js";
+import { readComplianceReviewFile, readRunStatusFile } from "../schemas/persisted.js";
 import { selectPrTitle } from "../domain/publish/title.js";
 import { buildShortPrBody, type ShortPrBodyInput } from "../domain/publish/prBody.js";
+import type { PrFindings } from "../domain/publish/prFindings.js";
 import {
   groupAgents,
   locateAtHead,
@@ -47,6 +43,7 @@ import {
 import { resolvePlanLink } from "./planLink.js";
 import { writeFinalReport } from "./finalReport.js";
 import { aggregateVerifiedSurfaces } from "./gateAttribution.js";
+import { listRunFindings } from "./findingList.js";
 import { loadReviewedPhases, loadReviewHandoffInputs } from "./loadReviewHandoffInputs.js";
 
 export type PublicationResultKind = "published" | "failed";
@@ -60,6 +57,8 @@ export interface PublicationResult {
 
 export interface PublishRunOpts {
   readonly repoRoot: string;
+  /** The resolved config, for reading the run's findings. */
+  readonly config: ResolvedConfig;
   readonly verbose?: boolean;
   readonly now?: () => string;
   /** Absent means records are not in play for this call — no push is attempted. */
@@ -232,22 +231,26 @@ function loadCompliance(
   }).pipe(Effect.orElseSucceed(() => notReviewed));
 }
 
-// The run's code review; an absent or undecodable file reads as not
-// reviewed, so a review artifact never fails a publish.
-function loadCodeReview(
-  runPath: string,
-): Effect.Effect<ShortPrBodyInput["codeReview"], never, FileSystem> {
-  const notReviewed: ShortPrBodyInput["codeReview"] = { kind: "not-reviewed" };
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(runPath, CODE_REVIEW_JSON_FILENAME);
-    if (!(yield* fs.exists(path))) return notReviewed;
-    const raw = yield* fs.readText(path);
-    const parsed = yield* Effect.try(() => JSON.parse(raw) as unknown);
-    // Only the fields every shape carries: the ids of a current file are not read here.
-    const { review } = yield* Effect.fromResult(readCodeReviewFile(path, parsed));
-    return { kind: "reviewed", review } as const;
-  }).pipe(Effect.orElseSucceed(() => notReviewed));
+// The run's findings as `phax finding list` reads them; any failure reads as
+// unreadable, so a finding read never fails a publish.
+function loadPrFindings(
+  info: RunReviewInfo,
+  config: ResolvedConfig,
+): Effect.Effect<PrFindings, never, FileSystem | Git> {
+  // A run of this project is named by its short name, as the run's folder resolves it; only a
+  // run of another project needs its qualified name, which the registry resolves.
+  const ref =
+    info.namespace === config.namespace ? info.shortName : runKey(info.namespace, info.shortName);
+  return listRunFindings({ ref, config }).pipe(
+    Effect.map(({ document }): PrFindings => ({
+      kind: "read",
+      records: document.records,
+      findings: document.findings,
+    })),
+    Effect.catch((error: { readonly message: string }) =>
+      Effect.succeed<PrFindings>({ kind: "unreadable", reason: error.message }),
+    ),
+  );
 }
 
 function logVerbose(
@@ -630,7 +633,7 @@ export function publishRun(
       orderedPhases.map((p) => p.phaseId),
     );
     const compliance = yield* loadCompliance(info.runPath);
-    const codeReview = yield* loadCodeReview(info.runPath);
+    const findings = yield* loadPrFindings(info, opts.config);
 
     // The footer's facts, gathered only for a new pull request: a reused one
     // keeps its body, so it needs no lookup.
@@ -657,7 +660,7 @@ export function publishRun(
       phases,
       verifiedSurfaces,
       compliance,
-      codeReview,
+      findings,
       global,
       phaseHandoffs: phaseContents.map((p) => ({
         phaseId: p.phaseId,
