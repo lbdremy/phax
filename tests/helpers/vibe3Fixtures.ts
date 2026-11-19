@@ -151,7 +151,7 @@ export const VIBE3_RESUME_STREAM: readonly Vibe3StreamEntry[] = [
 // ── A fake `vibe` executable ────────────────────────────────────────────────
 
 interface FakeVibeOptions {
-  /** What `--version` prints; default `vibe 3.0.3`. */
+  /** What `--version` prints; default `vibe 3.1.3`. */
   readonly version?: string;
   /** The stream `-p` prints; default the probe's `PONG` turn. */
   readonly stream?: string;
@@ -163,8 +163,9 @@ interface FakeVibeOptions {
   readonly stderr?: string;
   /**
    * Top-level keys laid over the export's `config` after the fake has resolved
-   * it, as an agent profile would: `{ bypass_tool_permissions: true }` is a
-   * turn that ran under auto-approve whatever phax set.
+   * it (flags, variables and a resumed session's restored model and level
+   * included), as an agent profile would: `{ bypass_tool_permissions: true }` is
+   * a turn that ran under auto-approve whatever phax set.
    */
   readonly configOverride?: Readonly<Record<string, unknown>>;
   /**
@@ -197,6 +198,22 @@ interface FakeVibe {
 // the export template's own `config` with what the turn's flags and VIBE_*
 // variables set laid over it, as Vibe resolves them: the values phax sets, read
 // back. A turn that sets none (an unsafe one) keeps the template's config.
+//
+// It mirrors Vibe 3.1.3 as probed on 2026-11-18:
+// - On a new session (`-p` without `--resume`), `--model M` sets
+//   `config.active_model` to M, and `--thinking L` sets
+//   `config.models[<active_model>]` to the template's entry for that alias (if
+//   any) with `alias` and `thinking: L` laid over it. `models` is an object
+//   keyed by alias, and the template's other entries stay.
+// - A turn that passed either flag remembers its `active_model` and that
+//   `models` entry in `sessions.json` beside the fake, keyed by the export
+//   template's `session_id`. A resumed turn (`--resume S`) lays the entry
+//   remembered for S back onto its config: a resume keeps the model and level.
+// - A resume given `--model` or `--thinking` exits 1 with
+//   `Error: --model only applies to a new session` on stderr (naming
+//   `--thinking` when only that was given), prints no stream and writes no
+//   export. Its invocation and trace are still recorded.
+// - `configOverride` is laid over everything, last.
 const FAKE_VIBE_SCRIPT = `
 const { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = process.getBuiltinModule("node:fs");
 const { dirname, join } = process.getBuiltinModule("node:path");
@@ -210,6 +227,15 @@ if (args[0] === "--version") {
 const vibeEnv = Object.entries(process.env).filter(([key]) => key.startsWith("VIBE_"));
 writeFileSync(join(here, "turn-env.txt"), vibeEnv.map(([key, value]) => key + "=" + value + "\\n").join(""));
 appendFileSync(join(here, "trace.jsonl"), JSON.stringify({ argv: args, env: process.env }) + "\\n");
+const valueOf = (flag) => { const at = args.indexOf(flag); return at === -1 ? undefined : args[at + 1]; };
+const resumeId = valueOf("--resume");
+const modelFlag = valueOf("--model");
+const thinkingFlag = valueOf("--thinking");
+if (resumeId !== undefined && (modelFlag !== undefined || thinkingFlag !== undefined)) {
+  const flag = modelFlag !== undefined ? "--model" : "--thinking";
+  process.stderr.write("Error: " + flag + " only applies to a new session\\n");
+  process.exit(1);
+}
 const turnNumber = readFileSync(join(here, "trace.jsonl"), "utf8").split("\\n").filter(Boolean).length;
 const writesFile = join(here, "turn-writes.json");
 if (existsSync(writesFile)) {
@@ -219,7 +245,6 @@ if (existsSync(writesFile)) {
     writeFileSync(target, write.content);
   }
 }
-const valueOf = (flag) => { const at = args.indexOf(flag); return at === -1 ? undefined : args[at + 1]; };
 const out = valueOf("--output-dir");
 process.stdout.write(readFileSync(join(here, "stream.jsonl"), "utf8"));
 if (existsSync(join(here, "stderr.txt"))) process.stderr.write(readFileSync(join(here, "stderr.txt"), "utf8"));
@@ -239,6 +264,30 @@ if (out !== undefined && existsSync(template)) {
   if (env.VIBE_ENABLE_MCP !== undefined) resolved.enable_mcp = env.VIBE_ENABLE_MCP === "true";
   if (env.VIBE_ENABLE_CONNECTORS !== undefined) {
     resolved.enable_connectors = env.VIBE_ENABLE_CONNECTORS === "true";
+  }
+  const isPlain = (value) => typeof value === "object" && value !== null && !Array.isArray(value);
+  const remembered = join(here, "sessions.json");
+  const sessions = existsSync(remembered) ? JSON.parse(readFileSync(remembered, "utf8")) : {};
+  if (resumeId === undefined) {
+    if (modelFlag !== undefined) resolved.active_model = modelFlag;
+    if (thinkingFlag !== undefined) {
+      const active = resolved.active_model;
+      const models = isPlain(resolved.models) ? { ...resolved.models } : {};
+      models[active] = { ...(isPlain(models[active]) ? models[active] : {}), alias: active, thinking: thinkingFlag };
+      resolved.models = models;
+    }
+    if (modelFlag !== undefined || thinkingFlag !== undefined) {
+      const active = resolved.active_model;
+      const entry = isPlain(resolved.models) ? resolved.models[active] : undefined;
+      sessions[exported.session_id] = { active_model: active, ...(entry === undefined ? {} : { entry }) };
+      writeFileSync(remembered, JSON.stringify(sessions));
+    }
+  } else if (sessions[resumeId] !== undefined) {
+    const kept = sessions[resumeId];
+    resolved.active_model = kept.active_model;
+    if (kept.entry !== undefined) {
+      resolved.models = { ...(isPlain(resolved.models) ? resolved.models : {}), [kept.active_model]: kept.entry };
+    }
   }
   const override = join(here, "config-override.json");
   const config = existsSync(override)
@@ -262,7 +311,7 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
   mkdirSync(dir, { recursive: true });
   const executable = join(dir, "vibe");
   const log = join(dir, "invocations.log");
-  writeFileSync(join(dir, "version.txt"), `${options.version ?? "vibe 3.0.3"}\n`);
+  writeFileSync(join(dir, "version.txt"), `${options.version ?? "vibe 3.1.3"}\n`);
   writeFileSync(join(dir, "stream.jsonl"), options.stream ?? vibe3StreamText(VIBE3_PONG_STREAM));
   writeFileSync(join(dir, "exit-code.txt"), String(options.exitCode ?? 0));
   if (options.exportText !== undefined) writeFileSync(join(dir, "export.json"), options.exportText);
