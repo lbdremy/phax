@@ -304,7 +304,11 @@ function exportConfigOf(transcriptPath: string): Record<string, unknown> {
 /**
  * The model and thinking level a turn ran with, read from the export beside its
  * stream: `config.active_model`, and `thinking` of that model's entry in
- * `config.models` (an object keyed by alias in Vibe 3.1.3).
+ * `config.models` (an object keyed by model name in Vibe 3.1.3). Once Vibe has
+ * cached its model catalog it reports the canonical name of phax's alias
+ * (`mistral-medium-latest`), listed with `mistral-medium-3.5` in
+ * `config.catalog_model_aliases`: the model then reads as `mistral-medium-3.5`,
+ * so the cases assert the model phax chose either way.
  */
 function modelAndLevelOf(transcriptPath: string): {
   readonly activeModel: unknown;
@@ -313,8 +317,11 @@ function modelAndLevelOf(transcriptPath: string): {
   const config = exportConfigOf(transcriptPath);
   const activeModel = config["active_model"];
   const models = config["models"] as Record<string, { thinking?: unknown } | undefined> | undefined;
+  const aliases = config["catalog_model_aliases"] as Record<string, unknown> | undefined;
+  const group = typeof activeModel === "string" ? aliases?.[activeModel] : undefined;
+  const servesPhaxModel = Array.isArray(group) && group.includes("mistral-medium-3.5");
   return {
-    activeModel,
+    activeModel: servesPhaxModel ? "mistral-medium-3.5" : activeModel,
     thinking: typeof activeModel === "string" ? models?.[activeModel]?.thinking : undefined,
   };
 }
@@ -890,13 +897,28 @@ describe.skipIf(DIRECT_SKIP !== undefined)(
   () => {
     let restoreGit: () => void;
     const scratch: string[] = [];
+    // A Vibe turn that hangs (seen once: no answer to the first message) is
+    // killed before the case's own timeout, so the case fails on it and no
+    // vibe process outlives the suite.
+    const previousSpawnTimeout = process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"];
 
     beforeAll(() => {
       restoreGit = isolateGit();
+      process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"] ??= "240000";
     });
 
     afterAll(() => {
-      for (const dir of scratch) removeTempDir(dir);
+      if (previousSpawnTimeout === undefined) delete process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"];
+      else process.env["PHAX_VIBE_SPAWN_TIMEOUT_MS"] = previousSpawnTimeout;
+      // Vibe's background helpers can still be writing into a VIBE_HOME as the
+      // suite ends: a leftover temporary directory is not a failure.
+      for (const dir of scratch) {
+        try {
+          removeTempDir(dir);
+        } catch (error) {
+          console.info(`vibeSecure e2e: left ${dir}: ${String(error)}`);
+        }
+      }
       restoreGit();
     });
 
