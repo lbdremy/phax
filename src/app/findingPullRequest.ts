@@ -46,8 +46,9 @@ export interface PullRequestPosted {
 }
 
 /**
- * The URL of the pull request phax opened for a run: `pullRequestUrl` of `<runFolder>/publication.json`
- * when its `prStatus` is `created` or `exists`. Null for no folder, no file, a file that does not
+ * The URL of the run's pull request: `pullRequestUrl` of `<runFolder>/publication.json` when its
+ * `prStatus` is `created` (phax opened it) or `exists` (phax found it on the run branch, a pull
+ * request opened by hand included). Null for no folder, no file, a file that does not
  * decode, or any other status.
  */
 export function readRunPullRequest(

@@ -1,5 +1,5 @@
 // `phax finding post <run> <id>…` (spec finding-ids-and-fates §5.23, §5.24): posts, on the pull
-// request phax opened for the run, one comment per named finding naming its fate, after pushing
+// request the run's publication.json names, one comment per named finding naming its fate, after pushing
 // the run branch when a named finding is fixed. It writes no record, so it is the retry when a
 // fate command could not update the pull request, and it never records a fate twice. It ignores
 // `publish.auto`: it is an explicit request to post. Every refusal comes before any push or call.
@@ -98,7 +98,7 @@ export function postFindings(input: {
     const pullRequest = yield* readRunPullRequest(run.runFolder);
     if (pullRequest === null) {
       return yield* refuse(
-        `${run.shortName} has no pull request phax opened (no publication.json with its URL in the run folder): nothing to post`,
+        `${run.shortName} has no recorded pull request (no publication.json with its URL in the run folder): nothing to post`,
       );
     }
 

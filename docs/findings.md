@@ -211,7 +211,7 @@ Fixed: 1 · Dismissed: 1
 
 ### Fate comments
 
-With `publish.auto` on and a pull request phax opened, `phax finding fix` pushes the run branch to `publish.remote` (plainly, never forced), then `fix`, `dismiss` and `defer` post one comment per finding they settle:
+With `publish.auto` on and a pull request named in the run's `publication.json`, `phax finding fix` pushes the run branch to `publish.remote` (plainly, never forced), then `fix`, `dismiss` and `defer` post one comment per finding they settle:
 
 ```bash
 phax finding fix gate-retry F2 -- tests/gate.test.ts
@@ -244,7 +244,7 @@ Taken over by `NEXT_STEPS.md`
 
 `@` mentions in a message or reason are rendered as code. A call naming several ids posts several comments.
 
-The pull request is the one `publication.json` in the run's folder names (its archive copy for an archived run). phax asks GitHub nothing to find it: a merged or closed pull request is still commented, and one opened by hand with `gh pr create` is not.
+The pull request is the one `publication.json` in the run's folder names (its archive copy for an archived run): the one `phax publish-pr` opened, or the one it found already open on the run branch and recorded. phax asks GitHub nothing to find it, so a merged or closed pull request is still commented. A pull request opened by hand with `gh pr create` gets fate comments once `phax publish-pr` has found and recorded it, but its description never gets the Review findings section. A pull request is skipped only when `publication.json` does not name it.
 
 ### When nothing leaves the machine
 

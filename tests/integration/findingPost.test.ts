@@ -138,7 +138,7 @@ describe("phax finding post", () => {
     rmSync(join(repo.runFolder, "publication.json"));
     const none = await post("F2");
     expect(none.code).toBe(1);
-    expect(none.err).toContain("has no pull request phax opened");
+    expect(none.err).toContain("has no recorded pull request");
 
     expect(ghCalls(repo)).toEqual([]);
     expect(remoteHead(repo)).toBe(remoteBefore);
@@ -163,7 +163,7 @@ describe("phax finding post", () => {
     );
     const result = await post("F2");
     expect(result.code).toBe(1);
-    expect(result.err).toContain("has no pull request phax opened");
+    expect(result.err).toContain("has no recorded pull request");
     expect(ghCalls(repo)).toEqual([]);
   });
 
