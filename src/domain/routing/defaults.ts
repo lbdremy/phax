@@ -125,6 +125,19 @@ export const RETIRED_MODEL_IDS: Readonly<Record<string, string>> = {
   "phax-mistral-medium-3.5-high": "phax runs Vibe's mistral-medium-3.5 with --thinking high",
 };
 
+/**
+ * The catalog id that takes the place of a retired one: `phax agent setup providers --write`
+ * lists it where the retired id stood, and a routing table keyed on the retired id is told to
+ * use it.
+ */
+export const RETIRED_MODEL_SUCCESSORS: Readonly<Record<string, string>> = {
+  "phax-mistral-medium-3.5-low": "mistral-medium-3.5",
+  "phax-mistral-medium-3.5-medium": "mistral-medium-3.5",
+  "phax-mistral-medium-3.5-max": "mistral-medium-3.5",
+  "phax-mistral-medium-3.5-off": "mistral-medium-3.5",
+  "phax-mistral-medium-3.5-high": "mistral-medium-3.5",
+};
+
 export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
   providers: {
     "claude-code": {
@@ -212,7 +225,6 @@ export const DEFAULT_PROVIDER_CONFIG: ProviderConfig = {
     "mistral-vibe": {
       enabled: false,
       executable: "vibe",
-      modelEnvVar: "VIBE_ACTIVE_MODEL",
       defaultAgent: "auto-approve",
       families: {
         "mistral-medium": {

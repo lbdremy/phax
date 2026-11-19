@@ -28,9 +28,12 @@ export function providerSetup(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
-    const current = yield* readProviderConfigFile();
+    const { config: current, fieldsDropped } = yield* readProviderConfigFile();
     const probes = yield* probeProviders(current);
-    const plan = planProviderConfig(current, probes, { prune: options.prune });
+    const plan = planProviderConfig(current, probes, {
+      prune: options.prune,
+      fieldsDropped: fieldsDropped.map((field) => field.path),
+    });
 
     let backupPath: string | undefined;
     let routingScaffolded = false;

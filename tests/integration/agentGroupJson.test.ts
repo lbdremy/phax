@@ -238,8 +238,14 @@ describe("agent setup written files", () => {
     expect(result.out).toContain("Dry run — no changes written.\n");
     const json = JSON.parse((await call(["setup", "providers", "--json"])).out) as {
       written: unknown[];
+      retiredRemoved: unknown[];
+      retiredReplaced: unknown[];
+      fieldsDropped: unknown[];
     };
     expect(json.written).toEqual([]);
+    expect(json.retiredRemoved).toEqual([]);
+    expect(json.retiredReplaced).toEqual([]);
+    expect(json.fieldsDropped).toEqual([]);
   });
 
   it("setup mistral-vibe --install-model-aliases --json lists config.toml and its backup", async () => {

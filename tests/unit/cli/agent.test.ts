@@ -305,6 +305,8 @@ describe("phax agent SetupProviders", () => {
           disabled: [],
           unchanged: ["claude-code", "codex-cli"],
           retiredRemoved: [],
+          retiredReplaced: [],
+          fieldsDropped: [],
         },
         written: false,
         backupPath: undefined,
@@ -331,6 +333,8 @@ describe("phax agent SetupProviders", () => {
           disabled: [],
           unchanged: ["claude-code", "mistral-vibe"],
           retiredRemoved: ["phax-mistral-medium-3.5-low", "phax-mistral-medium-3.5-max"],
+          retiredReplaced: ["mistral-medium-3.5"],
+          fieldsDropped: ["providers.mistral-vibe.modelEnvVar"],
         },
         written: true,
         backupPath: undefined,
@@ -342,9 +346,72 @@ describe("phax agent SetupProviders", () => {
 
     const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers", "--write"]);
     expect(code).toBe(0);
-    expect(lines.join("\n")).toContain(
+    const text = lines.join("\n");
+    expect(text).toContain(
       "Dropped models phax no longer routes to (2): phax-mistral-medium-3.5-low, phax-mistral-medium-3.5-max",
     );
+    expect(text).toContain("Listed in their place: mistral-medium-3.5");
+    expect(text).toContain(
+      "Dropped fields phax no longer reads (1): providers.mistral-vibe.modelEnvVar",
+    );
+  });
+
+  it("a dry run says what it would list and drop", async () => {
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: [],
+          disabled: [],
+          unchanged: ["claude-code", "mistral-vibe"],
+          retiredRemoved: ["phax-mistral-medium-3.5-off"],
+          retiredReplaced: ["mistral-medium-3.5"],
+          fieldsDropped: ["providers.mistral-vibe.modelEnvVar"],
+        },
+        written: false,
+        backupPath: undefined,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { code, outLines: lines } = await phaxCall(["agent", "setup", "providers"]);
+    expect(code).toBe(0);
+    const text = lines.join("\n");
+    expect(text).toContain("Would list in their place: mistral-medium-3.5");
+    expect(text).toContain(
+      "Would drop fields phax no longer reads (1): providers.mistral-vibe.modelEnvVar",
+    );
+  });
+
+  it("--json answers retiredReplaced and fieldsDropped", async () => {
+    const { providerSetup } = vi.mocked(await import("../../../src/app/providerSetup.js"));
+    vi.mocked(providerSetup).mockReturnValue(
+      Effect.succeed({
+        plan: {
+          config: { providers: {} },
+          enabled: [],
+          disabled: [],
+          unchanged: ["claude-code"],
+          retiredRemoved: ["phax-mistral-medium-3.5-off"],
+          retiredReplaced: ["mistral-medium-3.5"],
+          fieldsDropped: ["providers.mistral-vibe.modelEnvVar"],
+        },
+        written: false,
+        backupPath: undefined,
+        routingScaffolded: false,
+        providerConfigPath: PROVIDER_CONFIG_PATH,
+        modelRoutingPath: MODEL_ROUTING_PATH,
+      }),
+    );
+
+    const { code, out } = await phaxCall(["agent", "setup", "providers", "--json"]);
+    expect(code).toBe(0);
+    const answer = JSON.parse(out) as Record<string, unknown>;
+    expect(answer["retiredReplaced"]).toEqual(["mistral-medium-3.5"]);
+    expect(answer["fieldsDropped"]).toEqual(["providers.mistral-vibe.modelEnvVar"]);
   });
 
   it("--write prints enabled providers and config path", async () => {
@@ -357,6 +424,8 @@ describe("phax agent SetupProviders", () => {
           disabled: [],
           unchanged: ["claude-code", "codex-cli"],
           retiredRemoved: [],
+          retiredReplaced: [],
+          fieldsDropped: [],
         },
         written: true,
         backupPath: undefined,
@@ -384,6 +453,8 @@ describe("phax agent SetupProviders", () => {
           disabled: [],
           unchanged: ["claude-code"],
           retiredRemoved: [],
+          retiredReplaced: [],
+          fieldsDropped: [],
         },
         written: true,
         backupPath,

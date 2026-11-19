@@ -16,7 +16,6 @@ const ProviderFamilyEntrySchema = Schema.Struct({
 const ProviderEntrySchema = Schema.Struct({
   enabled: Schema.Boolean,
   executable: Schema.NonEmptyString,
-  modelEnvVar: Schema.optional(Schema.NonEmptyString),
   defaultAgent: Schema.optional(Schema.NonEmptyString),
   output: Schema.optional(Schema.NonEmptyString),
   families: Schema.optional(

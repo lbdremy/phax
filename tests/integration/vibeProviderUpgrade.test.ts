@@ -110,7 +110,7 @@ beforeEach(() => {
 });
 
 describe("pre-upgrade providers.json", () => {
-  it.fails("ac-env-refused: a modelEnvVar field is refused by its path and the fix", async () => {
+  it("ac-env-refused: a modelEnvVar field is refused by its path and the fix", async () => {
     writeProviders({ ...AFTER_VIBE, modelEnvVar: "VIBE_ACTIVE_MODEL" });
     const error = await Effect.runPromise(
       Effect.flip(loadProviderConfig().pipe(Effect.provide(NodeFileSystemLayer))),
@@ -119,7 +119,7 @@ describe("pre-upgrade providers.json", () => {
     expect(error.message).toContain("phax agent setup providers --write");
   });
 
-  it.fails("ac-successor: --write lists mistral-medium-3.5 in place of the alias ids", async () => {
+  it("ac-successor: --write lists mistral-medium-3.5 in place of the alias ids", async () => {
     const { modelEnvVar: _dropped, ...withoutEnvVar } = BEFORE_VIBE;
     writeProviders(withoutEnvVar);
     const result = await call(["setup", "providers", "--write"]);
@@ -141,7 +141,7 @@ describe("pre-upgrade providers.json", () => {
     expect(names.some((name) => name.startsWith("providers.json.phax-backup-"))).toBe(true);
   });
 
-  it.fails("ac-one-command: one --write drops modelEnvVar and leaves a loadable file", async () => {
+  it("ac-one-command: one --write drops modelEnvVar and leaves a loadable file", async () => {
     writeProviders(BEFORE_VIBE);
     const result = await call(["setup", "providers", "--write"]);
     expect(result.code).toBe(0);
@@ -166,7 +166,7 @@ describe("pre-upgrade providers.json", () => {
 });
 
 describe("pre-upgrade model-routing.json", () => {
-  it.fails("ac-routing-file: a key on a retired id is refused, naming its successor", async () => {
+  it("ac-routing-file: a key on a retired id is refused, naming its successor", async () => {
     const file = {
       ...DEFAULT_MODEL_ROUTING,
       equivalence: {

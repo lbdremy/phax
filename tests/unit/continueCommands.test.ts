@@ -336,17 +336,18 @@ describe("mistral-vibe commands", () => {
     });
   });
 
-  it("names the model variable the provider entry names", () => {
+  it("always names VIBE_ACTIVE_MODEL, since Vibe's TUI takes no --model", () => {
     const result = command(
       mistralSessionAdapter.buildFreshStartCommand({
         ...opts,
         posture: "none",
         prompt: "go",
-        modelEnvVar: "MY_VIBE_MODEL",
+        model: "mistral-medium-3.5",
+        effort: "off",
       }),
     );
     expect(result.args).toEqual(["--workdir", WORKTREE, "go"]);
-    expect(result.env).toEqual({ MY_VIBE_MODEL: "phax-mistral-medium-3.5-high" });
+    expect(result.env).toEqual({ VIBE_ACTIVE_MODEL: "mistral-medium-3.5" });
   });
 
   it("trusts the workdir for an unsafe phase", () => {

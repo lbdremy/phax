@@ -73,7 +73,7 @@ function providerConfig(): ProviderConfig {
           },
         },
       },
-      "mistral-vibe": { enabled: true, executable: vibePath, modelEnvVar: "VIBE_ACTIVE_MODEL" },
+      "mistral-vibe": { enabled: true, executable: vibePath },
     },
   };
 }

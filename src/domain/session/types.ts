@@ -54,8 +54,6 @@ export interface ContinueCommandOpts extends StopCommandOpts {
 export interface FreshStartCommandOpts extends StopCommandOpts {
   /** The first message of the new session. */
   readonly prompt: string;
-  /** The environment variable a provider reads its model from; vibe only. */
-  readonly modelEnvVar?: string;
 }
 
 export interface SessionAdapter {
