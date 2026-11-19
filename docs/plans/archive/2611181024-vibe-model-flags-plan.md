@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611180902-vibe-model-flags.md
 completes-spec: true
 approved:
