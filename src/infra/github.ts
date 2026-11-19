@@ -146,6 +146,14 @@ export const NodeGitHubLayer = Layer.succeed(GitHub, {
       repo,
     ).pipe(Effect.map(({ stdout }) => stdout.trim())),
 
+  commentOnPullRequest: ({ pullRequest, body, repo }) =>
+    ghRun(["pr", "comment", pullRequest, "--body", body], repo).pipe(
+      Effect.map(({ stdout }) => {
+        const trimmed = stdout.trim();
+        return trimmed.length > 0 ? trimmed : pullRequest;
+      }),
+    ),
+
   createIssue: ({ repo, title, bodyFile }) =>
     ghRun(["issue", "create", "--title", title, "--body-file", bodyFile], repo).pipe(
       Effect.map(({ stdout }) => stdout.trim()),
