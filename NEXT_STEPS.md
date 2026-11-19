@@ -117,6 +117,19 @@ briefs of live or unspecced work.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
 
+### 6b. The agent's command line
+
+Placed by the operator on 2026-11-19, right after the test-speed items above. From the same conversation as
+section 16: what an agent driving phax would want from its command line besides detaching a run.
+
+- [ ] **`agent-cli-ergonomics`** — `docs/briefs/agent-cli-ergonomics.md`, spec to author. Three small changes:
+      a preview never exits 0 (`--dry-run` previews; no terminal and no `--yes` refuses with its own code), short
+      `--help` with the long text by topic, `phax ls` scoped to the current project (`--all` for the registry).
+- [ ] **`next-steps-as-data`** — `docs/briefs/next-steps-as-data.md`, spec to author. Every refusal, pause, stop
+      and outcome that suggests a command carries it as `{ argv, why }`, the text rendered from the same data.
+- [ ] **`inbox`** — `docs/briefs/inbox.md`, spec to author. One versioned document for the current project:
+      everything that waits, on whom, with its next steps. The `claude-code-mod` inbox reads it too.
+
 ### 7. Test reliability follow-ups
 
 A batch from *Small follow-ups*, first the two hangs: give every `spawnSync` and CLI spawn in
