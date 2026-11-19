@@ -3,7 +3,9 @@ import {
   renderFindingDefer,
   renderFindingDismiss,
   renderFindingFix,
+  renderFindingPost,
   type FindingFixOutput,
+  type FindingPostOutput,
 } from "../../../src/cli/definitions/finding.js";
 
 const SHA = "9f8e7d6c5b4a39281706f5e4d3c2b1a098765432";
@@ -54,6 +56,40 @@ describe("renderFindingFix", () => {
     expect(renderFindingFix(backfilled).split("\n")).toEqual([
       "✓ recorded F3 fixed by 9f8e7d6 (code, docs, tests) on phax/records/v1",
     ]);
+  });
+});
+
+describe("renderFindingPost", () => {
+  const url = "https://github.com/acme/app/pull/7";
+  const post = (pullRequest: FindingPostOutput["pullRequest"]): FindingPostOutput => ({
+    run: { namespace: "phax", shortName: "gate-retry", runId: "run-1", state: "review_open" },
+    pullRequest,
+    findings: [],
+  });
+
+  it("prints the push, then one commented line per comment", () => {
+    const out = renderFindingPost(
+      post({
+        url,
+        pushed: { remote: "origin", branch: "phax/gate-retry--phase-02", sha: SHA },
+        comments: [
+          { finding: "F2", url: `${url}#issuecomment-1` },
+          { finding: "F5", url: `${url}#issuecomment-2` },
+        ],
+      }),
+    );
+    expect(out.split("\n")).toEqual([
+      "✓ pushed phax/gate-retry--phase-02 to origin",
+      `✓ commented F2 on ${url}`,
+      `✓ commented F5 on ${url}`,
+    ]);
+  });
+
+  it("prints no pushed line when nothing was pushed", () => {
+    const out = renderFindingPost(
+      post({ url, pushed: null, comments: [{ finding: "F3", url: `${url}#issuecomment-1` }] }),
+    );
+    expect(out).toBe(`✓ commented F3 on ${url}`);
   });
 });
 

@@ -6,9 +6,11 @@
 import { Effect, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { fixFindings } from "../../app/findingFix.js";
+import { postFindings } from "../../app/findingPost.js";
 import { deferFindings, dismissFindings } from "../../app/findingSettle.js";
 import { listRunFindings } from "../../app/findingList.js";
 import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitHubLayer } from "../../infra/github.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import {
   CodeReviewFindingEntrySchema,
@@ -489,8 +491,102 @@ const deferCommand = defineCommand({
   render: renderFindingDefer,
 });
 
+const PullRequestPostedOutput = Schema.Struct({
+  url: Schema.String,
+  pushed: Schema.NullOr(
+    Schema.Struct({ remote: Schema.String, branch: Schema.String, sha: Schema.String }),
+  ),
+  comments: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
+});
+
+/** A post's answer: the run, what reached its pull request, and the named findings. */
+export const FindingPostOutput = Schema.Struct({
+  run: Schema.Struct({
+    namespace: Schema.String,
+    shortName: Schema.String,
+    runId: Schema.String,
+    state: RunStateSchema,
+  }),
+  pullRequest: PullRequestPostedOutput,
+  findings: Schema.Array(
+    Schema.Union([CodeReviewFindingEntrySchema, ComplianceFindingEntrySchema]),
+  ),
+});
+export type FindingPostOutput = typeof FindingPostOutput.Type;
+
+/** The lines of a post's answer, from the answer alone. */
+export function renderFindingPost(answer: FindingPostOutput): string {
+  const { pushed, comments, url } = answer.pullRequest;
+  return [
+    ...(pushed === null ? [] : [`✓ pushed ${pushed.branch} to ${pushed.remote}`]),
+    ...comments.map(({ finding }) => `✓ commented ${finding} on ${url}`),
+  ].join("\n");
+}
+
+const postCommand = defineCommand({
+  name: "post",
+  summary: "Post the comments of settled findings on the run's pull request",
+  help: "Posts, on the pull request phax opened for the run, one comment per named finding of an already settled fate, in the order named: the finding's id, fate, location and message, then the commit that fixed it, the reason it was dismissed, or the file that takes it over. For a fixed finding it first pushes the run's branch to publish.remote from the run's final worktree, so the commit the comment names is visible on the pull request; with publish.pushBranch off it pushes nothing. It writes no record, so it never records a fate twice, and it ignores publish.auto: it is an explicit request to post. It is the retry that phax finding fix, dismiss and defer name when they could not update the pull request. The pull request is the one publication.json in the run folder names, so a run phax did not open a pull request for has nothing to post. Every refusal comes before any push or call: an id the run does not have, a finding that is open or unrecorded (it has no fate to post), and a run without a pull request. A push or a comment that fails exits 1, names the ids left and the phax finding post retry; a refused push also says to bring the remote's commits in with git pull --no-rebase. With --json it prints { run, pullRequest, findings }, pullRequest being { url, pushed, comments }. Exits 1 for a refusal, a git, gh or file failure and a pull request not updated, and 2 for an invalid configuration.",
+  examples: ["phax finding post gate-retry F2", "phax finding post gate-retry F3 F5"],
+  input: { args: SettleArgs },
+  output: reject(FindingPostOutput),
+  run: ({ input }) =>
+    Effect.gen(function* () {
+      const config = yield* configured();
+      const [ref, ...operands] = input.args;
+      return yield* postFindings({ ref, operands, config }).pipe(
+        Effect.provide(
+          Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NodeGitLayer, NodeGitHubLayer),
+        ),
+      );
+    }).pipe(Effect.mapError(exposeMessage)),
+  exits: {
+    FindingPostRefusedError: 1,
+    FindingPullRequestNotUpdatedError: 1,
+    FindingRunRefError: 1,
+    FindingReviewUnreadableError: 1,
+    FindingFateRecordUnreadableError: 1,
+    GitError: 1,
+    FsError: 1,
+    RegistryCorruptionError: 1,
+    ConfigValidationError: 2,
+  },
+  errors: {
+    FindingPostRefusedError: MessageFields,
+    FindingPullRequestNotUpdatedError: Schema.Struct({
+      message: Schema.String,
+      pullRequest: Schema.String,
+      commit: Schema.NullOr(Schema.String),
+      recorded: Schema.Array(Schema.String),
+      pushed: Schema.Boolean,
+      posted: Schema.Array(Schema.Struct({ finding: Schema.String, url: Schema.String })),
+      unposted: Schema.Array(Schema.String),
+      retry: Schema.String,
+    }),
+    FindingRunRefError: MessageFields,
+    FindingReviewUnreadableError: MessageFields,
+    FindingFateRecordUnreadableError: MessageFields,
+    GitError: MessageFields,
+    FsError: MessageFields,
+    RegistryCorruptionError: MessageFields,
+    ConfigValidationError: MessageFields,
+  },
+  texts: {
+    FindingPostRefusedError: (error) => `✗ post refused: ${error.message}`,
+    FindingPullRequestNotUpdatedError: (error) => error.message,
+    FindingRunRefError: (error) => `✗ post refused: ${error.message}`,
+    FindingReviewUnreadableError: (error) => `✗ post refused: ${error.message}`,
+    FindingFateRecordUnreadableError: (error) => `✗ post refused: ${error.message}`,
+    GitError: (error) => `✗ post refused: ${error.message}`,
+    FsError: (error) => `✗ post refused: ${error.message}`,
+    RegistryCorruptionError: (error) => `✗ post refused: ${error.message}`,
+    ConfigValidationError: (error) => error.message,
+  },
+  render: renderFindingPost,
+});
+
 export const findingGroup = defineGroup({
   name: "finding",
   summary: "Read the findings of a run's reviews and their fates",
-  commands: [listCommand, fixCommand, dismissCommand, deferCommand],
+  commands: [listCommand, fixCommand, dismissCommand, deferCommand, postCommand],
 });
