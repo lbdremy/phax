@@ -8,6 +8,7 @@ import {
 import type { GlobalFileReconciliation } from "../reconciliation/global.js";
 import { prPhaseStopSuffix, type ReviewedPhase } from "../interactive/reviewedPhases.js";
 import { onOneLine } from "../reportText.js";
+import { codeSpan, withoutMentions } from "./markdownSafe.js";
 import { renderPlanRef, renderPrFooter, type PrFooterInput } from "./prFooter.js";
 import { renderReviewNotesSection, type ReviewNoteGroup } from "../review/reviewNotes.js";
 
@@ -253,32 +254,10 @@ function renderNeedsYourReview(
 }
 
 // One list item per finding. `file` is kept as given, so the code span's
-// fence is one backtick longer than the longest run inside it (CommonMark),
-// padded with a space on each side when the place holds a backtick.
+// fence follows `codeSpan`.
 function findingLine(finding: CodeReviewFinding): string {
-  const place = onOneLine(`${finding.file}:${finding.line}`);
-  const longestRun = Math.max(0, ...(place.match(/`+/g) ?? []).map((run) => run.length));
-  const fence = "`".repeat(longestRun + 1);
-  const span = longestRun === 0 ? `${fence}${place}${fence}` : `${fence} ${place} ${fence}`;
+  const span = codeSpan(onOneLine(`${finding.file}:${finding.line}`));
   return `- **${finding.severity}** ${span} — ${withoutMentions(onOneLine(finding.message))}`;
-}
-
-// Model text in the body: `@scope/pkg` or `@name` outside a code span would
-// mention a GitHub user or team and notify them, so each such token is
-// rendered as code. Code spans and an `@` inside a word (an email) are left
-// as they are.
-function withoutMentions(text: string): string {
-  return text
-    .split(/(`+[^`]*?`+)/)
-    .map((part, index) =>
-      index % 2 === 1
-        ? part
-        : part.replace(
-            /(^|[^\w`])(@[\w-]+(?:\/[\w.-]*[\w-])?)/g,
-            (_m, before: string, token: string) => `${before}\`${token}\``,
-          ),
-    )
-    .join("");
 }
 
 // The first `kept` items, then one line counting the cut ones; `None.` when
