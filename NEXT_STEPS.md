@@ -73,8 +73,8 @@ briefs of live or unspecced work.
             retry the push and comments with no new record. §5.8 was narrowed to `phax finding
             list` before it (spec reopened and re-approved 2026-11-19). Review: 5 findings, 4
             fixed on the branch; the page's examples are now rendered from phax's own renderers
-            in a test. An unreadable fate record still refuses the whole run (operator,
-            2026-11-19: keep it).
+            in a test. An unreadable fate record still refuses the whole run (left out of
+            plan 3 on the recommendation to keep it; the operator raised no objection).
 
 ### 5. Process and code in two repositories
 
