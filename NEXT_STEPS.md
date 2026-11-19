@@ -101,6 +101,23 @@ briefs of live or unspecced work.
       `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Plan 2 of
       `finding-ids-and-fates` merged first (operator, 2026-11-18), so it is next. Mistral Large 4 in the catalog is a separate, later change.
 
+### 5c. The test suite and phax's own code (briefs, 2026-11-18/19)
+
+In this order (operator, 2026-11-19), after `vibe-model-flags`; the specs can be authored while
+it runs.
+
+- [ ] **`test-worlds-built-once`** — `docs/briefs/test-worlds-built-once.md`, spec to author first.
+      The integration tests' git repositories built once and copied, and a test's many commits
+      written in one git process: the suite's time is what turns gates and CI red "under load".
+- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
+      Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
+      daily on it).
+- [ ] **`suppression-directives`** — `docs/briefs/suppression-directives.md`, spec to author.
+      phax's own lint suppressions each name their rule and say why; the unused ones go.
+- [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
+      that tightens the protected tolerance files inside a run, and loosens them only by what the
+      approved plan declared.
+
 ### 6. The project doctrine
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
