@@ -162,7 +162,7 @@ describe("freshStartNote", () => {
     [
       "mistral-vibe",
       mistralSessionAdapter,
-      "Vibe's interactive mode takes no --thinking: this session starts at mistral-medium-3.5's default thinking level, not the phase's level (off).",
+      "Vibe's interactive mode takes no --thinking: this session starts at mistral-medium-3.5's default thinking level; the phase ran at off.",
     ],
     ["claude-code", claudeSessionAdapter, null],
     ["codex-cli", codexSessionAdapter, null],

@@ -307,6 +307,48 @@ describe("planEnterPhase and a closed interactive phase", () => {
   });
 });
 
+describe("planEnterPhase and a stopped Vibe phase", () => {
+  it("ac-fresh-note: plans the fresh start with an info notice naming the default thinking level and off", async () => {
+    const run = await stopRun(world, { provider: "mistral-vibe", model: "mistral-medium-3.5" });
+    // The phase resolved to mistral-medium-3.5 at `off`.
+    const resolution = readJson(join(run.phaseFolder, "model-resolution.json"));
+    patchJson(join(run.phaseFolder, "model-resolution.json"), {
+      selected: {
+        ...(resolution["selected"] as Record<string, unknown>),
+        family: "mistral-medium",
+        thinking: "off",
+      },
+    });
+    patchJson(join(run.phaseFolder, "status.json"), { effort: "off" });
+    const info = Result.getOrThrow(
+      resolveRun(NAMESPACE, run.shortName as ShortName, world.stateRoot),
+    );
+
+    const planned = await Effect.runPromise(
+      planEnterPhase({
+        namespace: NAMESPACE,
+        shortName: run.shortName,
+        info,
+        phaseId: "phase-03",
+        newSession: false,
+        stateRoot: world.stateRoot,
+        providerConfig: DEFAULT_PROVIDER_CONFIG,
+      }).pipe(Effect.provide(NodeFileSystemLayer)),
+    );
+
+    expect(planned.kind).toBe("command");
+    if (planned.kind !== "command") return;
+    expect(planned.command.executable).toBe("vibe");
+    expect(planned.command.env).toEqual({ VIBE_ACTIVE_MODEL: "mistral-medium-3.5" });
+    const notes = planned.notices.filter(
+      (n) => n.kind === "info" && n.text.includes("default thinking level"),
+    );
+    expect(notes).toHaveLength(1);
+    expect(notes[0]?.text).toContain("off");
+    expect(fakeSession.impl.invocations).toHaveLength(0);
+  });
+});
+
 const reviewStopPath = (run: StoppedRun): string => join(run.runPath, "review-stop.json");
 
 function layers(
