@@ -248,7 +248,7 @@ describe("phax finding fix: paths and --commit", () => {
       recorded: { finding: string; key: string; recordCommit: string }[];
       findings: { id: string; fate: string; history: unknown[] }[];
     };
-    expect(Object.keys(answer)).toEqual(["run", "commit", "recorded", "findings"]);
+    expect(Object.keys(answer)).toEqual(["run", "commit", "recorded", "findings", "pullRequest"]);
     expect(answer.run).toMatchObject({ shortName: repo.shortName, state: "review_open" });
     expect(answer.commit).toEqual({
       sha: runTip(),

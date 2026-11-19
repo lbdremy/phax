@@ -1,8 +1,9 @@
 // `phax finding dismiss <run> <id>… --why <reason>` and `phax finding defer <run> <id>… --to <path>
 // --why <reason>` (spec finding-ids-and-fates §5.14 to §5.20): record each named finding dismissed
 // or deferred on `phax/records/v1`, one record per id, in the order named. Only an operator settles
-// a finding without fixing it. Every refusal comes before any write. Nothing is pushed and no
-// GitHub call is made: the records reach the remote with the run's publish.
+// a finding without fixing it. Every refusal comes before any write. Once the records landed each
+// command comments on the run's pull request when `publish.auto` is on and phax opened one
+// (`pullRequestAfterFates`); it pushes nothing, and the records branch is never pushed.
 import { isAbsolute, relative, resolve } from "node:path";
 import { Data, Effect, Result } from "effect";
 import type { RegistryCorruptionError } from "../domain/errors.js";
@@ -10,6 +11,7 @@ import { isFindingId } from "../domain/findings/fixCall.js";
 import { runKey } from "../domain/runRef.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import type { GitHub } from "../ports/github.js";
 import type { Terminal } from "../ports/terminal.js";
 import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -27,6 +29,10 @@ import {
   type FindingRunRefError,
   resolveFindingRun,
 } from "./findingList.js";
+import {
+  type FindingPullRequestNotUpdatedError,
+  pullRequestAfterFates,
+} from "./findingPullRequest.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
@@ -42,6 +48,7 @@ export interface FindingSettleAnswer extends Omit<FindingFixAnswer, "commit"> {
 export type FindingSettleError =
   | FindingSettleRefusedError
   | FindingFateNotRecordedError
+  | FindingPullRequestNotUpdatedError
   | FindingRecordsOffError
   | FindingRecordsUnavailableError
   | FindingRunRefError
@@ -77,7 +84,7 @@ type Verb = "dismiss" | "defer";
 function settle(
   verb: Verb,
   input: SettleInput & { readonly cwd?: string; readonly to?: string },
-): Effect.Effect<FindingSettleAnswer, FindingSettleError, FileSystem | Git | Terminal> {
+): Effect.Effect<FindingSettleAnswer, FindingSettleError, FileSystem | Git | GitHub | Terminal> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const { config } = input;
@@ -203,6 +210,18 @@ function settle(
     }
 
     const after = yield* listRunFindings({ ref: input.ref, config });
+    const named = ids.flatMap((id) =>
+      after.document.findings.filter((finding) => finding.id === id),
+    );
+    const pullRequest = yield* pullRequestAfterFates({
+      ref: input.ref,
+      run,
+      verb,
+      findings: named,
+      recorded: recorded.map((r) => r.finding),
+      commit: null,
+      config,
+    });
     return {
       run: {
         namespace: run.namespace,
@@ -212,7 +231,8 @@ function settle(
       },
       commit: null,
       recorded,
-      findings: ids.flatMap((id) => after.document.findings.filter((finding) => finding.id === id)),
+      findings: named,
+      pullRequest,
     };
   });
 }

@@ -12,6 +12,7 @@ import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
 import { GitHub, type GitHubError } from "../ports/github.js";
 import { decodePublication } from "../schemas/publication.js";
+import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedFindingRun } from "./findingList.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
@@ -223,5 +224,58 @@ export function pushAndComment(
       );
     }
     return { url: pullRequest, pushed, comments: posted };
+  });
+}
+
+/** What a fate command did to the run's pull request: nothing (and why), or the push and comments. */
+export type PullRequestOutcome =
+  | {
+      readonly kind: "not-posted";
+      readonly reason: "publish-auto-off" | "no-pull-request" | "push-branch-off";
+    }
+  | ({ readonly kind: "posted" } & PullRequestPosted);
+
+/**
+ * What a fate command does for the pull request once its records landed (§5.22, §5.23). With
+ * `publish.auto` off, a run with no pull request in `publication.json`, or a fix while
+ * `publish.pushBranch` is off, nothing leaves the machine. Otherwise `fix` pushes the run branch
+ * and each finding the call settled gets its comment, in order. `dismiss` and `defer` push nothing.
+ */
+export function pullRequestAfterFates(input: {
+  readonly ref: string;
+  readonly run: ResolvedFindingRun;
+  readonly verb: "fix" | "dismiss" | "defer";
+  /** The settled findings, as `listRunFindings` reads them after the write, in the order named. */
+  readonly findings: readonly PrFinding[];
+  readonly recorded: readonly string[];
+  readonly commit: string | null;
+  readonly config: ResolvedConfig;
+}): Effect.Effect<
+  PullRequestOutcome,
+  FindingPullRequestNotUpdatedError,
+  FileSystem | Git | GitHub
+> {
+  return Effect.gen(function* () {
+    const { config, run } = input;
+    if (!config.publish.auto) {
+      return { kind: "not-posted", reason: "publish-auto-off" } as const;
+    }
+    const pullRequest = yield* readRunPullRequest(run.runFolder);
+    if (pullRequest === null) return { kind: "not-posted", reason: "no-pull-request" } as const;
+    if (input.verb === "fix" && !config.publish.pushBranch) {
+      return { kind: "not-posted", reason: "push-branch-off" } as const;
+    }
+    const posted = yield* pushAndComment({
+      ref: input.ref,
+      run,
+      pullRequest,
+      findings: input.findings,
+      push: input.verb === "fix",
+      remote: config.publish.remote,
+      recorded: input.recorded,
+      commit: input.commit,
+      repoRoot: run.target.kind === "project" ? run.target.repoRoot : config.repoRoot,
+    });
+    return { kind: "posted", ...posted } as const;
   });
 }

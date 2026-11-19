@@ -26,7 +26,19 @@ const answer = (overrides: Partial<FindingFixOutput>): FindingFixOutput => ({
     { finding: "F5", key: "run-1/finding/F5/01", recordCommit: "b".repeat(40) },
   ],
   findings: [],
+  pullRequest: { kind: "not-posted", reason: "publish-auto-off" },
   ...overrides,
+});
+
+const PR_URL = "https://github.com/acme/app/pull/7";
+const posted = (pushed: boolean): FindingFixOutput["pullRequest"] => ({
+  kind: "posted",
+  url: PR_URL,
+  pushed: pushed ? { remote: "origin", branch: "phax/gate-retry--phase-02", sha: SHA } : null,
+  comments: [
+    { finding: "F2", url: `${PR_URL}#issuecomment-1` },
+    { finding: "F5", url: `${PR_URL}#issuecomment-2` },
+  ],
 });
 
 describe("renderFindingFix", () => {
@@ -56,6 +68,22 @@ describe("renderFindingFix", () => {
     expect(renderFindingFix(backfilled).split("\n")).toEqual([
       "✓ recorded F3 fixed by 9f8e7d6 (code, docs, tests) on phax/records/v1",
     ]);
+  });
+
+  it("adds the pushed line and one commented line per comment when the pull request was reached", () => {
+    expect(renderFindingFix(answer({ pullRequest: posted(true) })).split("\n")).toEqual([
+      "✓ committed 9f8e7d6 fix(review): F2, F5 of gate-retry",
+      "  paths: src/app/gate.ts (code), tests/gate.test.ts (tests)",
+      "✓ recorded F2 fixed on phax/records/v1",
+      "✓ recorded F5 fixed on phax/records/v1",
+      "✓ pushed phax/gate-retry--phase-02 to origin",
+      `✓ commented F2 on ${PR_URL}`,
+      `✓ commented F5 on ${PR_URL}`,
+    ]);
+  });
+
+  it("adds nothing when the pull request was not posted to", () => {
+    expect(renderFindingFix(answer({})).split("\n")).toHaveLength(4);
   });
 });
 
@@ -99,6 +127,7 @@ describe("renderFindingDismiss and renderFindingDefer", () => {
     run: { namespace: "phax", shortName: "gate-retry", runId: "run-1", state: "review_open" },
     commit: null,
     recorded: [],
+    pullRequest: { kind: "not-posted", reason: "publish-auto-off" },
   };
   const dismissed = (id: string) => ({
     id,
@@ -122,5 +151,33 @@ describe("renderFindingDismiss and renderFindingDefer", () => {
       findings: [{ id: "F5", history: [{ fate: "deferred", to: "docs/next.md", by: operator }] }],
     } as unknown as FindingFixOutput);
     expect(out).toBe("✓ recorded F5 deferred → docs/next.md on phax/records/v1");
+  });
+
+  it("adds one commented line per comment, and no pushed line, when posted", () => {
+    const comment = { finding: "F2", url: `${PR_URL}#issuecomment-1` };
+    const pullRequest: FindingFixOutput["pullRequest"] = {
+      kind: "posted",
+      url: PR_URL,
+      pushed: null,
+      comments: [comment],
+    };
+    const dismissedOut = renderFindingDismiss({
+      ...base,
+      pullRequest,
+      findings: [dismissed("F2")],
+    } as unknown as FindingFixOutput);
+    expect(dismissedOut.split("\n")).toEqual([
+      "✓ recorded F2 dismissed on phax/records/v1 (by Ada)",
+      `✓ commented F2 on ${PR_URL}`,
+    ]);
+    const deferredOut = renderFindingDefer({
+      ...base,
+      pullRequest,
+      findings: [{ id: "F2", history: [{ fate: "deferred", to: "docs/next.md", by: operator }] }],
+    } as unknown as FindingFixOutput);
+    expect(deferredOut.split("\n")).toEqual([
+      "✓ recorded F2 deferred → docs/next.md on phax/records/v1",
+      `✓ commented F2 on ${PR_URL}`,
+    ]);
   });
 });

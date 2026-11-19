@@ -1,8 +1,10 @@
 // `phax finding fix <run> <id>… -- <path>…` (spec finding-ids-and-fates §5.11, §5.12, §5.19,
 // §5.20): commits exactly the named paths in the run's final worktree while the run is
 // review_open, then records each named finding `fixed` on `phax/records/v1`. With `--commit <sha>`
-// it records an existing commit and makes none. Every refusal comes before any write. Nothing is
-// pushed and no GitHub call is made: the records reach the remote with the run's publish.
+// it records an existing commit and makes none. Every refusal comes before any write. Once the
+// records landed it reaches the run's pull request (`pullRequestAfterFates`): with `publish.auto`
+// on and a pull request phax opened, it pushes the run branch (plain) and comments once per
+// finding; otherwise nothing leaves the machine. The records branch is never pushed.
 import { isAbsolute, relative, resolve } from "node:path";
 import { Data, Effect, Result } from "effect";
 import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
@@ -13,6 +15,7 @@ import { type PathClass } from "../schemas/pathClass.js";
 import { classifyPath, pathClassesOf } from "../domain/findings/pathClass.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import type { GitHub } from "../ports/github.js";
 import type { Terminal } from "../ports/terminal.js";
 import type { CodeReviewFindingEntry, ComplianceFindingEntry } from "../schemas/findingList.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
@@ -30,6 +33,11 @@ import {
   resolveFindingRun,
   type ResolvedFindingRun,
 } from "./findingList.js";
+import {
+  type FindingPullRequestNotUpdatedError,
+  type PullRequestOutcome,
+  pullRequestAfterFates,
+} from "./findingPullRequest.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
@@ -81,11 +89,14 @@ export interface FindingFixAnswer {
     readonly recordCommit: string;
   }[];
   readonly findings: readonly (CodeReviewFindingEntry | ComplianceFindingEntry)[];
+  /** What reached the run's pull request, or why nothing did. */
+  readonly pullRequest: PullRequestOutcome;
 }
 
 export type FindingFixError =
   | FindingFixRefusedError
   | FindingFateNotRecordedError
+  | FindingPullRequestNotUpdatedError
   | FindingRecordsOffError
   | FindingRecordsUnavailableError
   | FindingRunRefError
@@ -217,7 +228,7 @@ function requireOpenRun(run: ResolvedFindingRun) {
  */
 export function fixFindings(
   input: FindingFixInput,
-): Effect.Effect<FindingFixAnswer, FindingFixError, FileSystem | Git | Terminal> {
+): Effect.Effect<FindingFixAnswer, FindingFixError, FileSystem | Git | GitHub | Terminal> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const { config } = input;
@@ -339,8 +350,20 @@ export function fixFindings(
       );
     }
 
-    // 10. The answer: the named findings read again after the write.
+    // 10. The named findings read again after the write, then the pull request.
     const after = yield* listRunFindings({ ref: input.ref, config });
+    const named = ids.flatMap((id) =>
+      after.document.findings.filter((finding) => finding.id === id),
+    );
+    const pullRequest = yield* pullRequestAfterFates({
+      ref: input.ref,
+      run,
+      verb: "fix",
+      findings: named,
+      recorded: recorded.map((r) => r.finding),
+      commit: input.commit === undefined ? sha : null,
+      config,
+    });
     return {
       run: {
         namespace: run.namespace,
@@ -355,7 +378,8 @@ export function fixFindings(
         paths: changed.map((path) => ({ path, pathClass: classifyPath(path) })),
       },
       recorded,
-      findings: ids.flatMap((id) => after.document.findings.filter((finding) => finding.id === id)),
+      findings: named,
+      pullRequest,
     };
   });
 }
