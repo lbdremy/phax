@@ -13,7 +13,9 @@ description = "Reviewed false positives"
 # Deterministic test fixtures — not real credentials.
 #   tests/integration/planCacheStore.test.ts: const KEY = "test-key-abc123"
 #   (a plan-cache lookup key, flagged by the generic-api-key rule).
-regexes = ['''test-key-[A-Za-z0-9-]+''']
+#   Model ids such as phax-mistral-medium-3.5-max or mistral-medium-3.5 written after
+#   the word "key" (a routing-table key in tests and docs/upgrading.md).
+regexes = ['''test-key-[A-Za-z0-9-]+''', '''^(phax-)?mistral-medium-3\.5(-[a-z]+)?$''']
 
 # The scanner's own pattern list would otherwise self-match.
 paths = ['''scripts/security/secrets-scan\.sh''']
