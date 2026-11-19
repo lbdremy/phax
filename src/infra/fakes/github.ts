@@ -1,7 +1,7 @@
 import { Effect, Layer } from "effect";
 import type { BranchName } from "../../domain/branded.js";
 import type { RepoVisibility, VisibilityReading } from "../../domain/records/destination.js";
-import { GitHub, type GitHubOps, GitHubError } from "../../ports/github.js";
+import { GitHub, type GitHubOps, GitHubError, type PullRequestState } from "../../ports/github.js";
 
 export type GitHubCall =
   | { method: "isAvailable" }
@@ -20,6 +20,7 @@ export type GitHubCall =
       repo: string;
     }
   | { method: "commentOnPullRequest"; pullRequest: string; body: string; repo: string }
+  | { method: "pullRequestState"; pullRequest: string; repo: string }
   | { method: "createIssue"; repo: string; title: string; bodyFile: string }
   | { method: "createGist"; description: string; file: string; public: boolean };
 
@@ -43,6 +44,9 @@ export class FakeGitHubImpl implements GitHubOps {
   private nextCreatePrError: string | undefined;
   private nextCommentError: string | undefined;
   private commentsPosted = 0;
+  /** Every pull request reads as open unless `setPullRequestState` says otherwise. */
+  configuredPullRequestState: PullRequestState = "open";
+  private nextPullRequestStateError: string | undefined;
   private nextCreateIssueError: string | undefined;
   private nextCreateGistError: string | undefined;
 
@@ -95,6 +99,14 @@ export class FakeGitHubImpl implements GitHubOps {
 
   failNextComment(stderr: string): void {
     this.nextCommentError = stderr;
+  }
+
+  setPullRequestState(state: PullRequestState): void {
+    this.configuredPullRequestState = state;
+  }
+
+  failNextPullRequestState(stderr: string): void {
+    this.nextPullRequestStateError = stderr;
   }
 
   setCreatedIssueUrl(url: string): void {
@@ -221,6 +233,30 @@ export class FakeGitHubImpl implements GitHubOps {
     }
     this.commentsPosted += 1;
     return Effect.succeed(`${input.pullRequest}#issuecomment-${this.commentsPosted}`);
+  }
+
+  pullRequestState(input: {
+    pullRequest: string;
+    repo: string;
+  }): Effect.Effect<PullRequestState, GitHubError> {
+    this.calls.push({
+      method: "pullRequestState",
+      pullRequest: input.pullRequest,
+      repo: input.repo,
+    });
+    if (this.nextPullRequestStateError !== undefined) {
+      const stderr = this.nextPullRequestStateError;
+      this.nextPullRequestStateError = undefined;
+      return Effect.fail(
+        new GitHubError({
+          message: `gh pr view failed: ${stderr}`,
+          command: "gh pr view",
+          stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    return Effect.succeed(this.configuredPullRequestState);
   }
 
   createIssue(input: {
