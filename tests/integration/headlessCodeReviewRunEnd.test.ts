@@ -84,7 +84,8 @@ const answerOf = (...findings: unknown[]) =>
     findings,
   });
 
-const HEADING = "### Code review findings";
+const HEADING = "## Review findings";
+const NO_FINDINGS = `${HEADING}\n\nNo findings.`;
 
 async function runState(runPath: string): Promise<string | undefined> {
   const status = JSON.parse(await readFile(join(runPath, "run-status.json"), "utf8")) as {
@@ -326,7 +327,7 @@ describe("headless code review at run end", () => {
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(true);
     expect(existsSync(join(r.runPath, "code-review-session.json"))).toBe(true);
     expect(r.prBody).toContain(HEADING);
-    expect(r.prBody).toContain("`src/a.ts:12` — The flag is ignored.");
+    expect(r.prBody).toContain("- F1 bug — `src/a.ts:12` — The flag is ignored.");
     expect(await runState(r.runPath)).toBe("review_open");
   });
 
@@ -364,7 +365,7 @@ describe("headless code review at run end", () => {
     expect(r.sessions).toEqual(["compliance"]);
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
     expect(r.prBody).toBeDefined();
-    expect(r.prBody).not.toContain(HEADING);
+    expect(r.prBody).toContain(NO_FINDINGS);
     expect(r.stderr).not.toContain("code review");
   });
 
@@ -383,7 +384,7 @@ describe("headless code review at run end", () => {
       expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
       expect(existsSync(join(r.runPath, "code-review-session.json"))).toBe(false);
       expect(await runState(r.runPath)).toBe("review_open");
-      expect(r.prBody).not.toContain(HEADING);
+      expect(r.prBody).toContain(NO_FINDINGS);
       expect(r.stderr).toContain("[phax] Warning: code review failed: ");
       expect(r.stderr).toContain(`phax review-code ${SHORT_NAME} --headless`);
     },
@@ -418,7 +419,7 @@ describe("headless code review at run end", () => {
     expect(existsSync(join(r.runPath, "code-review.json"))).toBe(false);
     expect(existsSync(join(r.runPath, "code-review-session.json"))).toBe(false);
     expect(r.stderr).toContain("[phax] Warning: code review failed: ");
-    expect(r.prBody).not.toContain(HEADING);
+    expect(r.prBody).toContain(NO_FINDINGS);
   });
 
   it("runs the session on the configured model and effort", async () => {
@@ -432,8 +433,7 @@ describe("headless code review at run end", () => {
     });
 
     expect(r.codeCalls).toEqual([{ model: "claude-sonnet-5-5", effort: "medium" }]);
-    expect(r.prBody).toContain(`${HEADING}`);
-    expect(r.prBody).toContain("None.");
+    expect(r.prBody).toContain(NO_FINDINGS);
   });
 
   it("skips the review with a warning when the bundled skill was not given", async () => {

@@ -64,7 +64,7 @@ describe("the findings section of a pull request's description", () => {
   };
 
   // AC-pr-section
-  it.fails("names the open and deferred findings and counts the fixed and dismissed ones", async () => {
+  it("names the open and deferred findings and counts the fixed and dismissed ones", async () => {
     setPublishAuto(repo, false);
     await reviewOnce(repo, FIVE);
     writeComplianceFinding(repo, "edited src/cli/ls.ts, not in the plan");
@@ -102,7 +102,7 @@ describe("the findings section of a pull request's description", () => {
   });
 
   // AC-pr-no-pr
-  it.fails("carries the fates set while no pull request existed, which pushed and posted nothing", async () => {
+  it("carries the fates set while no pull request existed, which pushed and posted nothing", async () => {
     setPublishAuto(repo, true);
     await reviewOnce(repo, FIVE);
     const remoteBefore = remoteHead(repo);

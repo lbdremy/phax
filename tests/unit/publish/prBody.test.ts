@@ -18,11 +18,9 @@ import type {
   AnyShapeComplianceReview,
   ComplianceReview,
 } from "../../../src/schemas/complianceReview.js";
-import {
-  CODE_REVIEW_ESCAPES,
-  CODE_REVIEW_LENSES,
-  type CodeReviewFinding,
-} from "../../../src/schemas/codeReview.js";
+import type { PrFinding, PrFindings } from "../../../src/domain/publish/prFindings.js";
+import { CODE_REVIEW_ESCAPES, CODE_REVIEW_LENSES } from "../../../src/schemas/codeReview.js";
+import type { CodeReviewFindingEntry } from "../../../src/schemas/findingList.js";
 
 function entry(
   path: string,
@@ -107,7 +105,7 @@ const base: ShortPrBodyInput = {
   ],
   verifiedSurfaces: ["local", "structural"],
   compliance: { kind: "reviewed", review },
-  codeReview: { kind: "not-reviewed" },
+  findings: { kind: "read", records: "read", findings: [] },
   global: makeGlobal(
     [
       unplanned("src/render/colors.ts", ["phase-02"]),
@@ -559,64 +557,97 @@ describe("buildShortPrBody — size cap", () => {
   });
 });
 
-function finding(overrides: Partial<CodeReviewFinding> = {}): CodeReviewFinding {
+type Fate = "open" | "fixed" | "dismissed" | "deferred";
+
+function finding(n: number, fate: Fate, over: Partial<CodeReviewFindingEntry> = {}): PrFinding {
+  const history: PrFinding["history"] =
+    fate === "deferred"
+      ? [
+          {
+            fate: "deferred",
+            to: "docs/briefs/later.md",
+            why: "later",
+            by: { kind: "operator", name: "Remy" },
+            at: "2026-01-01T00:00:00.000Z",
+          },
+        ]
+      : [];
   return {
+    id: `F${n}`,
+    source: "code-review",
     severity: "concern",
     file: "src/greet.ts",
-    line: 12,
+    line: n,
     message: "The greeting ignores NO_COLOR.",
     lens: CODE_REVIEW_LENSES[0],
     escape: CODE_REVIEW_ESCAPES[0],
     criterion: null,
     suggestion: "Honour NO_COLOR.",
-    ...overrides,
+    fate,
+    history,
+    ...over,
   };
 }
 
-function reviewed(...findings: CodeReviewFinding[]): ShortPrBodyInput["codeReview"] {
-  return { kind: "reviewed", review: { findings } };
+function read(...findings: PrFinding[]): PrFindings {
+  return { kind: "read", records: "read", findings };
 }
 
-describe("buildShortPrBody — code review findings", () => {
-  it("lists one line per finding, between the attention points and the deviations", () => {
+describe("buildShortPrBody — review findings", () => {
+  it("puts the section right after Needs your review and before the review notes", () => {
     const body = build({
-      codeReview: reviewed(
-        finding({ severity: "bug", file: "src/a.ts", line: 3, message: "First." }),
-        finding({ severity: "info", file: "docs/b.md", line: 40, message: "Second." }),
+      findings: read(
+        finding(1, "open", { severity: "bug", file: "src/a.ts", line: 3, message: "First." }),
+        finding(2, "deferred"),
+        finding(3, "fixed"),
+        finding(4, "dismissed"),
       ),
     });
-    const needs = section(body, "## Needs your review");
-    expect(needs).toContain(
-      "### Code review findings\n\n- **bug** `src/a.ts:3` — First.\n- **info** `docs/b.md:40` — Second.",
+    const findings = section(body, "## Review findings").trimEnd();
+    expect(findings).toBe(
+      [
+        "## Review findings",
+        "",
+        "Open (1)",
+        "- F1 bug — `src/a.ts:3` — First.",
+        "",
+        "Deferred (1)",
+        "- F2 concern — `src/greet.ts:2` — The greeting ignores NO_COLOR. → `docs/briefs/later.md`",
+        "",
+        "Fixed: 1 · Dismissed: 1",
+      ].join("\n"),
     );
-    expect(needs.indexOf("### Compliance attention points")).toBeLessThan(
-      needs.indexOf("### Code review findings"),
-    );
-    expect(needs.indexOf("### Code review findings")).toBeLessThan(
-      needs.indexOf("### Unexplained deviations"),
+    expect(body.indexOf("## Needs your review")).toBeLessThan(body.indexOf("## Review findings"));
+    expect(body.indexOf("## Review findings")).toBeLessThan(body.indexOf("## Review notes"));
+    expect(body).not.toContain("### Code review findings");
+  });
+
+  it("says no findings for a run without one", () => {
+    expect(section(build({ findings: read() }), "## Review findings").trimEnd()).toBe(
+      "## Review findings\n\nNo findings.",
     );
   });
 
-  it("leaves the heading out without a code review and writes None. for no finding", () => {
-    expect(build()).not.toContain("### Code review findings");
-    expect(build({ codeReview: reviewed() })).toContain("### Code review findings\n\nNone.");
+  it("says why the findings could not be read", () => {
+    const body = build({ findings: { kind: "unreadable", reason: "no such run" } });
+    expect(body).toContain("The findings could not be read (no such run)");
   });
 
   it("keeps a finding on one line with an intact code span", () => {
     const body = build({
-      codeReview: reviewed(
-        finding({ file: "src/we`ird.ts", message: "One\n\n## fake heading" }),
-        finding({ file: "a\nb.ts", line: 2 }),
+      findings: read(
+        finding(1, "open", { file: "src/we`ird.ts", message: "One\n\n## fake heading" }),
+        finding(2, "open", { file: "a\nb.ts" }),
       ),
     });
-    expect(body).toContain("- **concern** `` src/we`ird.ts:12 `` — One ## fake heading");
-    expect(body).toContain("- **concern** `a b.ts:2` —");
+    expect(body).toContain("- F1 concern — `` src/we`ird.ts:1 `` — One ## fake heading");
+    expect(body).toContain("- F2 concern — `a b.ts:2` —");
   });
 
   it("renders an @-token as code so it mentions nobody, outside code spans and emails", () => {
     const body = build({
-      codeReview: reviewed(
-        finding({
+      findings: read(
+        finding(1, "open", {
           message: "Pin @effect/platform; ask @alice, not `@bob`; mail ops@example.com.",
         }),
       ),
@@ -626,55 +657,61 @@ describe("buildShortPrBody — code review findings", () => {
     );
   });
 
-  it("cuts findings after the attention points and before the review notes", () => {
-    const findings = Array.from({ length: 300 }, (_, i) =>
-      finding({ line: i + 1, message: `Finding number ${i}: ${"x".repeat(60)}` }),
-    );
+  it("cuts deferred findings before open ones, after the attention points", () => {
+    const long = (n: number, fate: Fate) =>
+      finding(n, fate, { message: `Finding number ${n}: ${"x".repeat(60)}` });
+    const findings = [
+      ...Array.from({ length: 100 }, (_, i) => long(i + 1, "open")),
+      ...Array.from({ length: 100 }, (_, i) => long(i + 101, "deferred")),
+      long(201, "fixed"),
+    ];
     const input: ShortPrBodyInput = {
       ...base,
-      codeReview: reviewed(...findings),
+      findings: read(...findings),
       global: makeGlobal(manyDeviations(10), []),
-      maxBytes: 8000,
+      maxBytes: 12000,
     };
     const { body, shortened } = buildShortPrBody(input);
     expect(shortened).toBe(true);
-    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(8000);
+    expect(Buffer.byteLength(body, "utf8")).toBeLessThanOrEqual(12000);
     const needs = section(body, "## Needs your review");
     expect(needs).toContain("### Unexplained deviations\n\n- …and 10 more unexplained deviations");
     expect(needs).toContain("### Compliance attention points\n\n- …and 2 more attention points");
-    expect(needs).toContain("Finding number 0:");
-    const cut = needs.match(/- …and (\d+) more code review findings/);
-    expect(cut).not.toBeNull();
-    const kept = needs.match(/- \*\*concern\*\* /g) ?? [];
-    expect(kept.length + Number(cut![1])).toBe(300);
+    const found = section(body, "## Review findings");
+    expect(found).toContain("Open (100)\n- F1 concern");
+    expect(found).toContain("Deferred (100)\n- …and 100 more deferred findings");
+    expect(found).toContain("Fixed: 1 · Dismissed: 0");
     expect(section(body, "## Review notes").trimEnd()).toBe(renderReviewNotes(noteGroups));
   });
 
-  it("cuts review notes only when no finding fits", () => {
+  it("cuts open findings once the deferred ones are gone, keeping the count line", () => {
     const { body } = buildShortPrBody({
       ...base,
-      codeReview: reviewed(finding(), finding({ line: 2 })),
+      findings: read(finding(1, "open"), finding(2, "open"), finding(3, "deferred")),
       global: makeGlobal(manyDeviations(10), []),
       reviewNoteGroups: manyNotes(2000),
     });
-    expect(body).toContain("### Code review findings\n\n- …and 2 more code review findings");
+    const found = section(body, "## Review findings");
+    expect(found).toContain("Open (2)\n- …and 2 more open findings");
+    expect(found).toContain("Deferred (1)\n- …and 1 more deferred finding");
+    expect(found).toContain("Fixed: 0 · Dismissed: 0");
     expect(body).toContain("- …and 2 more attention points");
     expect(body).toMatch(/- …and \d+ more review notes/);
   });
 
-  it("writes the singular noun for one cut finding", () => {
+  it("writes the singular noun for one cut open finding", () => {
     const input: ShortPrBodyInput = {
       ...base,
       compliance: { kind: "reviewed", review: { ...review, attentionPoints: [] } },
       global: makeGlobal([], []),
-      codeReview: reviewed(finding({ message: "y".repeat(3000) })),
+      findings: read(finding(1, "open", { message: "y".repeat(3000) })),
     };
     const full = buildShortPrBody(input).body;
     const { body } = buildShortPrBody({
       ...input,
       maxBytes: Buffer.byteLength(full, "utf8") - 1,
     });
-    expect(body).toContain("- …and 1 more code review finding\n");
+    expect(body).toContain("- …and 1 more open finding\n");
   });
 });
 

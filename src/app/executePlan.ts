@@ -2959,6 +2959,7 @@ export function executePlan(
         if (config.publish?.auto) {
           const publicationResult = yield* publishRun(infoResult.success, config.publish, {
             repoRoot: config.repoRoot,
+            config,
             phaxVersion: opts.phaxVersion,
             records: config.records,
             ...(config.records.destination.kind === "repo"

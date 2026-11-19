@@ -15,12 +15,19 @@ import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
-import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
+import type { ResolvedConfig, ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { withSchemaUrl } from "../../src/schemas/persisted.js";
 import { runStatus } from "../helpers/runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { processOutput } from "../helpers/processOutput.js";
+
+// The run is not resolvable here, so the findings read as unreadable.
+const resolvedConfig = {
+  namespace: "test-project",
+  stateRoot: "/fake-state",
+  repoRoot: "/fake-repo",
+} as unknown as ResolvedConfig;
 
 const RECORDS_BRANCH: BranchName = Result.getOrThrow(decodeBranchName("phax/records/v1"));
 
@@ -314,6 +321,7 @@ describe("publishRun: records push wiring", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultPublishConfig(), {
         repoRoot: publishRepoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -343,6 +351,7 @@ describe("publishRun: records push wiring", () => {
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
         {
           repoRoot: publishRepoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           records,
@@ -373,6 +382,7 @@ describe("publishRun: records push wiring", () => {
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
         {
           repoRoot: publishRepoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           records,
@@ -405,6 +415,7 @@ describe("publishRun: records push wiring", () => {
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
         {
           repoRoot: publishRepoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -439,6 +450,7 @@ describe("publishRun: records push wiring", () => {
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
         {
           repoRoot: publishRepoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           records,
@@ -464,6 +476,7 @@ describe("publishRun: records push wiring", () => {
         defaultPublishConfig({ pushBranch: false, createPullRequest: false }),
         {
           repoRoot: publishRepoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           records: {

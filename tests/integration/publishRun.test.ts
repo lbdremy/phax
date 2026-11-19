@@ -13,8 +13,7 @@ import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
-import { CODE_REVIEW_ESCAPES, CODE_REVIEW_LENSES } from "../../src/schemas/codeReview.js";
-import type { ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
+import type { ResolvedConfig, ResolvedPublishConfig } from "../../src/schemas/phaxConfig.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -26,6 +25,13 @@ const runPath = `${stateRoot}/runs/${shortName}`;
 const repoRoot = "/fake-repo";
 const finalBranch = "feature/test-run--phase-01" as BranchName;
 const now = "2026-06-12T12:00:00.000Z";
+
+// The fake file system holds no run phax can resolve, so the findings read as unreadable.
+const resolvedConfig = {
+  namespace: "test-project",
+  stateRoot,
+  repoRoot,
+} as unknown as ResolvedConfig;
 
 function makeInfo(overrides: Partial<RunReviewInfo> = {}): RunReviewInfo {
   return {
@@ -151,6 +157,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig({ auto: false }), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -170,6 +177,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -206,6 +214,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig({ baseBranch: "develop" }), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -227,6 +236,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig({ title: "Custom Title" }), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -248,6 +258,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -276,6 +287,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -295,6 +307,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -325,6 +338,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -344,6 +358,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -364,6 +379,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -383,6 +399,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig({ createPullRequest: false }), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -430,6 +447,7 @@ describe("publishRun", () => {
       await Effect.runPromise(
         publishRun(makeInfo(), defaultConfig(), {
           repoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -447,57 +465,24 @@ describe("publishRun", () => {
     },
   );
 
-  const codeReviewFinding = {
-    severity: "bug",
-    file: "src/greet.ts",
-    line: 7,
-    message: "The greeting drops the name.",
-    lens: CODE_REVIEW_LENSES[0],
-    escape: CODE_REVIEW_ESCAPES[0],
-    criterion: null,
-    suggestion: "Keep the name.",
-  };
-
-  async function publishBody(codeReviewFile: unknown | undefined): Promise<string> {
+  it("says the findings could not be read when the run cannot be resolved", async () => {
     const { fs, git, layers } = setupLayers();
     seedSuccessPreconditions({ fs, git });
-    if (codeReviewFile !== undefined) {
-      fs.impl.setFile(`${runPath}/code-review.json`, JSON.stringify(codeReviewFile));
-    }
-    await Effect.runPromise(
+    const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
       }).pipe(Effect.provide(layers)),
     );
-    return fs.impl.getFile(`${runPath}/pr-body.md`)!;
-  }
-
-  // A review of the current shape (findings with their ids) and one of the 0.32.0
-  // shape (without) list alike.
-  it.each([
-    [
-      "current",
-      { $schema: currentSchemaUrl("code-review"), findings: [{ id: "F1", ...codeReviewFinding }] },
-    ],
-    ["0.32.0", { $schema: schemaUrl("code-review", "0.32.0"), findings: [codeReviewFinding] }],
-  ])(
-    "lists the findings of a %s code-review.json under Code review findings",
-    async (_shape, file) => {
-      const body = await publishBody(file);
-      expect(body).toContain(
-        "### Code review findings\n\n- **bug** `src/greet.ts:7` — The greeting drops the name.",
-      );
-    },
-  );
-
-  it("leaves the heading out when code-review.json is absent or refused", async () => {
-    expect(await publishBody(undefined)).not.toContain("### Code review findings");
-    // The answer's own `version` key is not a persisted file's key.
-    const refused = await publishBody({ version: 1, findings: [codeReviewFinding] });
-    expect(refused).not.toContain("### Code review findings");
+    // A finding read never fails a publish.
+    expect(result.kind).toBe("published");
+    const body = fs.impl.getFile(`${runPath}/pr-body.md`)!;
+    expect(body).toContain("## Review findings\n\nThe findings could not be read (");
+    expect(body).toContain("`phax finding list test-run` names the cause.");
+    expect(body).not.toContain("### Code review findings");
   });
 
   it("says not reviewed when compliance-review.json is absent", async () => {
@@ -507,6 +492,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -529,6 +515,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -547,6 +534,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -570,6 +558,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -598,6 +587,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(makeInfo({ runPath: homeRunPath }), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -630,6 +620,7 @@ describe("publishRun", () => {
       await Effect.runPromise(
         publishRun(makeInfo(), defaultConfig(), {
           repoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -660,6 +651,7 @@ describe("publishRun", () => {
       await Effect.runPromise(
         publishRun(makeInfo(), defaultConfig(), {
           repoRoot,
+          config: resolvedConfig,
           now: constNow,
           phaxVersion: "0.0.0-test",
           output: processOutput,
@@ -678,6 +670,7 @@ describe("publishRun", () => {
     const result = await Effect.runPromise(
       publishRun(makeInfo(), defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -720,6 +713,7 @@ describe("publishRun", () => {
     await Effect.runPromise(
       publishRun(info, defaultConfig(), {
         repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: "0.0.0-test",
         output: processOutput,
@@ -810,6 +804,7 @@ describe("publishRun — the phax footer", () => {
     const result = await Effect.runPromise(
       publishRun(args.info ?? makeInfo(), defaultConfig(args.config), {
         repoRoot: args.repoRoot ?? repoRoot,
+        config: resolvedConfig,
         now: constNow,
         phaxVersion: args.phaxVersion ?? "0.0.0-test",
         output: processOutput,
