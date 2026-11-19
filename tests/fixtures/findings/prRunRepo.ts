@@ -125,9 +125,14 @@ const LOG_DIR = "log";
  * for `pr comment`, also the bare remote's `refs/heads/<runBranch>` sha at that moment (empty
  * when the ref is absent) to `log/<nnnn>.head`. In `answers` mode a `pr comment` call answers
  * `<its third argument>#issuecomment-<n>` and exits 0, and any other call exits 1. In `fails`
- * mode every call writes `gh: offline` to stderr and exits 1. Paths are baked into the script.
+ * mode every call writes `gh: offline` to stderr and exits 1. `fails-first-comment` mode answers
+ * as `answers` does, except that the first `pr comment` call the log holds writes
+ * `gh: rate limited` to stderr and exits 1. Paths are baked into the script.
  */
-export function installFakeGh(repo: PrRunRepo, mode: "answers" | "fails"): void {
+export function installFakeGh(
+  repo: PrRunRepo,
+  mode: "answers" | "fails" | "fails-first-comment",
+): void {
   const logDir = join(repo.ghDir, LOG_DIR);
   mkdirSync(logDir, { recursive: true });
   const quoted = (text: string) => `'${text.replaceAll("'", `'\\''`)}'`;
@@ -140,7 +145,15 @@ export function installFakeGh(repo: PrRunRepo, mode: "answers" | "fails"): void 
     `if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then`,
     `  git --git-dir ${quoted(repo.remoteDir)} rev-parse --verify --quiet ${quoted(`refs/heads/${repo.runBranch}`)} > "$LOG/$id.head" 2>/dev/null || true`,
     `fi`,
-    ...(mode === "answers"
+    ...(mode === "fails-first-comment"
+      ? [
+          `if [ "$1" = "pr" ] && [ "$2" = "comment" ] && [ "$(ls "$LOG" | grep -c '\\.head$')" -eq 1 ]; then`,
+          `  echo "gh: rate limited" >&2`,
+          `  exit 1`,
+          `fi`,
+        ]
+      : []),
+    ...(mode === "answers" || mode === "fails-first-comment"
       ? [
           `if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then`,
           `  echo "$3#issuecomment-$n"`,

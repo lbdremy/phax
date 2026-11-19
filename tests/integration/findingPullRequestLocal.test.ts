@@ -237,6 +237,38 @@ describe("fate commands and the pull request, off the happy path", () => {
     expect((await fates())["F3"]).toBe("dismissed");
   });
 
+  it("posts the rest when one comment of several fails, and names only the unposted ids to retry", async () => {
+    setPublishAuto(repo, true);
+    installFakeGh(repo, "fails-first-comment");
+
+    const result = await runnerCall(
+      [findingGroup],
+      [
+        "finding",
+        "dismiss",
+        repo.shortName,
+        "F3",
+        "F5",
+        "--by",
+        "operator",
+        "--why",
+        "x",
+        "--json",
+      ],
+    );
+
+    expect(result.code).toBe(1);
+    const comments = ghComments(repo);
+    expect(comments).toHaveLength(2);
+    expect(comments[1]?.body).toContain("F5");
+    const error = jsonError(result);
+    expect(JSON.stringify(error)).toContain("FindingPullRequestNotUpdatedError");
+    expect(JSON.stringify(error)).toContain(`"unposted":["F3"]`);
+    expect(JSON.stringify(error)).toContain(`"finding":"F5"`);
+    expect(JSON.stringify(error)).toContain(`phax finding post ${repo.shortName} F3"`);
+    expect(await fates()).toMatchObject({ F3: "dismissed", F5: "dismissed" });
+  });
+
   it("pushes and posts nothing when the fate's record fails", async () => {
     setPublishAuto(repo, true);
     installFakeGh(repo, "answers");
