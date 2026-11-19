@@ -1,7 +1,14 @@
 import { Effect, Result } from "effect";
+import { spawnSync } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Shell } from "../../src/ports/shell.js";
+
+const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 
 const run = (command: readonly [string, ...string[]], stdin?: string, timeoutMs?: number) =>
   Effect.runPromise(
@@ -66,17 +73,88 @@ describe("NodeShellLayer timeout", () => {
   });
 
   it("frees the caller even when the child ignores SIGTERM", async () => {
-    const started = Date.now();
-    const result = await runEither(
-      [process.execPath, "-e", "process.on('SIGTERM', () => {}); setInterval(() => {}, 1000)"],
-      250,
-    );
+    await withSigtermIgnoringChild(async (child) => {
+      const started = Date.now();
+      const result = await runEither([process.execPath, "-e", child], 250);
 
-    expect(Result.isFailure(result)).toBe(true);
-    // The SIGKILL grace is 5s; the caller must not have waited for it.
-    expect(Date.now() - started).toBeLessThan(3_000);
+      expect(Result.isFailure(result)).toBe(true);
+      // The SIGKILL grace is 5s; the caller must not have waited for it.
+      expect(Date.now() - started).toBeLessThan(3_000);
+    });
   });
+
+  // The CLI exits as soon as its command ends, inside the grace, so the child
+  // must go down with it: otherwise it is orphaned and, ignoring SIGTERM, lives
+  // on forever.
+  it(
+    "kills a child that ignores SIGTERM when the CLI exits inside the grace",
+    { timeout: 30_000 },
+    async () => {
+      await withSigtermIgnoringChild(async (child, pid) => {
+        const cli = [
+          `import { Effect } from "effect";`,
+          `import { NodeShellLayer } from ${JSON.stringify(join(repoRoot, "src/infra/shell.ts"))};`,
+          `import { Shell } from ${JSON.stringify(join(repoRoot, "src/ports/shell.ts"))};`,
+          "void Effect.runPromise(",
+          "  Effect.gen(function* () {",
+          "    const shell = yield* Shell;",
+          `    yield* Effect.result(shell.run({ command: [process.execPath, "-e", ${JSON.stringify(child)}], cwd: process.cwd(), timeoutMs: 500 }));`,
+          "  }).pipe(Effect.provide(NodeShellLayer)),",
+          // As `src/cli/main.ts` does: the CLI exits as soon as its command ends.
+          ").then(() => process.exit(0));",
+        ].join("\n");
+
+        const result = spawnSync("tsx", ["-e", cli], { cwd: repoRoot, encoding: "utf8" });
+        expect(result.status, result.stderr).toBe(0);
+
+        expect(await exitsWithin(pid(), 2_000)).toBe(true);
+      });
+    },
+  );
 });
+
+/**
+ * Runs `body` with the script of a child that ignores SIGTERM and records its
+ * pid, then SIGKILLs that child if it still lives: a test that times it out
+ * ends inside the shell's SIGKILL grace, and vitest's teardown of its worker
+ * runs no `exit` hook, so without this every run would leave one behind.
+ */
+async function withSigtermIgnoringChild(
+  body: (child: string, pid: () => number) => Promise<void>,
+): Promise<void> {
+  const dir = mkdtempSync(join(tmpdir(), "phax-shell-sigterm-"));
+  const pidFile = join(dir, "child.pid");
+  const child = [
+    `require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(process.pid));`,
+    "process.on('SIGTERM', () => {});",
+    "setInterval(() => {}, 1000);",
+  ].join(" ");
+  const pid = (): number => Number(readFileSync(pidFile, "utf8"));
+  try {
+    await body(child, pid);
+  } finally {
+    if (existsSync(pidFile) && isAlive(pid())) process.kill(pid(), "SIGKILL");
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function exitsWithin(pid: number, ms: number): Promise<boolean> {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    if (!isAlive(pid)) return true;
+    await new Promise((settle) => setTimeout(settle, 50));
+  }
+  return !isAlive(pid);
+}
 
 /** A child script writing each byte group on `stream`, 50 ms apart, so each lands in its own chunk. */
 function splitWrites(stream: "stdout" | "stderr", ...groups: readonly number[][]): string {
