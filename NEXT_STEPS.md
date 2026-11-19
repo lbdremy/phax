@@ -95,7 +95,7 @@ briefs of live or unspecced work.
 
 ### 5b. Vibe model and thinking level by Vibe's own flags
 
-- [ ] **`vibe-model-flags`** — `docs/specs/2611180902-vibe-model-flags.md` and its only plan
+- [x] **`vibe-model-flags`** — shipped 2026-11-19 (#248; spec and plan Completed). `docs/specs/2611180902-vibe-model-flags.md` and its only plan
       `docs/plans/2611181024-vibe-model-flags-plan.md`, both Approved 2026-11-18. Vibe 3.1.3's
       `--model`/`--thinking` replace the PHAX aliases in `~/.vibe/config.toml`; floor 3.1.3; the
       `mistral-medium` family becomes `mistral-medium-3.5` (off, high); a confined turn is checked
@@ -110,6 +110,10 @@ briefs of live or unspecced work.
       its model catalog cache exists (`active_model` `mistral-medium-latest`, listed with
       `mistral-medium-3.5` in `config.catalog_model_aliases`): the post-turn check now accepts
       that canonical name, pinned by two recorded real exports.
+      The real e2e passed after that (2026-11-19); the direct model-and-level cases no longer
+      need `~/.phax/providers.json` (see `e2e-phax-home`), and a hung Vibe turn is killed after
+      240 s in that suite. Vibe's helper processes (`vibe-app-server`, `vibe-background`) outlived
+      a hung `vibe-rs` once: check them against #247's process-group kill.
 - [ ] **Follow-up: Mistral Large 4, chosen by phax** — to brief, after `vibe-model-flags` merges.
       Vibe's catalog now recommends `mistral-large-4-0` (Pro subscription). The operator chose
       (2026-11-19) to add it to phax's catalog and route to it explicitly, not to drop `--model`
