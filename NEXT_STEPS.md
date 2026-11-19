@@ -222,6 +222,31 @@ A batch from *Small follow-ups*, the security items that sleep there:
       now; not urgent (operator, 2026-11-19).
 - [ ] The other small follow-ups below, in batches.
 
+### 16. Delegation from an agent (to place in the queue)
+
+Added 2026-11-19 from a conversation with the operator about what would make an agent delegate to phax rather than
+to its own subagents or a cloud agent: the guarantees (worktree, gate, reconciliation, records) without the
+ceremony, the hand given back, fan-out, and a choice among attempts made by a judge that is not a model. Not yet
+placed among the items above; the operator orders them. The four build on each other, in this order:
+
+- [ ] **`run-detach`** — `docs/briefs/run-detach.md`, spec to author. Start a run and get its id back at once,
+      follow it as versioned events read from a log in the run folder, read its end as one outcome document.
+      Smallest and independent of the rest.
+- [ ] **`phase-graph`** — `docs/briefs/phase-graph.md`, spec to author. A plan's phases declare what they depend
+      on; disjoint independent phases run at the same time, each gated in its own worktree, merged where a later
+      phase depends on several. Shares its merge question with `batch-execution-disjoint-plans` (item 13).
+- [ ] **`phax-do`** — `docs/briefs/phax-do.md`, spec to author. `phax do "<intent>" --files …`: one phase without
+      a spec or plan, with the gate, the reconciliation and the records; refused beyond a bound set by the
+      operator. A command of its own (operator, 2026-11-19), the same use case as `run`.
+- [ ] **`do-attempts`** — `docs/briefs/do-attempts.md`, spec to author. A contract written and agreed first,
+      then several attempts in parallel that may not touch it; the contract and the gates eliminate, declared
+      measures rank (a measures provider like the acceptance provider), the smallest footprint breaks ties.
+
+Related, recorded the same day: `knowledge-index` gained use 8 (similar phases, a tool for the planner's
+per-phase model and effort arbitration, never a router), and `phax.json` now declares partial commands on the
+test step only (lint and format run on the whole repository in under 0.3 s: nothing to narrow). Later, not briefed: letting a run amend its own plan (a phase found
+the plan wrong) with a bounded, linted and recorded amendment instead of failing, once `phase-graph` exists.
+
 ## Model policy tracking
 
 Since `planning-skill-defaults`, phases default to `claude-sonnet-5-5` at `medium`, where they used
