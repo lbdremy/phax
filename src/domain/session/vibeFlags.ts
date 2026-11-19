@@ -51,7 +51,9 @@ import type { SecurityPolicy } from "../security/types.js";
 //
 // The environment layer sits below an agent profile in Vibe's config, so a
 // profile can undo any of it. `vibeConfigMismatch` reads the config a turn
-// actually ran with (its export's `config`) back against what phax set.
+// actually ran with (its export's `config`) back against what phax set: the
+// confinement above, and the model and thinking level the session was started
+// with (`--model`/`--thinking`, which the adapter builds, not this file).
 
 export interface VibeFlagsInput {
   readonly security: SecurityPolicy;
@@ -224,13 +226,26 @@ export function vibeAcceptEditsOverridePath(
 
 const shown = (value: unknown): string => (value === undefined ? "absent" : JSON.stringify(value));
 
+/** The model and thinking level phax resolved for a Vibe session. */
+export interface VibeSelection {
+  readonly model: string;
+  readonly thinking: string;
+}
+
 /**
  * What differs between the config a confined Vibe turn ran with (its export's
  * `config`) and the config phax set for it, as `<field> is <actual>, phax set
- * <expected>`; undefined when every value phax set holds. A field phax does
- * not set is not compared. An unconfined session is never compared.
+ * <expected>`; undefined when every value phax set holds. The confinement is
+ * compared first, then `active_model` against `selection.model`, and only when
+ * that matches `config.models[<model>].thinking` against `selection.thinking`
+ * (a missing `models`, entry or level shows as `absent`). A field phax does not
+ * set is not compared. An unconfined session is never compared.
  */
-export function vibeConfigMismatch(input: VibeFlagsInput, config: unknown): string | undefined {
+export function vibeConfigMismatch(
+  input: VibeFlagsInput,
+  config: unknown,
+  selection: VibeSelection,
+): string | undefined {
   if (!isConfinedVibeSession(input)) return undefined;
   if (typeof config !== "object" || config === null) {
     return `config is ${shown(config)}, phax needs the config the turn ran with`;
@@ -269,6 +284,25 @@ export function vibeConfigMismatch(input: VibeFlagsInput, config: unknown): stri
     if (JSON.stringify(got) !== JSON.stringify(want)) {
       return `${field} is ${shown(got)}, phax set ${JSON.stringify(want)}`;
     }
+  }
+  return selectionMismatch(actual, selection);
+}
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+function selectionMismatch(
+  actual: Record<string, unknown>,
+  selection: VibeSelection,
+): string | undefined {
+  if (actual["active_model"] !== selection.model) {
+    return `active_model is ${shown(actual["active_model"])}, phax set ${JSON.stringify(selection.model)}`;
+  }
+  const models = actual["models"];
+  const entry = isPlainObject(models) ? models[selection.model] : undefined;
+  const thinking = isPlainObject(entry) ? entry["thinking"] : undefined;
+  if (thinking !== selection.thinking) {
+    return `thinking of ${selection.model} is ${shown(thinking)}, phax set ${JSON.stringify(selection.thinking)}`;
   }
   return undefined;
 }

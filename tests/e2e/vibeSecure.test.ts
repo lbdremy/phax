@@ -1,6 +1,6 @@
 /**
  * Real-CLI proof of Mistral Vibe 3 in secure mode. Run by `pnpm test:e2e:real`
- * with PHAX_E2E_RUN=1, Vibe 3.0.3 or later on $PATH, phax's model aliases in
+ * with PHAX_E2E_RUN=1, Vibe 3.1.3 or later on $PATH, phax's model aliases in
  * Vibe's home (`phax agent setup mistral-vibe --install-model-aliases`), the
  * mistral-vibe provider enabled in `~/.phax/providers.json`
  * (`phax agent setup providers --write`), and Vibe signed in (its own login, or
@@ -60,13 +60,13 @@ import { runCli } from "./helpers/runCli.js";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
 import { expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
 
-function vibeVersionAtLeast303(): boolean {
+function vibeVersionAtLeast313(): boolean {
   const r = spawnSync("vibe", ["--version"], { encoding: "utf8", timeout: 5_000, stdio: "pipe" });
   if (r.status !== 0) return false;
   const v = parseVibeVersion(`${r.stdout}${r.stderr}`);
   if (v === undefined) return false;
   if (v.major !== 3) return v.major > 3;
-  if (v.minor !== 0) return v.minor > 0;
+  if (v.minor !== 1) return v.minor > 1;
   return v.patch >= 3;
 }
 
@@ -87,7 +87,7 @@ function vibeProviderEnabled(): boolean {
 function skipReason(): string | undefined {
   if (process.env["PHAX_E2E_RUN"] !== "1") return "PHAX_E2E_RUN=1 is not set";
   if (!probeProvider("vibe")) return "the vibe executable is not on $PATH";
-  if (!vibeVersionAtLeast303()) return "vibe is older than 3.0.3";
+  if (!vibeVersionAtLeast313()) return "vibe is older than 3.1.3";
   if (!vibeProviderEnabled()) {
     return "mistral-vibe is not enabled in ~/.phax/providers.json (phax agent setup providers --write); routing would run Claude Code instead";
   }
@@ -496,7 +496,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const base: AgentRunOptions = {
         provider: "mistral-vibe",
         // The API takes only `none` and `high` reasoning for this model.
-        model: "phax-mistral-medium-3.5-off",
+        model: "mistral-medium-3.5",
         effort: "off",
         cwd,
         security,
@@ -504,7 +504,6 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       };
       const entry = {
         executable: "vibe",
-        modelEnvVar: "VIBE_ACTIVE_MODEL",
         defaultAgent: "auto-approve",
       };
 
@@ -692,7 +691,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
             "If it is refused, do not retry it or look for another way. Then finish.",
           {
             provider: "mistral-vibe",
-            model: "phax-mistral-medium-3.5-off",
+            model: "mistral-medium-3.5",
             effort: "off",
             cwd,
             security,
@@ -700,7 +699,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
             phaseFolderPath: phaseFolder,
             outputJsonlPath: streamPath,
           },
-          { executable: "vibe", modelEnvVar: "VIBE_ACTIVE_MODEL", defaultAgent: "auto-approve" },
+          { executable: "vibe", defaultAgent: "auto-approve" },
         ),
       );
 
@@ -765,7 +764,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
             "If it is refused, do not retry it or look for another way. Then finish.",
           {
             provider: "mistral-vibe",
-            model: "phax-mistral-medium-3.5-off",
+            model: "mistral-medium-3.5",
             effort: "off",
             cwd,
             security,
@@ -773,7 +772,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
             phaseFolderPath: phaseFolder,
             outputJsonlPath: streamPath,
           },
-          { executable: "vibe", modelEnvVar: "VIBE_ACTIVE_MODEL", defaultAgent: "auto-approve" },
+          { executable: "vibe", defaultAgent: "auto-approve" },
         ),
       );
 

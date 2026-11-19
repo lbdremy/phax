@@ -195,7 +195,7 @@ src/app/
 
 src/infra/providers/        ← ONLY place that may spawn provider binaries
   claudeCode.ts             ← claude spawn logic
-  mistralVibe.ts            ← vibe spawn logic (VIBE_ACTIVE_MODEL env)
+  mistralVibe.ts            ← vibe spawn logic (--model/--thinking flags)
   codexCli.ts               ← codex spawn logic
   sessionWriter.ts          ← shared atomic session-id writer
   dispatcher.ts             ← makeNodeBackendLayer(providerConfig) — selects adapter by options.provider

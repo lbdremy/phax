@@ -104,7 +104,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
   const exportPath = () => join(phaseFolder, "output.vibe-export", "export.json");
   const exportText = () => vibe3ExportText(VIBE3_EXPORT_SHORT);
 
-  it.fails("passes --model and --thinking to a secure first turn and no VIBE_ACTIVE_MODEL (ac-first-turn-flags)", async () => {
+  it("passes --model and --thinking to a secure first turn and no VIBE_ACTIVE_MODEL (ac-first-turn-flags)", async () => {
     const fake = fakeIn({ exportText: exportText() });
 
     const result = await runAgent(fake.executable, agentOptions("high"));
@@ -162,7 +162,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     },
   ];
 
-  it.fails.each(agentRows)(
+  it.each(agentRows)(
     "passes --model and --thinking off to a new $kind session and no VIBE_ACTIVE_MODEL (ac-every-new-session)",
     async ({ extra }) => {
       const fake = fakeIn({ exportText: exportText() });
@@ -191,7 +191,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     { kind: "sealed completion", extra: {} },
   ];
 
-  it.fails.each(completionRows)(
+  it.each(completionRows)(
     "passes --model and --thinking off to a new $kind session and no VIBE_ACTIVE_MODEL (ac-every-new-session)",
     async ({ extra }) => {
       const fake = fakeIn();
@@ -213,7 +213,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     },
   );
 
-  it.fails("resumes a session with --resume and neither --model nor --thinking, and no VIBE_ACTIVE_MODEL (ac-resume-no-flags)", async () => {
+  it("resumes a session with --resume and neither --model nor --thinking, and no VIBE_ACTIVE_MODEL (ac-resume-no-flags)", async () => {
     const fake = fakeIn({ exportText: exportText() });
     const first = await runAgent(fake.executable, agentOptions("high"));
     expect(Result.isSuccess(first)).toBe(true);
@@ -234,7 +234,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     expect(resumeTrace.env).not.toHaveProperty("VIBE_ACTIVE_MODEL");
   });
 
-  it.fails("refuses a vibe older than 3.1.3 before any session spawns, for a turn and a completion (ac-floor)", async () => {
+  it("refuses a vibe older than 3.1.3 before any session spawns, for a turn and a completion (ac-floor)", async () => {
     const message =
       "mistral-vibe 3.1.2 is installed; phax needs 3.1.3 or later.\nUpgrade it: uv tool upgrade mistral-vibe";
     const old = fakeIn({ version: "vibe 3.1.2", exportText: exportText() });
@@ -259,7 +259,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     expect(oldToo.turns()).toBe(0);
   });
 
-  it.fails("refuses a confined turn whose export reports another active_model (ac-model-mismatch)", async () => {
+  it("refuses a confined turn whose export reports another active_model (ac-model-mismatch)", async () => {
     const fake = fakeIn({
       exportText: exportText(),
       configOverride: { active_model: "mistral-large-4-0" },
@@ -274,7 +274,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     expect(existsSync(join(phaseFolder, "claude-session-id.txt"))).toBe(false);
   });
 
-  it.fails("refuses a confined turn whose export reports another thinking level (ac-level-mismatch)", async () => {
+  it("refuses a confined turn whose export reports another thinking level (ac-level-mismatch)", async () => {
     const fake = fakeIn({
       exportText: exportText(),
       configOverride: { models: { [MODEL]: { alias: MODEL, thinking: "high" } } },
@@ -289,7 +289,7 @@ describe("Vibe model and thinking flags against a fake vibe", () => {
     expect(existsSync(join(phaseFolder, "claude-session-id.txt"))).toBe(false);
   });
 
-  it.fails("refuses a confined turn whose export holds no thinking level for the alias (ac-level-absent)", async () => {
+  it("refuses a confined turn whose export holds no thinking level for the alias (ac-level-absent)", async () => {
     const fake = fakeIn({
       exportText: exportText(),
       configOverride: { models: { [MODEL]: { alias: MODEL } } },

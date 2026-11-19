@@ -50,7 +50,6 @@ import { captureFromStore, isAbsence, notFound } from "./transcriptStore.js";
 
 type VibeProviderEntry = {
   readonly executable: string;
-  readonly modelEnvVar?: string | undefined;
   readonly defaultAgent?: string | undefined;
 };
 
@@ -161,12 +160,15 @@ export function buildVibeArgs(
   resumeSessionId?: string,
 ): string[] {
   const flags = vibeFlagsOf(entry, options);
-  // Model selection goes through modelEnvVar (VIBE_ACTIVE_MODEL) set by spawnVibe;
-  // `vibe` has no `--target` flag, so it must not be added back to this argv.
+  // A new session picks its model and thinking level with `--model` and
+  // `--thinking`, right after the agent flags; a resumed one passes neither,
+  // because Vibe keeps the session's model and level and refuses `--model` on a
+  // resume. `vibe` has no `--target` flag, so it must not be added to this argv.
   const args: string[] = [
     "-p",
     prompt,
     ...flags.agent,
+    ...(resumeSessionId ? [] : ["--model", options.model, "--thinking", options.effort]),
     "--output",
     "streaming",
     // Each turn's export (usage, session id, outcome) lands beside its stream.
@@ -186,7 +188,6 @@ function spawnVibe(
   args: readonly string[],
   outputJsonlPath: string | undefined,
   cwd: string,
-  modelAlias: string,
   envAdditions: Readonly<Record<string, string>>,
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
@@ -200,11 +201,10 @@ function spawnVibe(
       writeStream = createWriteStream(outputJsonlPath, { flags: "w" });
     }
 
-    const env: NodeJS.ProcessEnv = {
-      ...process.env,
-      ...envAdditions,
-      ...(entry.modelEnvVar ? { [entry.modelEnvVar]: modelAlias } : {}),
-    };
+    // An inherited VIBE_ACTIVE_MODEL is dropped so that only `--model` chooses
+    // the model.
+    const { VIBE_ACTIVE_MODEL: _inherited, ...inherited } = process.env;
+    const env: NodeJS.ProcessEnv = { ...inherited, ...envAdditions };
 
     const proc = spawn(entry.executable, [...args], {
       stdio: ["ignore", "pipe", "pipe"],
@@ -273,10 +273,10 @@ async function readVibeExport(path: string): Promise<VibeExportRead> {
   }
 }
 
-// Vibe 3.0.3 is the first release whose headless turns write an export.json
-// into --output-dir and whose secure controls phax relies on.
-const MIN_VIBE_VERSION: VibeVersion = { major: 3, minor: 0, patch: 3 };
-const MIN_VIBE_VERSION_TEXT = "3.0.3";
+// Vibe 3.1.3 is the first release whose headless new sessions take `--model`
+// and `--thinking`, which phax uses to choose a session's model and level.
+const MIN_VIBE_VERSION: VibeVersion = { major: 3, minor: 1, patch: 3 };
+const MIN_VIBE_VERSION_TEXT = "3.1.3";
 const VIBE_UPGRADE_HINT = "Upgrade it: uv tool upgrade mistral-vibe";
 const VERSION_TIMEOUT_MS = 30_000;
 
@@ -320,7 +320,7 @@ function versionOutputOf(executable: string): Promise<string> {
   return read;
 }
 
-/** Refuses a vibe older than 3.0.3, or one whose `--version` cannot be read, before any session spawns. */
+/** Refuses a vibe older than 3.1.3, or one whose `--version` cannot be read, before any session spawns. */
 function requireSupportedVibe(
   executable: string,
   phaseFolderPath: string | undefined,
@@ -414,12 +414,24 @@ export function runVibeCompletion(
   AgentInvocationError | AgentSessionFailedError | RateLimitError | UsageLimitError | FsError
 > {
   const flags = buildSealedVibeFlags(options.cwd);
-  const args = ["-p", prompt, ...flags.agent, "--output", "streaming", ...flags.scope];
+  const args = [
+    "-p",
+    prompt,
+    ...flags.agent,
+    // A sealed completion is always a new session.
+    "--model",
+    options.model,
+    "--thinking",
+    options.effort,
+    "--output",
+    "streaming",
+    ...flags.scope,
+  ];
   const argv = [entry.executable, ...args];
   return Effect.gen(function* () {
     yield* requireSupportedVibe(entry.executable, undefined);
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, undefined, options.cwd, options.model, flags.env),
+      try: () => spawnVibe(entry, args, undefined, options.cwd, flags.env),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
@@ -509,7 +521,7 @@ export function runVibeAgent(
     });
 
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, options.model, envAdditions),
+      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, envAdditions),
       catch: (err): AgentInvocationError =>
         failInvocation(err instanceof Error ? err.message : String(err)),
     });
@@ -524,7 +536,10 @@ export function runVibeAgent(
     if (decoded !== undefined && Result.isSuccess(decoded)) {
       const { config } = decoded.success;
       if (outcome.kind === "answer" || (config !== undefined && config !== null)) {
-        const mismatch = vibeConfigMismatch(flagsInput, config);
+        const mismatch = vibeConfigMismatch(flagsInput, config, {
+          model: options.model,
+          thinking: options.effort,
+        });
         if (mismatch !== undefined) {
           return yield* Effect.fail(
             failInvocation(
