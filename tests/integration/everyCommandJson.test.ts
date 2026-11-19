@@ -166,6 +166,7 @@ const ROWS: ReadonlyArray<Row> = [
   { command: "finding fix", provedBy: "tests/integration/findingFix.test.ts" },
   { command: "finding dismiss", provedBy: "tests/integration/findingSettle.test.ts" },
   { command: "finding defer", provedBy: "tests/integration/findingSettle.test.ts" },
+  { command: "finding post", provedBy: "tests/integration/findingPost.test.ts" },
   { command: "records init", provedBy: "tests/integration/recordsJsonContracts.test.ts" },
   { command: "records sync", provedBy: "tests/integration/recordsJsonContracts.test.ts" },
   { command: "records status", provedBy: "tests/integration/recordsJsonContracts.test.ts" },

@@ -825,6 +825,38 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 phax finding defer gate-retry F5 --to docs/briefs/gate-retry-docs.md --why "docs pass after the gate rework"
 ```
 
+## `phax finding post`
+
+- **Usage**: `phax finding post [--json] <short-name> [id]…`
+
+Posts, on the pull request phax opened for the run, one comment per named finding of an already settled fate, in the order named: the finding's id, fate, location and message, then the commit that fixed it, the reason it was dismissed, or the file that takes it over. For a fixed finding it first pushes the run's branch to publish.remote from the run's final worktree, so the commit the comment names is visible on the pull request; with publish.pushBranch off it pushes nothing. It writes no record, so it never records a fate twice, and it ignores publish.auto: it is an explicit request to post. It is the retry that phax finding fix, dismiss and defer name when they could not update the pull request. The pull request is the one publication.json in the run folder names, so a run phax did not open a pull request for has nothing to post. Every refusal comes before any push or call: an id the run does not have, a finding that is open or unrecorded (it has no fate to post), and a run without a pull request. A push or a comment that fails exits 1, names the ids left and the phax finding post retry; a refused push also says to bring the remote's commits in with git pull --no-rebase. With --json it prints { run, pullRequest, findings }, pullRequest being { url, pushed, comments }. Exits 1 for a refusal, a git, gh or file failure and a pull request not updated, and 2 for an invalid configuration.
+
+### Arguments
+
+#### `<short-name>`
+
+Run short name, e.g. usage-cli
+
+#### `[id]…`
+
+Finding ids (F2, C1)
+
+### Flags
+
+#### `--json`
+
+Answer in JSON: the output on stdout, messages as JSON lines on stderr
+
+### Examples
+
+```
+phax finding post gate-retry F2
+```
+
+```
+phax finding post gate-retry F3 F5
+```
+
 ## `phax adjust-plan`
 
 - **Usage**: `phax adjust-plan <FLAGS> <plan>`

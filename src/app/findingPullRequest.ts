@@ -1,0 +1,227 @@
+// The pull-request side of a finding's fate (spec finding-ids-and-fates §5.22 to §5.25): which
+// pull request a run has, and pushing the run branch then posting one comment per finding on it.
+// `phax finding post` uses it alone; the fate commands reuse it once they settle a finding. The
+// pull request is the one `publication.json` in the run folder names: phax asks GitHub nothing to
+// find it. Nothing here writes a fate record.
+import { join } from "node:path";
+import { Data, Effect, Result } from "effect";
+import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
+import { renderFateComment } from "../domain/findings/fateComment.js";
+import type { PrFinding } from "../domain/publish/prFindings.js";
+import { FileSystem, type FsError } from "../ports/fs.js";
+import { Git, type GitError } from "../ports/git.js";
+import { GitHub, type GitHubError } from "../ports/github.js";
+import { decodePublication } from "../schemas/publication.js";
+import type { ResolvedFindingRun } from "./findingList.js";
+import { gitFailureLine } from "./writeReviewRecord.js";
+
+/**
+ * The push or a comment failed after the fates were recorded and, for a fix, the commit landed.
+ * The commit and the records stay; `retry` posts what is left.
+ */
+export class FindingPullRequestNotUpdatedError extends Data.TaggedError(
+  "FindingPullRequestNotUpdatedError",
+)<{
+  readonly message: string;
+  readonly pullRequest: string;
+  /** The commit that stays, or null when the call made none. */
+  readonly commit: string | null;
+  readonly recorded: readonly string[];
+  readonly pushed: boolean;
+  readonly posted: readonly { readonly finding: string; readonly url: string }[];
+  readonly unposted: readonly string[];
+  readonly retry: string;
+}> {}
+
+/** What reached the pull request: the push, when one was made, and each comment. */
+export interface PullRequestPosted {
+  readonly url: string;
+  readonly pushed: {
+    readonly remote: string;
+    readonly branch: string;
+    readonly sha: string;
+  } | null;
+  readonly comments: readonly { readonly finding: string; readonly url: string }[];
+}
+
+/**
+ * The URL of the pull request phax opened for a run: `pullRequestUrl` of `<runFolder>/publication.json`
+ * when its `prStatus` is `created` or `exists`. Null for no folder, no file, a file that does not
+ * decode, or any other status.
+ */
+export function readRunPullRequest(
+  runFolder: string | null,
+): Effect.Effect<string | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    if (runFolder === null) return null;
+    const fs = yield* FileSystem;
+    const text = yield* fs.readText(join(runFolder, "publication.json")).pipe(
+      Effect.map((content): string | null => content),
+      Effect.orElseSucceed((): string | null => null),
+    );
+    if (text === null) return null;
+    let json: unknown;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return null;
+    }
+    const decoded = decodePublication(json);
+    if (Result.isFailure(decoded)) return null;
+    const { prStatus, pullRequestUrl } = decoded.success;
+    return (prStatus === "created" || prStatus === "exists") && pullRequestUrl !== undefined
+      ? pullRequestUrl
+      : null;
+  });
+}
+
+const failureLine = (error: GitError | GitHubError | FsError): string =>
+  gitFailureLine("stderr" in error && error.stderr ? error.stderr : error.message);
+
+export interface PushAndCommentInput {
+  /** The run as given on the command line: the retry names it. */
+  readonly ref: string;
+  readonly run: ResolvedFindingRun;
+  readonly pullRequest: string;
+  /** The findings to post, in order, as `listRunFindings` reads them. */
+  readonly findings: readonly PrFinding[];
+  /** Push the run branch first (when the run has a branch and a final worktree). */
+  readonly push: boolean;
+  readonly remote: string;
+  /** The ids whose fate this call recorded: the error names them. */
+  readonly recorded: readonly string[];
+  /** The commit this call made, or null. */
+  readonly commit: string | null;
+  /** Where gh runs when the run has no final worktree. */
+  readonly repoRoot: string;
+}
+
+function notUpdated(input: {
+  readonly ref: string;
+  readonly pullRequest: string;
+  readonly what: string;
+  readonly recorded: readonly string[];
+  readonly commit: string | null;
+  readonly pushed: boolean;
+  readonly posted: readonly { finding: string; url: string }[];
+  readonly unposted: readonly string[];
+  readonly hint: string | null;
+}): FindingPullRequestNotUpdatedError {
+  const retry = `phax finding post ${input.ref} ${input.unposted.join(" ")}`;
+  const notes = [
+    ...(input.recorded.length > 0
+      ? [`the fates of ${input.recorded.join(", ")} are recorded`]
+      : []),
+    ...(input.commit === null ? [] : [`the commit ${input.commit.slice(0, 7)} stays`]),
+    ...(input.hint === null ? [] : [input.hint]),
+  ];
+  return new FindingPullRequestNotUpdatedError({
+    message:
+      `✗ pull request not updated: ${input.pullRequest}: ${input.what}` +
+      `${notes.length > 0 ? `; ${notes.join("; ")}` : ""}. Retry with: ${retry}`,
+    pullRequest: input.pullRequest,
+    commit: input.commit,
+    recorded: input.recorded,
+    pushed: input.pushed,
+    posted: input.posted,
+    unposted: input.unposted,
+    retry,
+  });
+}
+
+/**
+ * Pushes the run branch to `remote` (plain, from the run's final worktree) when `push` is set and
+ * the run has both, then posts one comment per finding, in order, from that worktree or else
+ * `repoRoot`. A failed push posts nothing. A failed comment does not stop the others. Any failure
+ * is a `FindingPullRequestNotUpdatedError` naming the ids left and the `phax finding post` retry.
+ */
+export function pushAndComment(
+  input: PushAndCommentInput,
+): Effect.Effect<PullRequestPosted, FindingPullRequestNotUpdatedError, FileSystem | Git | GitHub> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const github = yield* GitHub;
+    const fs = yield* FileSystem;
+    const { run, pullRequest } = input;
+    const ids = input.findings.map((finding) => finding.id);
+
+    const worktreeFound =
+      run.worktreePath !== null &&
+      run.worktreePath !== "" &&
+      (yield* fs.exists(run.worktreePath).pipe(Effect.orElseSucceed(() => false)));
+    const worktree = worktreeFound ? run.worktreePath : null;
+    const branch = run.runBranch === null ? null : decodeBranchName(run.runBranch);
+    const worktreePath = worktree === null ? null : decodeWorktreePath(worktree);
+
+    let pushed: PullRequestPosted["pushed"] = null;
+    if (
+      input.push &&
+      branch !== null &&
+      Result.isSuccess(branch) &&
+      worktreePath !== null &&
+      Result.isSuccess(worktreePath)
+    ) {
+      const branchName = branch.success;
+      const cwd = worktreePath.success;
+      const attempt = yield* Effect.result(
+        Effect.gen(function* () {
+          yield* git.pushBranch(branchName, input.remote, cwd);
+          return yield* git.headCommit(cwd);
+        }),
+      );
+      if (Result.isFailure(attempt)) {
+        return yield* Effect.fail(
+          notUpdated({
+            ref: input.ref,
+            pullRequest,
+            what: `could not push ${branchName} to ${input.remote} (${failureLine(attempt.failure)})`,
+            recorded: input.recorded,
+            commit: input.commit,
+            pushed: false,
+            posted: [],
+            unposted: ids,
+            hint: `if ${input.remote} has moved on, run \`git pull --no-rebase ${input.remote} ${branchName}\` in ${cwd} to bring its commits in without rewriting the fix`,
+          }),
+        );
+      }
+      pushed = { remote: input.remote, branch: branchName, sha: attempt.success };
+    }
+
+    const posted: { finding: string; url: string }[] = [];
+    const unposted: string[] = [];
+    let reason = "";
+    for (const finding of input.findings) {
+      const body = renderFateComment(finding);
+      if (body === null) {
+        unposted.push(finding.id);
+        if (reason === "") reason = `${finding.id} has no fate record to post`;
+        continue;
+      }
+      const result = yield* Effect.result(
+        github.commentOnPullRequest({ pullRequest, body, repo: worktree ?? input.repoRoot }),
+      );
+      if (Result.isSuccess(result)) {
+        posted.push({ finding: finding.id, url: result.success });
+      } else {
+        unposted.push(finding.id);
+        if (reason === "") reason = failureLine(result.failure);
+      }
+    }
+    if (unposted.length > 0) {
+      return yield* Effect.fail(
+        notUpdated({
+          ref: input.ref,
+          pullRequest,
+          what: `could not comment ${unposted.join(", ")} (${reason})`,
+          recorded: input.recorded,
+          commit: input.commit,
+          pushed: pushed !== null,
+          posted,
+          unposted,
+          hint: null,
+        }),
+      );
+    }
+    return { url: pullRequest, pushed, comments: posted };
+  });
+}

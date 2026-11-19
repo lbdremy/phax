@@ -74,6 +74,7 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "finding fix": "refused",
   "finding dismiss": "refused",
   "finding defer": "refused",
+  "finding post": "refused",
   "records init": "refused",
   "records sync": "refused",
 };
