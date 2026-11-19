@@ -116,6 +116,8 @@ interface SessionCommands {
   /** Null when no session is current. */
   readonly continue: StopCommandResult | null;
   readonly freshStart: StopCommandResult;
+  /** The adapter's note on the fresh start, or null. */
+  readonly freshStartNote: string | null;
 }
 
 function sessionCommands(ctx: CommandContext, sessionId: string | null): SessionCommands {
@@ -129,6 +131,7 @@ function sessionCommands(ctx: CommandContext, sessionId: string | null): Session
   return {
     continue: sessionId === null ? null : adapter.buildContinueCommand({ ...opts, sessionId }),
     freshStart: adapter.buildFreshStartCommand({ ...opts, prompt: freshStartPrompt(ctx.phaseId) }),
+    freshStartNote: adapter.freshStartNote({ model, effort: ctx.effort }),
   };
 }
 
@@ -249,14 +252,17 @@ function planInteractive(
         "unsupported" in commands.freshStart ? commands.freshStart.unsupported : "No command.",
       );
     }
+    const noteNotices: Notice[] =
+      commands.freshStartNote === null ? [] : [info(commands.freshStartNote)];
     const notices: Notice[] =
       current === null
-        ? [info("No session is current: the first turn did not answer.")]
+        ? [info("No session is current: the first turn did not answer."), ...noteNotices]
         : [
             warning(
               `${provider}'s interactive resume is unverified: the session started with this command ` +
                 `will not be captured, and the current session ${current.sessionId} is kept for the closing turn.`,
             ),
+            ...noteNotices,
           ];
     return {
       kind: "command",

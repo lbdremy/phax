@@ -461,21 +461,3 @@ export function streamLines(raw: unknown): string[] {
 export function documentText(raw: unknown): string {
   return typeof raw === "string" ? raw : JSON.stringify(raw);
 }
-
-/** The input of `config/vibe-config`: a config.toml's text and the alias of its base model. */
-export interface TomlInput {
-  readonly toml: string;
-  readonly alias: string;
-}
-
-export function readTomlInput(input: unknown): TomlInput {
-  if (!isRecord(input) || !hasOnlyKeys(input, ["toml", "alias"])) {
-    throw new Error("corpus input: expected { toml, alias }");
-  }
-  const toml = input["toml"];
-  const alias = input["alias"];
-  if (typeof toml !== "string" || typeof alias !== "string") {
-    throw new Error("corpus input: expected { toml, alias } strings");
-  }
-  return { toml, alias };
-}

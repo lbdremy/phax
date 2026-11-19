@@ -414,6 +414,7 @@ describe("exit code 13", () => {
         firstReading: null,
         firstTurnProblem: null,
         unverifiedProvider: false,
+        freshStartNote: null,
       },
     });
     expect(exitCodeForError(error)).toBe(13);

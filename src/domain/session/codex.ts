@@ -50,6 +50,10 @@ export const codexSessionAdapter: SessionAdapter = {
     };
   },
 
+  freshStartNote(): string | null {
+    return null;
+  },
+
   buildFreshStartCommand(opts: FreshStartCommandOpts): StopCommandResult {
     const flags = postureFlags(opts.posture);
     if ("unsupported" in flags) return flags;

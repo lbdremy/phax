@@ -114,9 +114,9 @@ describe("phaxProgram", () => {
     expect(agentSubs).toContain("setup");
   });
 
-  it("exposes agent setup subcommands: mistral-vibe, providers", () => {
+  it("exposes agent setup subcommand: providers", () => {
     const setupSubs = under(["agent", "setup"]);
-    expect(setupSubs).toContain("mistral-vibe");
+    expect(setupSubs).not.toContain("mistral-vibe");
     expect(setupSubs).toContain("providers");
   });
 

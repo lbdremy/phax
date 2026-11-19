@@ -1,9 +1,8 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { dirname, isAbsolute } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MODEL_ROUTING_PATH, PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
-import { VIBE_CONFIG_PATH } from "../../src/app/vibeSetup.js";
 import * as Schema from "effect/Schema";
 import {
   makeAgentGroup,
@@ -32,18 +31,6 @@ vi.mock("node:os", async (importOriginal) =>
 
 const MESSAGE_KINDS = ["note", "written", "error", "refused", "defect"];
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
-
-const VIBE_CONFIG = `active_model = "mistral-medium-3.5"
-
-[[models]]
-alias = "mistral-medium-3.5"
-name = "Mistral Medium 3.5"
-provider = "mistral"
-temperature = 0.6
-input_price = 0.4
-output_price = 2
-auto_compact_threshold = 0.9
-`;
 
 interface WrittenFile {
   readonly path: string;
@@ -88,7 +75,7 @@ function removeBackups(path: string): void {
 }
 
 beforeEach(() => {
-  for (const path of [PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH, VIBE_CONFIG_PATH]) {
+  for (const path of [PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH]) {
     rmSync(path, { force: true });
     mkdirSync(dirname(path), { recursive: true });
     removeBackups(path);
@@ -101,9 +88,7 @@ describe("agent --json", () => {
     ["resolve", ["resolve", "--model", "claude-sonnet-4-6", "--effort", "medium"]],
     ["probe", ["probe"]],
     ["setup providers", ["setup", "providers"]],
-    ["setup mistral-vibe", ["setup", "mistral-vibe"]],
   ])("%s answers one indented JSON value and only message lines on stderr", async (_, argv) => {
-    writeFileSync(VIBE_CONFIG_PATH, VIBE_CONFIG);
     const result = await call([...argv, "--json"]);
     expect(result.code).toBe(0);
     expect(result.out.endsWith("}\n")).toBe(true);
@@ -246,21 +231,6 @@ describe("agent setup written files", () => {
     expect(json.retiredRemoved).toEqual([]);
     expect(json.retiredReplaced).toEqual([]);
     expect(json.fieldsDropped).toEqual([]);
-  });
-
-  it("setup mistral-vibe --install-model-aliases --json lists config.toml and its backup", async () => {
-    writeFileSync(VIBE_CONFIG_PATH, VIBE_CONFIG);
-    const result = await call(["setup", "mistral-vibe", "--install-model-aliases", "--json"]);
-    expect(result.code).toBe(0);
-    const value = JSON.parse(result.out) as { written: WrittenFile[]; backupPath: string };
-    expect(value.written.map((file) => file.path)).toEqual([VIBE_CONFIG_PATH, value.backupPath]);
-    for (const file of value.written) expect(file.digest).toBe(sha256(file.path));
-  });
-
-  it("setup mistral-vibe without a Vibe config exits 2 with today's sentence", async () => {
-    const result = await call(["setup", "mistral-vibe"]);
-    expect(result.code).toBe(2);
-    expect(result.err).toContain(`Setup failed: Vibe config not found at "${VIBE_CONFIG_PATH}"`);
   });
 });
 

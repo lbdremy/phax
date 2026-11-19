@@ -557,6 +557,8 @@ interface StopCommands {
   /** Null with no current session or on an unverified provider. */
   readonly continueCommand: ReviewStopCommand | null;
   readonly freshStart: ReviewStopCommand;
+  /** The adapter's note on the fresh start, or null. */
+  readonly freshStartNote: string | null;
 }
 
 /**
@@ -606,6 +608,7 @@ function buildStopCommands(input: {
       interactiveResume: adapter.interactiveResume,
       continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
       freshStart: asReviewStopCommand(freshStart),
+      freshStartNote: adapter.freshStartNote({ model: input.model, effort: input.effort }),
     };
   });
 }
@@ -722,7 +725,7 @@ export function stopAtDeclaredPhase(
     });
 
     const current = turn.session.current;
-    const commands = yield* buildStopCommands({
+    const { freshStartNote, ...commands } = yield* buildStopCommands({
       phaseId: phase.id,
       worktree: input.worktree,
       provider: input.provider,
@@ -763,6 +766,7 @@ export function stopAtDeclaredPhase(
       firstReading: turn.firstReading?.markdown ?? null,
       firstTurnProblem,
       unverifiedProvider: commands.interactiveResume === "unverified",
+      freshStartNote,
     };
   });
 }
@@ -883,7 +887,7 @@ export function stopAtHeldPhase(
       builderUsage,
     });
 
-    const commands = yield* buildStopCommands({
+    const { freshStartNote, ...commands } = yield* buildStopCommands({
       phaseId: phase.id,
       worktree: input.worktree,
       provider: input.provider,
@@ -918,6 +922,7 @@ export function stopAtHeldPhase(
       phaseCommitSubject: phase.commit.subject,
       handoffPath,
       unverifiedProvider: interactiveResume === "unverified",
+      freshStartNote,
     };
   });
 }

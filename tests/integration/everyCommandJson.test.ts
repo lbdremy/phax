@@ -126,7 +126,6 @@ const ROWS: ReadonlyArray<Row> = [
   { command: "agent models", provedBy: "tests/integration/agentGroupJson.test.ts" },
   { command: "agent resolve", provedBy: "tests/integration/agentGroupJson.test.ts" },
   { command: "agent probe", provedBy: "tests/integration/agentGroupJson.test.ts" },
-  { command: "agent setup mistral-vibe", provedBy: "tests/integration/agentGroupJson.test.ts" },
   { command: "agent setup providers", provedBy: "tests/integration/agentGroupJson.test.ts" },
   { command: "security status", provedBy: "tests/integration/groupCommandsJson.test.ts" },
   { command: "skills install", provedBy: "tests/integration/groupCommandsJson.test.ts" },

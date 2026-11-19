@@ -57,7 +57,6 @@ const MIGRATED_COMMANDS: ReadonlyArray<string> = [
   "agent models",
   "agent resolve",
   "agent probe",
-  "agent setup mistral-vibe",
   "agent setup providers",
   "security status",
   "skills install",
@@ -167,6 +166,9 @@ const DROPPED_LOCAL_TRACE_FLAGS: ReadonlyArray<readonly [string, string]> = [
   ["reset-phase", "flag --trace "],
 ];
 
+/** The command the frozen file declares and phax no longer has: the Vibe alias installer. */
+const REMOVED_COMMAND = "agent setup mistral-vibe";
+
 /** What the committed file may no longer declare as the frozen one did: each reworded
  *  `--json` and long help, the four security flags q-security-bare drops and the four local
  *  trace flags q-local-trace-flags drops. */
@@ -208,6 +210,7 @@ describe("phax.usage.kdl's declarations against the frozen file", () => {
     expect(before.get("artifact new spec")?.length).toBeGreaterThan(0);
     const dropped = difference(before, now).filter(
       ([path, declaration]) =>
+        !path.startsWith(REMOVED_COMMAND) &&
         !ALLOWED_REWORDINGS.some(([where, head]) => where === path && declaration.startsWith(head)),
     );
     expect(dropped).toEqual([]);

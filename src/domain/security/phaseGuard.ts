@@ -55,7 +55,6 @@ export const PHASE_GUARD_CLASSIFICATION: Readonly<Record<string, PhaseGuardClass
   "agent models": "refused",
   "agent resolve": "refused",
   "agent probe": "refused",
-  "agent setup mistral-vibe": "refused",
   "agent setup providers": "refused",
   "skills install": "refused",
   "artifact approve": "refused",

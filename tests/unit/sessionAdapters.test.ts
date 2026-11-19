@@ -155,6 +155,22 @@ describe("mistralSessionAdapter", () => {
   });
 });
 
+describe("freshStartNote", () => {
+  const opts = { model: "mistral-medium-3.5", effort: "off" } as const;
+
+  it.each([
+    [
+      "mistral-vibe",
+      mistralSessionAdapter,
+      "Vibe's interactive mode takes no --thinking: this session starts at mistral-medium-3.5's default thinking level, not the phase's level (off).",
+    ],
+    ["claude-code", claudeSessionAdapter, null],
+    ["codex-cli", codexSessionAdapter, null],
+  ])("%s gives its note for the phase's model and level", (_provider, adapter, note) => {
+    expect(adapter.freshStartNote(opts)).toBe(note);
+  });
+});
+
 describe("claudeSessionAdapter.buildPrePromptedInvocation", () => {
   it("new session: includes --session-id, model, effort, and positional prompt", () => {
     const result = claudeSessionAdapter.buildPrePromptedInvocation({

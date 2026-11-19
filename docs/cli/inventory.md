@@ -40,7 +40,6 @@ Global options (on all commands): `--verbose`, `--trace`
 | `agent resolve` | — | `--model <id>` (required), `--effort <level>` (required), `--json` | Show how a model+effort request resolves to a provider and concrete model |
 | `agent probe` | — | — | Check which provider executables are available on PATH |
 | `agent setup` | — | — | Set up provider integrations (has subcommands) |
-| `agent setup mistral-vibe` | — | `--dry-run`, `--install-model-aliases` | Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml |
 | `agent setup providers` | — | `--write`, `--prune`, `--with-routing` | Reconcile ~/.phax/providers.json enabled flags from live executable probes |
 
 ### `security`

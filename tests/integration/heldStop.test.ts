@@ -10,6 +10,8 @@ import {
   DEFAULT_PROVIDER_CONFIG,
 } from "../../src/domain/routing/defaults.js";
 import { decodeReviewStopFile } from "../../src/schemas/reviewStop.js";
+import { mistralSessionAdapter } from "../../src/domain/session/mistral.js";
+import { heldReviewStop } from "../helpers/phaseStatusFixture.js";
 import {
   backendCalls,
   createHeldWorld,
@@ -245,5 +247,42 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
       resumed.mockRestore();
       Object.defineProperty(process.stdin, "isTTY", { value: isTTY, configurable: true });
     }
+  });
+});
+
+describe("a held stop's fresh-start note", () => {
+  const worktree = "/example/worktrees/invoice-export/phase-02";
+  const heldReport = (freshStartNote: string | null): HeldStopReport => ({
+    cause: "held",
+    reviewStop: heldReviewStop({
+      session: null,
+      commands: {
+        ...heldReviewStop().commands,
+        continue: null,
+        freshStart: { cwd: worktree, argv: ["vibe"], env: { VIBE_ACTIVE_MODEL: "m" } },
+      },
+    }),
+    reviewStopPath: "/example/runs/invoice-export/review-stop.json",
+    phaseCommit: "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678",
+    phaseCommitSubject: "feat: credit-note rows",
+    handoffPath: "/example/runs/invoice-export/phase-02/phase-handoff.md",
+    unverifiedProvider: true,
+    freshStartNote,
+  });
+
+  it("is printed under the fresh-start command", () => {
+    const note = mistralSessionAdapter.freshStartNote({
+      model: "mistral-medium-3.5",
+      effort: "off",
+    });
+    const lines = renderStop(heldReport(note));
+    const command = lines.findIndex((line) => line.includes("VIBE_ACTIVE_MODEL"));
+    expect(command).toBeGreaterThanOrEqual(0);
+    expect(lines.slice(command + 1).some((line) => line === `    ${note}`)).toBe(true);
+  });
+
+  it("prints nothing extra when there is no note", () => {
+    const lines = renderStop(heldReport(null));
+    expect(lines.some((line) => line.includes("default thinking level"))).toBe(false);
   });
 });

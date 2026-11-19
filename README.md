@@ -1214,7 +1214,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model
 - `phax agent probe [--json]` — Check which provider executables are available on PATH; never throws on an unavailable provider
 - `phax agent setup <SUBCOMMAND>` — Set up provider integrations
-- `phax agent setup mistral-vibe [FLAGS]` — Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
 - `phax agent setup providers [FLAGS]` — Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)
 - `phax security <SUBCOMMAND>` — Security-related commands
 - `phax security status [--json]` — Show provider security capabilities and availability

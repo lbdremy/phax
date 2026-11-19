@@ -218,7 +218,7 @@ async function vibeStop(): Promise<DeclaredStopReport> {
 }
 
 describe("a Vibe review stop at mistral-medium-3.5 / off", () => {
-  it.fails("ac-fresh-note: prints the default-thinking-level note next to the fresh-start command", async () => {
+  it("ac-fresh-note: prints the default-thinking-level note next to the fresh-start command", async () => {
     const report = await vibeStop();
     const lines = renderStop(report);
     const command = lines.findIndex((line) =>

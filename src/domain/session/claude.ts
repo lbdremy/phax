@@ -91,6 +91,10 @@ export const claudeSessionAdapter: SessionAdapter = {
     };
   },
 
+  freshStartNote(): string | null {
+    return null;
+  },
+
   buildFreshStartCommand(opts: FreshStartCommandOpts): StopCommandResult {
     return {
       executable: "claude",
