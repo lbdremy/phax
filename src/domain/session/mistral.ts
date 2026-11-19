@@ -46,6 +46,10 @@ export const mistralSessionAdapter: SessionAdapter = {
     };
   },
 
+  freshStartNote(opts: { readonly model: string; readonly effort: string }): string | null {
+    return `Vibe's interactive mode takes no --thinking: this session starts at ${opts.model}'s default thinking level, not the phase's level (${opts.effort}).`;
+  },
+
   buildResumeInvocation(binding: PhaseAgentBinding): ResumeInvocation {
     return {
       unsupported:

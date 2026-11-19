@@ -65,5 +65,10 @@ export interface SessionAdapter {
   buildContinueCommand(opts: ContinueCommandOpts): StopCommandResult;
   /** A new interactive session started by hand in the worktree. */
   buildFreshStartCommand(opts: FreshStartCommandOpts): StopCommandResult;
+  /**
+   * A sentence to print beside the fresh-start command when that command
+   * cannot carry the phase's model or level, or null when it can.
+   */
+  freshStartNote(opts: { readonly model: string; readonly effort: string }): string | null;
   describe(binding: PhaseAgentBinding): string;
 }

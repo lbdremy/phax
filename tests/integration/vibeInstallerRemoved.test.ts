@@ -27,13 +27,13 @@ beforeEach(() => {
 });
 
 describe("agent setup without the Vibe alias installer", () => {
-  it.fails("ac-setup-removed: `agent setup mistral-vibe` is an unknown command", async () => {
+  it("ac-setup-removed: `agent setup mistral-vibe` is an unknown command", async () => {
     const result = await call(["setup", "mistral-vibe"]);
     expect(result.code).not.toBe(0);
     expect(result.err + result.out).toMatch(/unknown command.*mistral-vibe/i);
   });
 
-  it.fails("ac-setup-removed: `agent setup --help` lists providers and no mistral-vibe", async () => {
+  it("ac-setup-removed: `agent setup --help` lists providers and no mistral-vibe", async () => {
     const result = await call(["setup", "--help"]);
     const text = result.out + result.err;
     expect(text).toContain("providers");

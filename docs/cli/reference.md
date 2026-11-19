@@ -1215,26 +1215,6 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 Set up provider integrations
 
-## `phax agent setup mistral-vibe`
-
-- **Usage**: `phax agent setup mistral-vibe [FLAGS]`
-
-Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)
-
-### Flags
-
-#### `--dry-run`
-
-Preview what would be appended without writing anything
-
-#### `--install-model-aliases`
-
-Actually append the missing aliases and write the backup
-
-#### `--json`
-
-Answer in JSON: the output on stdout, messages as JSON lines on stderr
-
 ## `phax agent setup providers`
 
 - **Usage**: `phax agent setup providers [FLAGS]`

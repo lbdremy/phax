@@ -226,6 +226,7 @@ const StopReportSchema = Schema.Union([
     firstReading: Schema.NullOr(Schema.String),
     firstTurnProblem: Schema.NullOr(InteractiveSessionFileSchema.fields.firstTurns.value),
     unverifiedProvider: Schema.Boolean,
+    freshStartNote: Schema.NullOr(Schema.String),
   }),
   Schema.Struct({
     cause: Schema.Literal("held"),
@@ -235,6 +236,7 @@ const StopReportSchema = Schema.Union([
     phaseCommitSubject: Schema.String,
     handoffPath: Schema.String,
     unverifiedProvider: Schema.Boolean,
+    freshStartNote: Schema.NullOr(Schema.String),
   }),
 ]);
 

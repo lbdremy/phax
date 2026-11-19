@@ -1,10 +1,9 @@
 // The `agent` group as the runner reads it: `models`, `resolve`, `probe` and the nested `setup`
-// group (`mistral-vibe`, `providers`). Each answers one object under `--json` and prints today's
+// group (`providers`). Each answers one object under `--json` and prints today's
 // text without it. `agent resolve` answers the routing resolution, its schema written so that
-// encoding it gives exactly `JSON.stringify(resolution, null, 2)`; the setup commands answer what
-// the use case did and the files it wrote (providers.json, ~/.vibe/config.toml, their backups and
-// a scaffolded model-routing.json), each with an absolute path since they live outside any
-// repository. `setup providers` also answers the retired ids it dropped (`retiredRemoved`), the
+// encoding it gives exactly `JSON.stringify(resolution, null, 2)`; `setup providers` answers what
+// the use case did and the files it wrote (providers.json, its backup and a scaffolded
+// model-routing.json), each with an absolute path since they live outside any repository. `setup providers` also answers the retired ids it dropped (`retiredRemoved`), the
 // successor ids it listed in their place (`retiredReplaced`) and the fields phax no longer reads
 // that it dropped (`fieldsDropped`). A configuration that does not load, an effort outside the thinking levels and a
 // failed setup exit 2 with today's sentences.
@@ -13,7 +12,6 @@ import * as Schema from "effect/Schema";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { probeProviders } from "../../app/providerProbe.js";
 import { providerSetup } from "../../app/providerSetup.js";
-import { vibeSetup, VIBE_CONFIG_PATH } from "../../app/vibeSetup.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import type { ThinkingLevel } from "../../domain/routing/types.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
@@ -341,116 +339,6 @@ function makeAgentProbeCommand(layers: AgentLayers) {
   });
 }
 
-// ── agent setup mistral-vibe ────────────────────────────────────────────────────
-
-const AgentSetupMistralVibeOutput = Schema.Struct({
-  dryRun: Schema.Boolean,
-  installModelAliases: Schema.Boolean,
-  configPath: Schema.String,
-  aliasesAdded: Schema.Array(Schema.String),
-  aliasesSkipped: Schema.Array(Schema.String),
-  aliasesRetired: Schema.Array(Schema.String),
-  backupPath: Schema.NullOr(Schema.String),
-  written: Schema.Array(Written),
-});
-
-function aliasLines(added: ReadonlyArray<string>, configPath: string): string[] {
-  if (added.length === 0) return ["All aliases already present — nothing to append."];
-  return [
-    `Would append ${added.length} alias(es) to ${configPath}:`,
-    ...added.map((alias) => `  + ${alias}`),
-  ];
-}
-
-function makeAgentSetupMistralVibeCommand(layers: AgentLayers) {
-  return defineCommand({
-    name: "mistral-vibe",
-    summary:
-      "Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)",
-    input: {
-      flags: reject(
-        Schema.Struct({
-          dryRun: Schema.optionalKey(
-            Schema.Boolean.annotate({
-              description: "Preview what would be appended without writing anything",
-            }),
-          ),
-          installModelAliases: Schema.optionalKey(
-            Schema.Boolean.annotate({
-              description: "Actually append the missing aliases and write the backup",
-            }),
-          ),
-        }),
-      ),
-    },
-    output: reject(AgentSetupMistralVibeOutput),
-    run: ({ input }) =>
-      Effect.gen(function* () {
-        const { dryRun, installModelAliases } = input.flags;
-        const result = yield* vibeSetup({
-          ...(dryRun !== undefined ? { dryRun } : {}),
-          ...(installModelAliases !== undefined ? { install: installModelAliases } : {}),
-        }).pipe(
-          Effect.provide(layers.fileSystem),
-          Effect.mapError(
-            (error) => new AgentSetupError({ message: `Setup failed: ${error.message}` }),
-          ),
-        );
-        const { aliasesAdded, aliasesSkipped, aliasesRetired, backupPath } = result;
-        return {
-          dryRun: dryRun === true,
-          installModelAliases: installModelAliases === true,
-          configPath: VIBE_CONFIG_PATH,
-          aliasesAdded: [...aliasesAdded],
-          aliasesSkipped: [...aliasesSkipped],
-          aliasesRetired: [...aliasesRetired],
-          backupPath: backupPath ?? null,
-          // The config is rewritten only together with its backup.
-          written: yield* writtenAbsolute(
-            backupPath === undefined ? [] : [VIBE_CONFIG_PATH, backupPath],
-            layers,
-          ),
-        };
-      }).pipe(Effect.mapError(exposeMessage)),
-    exits: { AgentSetupError: 2 },
-    errors: { AgentSetupError: MessageFields },
-    texts: { AgentSetupError: (error) => error.message },
-    render: (value) => {
-      const lines: string[] = [];
-      if (value.aliasesRetired.length > 0) {
-        lines.push(
-          `No longer used, left in ${value.configPath} (Mistral refuses their reasoning level): ${value.aliasesRetired.join(", ")}`,
-        );
-      }
-      if (value.dryRun) {
-        lines.push("Dry run — no changes written.");
-        lines.push(...aliasLines(value.aliasesAdded, value.configPath));
-        if (value.aliasesSkipped.length > 0) {
-          lines.push(
-            `Already present (${value.aliasesSkipped.length}): ${value.aliasesSkipped.join(", ")}`,
-          );
-        }
-        return lines.join("\n");
-      }
-      if (!value.installModelAliases) {
-        lines.push("Dry run — no changes written (pass --install-model-aliases to apply).");
-        lines.push(...aliasLines(value.aliasesAdded, value.configPath));
-        return lines.join("\n");
-      }
-      if (value.aliasesAdded.length === 0) {
-        lines.push("All aliases already present — nothing to append.");
-        return lines.join("\n");
-      }
-      lines.push(
-        `Appended ${value.aliasesAdded.length} alias(es) to ${value.configPath}:`,
-        ...value.aliasesAdded.map((alias) => `  + ${alias}`),
-      );
-      if (value.backupPath !== null) lines.push(`Backup written to: ${value.backupPath}`);
-      return lines.join("\n");
-    },
-  });
-}
-
 // ── agent setup providers ───────────────────────────────────────────────────────
 
 const AgentSetupProvidersOutput = Schema.Struct({
@@ -613,10 +501,7 @@ export function makeAgentGroup(layers: AgentLayers = REAL_AGENT_LAYERS) {
       defineGroup({
         name: "setup",
         summary: "Set up provider integrations",
-        commands: [
-          makeAgentSetupMistralVibeCommand(layers),
-          makeAgentSetupProvidersCommand(layers),
-        ],
+        commands: [makeAgentSetupProvidersCommand(layers)],
       }),
     ],
   });

@@ -233,7 +233,6 @@ import { decodePhaxConfig, decodePhaxUserOverlay } from "../../src/schemas/phaxC
 import { decodeProviderConfig } from "../../src/schemas/providerConfig.js";
 import { decodeModelRouting } from "../../src/schemas/modelRouting.js";
 import { decodeTelemetryConfig } from "../../src/schemas/telemetryConfig.js";
-import { extractBaseModel } from "../../src/schemas/vibeConfig.js";
 import { scanClaudeOutcomeEvents } from "../../src/schemas/claudeOutput.js";
 import { parseClaudeStream } from "../../src/schemas/claudeStream.js";
 import { scanCodexOutcomeEvents } from "../../src/schemas/codexOutput.js";
@@ -257,7 +256,6 @@ import {
   documentText,
   readDecoderInput,
   readTargetInput,
-  readTomlInput,
   streamLines,
   type Expected,
 } from "./corpus.js";
@@ -337,14 +335,6 @@ const SUBJECTS = new Map<string, Subject>([
   ["config/model-routing", (raw) => fromParse(decodeModelRouting(raw), formatParseError)],
   // src/app/loadTelemetryConfig.ts loadTelemetryConfig: decodeTelemetryConfig, formatParseError.
   ["config/telemetry-config", (raw) => fromParse(decodeTelemetryConfig(raw), formatParseError)],
-  // src/app/vibeSetup.ts: extractBaseModel(toml, alias), its Left printed as it is.
-  [
-    "config/vibe-config",
-    (input) => {
-      const { toml, alias } = readTomlInput(input);
-      return fromLines(extractBaseModel(toml, alias));
-    },
-  ],
   // src/domain/session/claudeOutcome.ts: scanClaudeOutcomeEvents(lines). Never refuses: a
   // line no decoder reads is skipped.
   ["answers/claude-output", (raw) => accepted(scanClaudeOutcomeEvents(streamLines(raw)))],

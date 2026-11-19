@@ -67,6 +67,9 @@ function sessionAndCloseLines(
     `    ${commandLine(sessionCommand)}`,
   ];
   if (isCodex(sessionCommand)) lines.push(`    ${TRUST_NOTE}`);
+  if (commands.continue === null && report.freshStartNote !== null) {
+    lines.push(`    ${report.freshStartNote}`);
+  }
   if (commands.continue === null && report.unverifiedProvider) {
     lines.push(
       "    (this provider's interactive resume is unverified: this session's transcript will not be captured)",

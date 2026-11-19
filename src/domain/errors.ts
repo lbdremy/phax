@@ -261,6 +261,8 @@ export interface DeclaredStopReport {
   readonly firstTurnProblem: FirstTurnProblem | null;
   /** True when phax has not verified the provider's interactive resume. */
   readonly unverifiedProvider: boolean;
+  /** The adapter's note on the fresh-start command, or null. */
+  readonly freshStartNote: string | null;
 }
 
 /** What a run that stopped at a held phase reports. No first turn ran. */
@@ -276,6 +278,8 @@ export interface HeldStopReport {
   readonly handoffPath: string;
   /** True when phax has not verified the provider's interactive resume. */
   readonly unverifiedProvider: boolean;
+  /** The adapter's note on the fresh-start command, or null. */
+  readonly freshStartNote: string | null;
 }
 
 /** What a run that stopped reports, by the stop's cause. */

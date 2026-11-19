@@ -6,22 +6,12 @@ import {
   DEFAULT_PROVIDER_CONFIG,
 } from "../../../src/domain/routing/defaults.js";
 import type { ModelRouting } from "../../../src/schemas/modelRouting.js";
-import { VIBE_CONFIG_PATH } from "../../../src/app/vibeSetup.js";
 
 // Mock loadRouting so tests don't touch the filesystem
 vi.mock("../../../src/app/loadRouting.js", () => ({
   loadModelRouting: vi.fn(() => Effect.succeed(DEFAULT_MODEL_ROUTING)),
   loadProviderConfig: vi.fn(() => Effect.succeed(DEFAULT_PROVIDER_CONFIG)),
 }));
-
-// Mock vibeSetup for the setup tests
-vi.mock("../../../src/app/vibeSetup.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../../../src/app/vibeSetup.js")>();
-  return {
-    ...original,
-    vibeSetup: vi.fn(),
-  };
-});
 
 // Every spawn fails as a missing executable would, so the probe never depends
 // on which provider CLIs happen to be installed on the host.
@@ -183,107 +173,6 @@ describe("phax agent Probe", () => {
     expect(text).toContain("claude-code");
     expect(text).toContain("mistral-vibe");
     expect(text).toContain("codex-cli");
-  });
-});
-
-describe("phax agent SetupMistralVibe", () => {
-  beforeEach(async () => {
-    vi.clearAllMocks();
-  });
-
-  it("dry-run lists aliases that would be added, makes no writes", async () => {
-    const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
-    vi.mocked(vibeSetup).mockReturnValue(
-      Effect.succeed({
-        aliasesAdded: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
-        aliasesSkipped: [],
-        aliasesRetired: [],
-        backupPath: undefined,
-      }),
-    );
-
-    const { code, outLines: lines } = await phaxCall([
-      "agent",
-      "setup",
-      "mistral-vibe",
-      "--dry-run",
-    ]);
-    expect(code).toBe(0);
-    const text = lines.join("\n");
-    expect(text).toContain("Dry run");
-    expect(text).toContain("phax-mistral-medium-3.5-off");
-    expect(vi.mocked(vibeSetup)).toHaveBeenCalledWith({ dryRun: true });
-  });
-
-  it("install prints appended aliases and backup path", async () => {
-    const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
-    vi.mocked(vibeSetup).mockReturnValue(
-      Effect.succeed({
-        aliasesAdded: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
-        aliasesSkipped: [],
-        aliasesRetired: [],
-        backupPath: "/home/user/.vibe/config.toml.phax-backup-12345",
-      }),
-    );
-
-    const { code, outLines: lines } = await phaxCall([
-      "agent",
-      "setup",
-      "mistral-vibe",
-      "--install-model-aliases",
-    ]);
-    expect(code).toBe(0);
-    const text = lines.join("\n");
-    expect(text).toContain("Appended 2 alias(es)");
-    expect(text).toContain("phax-mistral-medium-3.5-off");
-    expect(text).toContain("phax-backup-12345");
-    expect(vi.mocked(vibeSetup)).toHaveBeenCalledWith({ install: true });
-  });
-
-  it("no-op when all aliases already present", async () => {
-    const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
-    vi.mocked(vibeSetup).mockReturnValue(
-      Effect.succeed({
-        aliasesAdded: [],
-        aliasesSkipped: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
-        aliasesRetired: [],
-        backupPath: undefined,
-      }),
-    );
-
-    const { code, outLines: lines } = await phaxCall([
-      "agent",
-      "setup",
-      "mistral-vibe",
-      "--install-model-aliases",
-    ]);
-    expect(code).toBe(0);
-    expect(lines.join("\n")).toContain("already present");
-  });
-
-  it("names the aliases left from levels Mistral refuses, without touching them", async () => {
-    const { vibeSetup } = vi.mocked(await import("../../../src/app/vibeSetup.js"));
-    vi.mocked(vibeSetup).mockReturnValue(
-      Effect.succeed({
-        aliasesAdded: [],
-        aliasesSkipped: ["phax-mistral-medium-3.5-off", "phax-mistral-medium-3.5-high"],
-        aliasesRetired: ["phax-mistral-medium-3.5-low", "phax-mistral-medium-3.5-max"],
-        backupPath: undefined,
-      }),
-    );
-
-    const { code, outLines: lines } = await phaxCall([
-      "agent",
-      "setup",
-      "mistral-vibe",
-      "--install-model-aliases",
-    ]);
-    expect(code).toBe(0);
-    expect(lines.join("\n")).toContain(
-      "No longer used, left in " +
-        `${VIBE_CONFIG_PATH} (Mistral refuses their reasoning level): ` +
-        "phax-mistral-medium-3.5-low, phax-mistral-medium-3.5-max",
-    );
   });
 });
 

@@ -256,11 +256,6 @@ cmd agent help="Inspect and manage model routing and provider configuration" {
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd setup help="Set up provider integrations" {
-        cmd mistral-vibe help="Append PHAX-owned Mistral Vibe model aliases to ~/.vibe/config.toml (append-only, atomic)" {
-            flag --dry-run help="Preview what would be appended without writing anything"
-            flag --install-model-aliases help="Actually append the missing aliases and write the backup"
-            flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
-        }
         cmd providers help="Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)" {
             flag --write help="Persist the reconciled config (writes a timestamped backup first)"
             flag --prune help="Also disable providers whose executable is unavailable"

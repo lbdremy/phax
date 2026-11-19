@@ -1161,6 +1161,7 @@ describe("run and resume outcomes on the runner: today's lines on today's stream
         phaseCommitSubject: "feat: credit-note rows",
         handoffPath: "/example/runs/invoice-export/phase-02/phase-handoff.md",
         unverifiedProvider: false,
+        freshStartNote: null,
       },
     },
   };
