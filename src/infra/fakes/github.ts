@@ -19,6 +19,7 @@ export type GitHubCall =
       bodyFile: string;
       repo: string;
     }
+  | { method: "commentOnPullRequest"; pullRequest: string; body: string; repo: string }
   | { method: "createIssue"; repo: string; title: string; bodyFile: string }
   | { method: "createGist"; description: string; file: string; public: boolean };
 
@@ -40,6 +41,8 @@ export class FakeGitHubImpl implements GitHubOps {
   createdIssueUrl = "https://github.com/owner/repo/issues/1";
   createdGistUrl = "https://gist.github.com/owner/abc123";
   private nextCreatePrError: string | undefined;
+  private nextCommentError: string | undefined;
+  private commentsPosted = 0;
   private nextCreateIssueError: string | undefined;
   private nextCreateGistError: string | undefined;
 
@@ -88,6 +91,10 @@ export class FakeGitHubImpl implements GitHubOps {
 
   failNextCreatePr(stderr: string): void {
     this.nextCreatePrError = stderr;
+  }
+
+  failNextComment(stderr: string): void {
+    this.nextCommentError = stderr;
   }
 
   setCreatedIssueUrl(url: string): void {
@@ -187,6 +194,33 @@ export class FakeGitHubImpl implements GitHubOps {
       );
     }
     return Effect.succeed(this.createdPrUrl);
+  }
+
+  commentOnPullRequest(input: {
+    pullRequest: string;
+    body: string;
+    repo: string;
+  }): Effect.Effect<string, GitHubError> {
+    this.calls.push({
+      method: "commentOnPullRequest",
+      pullRequest: input.pullRequest,
+      body: input.body,
+      repo: input.repo,
+    });
+    if (this.nextCommentError !== undefined) {
+      const stderr = this.nextCommentError;
+      this.nextCommentError = undefined;
+      return Effect.fail(
+        new GitHubError({
+          message: `gh pr comment failed: ${stderr}`,
+          command: "gh pr comment",
+          stderr,
+          exitCode: 1,
+        }),
+      );
+    }
+    this.commentsPosted += 1;
+    return Effect.succeed(`${input.pullRequest}#issuecomment-${this.commentsPosted}`);
   }
 
   createIssue(input: {

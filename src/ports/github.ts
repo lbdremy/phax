@@ -42,6 +42,17 @@ export interface GitHubOps {
     bodyFile: string;
     repo: string;
   }): Effect.Effect<string, GitHubError>;
+  /**
+   * Posts one comment whose text is `body` on the pull request named by its
+   * URL. Answers the comment's URL (gh's trimmed stdout), or the pull
+   * request's URL when gh prints nothing. Fails with a GitHubError when gh
+   * fails or cannot run, carrying gh's stderr.
+   */
+  commentOnPullRequest(input: {
+    pullRequest: string;
+    body: string;
+    repo: string;
+  }): Effect.Effect<string, GitHubError>;
   createIssue(input: {
     repo: string;
     title: string;
