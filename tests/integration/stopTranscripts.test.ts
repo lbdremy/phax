@@ -862,7 +862,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
     vi.mocked(loadConfig).mockReturnValue(Result.succeed(resolvedConfig(world)));
     run = await stopRun(world, {
       provider: "mistral-vibe",
-      model: "phax-mistral-medium-3.5-high",
+      model: "mistral-medium-3.5",
       sessionId: VIBE3_SESSION_ID,
     });
   });
@@ -878,7 +878,7 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
 
   const turnOptions = (name: string) => ({
     provider: "mistral-vibe" as const,
-    model: "phax-mistral-medium-3.5-high",
+    model: "mistral-medium-3.5",
     effort: "high",
     cwd: run.worktree,
     security: run.policy,
@@ -894,6 +894,11 @@ describe("a Vibe session and its declared stop's close, with VIBE_HOME unreadabl
     const second = writeFakeVibe(join(world.root, "bin-second"), {
       stream: vibe3StreamText(VIBE3_RESUME_STREAM),
       exportText: vibe3ExportText(VIBE3_EXPORT_LONG),
+      // This fake never ran the session's first turn, so it has no level to
+      // restore on the resume: give it the one the first turn ran with.
+      configOverride: {
+        models: { "mistral-medium-3.5": { alias: "mistral-medium-3.5", thinking: "high" } },
+      },
     });
     const one = await Effect.runPromise(
       Effect.flatMap(Backend, (b) => b.runAgent("read", turnOptions("output"))).pipe(

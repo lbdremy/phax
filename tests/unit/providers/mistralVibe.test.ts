@@ -42,7 +42,6 @@ import {
 
 const baseEntry = {
   executable: "vibe",
-  modelEnvVar: "VIBE_ACTIVE_MODEL",
   defaultAgent: "auto-approve",
 };
 
@@ -71,8 +70,8 @@ const securePolicy: SecurityPolicy = {
 
 const baseOptions = (security: SecurityPolicy, cwd = "/tmp/work"): AgentRunOptions => ({
   provider: "mistral-vibe",
-  model: "mistral-large",
-  effort: "medium",
+  model: "mistral-medium-3.5",
+  effort: "high",
   cwd,
   security,
 });
@@ -85,6 +84,10 @@ describe("buildVibeArgs — unsafe mode", () => {
       "print ok",
       "--agent",
       "auto-approve",
+      "--model",
+      "mistral-medium-3.5",
+      "--thinking",
+      "high",
       "--output",
       "streaming",
       "--trust",
@@ -93,17 +96,20 @@ describe("buildVibeArgs — unsafe mode", () => {
     ]);
   });
 
-  it("does not pass --target or the model alias (selection is env-only)", () => {
+  it("passes the --model/--thinking pair on a new session and no --target", () => {
     const args = buildVibeArgs(baseEntry, "print ok", baseOptions(unsafePolicy));
     expect(args).not.toContain("--target");
-    expect(args).not.toContain("mistral-large");
+    expect(args[args.indexOf("--model") + 1]).toBe("mistral-medium-3.5");
+    expect(args[args.indexOf("--thinking") + 1]).toBe("high");
   });
 
-  it("appends --resume when a session id is provided", () => {
+  it("appends --resume when a session id is provided, and neither --model nor --thinking", () => {
     const args = buildVibeArgs(baseEntry, "do thing", baseOptions(unsafePolicy), "sess-abc-123");
     const resumeIdx = args.indexOf("--resume");
     expect(resumeIdx).toBeGreaterThan(0);
     expect(args[resumeIdx + 1]).toBe("sess-abc-123");
+    expect(args).not.toContain("--model");
+    expect(args).not.toContain("--thinking");
   });
 
   it("defaults --agent to auto-approve when entry has no defaultAgent", () => {
@@ -163,7 +169,32 @@ describe("buildVibeArgs — secure mode", () => {
     expect(args).not.toContain("--auto-approve");
   });
 
-  it("keeps the argv order: prompt, agent, output, output dir, workdir, add-dirs, resume", () => {
+  it("keeps the argv order: prompt, agent, model and thinking (new session only), output, output dir, workdir, add-dirs", () => {
+    const args = buildVibeArgs(baseEntry, "p", {
+      ...baseOptions(securePolicy),
+      outputJsonlPath: "/runs/r1/phase-01/output.jsonl",
+    });
+    expect(args).toEqual([
+      "-p",
+      "p",
+      "--agent",
+      "accept-edits",
+      "--model",
+      "mistral-medium-3.5",
+      "--thinking",
+      "high",
+      "--output",
+      "streaming",
+      "--output-dir",
+      "/runs/r1/phase-01/output.vibe-export",
+      "--workdir",
+      "/tmp/work",
+      "--add-dir",
+      "/home/me/.phax",
+    ]);
+  });
+
+  it("keeps the argv order of a resume: no model and thinking, --resume last", () => {
     const args = buildVibeArgs(
       baseEntry,
       "p",
@@ -240,7 +271,7 @@ describe("buildVibeArgs — a structured call", () => {
   });
 });
 
-const entryOf = (executable: string) => ({ executable, modelEnvVar: "VIBE_ACTIVE_MODEL" });
+const entryOf = (executable: string) => ({ executable });
 
 const linesOf = (text: string): string[] => text.split("\n").filter((l) => l.trim().length > 0);
 
@@ -382,6 +413,16 @@ describe("runVibeAgent against a fake vibe", () => {
 
   afterEach(() => removeTempDir(root));
 
+  // The short export as a new session at baseOptions' model and level writes it:
+  // the fake lays `--model` and `--thinking` over the template's config.
+  const resolvedShort = {
+    ...VIBE3_EXPORT_SHORT,
+    config: {
+      active_model: "mistral-medium-3.5",
+      models: { "mistral-medium-3.5": { alias: "mistral-medium-3.5", thinking: "high" } },
+    },
+  };
+
   const fakeIn = (options: Parameters<typeof writeFakeVibe>[1]) => {
     n += 1;
     return writeFakeVibe(join(root, `bin-${n}`), options);
@@ -432,7 +473,7 @@ describe("runVibeAgent against a fake vibe", () => {
     });
     expect(readFileSync(transcript, "utf8")).toBe(vibe3StreamText(VIBE3_PONG_STREAM));
     expect(readFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "utf8")).toBe(
-      vibe3ExportText(VIBE3_EXPORT_SHORT),
+      vibe3ExportText(resolvedShort),
     );
     expect(readFileSync(join(phaseFolder, "claude-session-id.txt"), "utf8")).toBe(VIBE3_SESSION_ID);
   });
@@ -473,7 +514,8 @@ describe("runVibeAgent against a fake vibe", () => {
     expect(JSON.parse(env["VIBE_TOOLS"] ?? "null")).toMatchObject({
       bash: { permission: "ask", allowlist: ["pnpm test:integration"] },
     });
-    expect(env["VIBE_ACTIVE_MODEL"]).toBe("mistral-large");
+    expect(env["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+    expect(turn).toContain("--model mistral-medium-3.5 --thinking high");
     expect(sha()).toBe(before);
   });
 
@@ -627,6 +669,40 @@ describe("runVibeAgent against a fake vibe", () => {
       expect(error.message).toContain("its result is refused");
       expect(readFileSync(join(phaseFolder, "agent-error.log"), "utf8")).not.toMatch(/^failure:/);
     });
+
+    it("accepts a confined resumed turn whose export reports the model and level of its first turn (ac-model-match)", async () => {
+      const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+      const first = await run(fake.executable, secureOptions());
+      expect(Result.isSuccess(first)).toBe(true);
+
+      const resumed = await run(
+        fake.executable,
+        { ...secureOptions(), outputJsonlPath: join(phaseFolder, "fix-attempt-01.jsonl") },
+        VIBE3_SESSION_ID,
+      );
+
+      expect(Result.isSuccess(resumed)).toBe(true);
+      if (Result.isFailure(resumed)) return;
+      expect(resumed.success).toMatchObject({ finalText: "PONG", sessionId: VIBE3_SESSION_ID });
+      const [, resumeTurn] = fake.invocations().filter((line) => line.startsWith("-p "));
+      expect(resumeTurn).toContain(`--resume ${VIBE3_SESSION_ID}`);
+      expect(resumeTurn).not.toContain("--model");
+      expect(resumeTurn).not.toContain("--thinking");
+    });
+
+    it.each([
+      ["a secure", () => secureOptions()],
+      ["a read-only", () => readOnlyOptions()],
+    ])("drops an inherited VIBE_ACTIVE_MODEL from %s agent turn", async (_kind, options) => {
+      vi.stubEnv("VIBE_ACTIVE_MODEL", "inherited-model");
+      const fake = fakeIn({ exportText: vibe3ExportText(VIBE3_EXPORT_SHORT) });
+
+      const result = await run(fake.executable, options());
+
+      expect(Result.isSuccess(result)).toBe(true);
+      expect(fake.turnEnv()["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+      expect(fake.traces()[0]?.env["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+    });
   });
 
   describe("runVibeCompletion", () => {
@@ -635,7 +711,7 @@ describe("runVibeAgent against a fake vibe", () => {
         Effect.result(
           runVibeCompletion(
             "say PONG",
-            { provider: "mistral-vibe", model: "mistral-large", effort: "medium", cwd: root },
+            { provider: "mistral-vibe", model: "mistral-medium-3.5", effort: "high", cwd: root },
             entryOf(executable),
           ),
         ),
@@ -656,7 +732,23 @@ describe("runVibeAgent against a fake vibe", () => {
       expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
       expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
       expect(env["VIBE_TOOLS"]).toBeUndefined();
-      expect(env["VIBE_ACTIVE_MODEL"]).toBe("mistral-large");
+      expect(env["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+      expect(turn).toContain("--model mistral-medium-3.5 --thinking high");
+    });
+
+    it("never passes on an inherited VIBE_ACTIVE_MODEL to a sealed completion", async () => {
+      vi.stubEnv("VIBE_ACTIVE_MODEL", "inherited-model");
+      try {
+        const fake = fakeIn({});
+
+        const result = await complete(fake.executable);
+
+        expect(Result.isSuccess(result)).toBe(true);
+        expect(fake.turnEnv()["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+        expect(fake.traces()[0]?.env["VIBE_ACTIVE_MODEL"]).toBeUndefined();
+      } finally {
+        vi.unstubAllEnvs();
+      }
     });
 
     it("fails naming the missing answer when the stream has no assistant text", async () => {
@@ -712,7 +804,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
     expect(Result.isSuccess(resumed) && resumed.success.finalText).toBe("DONE");
     expect(readFileSync(join(phaseFolder, "output.vibe-export", "export.json"), "utf8")).toBe(
-      vibe3ExportText(VIBE3_EXPORT_SHORT),
+      vibe3ExportText(resolvedShort),
     );
     expect(
       readFileSync(join(phaseFolder, "fix-attempt-01.vibe-export", "export.json"), "utf8"),
@@ -823,7 +915,7 @@ describe("runVibeAgent against a fake vibe", () => {
   describe("the version floor", () => {
     const exportText = vibe3ExportText(VIBE3_EXPORT_SHORT);
 
-    it.each(["vibe 2.13.0", "vibe 3.0.2", "mistral-vibe 2.99.99"])(
+    it.each(["vibe 2.13.0", "vibe 3.0.3", "vibe 3.1.2", "mistral-vibe 2.99.99"])(
       "refuses %s before any session spawns",
       async (version) => {
         const fake = fakeIn({ version, exportText });
@@ -832,7 +924,7 @@ describe("runVibeAgent against a fake vibe", () => {
 
         const installed = /\d+\.\d+\.\d+/.exec(version)![0];
         expect(error.message).toBe(
-          `mistral-vibe ${installed} is installed; phax needs 3.0.3 or later.\nUpgrade it: uv tool upgrade mistral-vibe`,
+          `mistral-vibe ${installed} is installed; phax needs 3.1.3 or later.\nUpgrade it: uv tool upgrade mistral-vibe`,
         );
         expect(fake.invocations()).toEqual(["--version"]);
         expect(existsSync(join(phaseFolder, "output.vibe-export"))).toBe(false);
@@ -861,13 +953,13 @@ describe("runVibeAgent against a fake vibe", () => {
         const error = await failureOf(fake.executable);
 
         expect(error.message).toContain(JSON.stringify(version));
-        expect(error.message).toContain("3.0.3");
+        expect(error.message).toContain("3.1.3");
         expect(error.message).toContain("uv tool upgrade mistral-vibe");
         expect(fake.turns()).toBe(0);
       },
     );
 
-    it.each(["vibe 3.0.3", "vibe 3.0.4", "vibe 3.1.0", "vibe 4.0.0"])(
+    it.each(["vibe 3.1.3", "vibe 3.1.4", "vibe 3.2.0", "vibe 4.0.0"])(
       "runs %s",
       async (version) => {
         const fake = fakeIn({ version, exportText });

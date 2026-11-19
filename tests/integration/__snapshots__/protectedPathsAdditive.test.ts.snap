@@ -622,6 +622,10 @@ exports[`a phase on mistral-vibe in a project that declares no protectedPaths > 
     "<prompt>",
     "--agent",
     "accept-edits",
+    "--model",
+    "mistral-medium-3.5",
+    "--thinking",
+    "high",
     "--output",
     "streaming",
     "--output-dir",
@@ -663,7 +667,6 @@ exports[`a phase on mistral-vibe in a project that declares no protectedPaths > 
 exports[`a phase on mistral-vibe in a project that declares no protectedPaths > keeps its argv, environment, prompts, gate logs and output > environment phax adds 1`] = `
 [
   {
-    "VIBE_ACTIVE_MODEL": "mistral-medium-3.5",
     "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",
@@ -671,7 +674,6 @@ exports[`a phase on mistral-vibe in a project that declares no protectedPaths > 
     "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
   },
   {
-    "VIBE_ACTIVE_MODEL": "mistral-medium-3.5",
     "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",
@@ -679,7 +681,6 @@ exports[`a phase on mistral-vibe in a project that declares no protectedPaths > 
     "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
   },
   {
-    "VIBE_ACTIVE_MODEL": "mistral-medium-3.5",
     "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",

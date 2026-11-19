@@ -185,6 +185,8 @@ describe("buildVibeFlags — read-only", () => {
   });
 });
 
+const SELECTION = { model: "mistral-medium-3.5", thinking: "high" } as const;
+
 /** The config Vibe resolves from `input`'s flags: what an export reads back when nothing overrode phax. */
 function resolvedConfig(input: VibeFlagsInput): Record<string, unknown> {
   const flags = buildVibeFlags(input);
@@ -192,7 +194,8 @@ function resolvedConfig(input: VibeFlagsInput): Record<string, unknown> {
     arg === "--enabled-tools" ? [flags.agent[at + 1]] : [],
   );
   return {
-    active_model: "mistral-medium-3.5",
+    active_model: SELECTION.model,
+    models: { [SELECTION.model]: { alias: SELECTION.model, thinking: SELECTION.thinking } },
     bypass_tool_permissions: false,
     outside_workdir: "deny",
     tools: JSON.parse(flags.env["VIBE_TOOLS"] ?? "{}"),
@@ -214,7 +217,7 @@ describe("vibeConfigMismatch", () => {
     ["secure", secureInput],
     ["read-only", readOnlyInput],
   ])("accepts the config a %s turn resolves from phax's flags", (_kind, input) => {
-    expect(vibeConfigMismatch(input, resolvedConfig(input))).toBeUndefined();
+    expect(vibeConfigMismatch(input, resolvedConfig(input), SELECTION)).toBeUndefined();
   });
 
   it.each([
@@ -224,30 +227,103 @@ describe("vibeConfigMismatch", () => {
     ["enable_connectors", { enable_connectors: true }, "true"],
   ])("names %s when a profile changed it", (field, change, actual) => {
     const config = { ...resolvedConfig(secureInput), ...change };
-    expect(vibeConfigMismatch(secureInput, config)).toMatch(`${field} is ${actual}, phax set `);
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toMatch(
+      `${field} is ${actual}, phax set `,
+    );
   });
 
   it("names the tool setting a profile widened", () => {
     const config = resolvedConfig(secureInput);
     const tools = config["tools"] as Record<string, Record<string, unknown>>;
     tools["read_file"] = { allowlist: ["/home/me/notes/**"], outside_workdir: "deny" };
-    expect(vibeConfigMismatch(secureInput, config)).toBe(
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
       'tools.read_file.allowlist is ["/home/me/notes/**"], phax set []',
     );
   });
 
   it("names a read-only turn's enabled tools when they are not the ones phax enabled", () => {
     const config = { ...resolvedConfig(readOnlyInput), enabled_tools: ["read_file", "write_file"] };
-    expect(vibeConfigMismatch(readOnlyInput, config)).toMatch(/^enabled_tools is /);
+    expect(vibeConfigMismatch(readOnlyInput, config, SELECTION)).toMatch(/^enabled_tools is /);
   });
 
   it.each([null, undefined, "x"])("refuses a confined turn whose config is %j", (config) => {
-    expect(vibeConfigMismatch(secureInput, config)).toMatch(/^config is /);
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toMatch(/^config is /);
   });
 
   it("never compares an unsafe session", () => {
     const unsafeInput: VibeFlagsInput = { security: unsafePolicy, cwd: "/w", agentCommands: [] };
-    expect(vibeConfigMismatch(unsafeInput, { bypass_tool_permissions: true })).toBeUndefined();
+    expect(
+      vibeConfigMismatch(unsafeInput, { bypass_tool_permissions: true }, SELECTION),
+    ).toBeUndefined();
+  });
+
+  const withModels = (models: unknown): Record<string, unknown> => ({
+    ...resolvedConfig(secureInput),
+    models,
+  });
+
+  it.each([
+    ["the model and level match", {}, undefined],
+    [
+      "active_model differs",
+      { active_model: "mistral-large-4-0" },
+      'active_model is "mistral-large-4-0", phax set "mistral-medium-3.5"',
+    ],
+    [
+      "active_model is absent",
+      { active_model: undefined },
+      'active_model is absent, phax set "mistral-medium-3.5"',
+    ],
+    [
+      "models is missing",
+      { models: undefined },
+      'thinking of mistral-medium-3.5 is absent, phax set "high"',
+    ],
+    [
+      "models is an array",
+      { models: [{ alias: "mistral-medium-3.5", thinking: "high" }] },
+      'thinking of mistral-medium-3.5 is absent, phax set "high"',
+    ],
+    [
+      "the entry is missing",
+      { models: { "mistral-large-4-0": { thinking: "high" } } },
+      'thinking of mistral-medium-3.5 is absent, phax set "high"',
+    ],
+    [
+      "thinking is missing",
+      { models: { "mistral-medium-3.5": { alias: "mistral-medium-3.5" } } },
+      'thinking of mistral-medium-3.5 is absent, phax set "high"',
+    ],
+    [
+      "thinking differs",
+      { models: { "mistral-medium-3.5": { thinking: "low" } } },
+      'thinking of mistral-medium-3.5 is "low", phax set "high"',
+    ],
+  ])("compares the model and level: %s", (_case, change, expected) => {
+    for (const input of [secureInput, readOnlyInput]) {
+      const config = { ...resolvedConfig(input), ...change };
+      expect(vibeConfigMismatch(input, config, SELECTION)).toBe(expected);
+    }
+  });
+
+  it("compares the model and level after the confinement", () => {
+    const config = { ...resolvedConfig(secureInput), active_model: "x", outside_workdir: "ask" };
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toMatch(/^outside_workdir is /);
+  });
+
+  it("does not read the level of a model other than the selected one", () => {
+    const config = withModels({
+      "mistral-large-4-0": { thinking: "high" },
+      "mistral-medium-3.5": { thinking: "off" },
+    });
+    expect(vibeConfigMismatch(secureInput, config, SELECTION)).toBe(
+      'thinking of mistral-medium-3.5 is "off", phax set "high"',
+    );
+  });
+
+  it("ignores the model and level of an unconfined session", () => {
+    const unsafeInput: VibeFlagsInput = { security: unsafePolicy, cwd: "/w", agentCommands: [] };
+    expect(vibeConfigMismatch(unsafeInput, { active_model: "x" }, SELECTION)).toBeUndefined();
   });
 });
 
@@ -307,14 +383,16 @@ describe("protected paths", () => {
   });
 
   it("accepts the export that holds the protected entries", () => {
-    expect(vibeConfigMismatch(protectedInput, resolvedConfig(protectedInput))).toBeUndefined();
+    expect(
+      vibeConfigMismatch(protectedInput, resolvedConfig(protectedInput), SELECTION),
+    ).toBeUndefined();
   });
 
   it("names a denylist that lacks an entry", () => {
     const config = resolvedConfig(protectedInput);
     const tools = config["tools"] as Record<string, Record<string, unknown>>;
     tools["write_file"] = { ...tools["write_file"], denylist: guards };
-    expect(vibeConfigMismatch(protectedInput, config)).toBe(
+    expect(vibeConfigMismatch(protectedInput, config, SELECTION)).toBe(
       `tools.write_file.denylist is ${JSON.stringify(guards)}, phax set ${JSON.stringify([...guards, ...ENTRIES])}`,
     );
   });
