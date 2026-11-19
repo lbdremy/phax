@@ -7,8 +7,11 @@ terminal, a script or, first of all, an agent delegating work to phax.
 The operator, 2026-11-19, from a conversation about why an agent would pick phax over its own subagents or a cloud
 agent. An agent delegating work wants three things from the tool it delegates to: it starts at once, it gives the
 hand back, and it says what happened as data. phax gives the third only partly and the first two not at all:
-`phax run` holds the caller's shell for the whole run (an hour is common), prints its progress as text, and ends
-on an exit code and human lines. A subagent or a `Workflow` script returns the hand to its caller; a cloud agent
+`phax run` holds the caller's shell for the whole run (an hour is common). With `--json` (spec
+`command-contracts`) it already answers an outcome document at the end (`qualifiedName`, `outcome`, `report`)
+and writes its messages as JSON lines on stderr; but the progress (phase started, gate failed, fix attempt,
+commit) is not a stream of typed events, and nothing can be read back by a caller that was not attached to the
+process. A subagent or a `Workflow` script returns the hand to its caller; a cloud agent
 runs elsewhere and reports a pull request.
 
 This is the transport the rest of the line builds on: `phax-do` (one task, no plan) and `do-attempts` (a contract,
@@ -26,7 +29,9 @@ with detaching second (the first question for §9 below).
   `src/app/eventAdapter.ts`, which turns them into output and telemetry. They are not persisted as a log today.
 - `phax runs list --json` (the `run-list` format), the per-phase `status.json` (`phase-status`), the run folder
   under `~/.phax/runs/`, the review stop document.
-- The exit codes of `phax run` and `src/cli/definitions/runOutcome.ts`, which maps an outcome to them.
+- The exit codes of `phax run` and `src/cli/definitions/runOutcome.ts`, which maps an outcome to them; `phax run
+  --json-schema`, the outcome document `--json` already answers, which the end surface below extends rather than
+  replaces.
 - The run lock (`src/app/lock.ts`) and how an interrupt is handled (`RunInterruptRequested`).
 - The spec `command-contracts`: how a command declares its output and answers `--json` in a versioned format.
 - `docs/structured-answers.md` and the rule that every provider request and answer carries a required `$schema`.
