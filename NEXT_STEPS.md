@@ -253,6 +253,12 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **The plan parser's bounded-time property still fails main CI.** 3 of 8 main CI runs
+      (2026-11-18 to 11-19: 690d4135, 9cdcc5aa, 25e04234) failed `Property tests budget` on
+      `tests/unit/property/planParser.property.test.ts` › "parsing finishes in bounded time": the
+      test hit vitest's 30 s timeout (once 117 s), though #238 made the property measure CPU time.
+      The same tree passed on the next push. Find which generated plans are slow (log the seed),
+      and bound the work per case, not only the measured time.
 - [ ] **A test that spawns a child with no timeout can hang the suite.** Seen 2026-11-18 on the
       code-repository review fixes: `tests/integration/groupCommandsJson.test.ts` runs
       `tsx … cost backfill --json` through `spawnSync` with no `timeout`; the child sat idle for
