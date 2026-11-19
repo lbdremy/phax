@@ -126,4 +126,26 @@ describe("harness", () => {
     expect(outcome.runs).toBe(100);
     expect(calls).toBe(100);
   });
+
+  const ownDefaultTitle = "checks a property's own default count unless PHAX_PROPERTY_RUNS is set";
+  it(ownDefaultTitle, () => {
+    expect(readPropertyParameters({}, { defaultRuns: 40 }).runs).toBe(40);
+    expect(readPropertyParameters({ PHAX_PROPERTY_RUNS: "2000" }, { defaultRuns: 40 }).runs).toBe(
+      2000,
+    );
+
+    let calls = 0;
+    const outcome = runProperty(
+      numberLists,
+      () => {
+        calls += 1;
+        return true;
+      },
+      { env: {}, location: locationOf(ownDefaultTitle), defaultRuns: 40 },
+    );
+    expect(outcome.kind).toBe("passed");
+    if (outcome.kind !== "passed") return;
+    expect(outcome.runs).toBe(40);
+    expect(calls).toBe(40);
+  });
 });

@@ -62,6 +62,8 @@ The guard `%s imports only from the allowed roots` in `tests/unit/property/harne
 
 On a pull request and locally, each property runs 100 inputs from a fixed seed (`20261113`), so a run is repeatable: the same code gives the same inputs. Each property finishes within the unit tier's 30-second timeout at that count.
 
+One property runs fewer: `parsing finishes in bounded time` checks 40 inputs (`BOUNDED_TIME_RUNS`, passed to `checkProperty` as `defaultRuns`). Its time grows with the large inputs it draws, and at 100 it took 10 to 32 seconds on CI, so it failed its timeout about one run in three (see [The 2-second bound](#the-2-second-bound)). A set `PHAX_PROPERTY_RUNS` still wins, so the deep pass checks it at 2,000 like every other property. Give a property its own `defaultRuns` only when its run count, not its code, sets its time, and say why beside the number.
+
 At that count the property files together take at most 60 seconds on CI. The `Property tests budget` step of `.github/workflows/ci.yml` checks it: after the full test run, it runs `pnpm test:unit tests/unit/property` alone and fails if that takes over 60 seconds. The check times the files alone, outside the suite: within `pnpm test` they share the machine with every other test file, so their time there measures the load as much as the properties, and a bound on it would fail at random.
 
 ## The three environment variables
@@ -70,7 +72,7 @@ At that count the property files together take at most 60 seconds on CI. The `Pr
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `PHAX_PROPERTY_SEED`  | An integer within int32, or `random`. Unset means the fixed seed. `random` draws one seed per test file and prints it once, with a replay hint; every property of that file runs from it. |
 | `PHAX_PROPERTY_PATH`  | Colon-separated integers (for example `36:0:2`): the shrink path of a failure. It needs a fixed integer seed, not `random`.          |
-| `PHAX_PROPERTY_RUNS`  | A positive integer: how many inputs each property checks. Unset means 100. The per-test timeout grows by 30 s per 100 runs (rounded up). |
+| `PHAX_PROPERTY_RUNS`  | A positive integer: how many inputs each property checks. Unset means 100 (40 for `parsing finishes in bounded time`). The per-test timeout grows by 30 s per 100 runs (rounded up). |
 
 A value the harness refuses stops the test with a `PropertyConfigError` that names the variable.
 
@@ -195,6 +197,8 @@ Markdown outside the alphabet (tables, HTML blocks, link reference definitions) 
 ### The 2-second bound
 
 `parsing finishes in bounded time` times each call alone in CPU time (`process.cpuUsage()`, user and system), not wall-clock time; finalize and section location are timed apart from the extraction they read. Wall-clock time measured the machine: in a phase gate, beside the rest of the suite, an input that takes about 0.4 s of CPU took 2 to 4.5 s of wall time, every attempt. A worker process of vitest's `forks` pool runs one test file at a time, so the CPU count holds this parse and the engine's garbage-collection threads, never another test. A call over 2,000 ms is timed twice more, and the property fails only when the fastest of the three is still over 2,000 ms, so one long garbage-collection pause cannot fail an unrelated pull request. The cost: an input that is slow only some of the time can pass. The property draws large, mutated and arbitrary text in equal shares: each large input is parsed four times, and at three large inputs in five the property outgrew the 30-second per-test timeout on a loaded CI runner.
+
+At a third of 100 runs it still did, about one main CI run in three (2026-11-18 to 11-19). The default seed drew 38 large inputs; two of them, over 60 KiB of nested lists and quotes (paths `85` and `88`), made half the property's work, about 0.45 s of CPU per call each on a laptop. On a slow CI runner path `85` took 2,060 ms per call: at the bound, where a first timing over it has the call timed three times, and once the fastest of the three was still over, a failure of the bound on a slow machine. The property now checks 40 inputs (see [The default budget](#the-default-budget)): 16 large ones, three of them over 60 KiB, about 1.5 s on a laptop against 5.6 s before. The bound itself is unchanged, and the deep pass still draws inputs like those two.
 
 The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parser resolves emphasis in time that grows with the square of the delimiters in one paragraph or heading, so deeper nesting near 64 KiB outgrows the bound inside the parser itself: one heading 4,000 levels deep (24 KB) already takes it about 1.6 s. The bound is therefore not held against deeper emphasis, a known gap left for its own spec.
 
