@@ -54,7 +54,7 @@ briefs of live or unspecced work.
 ### 4. Review findings: ids and fates
 
 
-- [ ] **`finding-ids-and-fates`** — spec Approved (2026-11-04), three plans. Review findings get
+- [x] **`finding-ids-and-fates`** — shipped (#239, #242, #244; spec completed 2026-11-19), three plans. Review findings get
       stable ids and a recorded fate; the operator's interactive flow first.
       - [x] Plan 1 (#239): `F<n>`/`C<n>` ids, the answer formats split from the files, older reviews
             lifted to `unrecorded`, `phax finding list [--json]`; a review whose record write failed
@@ -67,12 +67,14 @@ briefs of live or unspecced work.
             were wrong (a `git show` diff on non-cumulative records commits, three `unrecorded`
             compliance findings missing), corrected by the operator and closed with
             `--skip-acceptance`. Review: 8 findings, 6 fixed on the branch.
-      - [ ] Plan 3: the PR description's findings section and the fate comments. Carry from plan
-            2's review: narrow spec §5.8 to `phax finding list` (the fate commands answer an
-            unstamped contract, as plan 2 arbitrated), which means reopening and re-approving the
-            spec; and decide whether a fate command may go past another finding's unreadable fate
-            record (today one unreadable record refuses the whole run, the refusal says to upgrade
-            phax, and no `git revert` helps since phax reads the whole records history).
+      - [x] Plan 3 (#244): the PR description's `## Review findings` section at creation (never
+            rewritten), one fate comment per finding settled once the run has a pull request and
+            `publish.auto` is on (`fix` pushes the run branch first), and `phax finding post` to
+            retry the push and comments with no new record. §5.8 was narrowed to `phax finding
+            list` before it (spec reopened and re-approved 2026-11-19). Review: 5 findings, 4
+            fixed on the branch; the page's examples are now rendered from phax's own renderers
+            in a test. An unreadable fate record still refuses the whole run (operator,
+            2026-11-19: keep it).
 
 ### 5. Process and code in two repositories
 
@@ -253,6 +255,14 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **`phax finding fix` after a merge done on GitHub.** From #244's review: the run stays
+      `review_open` until it is archived, so a `fix` after the merge pushes the run branch again
+      (recreating it if GitHub deleted it) and posts "Fixed by <sha>" on the merged pull request,
+      for a commit that is not in main. Recommended: before the push, `fix` reads the pull
+      request's state (`gh pr view --json state`, a call `fix` already makes room for since it
+      comments) and, when merged or closed, pushes and posts nothing and answers `not-posted`
+      with a new reason. `dismiss` and `defer` keep commenting, since they claim nothing about
+      the code. Awaiting the operator's choice (guard, or only document it).
 - [ ] **The plan parser's bounded-time property still fails main CI.** 3 of 8 main CI runs
       (2026-11-18 to 11-19: 690d4135, 9cdcc5aa, 25e04234) failed `Property tests budget` on
       `tests/unit/property/planParser.property.test.ts` › "parsing finishes in bounded time": the
