@@ -106,6 +106,16 @@ briefs of live or unspecced work.
       `finding-ids-and-fates` merged first (operator, 2026-11-18), so it is next. Mistral Large 4 in the catalog is a separate, later change.
       Running since 2026-11-19 with phax 0.40.0 (plan revised and re-approved for 0.41.0 the same
       day: the ground had moved under #241 to #245).
+      At review (PR #248), the operator's real e2e showed Vibe 3.1.3 canonicalising the alias once
+      its model catalog cache exists (`active_model` `mistral-medium-latest`, listed with
+      `mistral-medium-3.5` in `config.catalog_model_aliases`): the post-turn check now accepts
+      that canonical name, pinned by two recorded real exports.
+- [ ] **Follow-up: Mistral Large 4, chosen by phax** — to brief, after `vibe-model-flags` merges.
+      Vibe's catalog now recommends `mistral-large-4-0` (Pro subscription). The operator chose
+      (2026-11-19) to add it to phax's catalog and route to it explicitly, not to drop `--model`
+      and take Vibe's default: the records and the cost keep naming the model before it runs.
+      To settle: its thinking levels as the API takes them, its price, the equivalence edges
+      (which Claude ids it serves), and whether `mistral-medium-3.5` stays.
 
 ### 6. What costs time on every run
 
