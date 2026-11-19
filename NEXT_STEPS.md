@@ -60,8 +60,19 @@ briefs of live or unspecced work.
             lifted to `unrecorded`, `phax finding list [--json]`; a review whose record write failed
             is kept in the run folder. #238 made the plan parser's bounded-time property measure
             CPU time (it failed the gate under load).
-      - [ ] Plan 2: `phax finding fix|dismiss|defer` and the fate records.
-      - [ ] Plan 3: the PR description's findings section and the fate comments.
+      - [x] Plan 2 (#242): `phax finding fix|dismiss|defer` and the fate records
+            (`<runId>/finding/<id>/<NN>/record.json`, outside the record-manifest union). The run
+            stopped twice: `resolveRunInfo` derived the final phase's branch instead of reading the
+            one the phase recorded (fixed in phase-05), and two of phase-06's acceptance oracles
+            were wrong (a `git show` diff on non-cumulative records commits, three `unrecorded`
+            compliance findings missing), corrected by the operator and closed with
+            `--skip-acceptance`. Review: 8 findings, 6 fixed on the branch.
+      - [ ] Plan 3: the PR description's findings section and the fate comments. Carry from plan
+            2's review: narrow spec §5.8 to `phax finding list` (the fate commands answer an
+            unstamped contract, as plan 2 arbitrated), which means reopening and re-approving the
+            spec; and decide whether a fate command may go past another finding's unreadable fate
+            record (today one unreadable record refuses the whole run, the refusal says to upgrade
+            phax, and no `git revert` helps since phax reads the whole records history).
 
 ### 5. Process and code in two repositories
 
@@ -85,8 +96,8 @@ briefs of live or unspecced work.
       for model and level (`config.models[active_model].thinking`); `phax agent setup mistral-vibe`
       goes. Run with `--allow-skill-edits`; the operator runs the Vibe e2e at review.
       Not in parallel with `code-repository` (operator, 2026-11-18): `phax plans overlap` shares
-      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Its run waits
-      for `finding-ids-and-fates` plan 2's merge (operator, 2026-11-18: plan 2 first). Mistral Large 4 in the catalog is a separate, later change.
+      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Plan 2 of
+      `finding-ids-and-fates` merged first (operator, 2026-11-18), so it is next. Mistral Large 4 in the catalog is a separate, later change.
 
 ### 6. The project doctrine
 
