@@ -140,19 +140,12 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
     expect(efforts).not.toContain("ultracode");
   });
 
-  it("every mistral alias entry advertises exactly one effort", () => {
-    const aliases = [
-      { id: "phax-mistral-medium-3.5-off", effort: "off" as const },
-      { id: "phax-mistral-medium-3.5-high", effort: "high" as const },
-    ];
-    for (const { id, effort } of aliases) {
-      const efforts = effortsFor(id, DEFAULT_PROVIDER_CONFIG);
-      expect(efforts).toEqual([effort]);
-    }
+  it("mistral-medium-3.5 advertises off and high", () => {
+    expect(effortsFor("mistral-medium-3.5", DEFAULT_PROVIDER_CONFIG)).toEqual(["off", "high"]);
   });
 
-  it("the levels the Mistral API refuses have no alias in the catalog", () => {
-    for (const level of ["low", "medium", "max"]) {
+  it("the retired phax alias ids are not in the catalog", () => {
+    for (const level of ["off", "low", "medium", "high", "max"]) {
       expect(entryFor(`phax-mistral-medium-3.5-${level}`, DEFAULT_PROVIDER_CONFIG)).toBeUndefined();
     }
   });
@@ -173,8 +166,7 @@ describe("per-entry efforts in DEFAULT_PROVIDER_CONFIG", () => {
       "gpt-6-astra",
       "gpt-6-sol",
       "gpt-6-luna",
-      "phax-mistral-medium-3.5-off",
-      "phax-mistral-medium-3.5-high",
+      "mistral-medium-3.5",
     ];
     for (const id of ids) {
       const loc = entryFor(id, DEFAULT_PROVIDER_CONFIG);

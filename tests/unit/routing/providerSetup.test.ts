@@ -41,10 +41,7 @@ const BASE_CONFIG: ProviderConfig = {
       defaultAgent: "auto-approve",
       families: {
         "mistral-medium": {
-          models: [
-            { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
-            { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
-          ],
+          models: [{ id: "mistral-medium-3.5", efforts: ["off", "high"], status: "active" }],
         },
       },
     },
@@ -100,7 +97,7 @@ describe("planProviderConfig", () => {
           defaultAgent: "custom-agent",
           families: {
             "mistral-medium": {
-              models: [{ id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" }],
+              models: [{ id: "mistral-medium-3.5", efforts: ["high"], status: "active" }],
             },
           },
         },
@@ -116,7 +113,7 @@ describe("planProviderConfig", () => {
     expect(entry.defaultAgent).toBe("custom-agent");
     expect(entry.families).toEqual({
       "mistral-medium": {
-        models: [{ id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" }],
+        models: [{ id: "mistral-medium-3.5", efforts: ["high"], status: "active" }],
       },
     });
   });
@@ -177,9 +174,8 @@ describe("planProviderConfig", () => {
           families: {
             "mistral-medium": {
               models: [
-                { id: "phax-mistral-medium-3.5-off", efforts: ["off"], status: "active" },
+                { id: "mistral-medium-3.5", efforts: ["off", "high"], status: "active" },
                 { id: "phax-mistral-medium-3.5-low", efforts: ["low"], status: "active" },
-                { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
                 { id: "phax-mistral-medium-3.5-max", efforts: ["max"], status: "active" },
               ],
             },

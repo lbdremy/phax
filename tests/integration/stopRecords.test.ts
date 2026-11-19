@@ -569,10 +569,7 @@ describe("a held record's usage on mistral-vibe", { timeout: 60_000 }, () => {
       records: true,
       providerConfig: VIBE_CONFIG,
       // phase-02 is built by vibe, natively.
-      plan: invoiceExportPlan(
-        { "phase-02": "phax-mistral-medium-3.5-high" },
-        { "phase-02": "high" },
-      ),
+      plan: invoiceExportPlan({ "phase-02": "mistral-medium-3.5" }, { "phase-02": "high" }),
       prepare: (prepared) => {
         prepared.backend.builderSessions.set("phase-02", VIBE3_SESSION_ID);
         prepared.backend.onBuild = (phase) => {

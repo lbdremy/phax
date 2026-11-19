@@ -113,7 +113,7 @@ describe("resolveModel — cross-family translation via the Claude hub", () => {
     );
     expect(result.selected.provider).toBe("mistral-vibe");
     expect(result.selected.family).toBe("mistral-medium");
-    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
+    expect(result.selected.concreteModel).toBe("mistral-medium-3.5");
     expect(result.selected.thinking).toBe("high");
     expect(result.relationship).toBe("equivalent");
   });
@@ -125,7 +125,7 @@ describe("resolveModel — cross-family translation via the Claude hub", () => {
       allEnabled,
     );
     expect(result.selected.provider).toBe("mistral-vibe");
-    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
+    expect(result.selected.concreteModel).toBe("mistral-medium-3.5");
     expect(result.selected.thinking).toBe("high");
     expect(result.relationship).toBe("upgrade");
   });

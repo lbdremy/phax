@@ -101,7 +101,7 @@ describe("preflightPhaseModels — id not found", () => {
 });
 
 describe("preflightPhaseModels — retired Mistral aliases", () => {
-  it("refuses the aliases whose reasoning level the Mistral API refuses, against the built-in catalog", () => {
+  it("refuses every phax alias id, against the built-in catalog", () => {
     const result = preflightPhaseModels(
       [
         { id: "phase-01", model: "phax-mistral-medium-3.5-low", effort: "low" },
@@ -109,6 +109,8 @@ describe("preflightPhaseModels — retired Mistral aliases", () => {
         { id: "phase-03", model: "phax-mistral-medium-3.5-max", effort: "max" },
         { id: "phase-04", model: "phax-mistral-medium-3.5-high", effort: "high" },
         { id: "phase-05", model: "phax-mistral-medium-3.5-off", effort: "off" },
+        { id: "phase-06", model: "mistral-medium-3.5", effort: "off" },
+        { id: "phase-07", model: "mistral-medium-3.5", effort: "high" },
       ],
       DEFAULT_MODEL_ROUTING,
       { providers: { ...DEFAULT_PROVIDER_CONFIG.providers, "mistral-vibe": vibeEnabled() } },
@@ -117,17 +119,19 @@ describe("preflightPhaseModels — retired Mistral aliases", () => {
       ["phase-01", ['model id "phax-mistral-medium-3.5-low" not found in catalog']],
       ["phase-02", ['model id "phax-mistral-medium-3.5-medium" not found in catalog']],
       ["phase-03", ['model id "phax-mistral-medium-3.5-max" not found in catalog']],
+      ["phase-04", ['model id "phax-mistral-medium-3.5-high" not found in catalog']],
+      ["phase-05", ['model id "phax-mistral-medium-3.5-off" not found in catalog']],
     ]);
   });
 
-  it("refuses an effort the kept high alias does not serve, offering high", () => {
+  it("refuses an effort mistral-medium-3.5 does not serve, offering off and high", () => {
     const result = preflightPhaseModels(
-      [{ id: "phase-01", model: "phax-mistral-medium-3.5-high", effort: "medium" }],
+      [{ id: "phase-01", model: "mistral-medium-3.5", effort: "medium" }],
       DEFAULT_MODEL_ROUTING,
       { providers: { ...DEFAULT_PROVIDER_CONFIG.providers, "mistral-vibe": vibeEnabled() } },
     );
     expect(result.failures[0]?.reasons[0]).toBe(
-      'effort "medium" is not supported by phax-mistral-medium-3.5-high (supports: high)',
+      'effort "medium" is not supported by mistral-medium-3.5 (supports: off, high)',
     );
   });
 });

@@ -129,6 +129,12 @@ describe("path constants", () => {
     );
     expect(err.message).toContain("phax-mistral-medium-3.5-medium");
     expect(err.message).toContain("phax-mistral-medium-3.5-max");
+    expect(err.message).toContain(
+      "  - phax-mistral-medium-3.5-off: phax runs Vibe's mistral-medium-3.5 with --thinking off",
+    );
+    expect(err.message).toContain(
+      "phax-mistral-medium-3.5-high: phax runs Vibe's mistral-medium-3.5 with --thinking high",
+    );
     expect(err.message).toContain("phax agent setup providers --write");
   });
 

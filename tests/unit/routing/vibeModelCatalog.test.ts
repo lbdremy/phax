@@ -14,7 +14,7 @@ import { resolveModel } from "../../../src/domain/routing/resolve.js";
 import { makeFakeFileSystem } from "../../../src/infra/fakes/fs.js";
 
 describe("Vibe catalog: mistral-medium-3.5 (acceptance)", () => {
-  it.fails("Claude requests reach mistral-medium-3.5", async () => {
+  it("Claude requests reach mistral-medium-3.5", async () => {
     const { layer } = makeFakeFileSystem();
     const routing = await Effect.runPromise(loadModelRouting().pipe(Effect.provide(layer)));
     const loaded = await Effect.runPromise(loadProviderConfig().pipe(Effect.provide(layer)));
@@ -48,7 +48,7 @@ describe("Vibe catalog: mistral-medium-3.5 (acceptance)", () => {
     ).toEqual([{ id: "mistral-medium-3.5", efforts: ["off", "high"], status: "active" }]);
   });
 
-  it.fails("the built-in equivalence keys Vibe's edges on mistral-medium-3.5", () => {
+  it("the built-in equivalence keys Vibe's edges on mistral-medium-3.5", () => {
     const equivalence: Record<string, unknown> = DEFAULT_MODEL_ROUTING.equivalence;
     expect(equivalence["mistral-medium-3.5"]).toEqual({
       off: { claude: "claude-haiku-4-5-20251001", effort: "none", relation: "equivalent" },
@@ -61,7 +61,7 @@ describe("Vibe catalog: mistral-medium-3.5 (acceptance)", () => {
     ).toEqual([]);
   });
 
-  it.fails("a providers.json listing the phax alias ids is refused", async () => {
+  it("a providers.json listing the phax alias ids is refused", async () => {
     const { impl, layer } = makeFakeFileSystem();
     const file = {
       ...DEFAULT_PROVIDER_CONFIG,

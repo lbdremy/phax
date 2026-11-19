@@ -113,7 +113,7 @@ describe("claude-haiku-5-5 stays Claude-only", () => {
       allEnabled,
     );
     expect(result.selected.provider).toBe("mistral-vibe");
-    expect(result.selected.concreteModel).toBe("phax-mistral-medium-3.5-off");
+    expect(result.selected.concreteModel).toBe("mistral-medium-3.5");
   });
 });
 
