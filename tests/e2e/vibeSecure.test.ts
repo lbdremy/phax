@@ -1,21 +1,33 @@
 /**
  * Real-CLI proof of Mistral Vibe 3 in secure mode. Run by `pnpm test:e2e:real`
- * with PHAX_E2E_RUN=1, Vibe 3.1.3 or later on $PATH, phax's model aliases in
- * Vibe's home (`phax agent setup mistral-vibe --install-model-aliases`), the
- * mistral-vibe provider enabled in `~/.phax/providers.json`
- * (`phax agent setup providers --write`), and Vibe signed in (its own login, or
- * MISTRAL_API_KEY in the environment). Without the provider enabled, routing
+ * with PHAX_E2E_RUN=1, Vibe 3.1.3 or later on $PATH, the mistral-vibe provider
+ * enabled in `~/.phax/providers.json` (`phax agent setup providers --write`),
+ * and Vibe signed in (its own login, or MISTRAL_API_KEY in the environment).
+ * phax chooses the model and thinking level with Vibe's own `--model` and
+ * `--thinking` flags, using Vibe's built-in `mistral-medium-3.5` alias, so no
+ * PHAX alias is needed in Vibe's home. Without the provider enabled, routing
  * would fall back to Claude Code, so the suite skips and says so. A Vibe that
- * cannot sign in fails the cases with its own authentication error.
+ * cannot sign in fails the cases with its own authentication error. The cases
+ * that run in a temporary VIBE_HOME have no sign-in there and need
+ * MISTRAL_API_KEY: without it they are skipped, with their reason.
  *
  * Cases, each in its own temporary repository:
  *   - secure confined: a secure phase writes in the worktree and runs its one
  *     agent command, while chained, outside and background calls are refused;
- *   - loose config: a hostile VIBE_HOME config cannot widen the session;
+ *   - loose config: a hostile VIBE_HOME config, with no PHAX block, cannot widen
+ *     the session and stays byte-identical (needs MISTRAL_API_KEY);
+ *   - model and level, off and high (ac-real-off-high): a secure session at
+ *     mistral-medium-3.5 with `off` and one with `high` complete, each export
+ *     reports the model and level phax set, and config.toml is unchanged
+ *     (needs MISTRAL_API_KEY);
+ *   - model and level kept on resume (ac-real-resume): a session started at
+ *     `high` and resumed by its id without flags keeps the model and level, and
+ *     phax accepts the turn (needs MISTRAL_API_KEY);
  *   - read-only resume: a writing session resumed read-only, granted
  *     `git status`, runs it and cannot write;
  *   - held stop: the closing turn resumes the builder session narrowed, and
  *     security.json records the narrowing;
+ *   - protected paths: write_file and edit refuse protected entries;
  *   - refused before spawning: a user accept-edits profile, and Vibe config
  *     under an extra writable root;
  *   - piped partial command: a diff command piped through `xargs`, with each
@@ -48,11 +60,6 @@ import { runVibeAgent } from "../../src/infra/providers/mistralVibe.js";
 import { vibeExportFileOf } from "../../src/domain/records/usage.js";
 import type { AgentRunOptions } from "../../src/ports/backend.js";
 import { parseVibeVersion } from "../../src/schemas/vibeOutput.js";
-import {
-  PHAX_ALIAS_LEVELS,
-  renderPhaxAliasBlocks,
-  type VibeBaseModel,
-} from "../../src/schemas/vibeConfig.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 import { printArtifacts } from "./helpers/artifacts.js";
@@ -96,15 +103,11 @@ function skipReason(): string | undefined {
 
 const SKIP = skipReason();
 if (SKIP !== undefined) console.info(`vibeSecure e2e skipped: ${SKIP}`);
-
-const BASE_MODEL: VibeBaseModel = {
-  name: "mistral-medium-3.5",
-  provider: "mistral",
-  temperature: 0.2,
-  input_price: 1.5,
-  output_price: 7.5,
-  auto_compact_threshold: 200_000,
-};
+else if (!process.env["MISTRAL_API_KEY"]) {
+  console.info(
+    "vibeSecure e2e: the loose config, model and level, and resume cases are skipped: MISTRAL_API_KEY is not set (a temporary VIBE_HOME has no sign-in)",
+  );
+}
 
 function sha256(file: string): string {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -275,6 +278,36 @@ function exportConfigOf(transcriptPath: string): Record<string, unknown> {
   return exported.config ?? {};
 }
 
+/**
+ * The model and thinking level a turn ran with, read from the export beside its
+ * stream: `config.active_model`, and `thinking` of that model's entry in
+ * `config.models` (an object keyed by alias in Vibe 3.1.3).
+ */
+function modelAndLevelOf(transcriptPath: string): {
+  readonly activeModel: unknown;
+  readonly thinking: unknown;
+} {
+  const config = exportConfigOf(transcriptPath);
+  const activeModel = config["active_model"];
+  const models = config["models"] as Record<string, { thinking?: unknown } | undefined> | undefined;
+  return {
+    activeModel,
+    thinking: typeof activeModel === "string" ? models?.[activeModel]?.thinking : undefined,
+  };
+}
+
+/** Runs `body` with VIBE_HOME set for the real `vibe` that `runVibeAgent` spawns. */
+async function withVibeHome<T>(vibeHome: string, body: () => Promise<T>): Promise<T> {
+  const previous = process.env["VIBE_HOME"];
+  process.env["VIBE_HOME"] = vibeHome;
+  try {
+    return await body();
+  } finally {
+    if (previous === undefined) delete process.env["VIBE_HOME"];
+    else process.env["VIBE_HOME"] = previous;
+  }
+}
+
 function worktreeOf(env: TempEnv): string {
   const run = runDir(env).split("/").pop() as string;
   return join(env.phaxHome, "worktrees", run, "phase-01");
@@ -439,15 +472,6 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
           "[tools.read_file]",
           `allowlist = ["${outside}"]`,
           "",
-          '[[models]]\nalias = "mistral-medium-3.5"',
-          `name = "${BASE_MODEL.name}"`,
-          `provider = "${BASE_MODEL.provider}"`,
-          `temperature = ${BASE_MODEL.temperature}`,
-          `input_price = ${BASE_MODEL.input_price}`,
-          `output_price = ${BASE_MODEL.output_price}`,
-          `auto_compact_threshold = ${BASE_MODEL.auto_compact_threshold}`,
-          "",
-          renderPhaxAliasBlocks(BASE_MODEL, PHAX_ALIAS_LEVELS),
         ].join("\n"),
       );
       const before = sha256(configPath);
@@ -471,6 +495,142 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       expectRefused(calls, "reading the outside file", (c) => c.target.includes(outside));
       expect(phaseStreams(env), "the outside file was not read").not.toContain(canary);
       expect(sha256(configPath), "config.toml is byte-identical").toBe(before);
+    },
+  );
+
+  /**
+   * A temporary repository, phase folder and VIBE_HOME for a direct
+   * `runVibeAgent` call. The VIBE_HOME's config.toml holds no PHAX block, and a
+   * temporary VIBE_HOME has no sign-in of its own: the key comes from the
+   * environment.
+   */
+  function directSession(label: string): {
+    readonly cwd: string;
+    readonly phaseFolder: string;
+    readonly vibeHome: string;
+    readonly configPath: string;
+    readonly options: AgentRunOptions;
+  } {
+    const cwd = mkdtempSync(join(tmpdir(), `phax-e2e-vibe-${label}-`));
+    const phaseFolder = mkdtempSync(join(tmpdir(), `phax-e2e-vibe-${label}-phase-`));
+    const vibeHome = mkdtempSync(join(tmpdir(), `phax-e2e-vibe-${label}-home-`));
+    scratch.push(cwd, phaseFolder, vibeHome);
+    const git = (...args: string[]): void => {
+      const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+      expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
+    };
+    git("init", "-q");
+    git("config", "user.email", "e2e@example.com");
+    git("config", "user.name", "e2e");
+    git("commit", "-q", "--allow-empty", "-m", "init");
+
+    const configPath = join(vibeHome, "config.toml");
+    writeFileSync(configPath, "# A user config: no PHAX block.\n");
+
+    const security: SecurityPolicy = {
+      mode: "secure",
+      filesystem: { allowRead: [cwd], allowWrite: [cwd] },
+      network: { profile: "provider-only" },
+      mcp: { mode: "disabled", allow: [] },
+      agentCommands: [],
+      failClosed: true,
+    };
+    return {
+      cwd,
+      phaseFolder,
+      vibeHome,
+      configPath,
+      options: {
+        provider: "mistral-vibe",
+        model: "mistral-medium-3.5",
+        effort: "off",
+        cwd,
+        security,
+        agentCommands: [],
+        phaseFolderPath: phaseFolder,
+      },
+    };
+  }
+
+  const VIBE_ENTRY = { executable: "vibe", defaultAgent: "auto-approve" };
+
+  // ac-real-off-high: phax picks the model and level with --model and
+  // --thinking, and Vibe's own export proves the session ran under them.
+  it.skipIf(!process.env["MISTRAL_API_KEY"])(
+    "model and level: secure sessions at mistral-medium-3.5 off and high report what phax set",
+    { timeout: 600_000 },
+    async () => {
+      const session = directSession("off-high");
+      const before = sha256(session.configPath);
+
+      for (const level of ["off", "high"] as const) {
+        const transcript = join(session.phaseFolder, `${level}.jsonl`);
+        const result = await withVibeHome(session.vibeHome, () =>
+          Effect.runPromise(
+            runVibeAgent(
+              `Create the file \`${level}.txt\` containing \`${level}\`, then finish.`,
+              { ...session.options, effort: level, outputJsonlPath: transcript },
+              VIBE_ENTRY,
+            ),
+          ),
+        );
+
+        expect(result.sessionId, `the ${level} turn completed`).not.toBe("");
+        expect(existsSync(join(session.cwd, `${level}.txt`)), `the ${level} turn wrote`).toBe(true);
+        const turn = modelAndLevelOf(transcript);
+        expect(turn.activeModel, `the ${level} turn's model`).toBe("mistral-medium-3.5");
+        expect(turn.thinking, `the ${level} turn's thinking level`).toBe(level);
+      }
+
+      expect(sha256(session.configPath), "config.toml is byte-identical").toBe(before);
+    },
+  );
+
+  // ac-real-resume: a resume is given no --model or --thinking (Vibe 3.1.3
+  // refuses --model on one) and keeps the model and level of its session.
+  it.skipIf(!process.env["MISTRAL_API_KEY"])(
+    "model and level on resume: a resumed turn keeps mistral-medium-3.5 at high",
+    { timeout: 600_000 },
+    async () => {
+      const session = directSession("resume");
+      const before = sha256(session.configPath);
+      const high = { ...session.options, effort: "high" } as const;
+
+      const first = join(session.phaseFolder, "first.jsonl");
+      const started = await withVibeHome(session.vibeHome, () =>
+        Effect.runPromise(
+          runVibeAgent(
+            "Create the file `first.txt` containing `one`, then finish.",
+            { ...high, outputJsonlPath: first },
+            VIBE_ENTRY,
+          ),
+        ),
+      );
+      expect(modelAndLevelOf(first)).toEqual({
+        activeModel: "mistral-medium-3.5",
+        thinking: "high",
+      });
+
+      const second = join(session.phaseFolder, "second.jsonl");
+      const resumed = await withVibeHome(session.vibeHome, () =>
+        Effect.runPromise(
+          runVibeAgent(
+            "Reply with the single word `done`, then finish.",
+            { ...high, outputJsonlPath: second },
+            VIBE_ENTRY,
+            started.sessionId,
+          ),
+        ),
+      );
+
+      // runVibeAgent returning means phax's post-turn check accepted the turn.
+      expect(resumed.sessionId, "the resume kept the session").toBe(started.sessionId);
+      expect(resumed.finalText.length, "the resumed turn answered").toBeGreaterThan(0);
+      expect(modelAndLevelOf(second)).toEqual({
+        activeModel: "mistral-medium-3.5",
+        thinking: "high",
+      });
+      expect(sha256(session.configPath), "config.toml is byte-identical").toBe(before);
     },
   );
 
