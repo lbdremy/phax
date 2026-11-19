@@ -96,7 +96,7 @@ WHEN `phax finding list <run>` runs THE system SHALL print every finding of the 
 
 ### 5.8 The list is a versioned answer
 
-WHERE `--json` is given to a `phax finding` command THE system SHALL write its output contract as a `$schema`-stamped document per the command-contracts spec, carrying for each finding its fields, its current fate and its full history of fate records.
+WHERE `--json` is given to `phax finding list` THE system SHALL write its output contract as a `$schema`-stamped document per the command-contracts spec, carrying for each finding its fields, its current fate and its full history of fate records.
 
 ### 5.9 The fix command composes exactly one commit
 
@@ -634,7 +634,7 @@ Constraints:
 - No back-compat shims: the review files' new shape requires `id`. Older files stay readable through the schema history readers and get their ids at read time, with no migration step and no rewrite of stored files.
 - Every new document (`finding-list` answer, fate record manifest, new review file stamps) is born with `$schema`.
 - All I/O through ports, GitHub and push included; the fix commit follows the artifact-transition pattern (path-scoped, `-o <paths>` semantics, never sweeping other staged changes).
-- Fate commands honor command-contracts: `--json` on each, message lines on stderr, refusal before any write.
+- Fate commands honor command-contracts: `--json` on each, message lines on stderr, refusal before any write. Only `phax finding list --json` is a published, `$schema`-stamped format; the `--json` answer of `fix`, `dismiss` and `defer` is their command contract, carries no `$schema` and is not a published format, so a script that wants the published shape runs `phax finding list --json` after them.
 - Release notes keep folding fixing commits into their run by `Short-Name`; fixing commits carry no `Run-Id`.
 - A fix pushes the run branch before it posts, so the fixing commit a comment names is already visible on the PR; posting follows the existing `publish.auto` setting.
 
