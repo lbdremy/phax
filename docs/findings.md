@@ -169,14 +169,106 @@ Records must be on. Before any commit or record, a fate command refuses when:
 - the run's project cannot be read (a run of another project, for instance);
 - a dedicated records clone is missing (run `phax records sync`).
 
-A fate command pushes nothing and calls no GitHub, whatever `publish.auto` or `records.autoPush` says. Its records reach the remote with the run's publish. If a record fails after a fix commit landed, the commit stays, the command exits 1 and names the ids not recorded and the `--commit` retry. A failed dismissal or deferral is recorded by running the same command again. The pull request's findings section and fate comments come in a later release.
+A fate command never pushes `phax/records/v1`, whatever `records.autoPush` says. A fate's record reaches the remote with `phax records sync` or the run's next publish, so a pull request comment can name a fate the remote does not hold yet. What a fate command does push and post on the pull request is described in [On the pull request](#on-the-pull-request). If a record fails after a fix commit landed, the commit stays, the command exits 1 and names the ids not recorded and the `--commit` retry. A failed dismissal or deferral is recorded by running the same command again. A call whose records failed pushes and posts nothing.
+
+`phax finding post <run> <id>…` posts the comments of findings already settled. It writes no record, so it never records a fate twice:
+
+```bash
+phax finding post gate-retry F2 F3
+```
+
+```text
+✓ pushed phase-03 to origin
+✓ commented F2 on https://github.com/acme/shop/pull/42
+✓ commented F3 on https://github.com/acme/shop/pull/42
+```
+
+It refuses an unknown id, a finding that is `open` or `unrecorded`, and a run with no pull request in `publication.json`. It ignores `publish.auto`, because it is an explicit request to post.
+
+## On the pull request
+
+### The description
+
+When phax creates the run's pull request, its description gains a `## Review findings` section, right after `## Needs your review`. It reads the findings as `phax finding list` reads them at that moment: every open and deferred finding is named, the fixed and dismissed ones are counted.
+
+```text
+## Review findings
+
+Open (2)
+- F2 concern — `src/app/retry.ts:77` — The backoff has no upper bound
+- C1 deviation — phase-02 files — src/gate.ts was edited and not planned
+
+Deferred (1)
+- F4 concern — `src/gate.ts:12` — The gate reads the config twice → `NEXT_STEPS.md`
+
+Fixed: 1 · Dismissed: 1
+```
+
+- ` · Unrecorded: n` ends the count line when n is above 0. A block with no finding is left out, and a run with no finding reads `No findings.`.
+- When the records branch cannot be read, one line says so and every finding shows as open. When the findings cannot be read at all, one line says why and points to `phax finding list <run>`. Reading findings never fails a publish.
+- When the description is too long for GitHub, phax cuts unexplained deviations first, then attention points, deferred findings, open findings and last the review notes. A cut list keeps its header with the full total and its first entries, then `- …and <k> more open findings`. The count line is never cut.
+- The description is written once. A pull request that already exists keeps its body, and later fates never rewrite it.
+
+### Fate comments
+
+With `publish.auto` on and a pull request phax opened, `phax finding fix` pushes the run branch to `publish.remote` (plainly, never forced), then `fix`, `dismiss` and `defer` post one comment per finding they settle:
+
+```bash
+phax finding fix gate-retry F2 -- tests/gate.test.ts
+```
+
+```text
+✓ committed 3fa91c2 fix(review): F2 of gate-retry
+  paths: tests/gate.test.ts (tests)
+✓ recorded F2 fixed on phax/records/v1
+✓ pushed phase-03 to origin
+✓ commented F2 on https://github.com/acme/shop/pull/42
+```
+
+Each comment's first line is `<id> <fate> — <location> — <message>`; the second depends on the fate:
+
+```text
+F2 fixed — `src/app/retry.ts:77` — The backoff has no upper bound
+Fixed by 3fa91c2 (tests)
+```
+
+```text
+F3 dismissed — `docs/retry.md:9` — The page still names the old flag
+Reason: the page names it on purpose
+```
+
+```text
+F4 deferred — `src/gate.ts:12` — The gate reads the config twice
+Taken over by `NEXT_STEPS.md`
+```
+
+`@` mentions in a message or reason are rendered as code. A call naming several ids posts several comments.
+
+The pull request is the one `publication.json` in the run's folder names (its archive copy for an archived run). phax asks GitHub nothing to find it: a merged or closed pull request is still commented, and one opened by hand with `gh pr create` is not.
+
+### When nothing leaves the machine
+
+- With `publish.auto` off, the fate commands push and post nothing and work offline.
+- With no pull request yet, nothing is pushed or posted. The description carries the fates when the pull request is created.
+- With `publish.pushBranch` false, `fix` neither pushes nor posts, because its commit could not be seen. `dismiss` and `defer` still comment.
+- `dismiss` and `defer` never push. An archived run's `fix --commit` pushes nothing.
+
+The `--json` answers of `fix`, `dismiss` and `defer` carry a `pullRequest` field: `{ "kind": "not-posted", "reason": "publish-auto-off" | "no-pull-request" | "push-branch-off" }`, or `{ "kind": "posted", "url", "pushed", "comments" }`.
+
+### When a push or a comment fails
+
+The fates stay recorded and a fix's commit stays. The command exits 1 with `✗ pull request not updated: …`, naming the pull request, git's or gh's first line and the ids not posted, and ends with `Retry with: phax finding post <run> <ids>`. Run it: it posts what is left without recording again. When the remote branch has moved, git refuses the push; run `git pull --no-rebase <remote> <branch>` in the run's final worktree first, then retry.
+
+Exit 1 now covers both a fate not recorded and a pull request not updated; under `--json` only the error tag tells them apart. Do not rerun the fate command on a pull request failure, or it records a second, identical fate.
+
+`phax finding list` never calls GitHub, and findings never block completion, publication or merge.
 
 ## Exit codes
 
 | Code | Meaning                                                                                                     |
 | ---- | ----------------------------------------------------------------------------------------------------------- |
-| 0    | The fates are recorded.                                                                                     |
-| 1    | A refusal, a git or file failure, or a fate not recorded.                                                   |
+| 0    | The fates are recorded, and the pull request updated when that applies.                                     |
+| 1    | A refusal, a git or file failure, a fate not recorded, or a pull request not updated.                       |
 | 2    | A configuration that does not decode.                                                                       |
 | 64   | A refused call: no `--why` or `--to`, an empty value, an undeclared option, or no `--by` without a terminal. |
 
