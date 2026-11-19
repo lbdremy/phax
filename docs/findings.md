@@ -48,12 +48,12 @@ phax finding list gate-retry
 gate-retry (review_open) — 5 findings: 2 open, 1 fixed, 1 dismissed, 1 deferred
 
 F1  bug        fixed      src/app/retry.ts:41  The retry count is never reset after a pass
-                          3fa91c2 (code, tests)
+               8c1d2e4 (code, tests)
 F2  concern    open       src/app/retry.ts:77  The backoff has no upper bound
 F3  info       dismissed  docs/retry.md:9      The page still names the old flag
-                          Ada Lovelace: the page names it on purpose
+               Ada Lovelace: the page names it on purpose
 F4  concern    deferred   src/gate.ts:12       The gate reads the config twice
-                          → NEXT_STEPS.md
+               → NEXT_STEPS.md
 C1  deviation  open       phase-02 files       src/gate.ts was edited and not planned
 ```
 
@@ -82,7 +82,7 @@ With `--json` it prints a `finding-list` document, shortened here to one finding
       "history": [
         {
           "fate": "fixed",
-          "commit": "3fa91c2…",
+          "commit": "8c1d2e4…",
           "pathClasses": ["code", "tests"],
           "by": { "kind": "operator", "name": "Ada Lovelace" },
           "at": "2026-11-18T10:00:00.000Z"
@@ -178,7 +178,7 @@ phax finding post gate-retry F2 F3
 ```
 
 ```text
-✓ pushed phase-03 to origin
+✓ pushed phax/gate-retry--phase-03 to origin
 ✓ commented F2 on https://github.com/acme/shop/pull/42
 ✓ commented F3 on https://github.com/acme/shop/pull/42
 ```
@@ -221,7 +221,7 @@ phax finding fix gate-retry F2 -- tests/gate.test.ts
 ✓ committed 3fa91c2 fix(review): F2 of gate-retry
   paths: tests/gate.test.ts (tests)
 ✓ recorded F2 fixed on phax/records/v1
-✓ pushed phase-03 to origin
+✓ pushed phax/gate-retry--phase-03 to origin
 ✓ commented F2 on https://github.com/acme/shop/pull/42
 ```
 
