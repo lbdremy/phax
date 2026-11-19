@@ -19,8 +19,8 @@ Execution caveats:
 - Phases 02 and 04 regenerate `.claude/skills/phax-planning/SKILL.md` and `.claude/skills/model-routing/SKILL.md` through `pnpm gen:model-catalog`, so run this plan with `phax run --allow-skill-edits`.
 - `tests/e2e/vibeSecure.test.ts` is updated by phases 04 and 07 but never run by a phase: it needs `PHAX_E2E_RUN=1`, a real `vibe` and `MISTRAL_API_KEY`. The operator runs `pnpm test:e2e:real` at review.
 - Tests never run a real `vibe`, read a real `~/.phax` or `~/.vibe`, or reach the Mistral API.
-- The opened version is 0.40.0 (`package.json`), so the upgrade notes go into the existing `### 0.40.0` entry of `docs/upgrading.md`.
-- The parallel run `process-and-code-in-two-repositories` shares no code file with this plan. Generated files (`phax.usage.kdl`, `docs/cli/reference.md`, the README CLI region) are only ever regenerated with their scripts.
+- 0.40.0 is released and the opened version is 0.41.0 (`package.json`). The upgrade notes therefore go into a new `### 0.41.0` section at the top of "Release by release" in `docs/upgrading.md`, which phase 10 creates. No test names a version literally.
+- Generated files (`phax.usage.kdl`, `docs/cli/reference.md`, the README CLI region) are only ever regenerated with their scripts, never edited by hand.
 
 ## Required commands
 
@@ -758,14 +758,14 @@ A Vibe review stop and `phax enter-phase` tell the person that Vibe's interactiv
 ### Detailed instructions
 
 - Note, domain: add `freshStartNote(opts: { readonly model: string; readonly effort: string }): string | null` to `SessionAdapter` in `src/domain/session/types.ts`. `src/domain/session/mistral.ts` returns a sentence such as `Vibe's interactive mode takes no --thinking: this session starts at <model>'s default thinking level, not the phase's level (<effort>).`; `claude.ts` and `codex.ts` return null.
-- Note, app: `buildStopCommands` in `src/app/interactiveStop.ts` also returns the adapter's note for the phase's model and effort, and both stop reports carry it. In `src/domain/errors.ts`, `DeclaredStopReport` and `HeldStopReport` gain a required `freshStartNote: string | null`. `src/cli/definitions/runOutcome.ts`'s `StopReportSchema` gains `freshStartNote: Schema.NullOr(Schema.String)` in both variants.
+- Note, app: `buildStopCommands` in `src/app/interactiveStop.ts` also returns the adapter's note for the phase's model and effort, and both stop reports carry it. In `src/domain/errors.ts`, `DeclaredStopReport` and `HeldStopReport` (beside `unverifiedProvider`) gain a required `freshStartNote: string | null`. `src/cli/definitions/runOutcome.ts`'s `StopReportSchema` gains `freshStartNote: Schema.NullOr(Schema.String)` in both its `declared` and `held` variants, beside their `unverifiedProvider`.
 - Note, printing: in `src/cli/commands/stopOutput.ts`, `sessionAndCloseLines` prints `    <note>` directly under the command line when the command printed is the fresh start (`commands.continue` is null) and the note is not null.
 - Note, enter-phase: `src/app/enterPhase.ts` adds `info(<note>)` to the notices it returns with a fresh-start command, when the note is not null.
 - Note, record: `asReviewStopCommand` and `src/schemas/reviewStop.ts` stay untouched, so no persisted format changes.
 - Installer: in `src/cli/definitions/agent.ts`, delete the `mistral-vibe` command, its output schema, `aliasLines` and the `vibeSetup` import. The `setup` group lists `providers` only. Update the header comment.
-- Delete `src/app/vibeSetup.ts`, `src/schemas/vibeConfig.ts`, `tests/unit/routing/vibeSetup.test.ts` and `tests/behaviourCorpus/cases/config/vibe-config.json`. Remove the `config/vibe-config` subject from `tests/behaviourCorpus/subjects.ts`, and `TomlInput` and `readTomlInput` from `tests/behaviourCorpus/corpus.ts`.
+- Delete `src/app/vibeSetup.ts`, `src/schemas/vibeConfig.ts`, `tests/unit/routing/vibeSetup.test.ts` and `tests/behaviourCorpus/cases/config/vibe-config.json`. In `tests/behaviourCorpus/subjects.ts`, remove the `config/vibe-config` subject entry, the `extractBaseModel` import from `src/schemas/vibeConfig.ts` and the `readTomlInput` import. In `tests/behaviourCorpus/corpus.ts`, remove `TomlInput` and `readTomlInput`. Find each by name, not by line number: the files have moved since this plan was written.
 - In `tests/unit/cli/agent.test.ts`, drop the `vibeSetup` mock and the mistral-vibe tests. In `tests/integration/agentGroupJson.test.ts`, drop the `VIBE_CONFIG_PATH` import and the mistral-vibe cases, and keep every other contract it checks.
-- Add `freshStartNote` to every stop-report literal in tests (`git grep -n unverifiedProvider tests/`: `tests/unit/cli/run.test.ts`, `tests/integration/declaredStopProviderArgv.test.ts`).
+- Add `freshStartNote` beside `unverifiedProvider` in every stop-report literal in tests (`git grep -n unverifiedProvider tests/`; today that is `tests/unit/cli/run.test.ts` and `tests/integration/declaredStopProviderArgv.test.ts`, one literal each).
 - Run `pnpm gen:usage-spec` and `pnpm docs:cli`, and commit what they regenerate (`phax.usage.kdl`, `docs/cli/reference.md`, the README's generated CLI region). Never edit those by hand.
 - Remove the `it.fails` markers from `tests/integration/vibeFreshStartNote.test.ts` and `tests/integration/vibeInstallerRemoved.test.ts`; that is their only change.
 - In-phase tests: in `tests/unit/sessionAdapters.test.ts`, a table of `freshStartNote` per adapter (Vibe names the model and level, Claude Code and Codex give null). The held stop carries and prints the same note: assert it in the suite that already drives `stopAtHeldPhase` (`git grep -n stopAtHeldPhase tests/`). `enter-phase`'s fresh start for Vibe returns the note as an info notice (`tests/unit/cli/enterPhase.test.ts`).
@@ -875,12 +875,14 @@ An operator turning on Mistral Vibe, or upgrading a setup that used the PHAX ali
 - `docs/model-routing.md` elsewhere: the equivalence examples are keyed on `mistral-medium-3.5` with `off` and `high`; the providers example drops `modelEnvVar`; the command list no longer shows the installer; and a routing table still keyed on an old id is refused, with the rename that fixes it.
 - `docs/model-catalog.md`: list `mistral-medium-3.5` (efforts `off`, `high`) in place of `phax-mistral-medium-3.5-{off,high}`, and add a change-log line dated 2026-11-18 saying that the alias ids are retired and Vibe is driven with `--model`/`--thinking`.
 - `README.md`, Vibe setup: drop the `phax agent setup mistral-vibe --install-model-aliases` line, and state the 3.1.3 floor with `uv tool upgrade mistral-vibe`. Leave the generated CLI region between `<!-- BEGIN GENERATED CLI REFERENCE -->` and `<!-- END GENERATED CLI REFERENCE -->` untouched.
-- `docs/upgrading.md`: the version is `package.json`'s opened version, 0.40.0, not the spec's 0.41.0 example. Add bullets inside the existing `### 0.40.0` section, above its `No step is needed in a repository.` line, without reordering any section:
+- `docs/security.md`, the Mistral Vibe section: its line saying Vibe 3.0.3 or later is required now says 3.1.3 or later (`uv tool upgrade mistral-vibe`). Change nothing else there.
+- `docs/upgrading.md`: 0.40.0 is released, and the version is `package.json`'s opened version, 0.41.0. Create a new `### 0.41.0` section at the top of "Release by release", directly above the existing `### 0.40.0`, and leave every existing section as it is, in its order:
 - - phax picks the Vibe model with `--model` and `--thinking` and needs mistral-vibe 3.1.3 (`uv tool upgrade mistral-vibe`).
 - - Run `phax agent setup providers --write` once: it lists `mistral-medium-3.5` in place of `phax-mistral-medium-3.5-off` and `-high` and drops `modelEnvVar`, and phax refuses the old file until you do.
 - - A `model-routing.json` keyed on the old ids is refused: rename each key to `mistral-medium-3.5`, keeping its edges.
 - - `phax agent setup mistral-vibe` is gone and phax no longer reads `~/.vibe/config.toml`. The `# Added by PHAX.` blocks still work in your own Vibe sessions; to remove them, delete each comment line and the `[[models]]` table under it.
 - - Run, phase and authoring records written before keep the old model ids.
+- - End the section with `No step is needed in a repository.`: every step above is on the operator's machine (Vibe, `~/.phax`), none in a repository.
 - Earlier upgrade entries and archived specs or plans that mention the installer stay as history: do not edit them.
 - Write plain, factual prose that matches each page's existing style. Run no generator: no generated file changes here.
 
@@ -909,7 +911,8 @@ An operator turning on Mistral Vibe, or upgrading a setup that used the PHAX ali
 1. `docs/model-routing.md`
 2. `docs/model-catalog.md`
 3. README Vibe setup
-4. `docs/upgrading.md` 0.40.0 bullets
+4. `docs/security.md` Vibe floor
+5. `docs/upgrading.md` new 0.41.0 section
 
 ### Excluded scope
 
@@ -923,7 +926,7 @@ The `standard` gate profile of `phax.json` (its terminal steps include `pnpm sit
 
 ### Expected handoff content
 
-List each docs page and section changed, the exact upgrade bullets added under 0.40.0, and any mention of the installer deliberately left as history. Explain any file-plan deviation.
+List each docs page and section changed, the new 0.41.0 upgrade section as written, and any mention of the installer deliberately left as history. Explain any file-plan deviation.
 
 ### Commit subject
 
@@ -931,4 +934,4 @@ List each docs page and section changed, the exact upgrade bullets added under 0
 
 ### Commit body
 
-The Mistral Vibe setup in docs/model-routing.md and the README now has the operator upgrade to mistral-vibe 3.1.3 and run phax agent setup providers --write, with no alias installer. It shows the --model/--thinking invocation, the post-turn model and level check, and the fresh-start note. docs/model-catalog.md lists mistral-medium-3.5 with a change-log line. The 0.40.0 upgrade entry gives the steps: upgrade Vibe, rewrite providers.json, rename routing keys, and optionally delete the PHAX alias blocks by hand.
+The Mistral Vibe setup in docs/model-routing.md and the README now has the operator upgrade to mistral-vibe 3.1.3 and run phax agent setup providers --write, with no alias installer. It shows the --model/--thinking invocation, the post-turn model and level check, and the fresh-start note. docs/security.md names the 3.1.3 floor. docs/model-catalog.md lists mistral-medium-3.5 with a change-log line. A new 0.41.0 upgrade entry gives the steps: upgrade Vibe, rewrite providers.json, rename routing keys, and optionally delete the PHAX alias blocks by hand.
