@@ -157,6 +157,9 @@ describe("docs/findings.md examples", () => {
         ),
       ),
     );
+    expect(PAGE).toContain(
+      textBlock(renderFindingFix(fixAnswer({ kind: "not-posted", reason: "pull-request-merged" }))),
+    );
   });
 
   it("shows phax finding dismiss and defer as they render", () => {
