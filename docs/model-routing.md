@@ -266,7 +266,14 @@ vibe -p … --agent accept-edits --model mistral-medium-3.5 --thinking high --ou
 
 At a review stop, the fresh-start command sets `VIBE_ACTIVE_MODEL=mistral-medium-3.5` and starts Vibe's interactive mode at the model's default thinking level, because interactive mode takes no `--thinking`. phax prints a note saying so under the command.
 
-A `model-routing.json` whose equivalence table is still keyed on an old `phax-mistral-medium-3.5-*` id is refused: rename each key to `mistral-medium-3.5`, keeping its edges.
+A `model-routing.json` whose equivalence table is still keyed on an old `phax-mistral-medium-3.5-*` id is refused, naming each key and what to do with it. Move the `off` and `high` edges into one `mistral-medium-3.5` key, and delete the `-low`, `-medium` and `-max` keys, whose levels `mistral-medium-3.5` does not offer. Do not rename each key: two keys named `mistral-medium-3.5` lose one's edges, because JSON keeps only the last. A 0.40 table becomes:
+
+```json
+"mistral-medium-3.5": {
+  "off": { "claude": "claude-haiku-4-5-20251001", "effort": "none", "relation": "equivalent" },
+  "high": { "claude": "claude-sonnet-4-6", "effort": "high", "relation": "equivalent" }
+}
+```
 
 Vibe is confined per invocation and recorded as a strong jail, so a `secure` run keeps it first in the order instead of skipping it. That rests on checks around each turn: a user `accept-edits` agent profile, or Vibe config under an extra writable root, refuses the session, and a turn whose resolved config is not the one phax set is refused (see [security.md](security.md)).
 

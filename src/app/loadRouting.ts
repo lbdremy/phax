@@ -10,10 +10,10 @@ import {
   DEFAULT_MODEL_ROUTING,
   DEFAULT_PROVIDER_CONFIG,
   RETIRED_MODEL_IDS,
-  RETIRED_MODEL_SUCCESSORS,
 } from "../domain/routing/defaults.js";
 import {
   type ObsoleteProviderField,
+  type RetiredEquivalenceKey,
   obsoleteProviderFields,
   retiredEquivalenceKeys,
   retiredModelIds,
@@ -51,9 +51,31 @@ function readJsonFile(path: string): Effect.Effect<unknown, ConfigValidationErro
   });
 }
 
+/** `"off"`, `"off" and "high"`, `"low", "medium" and "max"`. */
+function quotedList(items: readonly string[]): string {
+  const quoted = items.map((item) => `"${item}"`);
+  const last = quoted.pop();
+  return quoted.length === 0 ? (last ?? "") : `${quoted.join(", ")} and ${last}`;
+}
+
+const edges = (levels: readonly string[]): string =>
+  `${quotedList(levels)} ${levels.length === 1 ? "edge" : "edges"}`;
+
+/** What to do with one retired equivalence key: move its edges the successor offers, delete the rest. */
+function retiredKeyFix(key: RetiredEquivalenceKey): string {
+  if (key.successor === null) return `delete it: ${RETIRED_MODEL_IDS[key.key]}`;
+  const offers = `${key.successor.id} offers only ${key.successor.efforts.join(" and ")}`;
+  if (key.moved.length === 0) return `delete it: ${offers}`;
+  const move = `move its ${edges(key.moved)} into the "${key.successor.id}" key`;
+  return key.deleted.length === 0
+    ? move
+    : `${move} and delete its ${edges(key.deleted)}: ${offers}`;
+}
+
 /**
  * The routing table: ~/.phax/model-routing.json, else the built-in one. A file with an
- * equivalence key on a retired id is refused, naming each key and what to use instead.
+ * equivalence key on a retired id is refused, naming each key and what to do with its edges: move
+ * those at a level the successor offers into one successor key, delete the others.
  */
 export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidationError, FileSystem> {
   return Effect.gen(function* () {
@@ -73,17 +95,24 @@ export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidation
 
     const retired = retiredEquivalenceKeys(decoded.success);
     if (retired.length > 0) {
-      const lines = retired
-        .map((id) => {
-          const successor = RETIRED_MODEL_SUCCESSORS[id];
-          return `  - ${id}: ${successor === undefined ? RETIRED_MODEL_IDS[id] : `use ${successor}`}`;
-        })
-        .join("\n");
+      const lines = retired.map((key) => `  - ${key.key}: ${retiredKeyFix(key)}`).join("\n");
+      const successors = [
+        ...new Set(
+          retired.flatMap((k) => (k.moved.length > 0 && k.successor ? [k.successor.id] : [])),
+        ),
+      ];
+      const closing =
+        successors.length === 0
+          ? "Delete them, or delete the file to use phax's built-in table."
+          : `Merge the moved edges into ${successors.map((id) => `one "${id}" key`).join(" and ")}, ` +
+            "not one key per retired key: JSON keeps only the last of two keys with the same name " +
+            "and drops the other's edges. Then delete the retired keys, or delete the file to use " +
+            "phax's built-in table.";
       return yield* Effect.fail(
         new ConfigValidationError({
           message:
             `"${MODEL_ROUTING_PATH}" keys equivalence edges on models phax no longer routes to:\n${lines}\n` +
-            "Rename the key, keeping its edges, or delete the file to use phax's built-in table.",
+            closing,
           path: MODEL_ROUTING_PATH,
         }),
       );

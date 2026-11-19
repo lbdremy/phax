@@ -198,16 +198,14 @@ describe("path constants", () => {
     expect(result.config).toEqual(DEFAULT_PROVIDER_CONFIG);
   });
 
-  it("loadModelRouting refuses a key on a retired id, naming the successor and what to do", async () => {
+  it("loadModelRouting refuses a 0.40 table keyed on -off and -high, saying to merge them into one mistral-medium-3.5 key", async () => {
     const { impl, layer } = makeFakeFileSystem();
+    const { "mistral-medium-3.5": _current, ...others } = DEFAULT_MODEL_ROUTING.equivalence;
     impl.setFile(
       MODEL_ROUTING_PATH,
       JSON.stringify({
         ...DEFAULT_MODEL_ROUTING,
-        equivalence: {
-          ...DEFAULT_MODEL_ROUTING.equivalence,
-          "phax-mistral-medium-3.5-max": DEFAULT_MODEL_ROUTING.equivalence["mistral-medium-3.5"],
-        },
+        equivalence: { ...others, ...RETIRED_MISTRAL_KEYS_0_40 },
       }),
     );
     const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
@@ -215,8 +213,53 @@ describe("path constants", () => {
     expect(err.path).toBe(MODEL_ROUTING_PATH);
     expect(err.message).toBe(
       `"${MODEL_ROUTING_PATH}" keys equivalence edges on models phax no longer routes to:\n` +
-        "  - phax-mistral-medium-3.5-max: use mistral-medium-3.5\n" +
-        "Rename the key, keeping its edges, or delete the file to use phax's built-in table.",
+        '  - phax-mistral-medium-3.5-off: move its "off" edge into the "mistral-medium-3.5" key\n' +
+        '  - phax-mistral-medium-3.5-high: move its "high" edge into the "mistral-medium-3.5" key\n' +
+        'Merge the moved edges into one "mistral-medium-3.5" key, not one key per retired key: ' +
+        "JSON keeps only the last of two keys with the same name and drops the other's edges. " +
+        "Then delete the retired keys, or delete the file to use phax's built-in table.",
+    );
+  });
+
+  it("loadModelRouting tells an older table to delete its -low, -medium and -max keys, naming the levels offered", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    const { "mistral-medium-3.5": _current, ...others } = DEFAULT_MODEL_ROUTING.equivalence;
+    impl.setFile(
+      MODEL_ROUTING_PATH,
+      JSON.stringify({
+        ...DEFAULT_MODEL_ROUTING,
+        equivalence: { ...others, ...RETIRED_MISTRAL_KEYS_BEFORE_0_40 },
+      }),
+    );
+    const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
+    const offers = "mistral-medium-3.5 offers only off and high";
+    expect(err.message.split("\n").slice(1, 6)).toEqual([
+      '  - phax-mistral-medium-3.5-off: move its "off" edge into the "mistral-medium-3.5" key',
+      `  - phax-mistral-medium-3.5-low: delete it: ${offers}`,
+      `  - phax-mistral-medium-3.5-medium: delete it: ${offers}`,
+      '  - phax-mistral-medium-3.5-high: move its "high" edge into the "mistral-medium-3.5" key',
+      `  - phax-mistral-medium-3.5-max: delete it: ${offers}`,
+    ]);
+  });
+
+  it("loadModelRouting names the edges to move and to delete on one retired key", async () => {
+    const { impl, layer } = makeFakeFileSystem();
+    impl.setFile(
+      MODEL_ROUTING_PATH,
+      JSON.stringify({
+        ...DEFAULT_MODEL_ROUTING,
+        equivalence: {
+          "phax-mistral-medium-3.5-high": {
+            ...RETIRED_MISTRAL_KEYS_BEFORE_0_40["phax-mistral-medium-3.5-high"],
+            ...RETIRED_MISTRAL_KEYS_BEFORE_0_40["phax-mistral-medium-3.5-max"],
+          },
+        },
+      }),
+    );
+    const err = await runFail(loadModelRouting().pipe(Effect.provide(layer)));
+    expect(err.message).toContain(
+      '  - phax-mistral-medium-3.5-high: move its "high" edge into the "mistral-medium-3.5" key ' +
+        'and delete its "max" edge: mistral-medium-3.5 offers only off and high\n',
     );
   });
 
@@ -259,3 +302,28 @@ function withRetiredMistralAliases(): typeof DEFAULT_PROVIDER_CONFIG {
     },
   };
 }
+
+/** The Mistral keys of the routing table phax 0.40 scaffolded with `--with-routing`. */
+const RETIRED_MISTRAL_KEYS_0_40 = {
+  "phax-mistral-medium-3.5-off": {
+    off: { claude: "claude-haiku-4-5-20251001", effort: "none", relation: "equivalent" },
+  },
+  "phax-mistral-medium-3.5-high": {
+    high: { claude: "claude-sonnet-4-6", effort: "high", relation: "equivalent" },
+  },
+} as const;
+
+/** The Mistral keys of the routing table phax scaffolded before the -low/-medium/-max ids retired. */
+const RETIRED_MISTRAL_KEYS_BEFORE_0_40 = {
+  "phax-mistral-medium-3.5-off": RETIRED_MISTRAL_KEYS_0_40["phax-mistral-medium-3.5-off"],
+  "phax-mistral-medium-3.5-low": {
+    low: { claude: "claude-sonnet-4-6", effort: "low", relation: "equivalent" },
+  },
+  "phax-mistral-medium-3.5-medium": {
+    medium: { claude: "claude-sonnet-4-6", effort: "medium", relation: "equivalent" },
+  },
+  "phax-mistral-medium-3.5-high": RETIRED_MISTRAL_KEYS_0_40["phax-mistral-medium-3.5-high"],
+  "phax-mistral-medium-3.5-max": {
+    max: { claude: "claude-sonnet-4-6", effort: "max", relation: "equivalent" },
+  },
+} as const;

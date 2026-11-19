@@ -5,6 +5,7 @@ import {
   RETIRED_MODEL_IDS,
   RETIRED_MODEL_SUCCESSORS,
 } from "./defaults.js";
+import { effortsFor } from "./catalog.js";
 
 export interface ProviderProbeResult {
   readonly provider: string;
@@ -70,9 +71,39 @@ export function withoutObsoleteProviderFields(raw: unknown): unknown {
   return { ...raw, providers };
 }
 
-/** The equivalence keys of `routing` that name a retired catalog id (`RETIRED_MODEL_IDS`). */
-export function retiredEquivalenceKeys(routing: ModelRouting): readonly string[] {
-  return Object.keys(routing.equivalence).filter((key) => key in RETIRED_MODEL_IDS);
+/**
+ * An equivalence key on a retired catalog id, and what becomes of its edges: those at a level its
+ * successor's built-in catalog entry offers move into the successor's key (`moved`); the others
+ * are deleted (`deleted`), since the successor would be run at a level it does not serve. A key
+ * with no successor in the built-in catalog has every edge deleted and `successor` null.
+ */
+export interface RetiredEquivalenceKey {
+  readonly key: string;
+  readonly successor: { readonly id: string; readonly efforts: readonly string[] } | null;
+  readonly moved: readonly string[];
+  readonly deleted: readonly string[];
+}
+
+/** The equivalence keys of `routing` that name a retired catalog id (`RETIRED_MODEL_IDS`), in table order. */
+export function retiredEquivalenceKeys(routing: ModelRouting): readonly RetiredEquivalenceKey[] {
+  return Object.entries(routing.equivalence)
+    .filter(([key]) => key in RETIRED_MODEL_IDS)
+    .map(([key, byEffort]) => {
+      const successorId = RETIRED_MODEL_SUCCESSORS[key];
+      const efforts =
+        successorId === undefined ? undefined : effortsFor(successorId, DEFAULT_PROVIDER_CONFIG);
+      const levels = Object.keys(byEffort);
+      if (successorId === undefined || efforts === undefined) {
+        return { key, successor: null, moved: [], deleted: levels };
+      }
+      const offered = new Set<string>(efforts);
+      return {
+        key,
+        successor: { id: successorId, efforts },
+        moved: levels.filter((level) => offered.has(level)),
+        deleted: levels.filter((level) => !offered.has(level)),
+      };
+    });
 }
 
 /** The ids of `config` that phax no longer routes to (`RETIRED_MODEL_IDS`), in config order. */

@@ -407,9 +407,26 @@ describe("retiredEquivalenceKeys", () => {
       },
     };
 
-    expect(retiredEquivalenceKeys(routing)).toEqual([
+    expect(retiredEquivalenceKeys(routing).map((k) => k.key)).toEqual([
       "phax-mistral-medium-3.5-max",
       "phax-mistral-medium-3.5-off",
+    ]);
+  });
+
+  it("moves the edges at a level the successor offers and deletes the others", () => {
+    const edge = { claude: "claude-sonnet-4-6", effort: "high", relation: "equivalent" } as const;
+    const routing = {
+      ...DEFAULT_MODEL_ROUTING,
+      equivalence: { "phax-mistral-medium-3.5-max": { high: edge, max: edge, low: edge } },
+    };
+
+    expect(retiredEquivalenceKeys(routing)).toEqual([
+      {
+        key: "phax-mistral-medium-3.5-max",
+        successor: { id: "mistral-medium-3.5", efforts: ["off", "high"] },
+        moved: ["high"],
+        deleted: ["max", "low"],
+      },
     ]);
   });
 });
