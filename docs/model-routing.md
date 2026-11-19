@@ -67,7 +67,7 @@ Cross-family translation uses a **star topology** rooted at Claude. Every edge i
       "high":   { "claude": "claude-sonnet-4-6", "effort": "high",   "relation": "equivalent" },
       "xhigh":  { "claude": "claude-opus-4-8",   "effort": "medium", "relation": "equivalent" }
     },
-    "phax-mistral-medium-3.5-high": {
+    "mistral-medium-3.5": {
       "high": { "claude": "claude-sonnet-4-6", "effort": "high", "relation": "equivalent" }
     }
   }
@@ -147,8 +147,10 @@ Config version 2. Old `tiers`, `normalization`, and `defaultTier` fields are rej
       "high":   { "claude": "claude-sonnet-4-6",         "effort": "high",   "relation": "equivalent" },
       "xhigh":  { "claude": "claude-opus-4-8",           "effort": "medium", "relation": "equivalent" }
     },
-    "phax-mistral-medium-3.5-off":  { "off":  { "claude": "claude-haiku-4-5-20251001", "effort": "none", "relation": "equivalent" } },
-    "phax-mistral-medium-3.5-high": { "high": { "claude": "claude-sonnet-4-6",         "effort": "high", "relation": "equivalent" } }
+    "mistral-medium-3.5": {
+      "off":  { "claude": "claude-haiku-4-5-20251001", "effort": "none", "relation": "equivalent" },
+      "high": { "claude": "claude-sonnet-4-6",         "effort": "high", "relation": "equivalent" }
+    }
   },
   "requestedModelNormalization": {
     "haiku":  "claude-haiku",
@@ -166,7 +168,7 @@ Config version 2. Old `tiers`, `normalization`, and `defaultTier` fields are rej
 {
   "providers": {
     "claude-code":   { "enabled": true,  "executable": "claude", "families": { ... } },
-    "mistral-vibe":  { "enabled": false, "executable": "vibe",   "modelEnvVar": "VIBE_ACTIVE_MODEL", "families": { ... } },
+    "mistral-vibe":  { "enabled": false, "executable": "vibe",   "families": { ... } },
     "codex-cli":     { "enabled": false, "executable": "codex",  "families": { ... } }
   }
 }
@@ -192,9 +194,9 @@ Each `families` entry contains a `models` array of versioned entries with `id`, 
 - Plan family: `claude-sonnet`
 - Priority: `mistral-vibe` first (enabled)
 - Provider serves `mistral-medium`, not `claude-sonnet` → hub → spoke lookup
-- No `mistral-medium` edge is `{claude: "claude-sonnet-4-6", effort: "medium"}`: the Mistral API serves only `none` and `high` reasoning for mistral-medium-3.5, so phax ships only the `off` and `high` aliases
-- Nearest edge anchored on `claude-sonnet-4-6`: `high` → `phax-mistral-medium-3.5-high`, one effort above the request
-- **Result**: `mistral-vibe`, `phax-mistral-medium-3.5-high`, effort `high`, relationship `upgrade`
+- No `mistral-medium` edge is `{claude: "claude-sonnet-4-6", effort: "medium"}`: the Mistral API serves only `none` and `high` reasoning for mistral-medium-3.5, so phax lists only the `off` and `high` efforts for `mistral-medium-3.5`
+- Nearest edge anchored on `claude-sonnet-4-6`: `high` → `mistral-medium-3.5`, one effort above the request
+- **Result**: `mistral-vibe`, `mistral-medium-3.5`, effort `high`, relationship `upgrade`
 
 ### Example 3 — gpt-5.5/xhigh, codex-cli enabled (native passthrough)
 
@@ -251,10 +253,22 @@ With `allowDowngrade: false` the `downgrade` edge is skipped and the request fal
 
 **To enable Mistral Vibe** as first priority:
 
-1. Run `phax agent setup mistral-vibe --install-model-aliases` to install the PHAX aliases: `phax-mistral-medium-3.5-off` and `phax-mistral-medium-3.5-high`, the two reasoning levels (`none` and `high`) the Mistral API serves for mistral-medium-3.5. Aliases an older phax installed for `low`, `medium` and `max` are named, not removed.
+1. Run `uv tool upgrade mistral-vibe` (phax needs Vibe 3.1.3 or later) and `phax agent setup providers --write`. The second command enables `mistral-vibe`, lists `mistral-medium-3.5` (efforts `off` and `high`, the two reasoning levels the Mistral API serves for it), and drops `modelEnvVar` and the old `phax-mistral-medium-3.5-*` ids from an older `providers.json`.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
-Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). Vibe is confined per invocation and recorded as a strong jail, so a `secure` run keeps it first in the order instead of skipping it. That rests on checks around each turn: a user `accept-edits` agent profile, or Vibe config under an extra writable root, refuses the session, and a turn whose resolved config is not the one phax set is refused (see [security.md](security.md)).
+phax picks the model and level with Vibe's own flags. Each new session runs:
+
+```bash
+vibe -p … --agent accept-edits --model mistral-medium-3.5 --thinking high --output streaming …
+```
+
+`mistral-medium-3.5` is a model alias built into Vibe, so nothing in `~/.vibe/config.toml` is needed, and phax neither reads nor writes that file. A resumed turn passes neither flag: Vibe refuses `--model` on a resume and keeps the session's model and level. After each confined turn phax reads the export Vibe wrote and refuses the turn's result when its `active_model` or thinking level is not the one phax set.
+
+At a review stop, the fresh-start command sets `VIBE_ACTIVE_MODEL=mistral-medium-3.5` and starts Vibe's interactive mode at the model's default thinking level, because interactive mode takes no `--thinking`. phax prints a note saying so under the command.
+
+A `model-routing.json` whose equivalence table is still keyed on an old `phax-mistral-medium-3.5-*` id is refused: rename each key to `mistral-medium-3.5`, keeping its edges.
+
+Vibe is confined per invocation and recorded as a strong jail, so a `secure` run keeps it first in the order instead of skipping it. That rests on checks around each turn: a user `accept-edits` agent profile, or Vibe config under an extra writable root, refuses the session, and a turn whose resolved config is not the one phax set is refused (see [security.md](security.md)).
 
 **To disable a provider**: set `enabled: false` in `providers.json`. Resolution skips disabled providers even if they appear in `providerPriority`.
 
@@ -279,6 +293,5 @@ The flag replaces `routing.providerPriority` in memory for that invocation only.
 phax agent models                             # print catalog + provider priority + equivalence table
 phax agent resolve --model claude-sonnet-4-6 --effort medium [--json]
 phax agent probe                              # check provider executable availability
-phax agent setup mistral-vibe [--dry-run]     # list aliases that would be appended
-phax agent setup mistral-vibe --install-model-aliases  # append PHAX Vibe aliases
+phax agent setup providers [--write]          # enable the installed providers
 ```

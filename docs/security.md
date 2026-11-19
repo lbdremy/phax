@@ -134,7 +134,7 @@ network control at all.
 - MCP servers and connectors are off (`VIBE_ENABLE_MCP=false`, `VIBE_ENABLE_CONNECTORS=false`) when `mcp.mode` is `disabled`, and under `allowlist` too: Vibe cannot load only some servers, so it loads none
 - Network controls are unsupported
 - Shell tool calls are checked against a prefix allowlist of the phase's agent commands through `VIBE_TOOLS` (see [Shell command execution](#shell-command-execution))
-- Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`)
+- Vibe 3.1.3 or later is required (`uv tool upgrade mistral-vibe`)
 - Recorded as filesystem jail `strong` with command enforcement `prefix`, so secure mode forced to `mistral-vibe` runs the phase on Vibe, not on a Claude Code fallback
 
 Example: with `providerPriority` `[mistral-vibe, claude-code]` in secure mode, the phase runs on Vibe, and its `security.json` shows `"provider": "mistral-vibe"`, `"downgraded": false` and `"marks": []`.

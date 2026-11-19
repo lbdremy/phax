@@ -667,7 +667,6 @@ phax agent models                                    # the routing table and the
 phax agent resolve --model claude-sonnet-5 --effort medium   # where a request would go
 phax agent probe                                     # which provider CLIs are installed
 phax agent setup providers --write                   # enable the providers that are installed
-phax agent setup mistral-vibe --install-model-aliases   # add phax's model aliases to Vibe
 ```
 
 [`docs/model-routing.md`](docs/model-routing.md) explains how a request is resolved, and the [model catalog](docs/model-catalog.md) lists the models phax knows.
@@ -682,7 +681,7 @@ Every run has a security mode, from `security.profile` in `phax.json` or `--secu
 | `unsafe`   | Anything on your machine. phax warns you. For plans you trust.                                                                                         |
 | `isolated` | An external sandbox. Planned, refused today.                                                                                                           |
 
-Providers differ: Claude Code and Codex jail the filesystem, and Vibe is confined per invocation (tool-level, with a prefix allowlist for the phase's agent commands), so a `secure` run keeps all three. Vibe 3.0.3 or later is required (`uv tool upgrade mistral-vibe`). phax refuses a secure or read-only Vibe session while `~/.vibe/agents/accept-edits.toml` exists (it would replace the agent phax runs; rename it), or while an extra writable root holds Vibe config (`.vibe/` or `.agents/`, which Vibe loads from such a root), and refuses a turn's result when the config it ran with is not the one phax set. No provider filters network by domain, and only Codex can cut a phase's network off. The mode a phase actually ran with is in its `security.json`. `phax security status` shows what each installed provider can enforce.
+Providers differ: Claude Code and Codex jail the filesystem, and Vibe is confined per invocation (tool-level, with a prefix allowlist for the phase's agent commands), so a `secure` run keeps all three. Vibe 3.1.3 or later is required (`uv tool upgrade mistral-vibe`); phax picks its model and thinking level with Vibe's `--model` and `--thinking` flags and installs nothing in `~/.vibe/config.toml`. phax refuses a secure or read-only Vibe session while `~/.vibe/agents/accept-edits.toml` exists (it would replace the agent phax runs; rename it), or while an extra writable root holds Vibe config (`.vibe/` or `.agents/`, which Vibe loads from such a root), and refuses a turn's result when the config it ran with is not the one phax set. No provider filters network by domain, and only Codex can cut a phase's network off. The mode a phase actually ran with is in its `security.json`. `phax security status` shows what each installed provider can enforce.
 
 The agent can run your gate commands and the commands in `security.agentCommands`, and nothing else where the provider supports an allowlist. The phax binary has no network permission of its own: what reaches the network (an agent, `git push`, `gh`) is a program it starts. And phax never builds a shell command from your data: every command it runs gets its arguments one by one. [`docs/security.md`](docs/security.md) has the details.
 

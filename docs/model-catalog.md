@@ -21,7 +21,7 @@ here.
 | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Claude Code | The `claude` binary embeds a model table (`id:"claude-…",family:…,capabilities:[…],pricing:"tier_…",effort_cost_index:{…}`). `xhigh_effort` / `max_effort` in `capabilities` give the effort ladder; `pricing` names the per-token tier; `latest_per_family` says which id an alias resolves to. `ultracode` is xhigh + dynamic workflows and is refused only when xhigh is not allowed for the model or org. |
 | Codex      | `~/.codex/models_cache.json` is the account-served registry (per slug: `supported_reasoning_levels`, `visibility`, `upgrade`, `minimal_client_version`); it can omit slugs the plan tier hides. The codex binary bundles OpenAI's full catalog (`npm pack @openai/codex@<ver>-<platform>`, then search the binary for `"slug": "`). A slug with an `upgrade` pointer is deprecated upstream. |
-| Mistral Vibe | The `phax-mistral-medium-3.5-*` ids are phax-installed aliases (`phax agent setup mistral-vibe`), one per reasoning level the Mistral API serves; the base model is `mistral-medium-3.5` in `~/.vibe/config.toml`. A real call per alias is the check: the API answers 400 `reasoning_effort … is not supported` for a level it does not serve.                                                                                                                                                                                                                       |
+| Mistral Vibe | `mistral-medium-3.5` is a model alias built into Vibe; phax passes it with `--model` and the effort with `--thinking`. A real call per level is the check: the API answers 400 `reasoning_effort … is not supported` for a level it does not serve.                                                                                                                                                                                                                       |
 | Capability axis | Artificial Analysis Intelligence Index (`artificialanalysis.ai/leaderboards/models`) gives per-effort scores for both vendors on one axis. The Agentic Index used in July 2026 no longer exposes per-model numbers.                                                                                                                                                                              |
 | Energy     | No provider publishes per-model energy or carbon figures (checked 2026-09-07: Anthropic and OpenAI disclose aggregate data-centre numbers only; third-party estimates cover older models). Inference energy scales with tokens generated, so **output tokens per task** (AA "verbosity" on the Intelligence Index run) and Claude Code's `effort_cost_index` are the proxy.                        |
 
@@ -84,9 +84,9 @@ picker), hidden internal slugs (`gpt-reserve`, `codex-auto-review`,
 
 ### mistral-vibe
 
-One alias per reasoning level the Mistral API serves for mistral-medium-3.5,
-`phax-mistral-medium-3.5-{off,high}`, each advertising exactly that effort.
-`-low`, `-medium` and `-max` were dropped on 2026-10-28: a real call to each
+One entry, `mistral-medium-3.5`, with the two reasoning levels the Mistral API
+serves, efforts `off` and `high`.
+`low`, `medium` and `max` were dropped on 2026-10-28: a real call to each
 got HTTP 400 "reasoning_effort low (medium, max) is not supported for this
 model, supported values: high, none". `off` anchors Haiku 4.5 at `none`, and
 `high` anchors Sonnet 4.6 at `high`. A Sonnet 4.6 request at another effort
@@ -151,7 +151,7 @@ falling back to Claude lands on Sonnet 5.5, `equivalent` at `medium` and
 **Considered and not used: Claude Haiku 5.5 (2026-10-13).** GPT-6 Luna
 (21/29/32/34/37) stays anchored to Sonnet 5 (24/28/32/34/38), because Haiku
 5.5 (29/34/38/41/43, 2026-10-13 read, same scale) is not closer. Haiku 5.5
-gets no Codex spoke. Mistral Vibe's `off` alias keeps anchoring
+gets no Codex spoke. Mistral Vibe's `off` effort keeps anchoring
 `claude-haiku-4-5-20251001` at `none`, an effort Haiku 5.5 does not offer.
 Haiku 5.5 is therefore Claude-only: a Haiku 5.5 phase never reaches Codex or
 Vibe.
@@ -270,3 +270,4 @@ Run through this each time a provider ships or retires a model:
 | 2026-10-13 | Claude Haiku 5.5 (`haiku` alias → Haiku 5.5, `none` clamps to `low`; Haiku 4.5 kept active, still anchors Vibe `off`); no Codex or Vibe anchor moved (Haiku 5.5 considered for GPT-6 Luna, not closer); plan-extraction default → Haiku 5.5 `low`; compliance, code review and plan adjustment re-checked, unchanged | `phax/catalog-haiku-5-5` |
 | 2026-10-19 | No catalog change; the planning skill's default phase assignment → Sonnet 5.5 `medium` (was Opus 5.5), stronger Opus 5.5, lighter Haiku 5.5, from `PHASE_MODEL_POLICY`, rendered and drift-checked by `pnpm gen:model-catalog` | `phax/planning-skill-defaults` |
 | 2026-10-28 | Mistral Vibe keeps only `phax-mistral-medium-3.5-off` and `-high` (the API refuses low, medium and max reasoning); hub → spoke takes the anchor's nearest-effort edge when no exact one exists, recording `upgrade`/`downgrade` (never for `ultracode`); a providers.json listing a dropped id is refused | `phax/mistral-vibe-3` |
+| 2026-11-18 | The `phax-mistral-medium-3.5-*` alias ids are retired: `mistral-medium-3.5` (efforts `off`, `high`) replaces them, and Vibe is driven with `--model`/`--thinking` instead of installed aliases | `phax/vibe-model-and-thinking-level-by-vibe-s-own-flags` |

@@ -21,6 +21,16 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.41.0
+
+- **phax picks the Vibe model with `--model` and `--thinking`** and needs mistral-vibe 3.1.3: run `uv tool upgrade mistral-vibe`.
+- **Run `phax agent setup providers --write` once.** It lists `mistral-medium-3.5` in place of `phax-mistral-medium-3.5-off` and `-high` and drops `modelEnvVar`. phax refuses the old file until you do.
+- **A `model-routing.json` keyed on the old ids is refused.** Rename each key to `mistral-medium-3.5`, keeping its edges.
+- **`phax agent setup mistral-vibe` is gone**, and phax no longer reads `~/.vibe/config.toml`. The `# Added by PHAX.` blocks still work in your own Vibe sessions; to remove them, delete each comment line and the `[[models]]` table under it.
+- **Run, phase and authoring records written before keep the old model ids.**
+
+No step is needed in a repository.
+
 ### 0.40.0
 
 - **The pull request description's code review findings list is replaced by a Review findings section** of every finding by fate: open and deferred named, fixed and dismissed counted.
