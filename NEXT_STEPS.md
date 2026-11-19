@@ -136,6 +136,14 @@ A batch from *Small follow-ups*, first the two hangs: give every `spawnSync` and
 tests a timeout through one shared helper (the 13 h gate on `records-branch-tip`, the 3 h hang on
 #241's review fixes), then the other test-reliability items the batch turns up.
 
+- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. The real
+      e2e reads the operator's own `~/.phax/providers.json` (the Vibe suite skips without
+      `mistral-vibe` enabled there), so checking a branch that changes that file's shape means
+      breaking the released phax the operator drives. One resolution point for phax's home, a
+      variable to move it, and each real-provider e2e in a temporary phax home; the provider CLIs'
+      sign-ins stay in the real `HOME`. PR #248 moved the direct Vibe adapter cases out of the
+      routed suite meanwhile.
+
 ### 8. Security follow-ups
 
 A batch from *Small follow-ups*, the security items that sleep there:
