@@ -281,18 +281,24 @@ Everything the 1.0 announcement (`docs/blog/announcing-phax-1.0.md`) describes i
 except `isolated` mode, which the post itself disclaims. The feature surface is not what holds
 1.0 back; the things below are. Ordered by what 1.0 would be lying about if skipped.
 
-- [ ] **A persisted-format stability promise.** `phax.json` (`version: 1`), the run status
-      files, the approval record formats, `phax/records/v1`. The no-shims rule is right for 0.x,
-      but 1.0 means a config written under 1.0 still loads under 1.x. Decide the contract (frozen
-      `version: 1` + a migration, or a documented "re-run `phax init`" policy) and write it down
-      in the README; `auto-migrate` is where such a migration would live.
+- [ ] **A persisted-format stability promise.** Brief: `docs/briefs/format-stability-promise.md`
+      (2026-11-19). Reframed by the operator on 2026-11-19: since every persisted document is
+      stamped and older shapes are read and lifted, 1.0 does not freeze shapes. It promises the
+      rules of change instead: every persisted document stamped; phax and `@lbdremy/phax-schemas`
+      read every shape since a declared floor that moves only at a major; every shape change ships
+      its snapshot and its upgrade note; what cannot be read is refused by name with its remedy;
+      and the newer-than-me direction (an older phax or package, mixed releases on one records
+      branch) is written down. Mostly in place already. The earlier idea (freeze `version: 1` plus
+      a migration) is dropped.
       **Provider answers, decided 2026-10-08 by the author:** before 1.0, an answer in an older
       shape of a format that changed is refused by name. From 1.0 it is read through its frozen
       shape and lifted, as phax reads its own older files. At 1.0 the guard tests that hold each
       answer reader to one shape must fail and name this rule, not be deleted.
 - [ ] **CLI contract freeze.** Land the last renames from `docs/vocabulary-review.md` §"Top
       fixes" (at least 1, 2 and 4 — they change output and flag values) *before* 1.0, then hold
-      the contract for one or two 0.x releases.
+      the contract for one or two 0.x releases. Stamps do not cover it (operator, 2026-11-19):
+      command names, flags, exit codes, printed text and the `--json` answers that are not
+      published formats carry no `$schema`, so this freeze stays the real 1.0 work.
 - [ ] **Distribution polish.** macOS binaries are neither signed nor notarized
       (`docs/release.md`); npm install works, the raw binary is Gatekeeper-blocked. Either
       sign, or make npm the only documented install path for 1.0.
