@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-19
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-19
+  baseline: b270ecf
 ---
 # Test worlds built once
 
