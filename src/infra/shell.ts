@@ -35,17 +35,25 @@ function spawnCommand(
     // Rejecting on the timer rather than waiting for `close` means a child that
     // ignores SIGTERM still frees the caller; the later `close` lands on an
     // already-settled promise and is a no-op.
+    // The grace timer is unref'd so it never holds the CLI open, and the CLI
+    // exits as soon as its command ends: the `exit` hook kills the child then,
+    // or it would be orphaned and, ignoring SIGTERM, never end.
+    const forceKill = (): void => {
+      proc.kill("SIGKILL");
+    };
     const killTimer =
       timeoutMs !== undefined
         ? setTimeout(() => {
             proc.kill("SIGTERM");
-            setTimeout(() => proc.kill("SIGKILL"), SIGKILL_GRACE_MS).unref();
+            process.once("exit", forceKill);
+            setTimeout(forceKill, SIGKILL_GRACE_MS).unref();
             reject(new Error(`timed out after ${timeoutMs}ms: ${command.join(" ")}`));
           }, timeoutMs)
         : undefined;
 
     proc.on("close", (code) => {
       clearTimeout(killTimer);
+      process.off("exit", forceKill);
       const stdoutBytes = Buffer.concat(stdoutChunks);
       // `toString("utf8")` keeps a leading BOM, unlike a default `TextDecoder`.
       resolve({
@@ -58,6 +66,7 @@ function spawnCommand(
 
     proc.on("error", (err) => {
       clearTimeout(killTimer);
+      process.off("exit", forceKill);
       reject(err);
     });
 
