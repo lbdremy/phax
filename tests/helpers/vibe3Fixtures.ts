@@ -65,6 +65,61 @@ export const VIBE3_EXPORT_LONG = vibe3Export(
   "2026-10-27T09:14:31.902Z",
 );
 
+// ── The config two Vibe 3.1.3 turns ran with ───────────────────────────────
+
+// Recorded from the operator's real e2e on 2026-11-19: two turns in one
+// VIBE_HOME, both started with `--model mistral-medium-3.5 --thinking high`.
+// Trimmed to `vibe_version` and the config keys the model check reads
+// (`active_model`, `catalog_model_aliases`, and each `models` entry's `name`,
+// `thinking` and `provider`).
+
+/** The first turn, before Vibe had cached its model catalog: the alias phax passed, no alias groups. */
+export const VIBE313_CONFIG_BEFORE_CATALOG = {
+  vibe_version: "3.1.3",
+  config: {
+    active_model: "mistral-medium-3.5",
+    catalog_model_aliases: {},
+    models: {
+      "mistral-large-4-0": { name: "mistral-large-4-0", thinking: "high", provider: "mistral" },
+      "mistral-medium-3.5": {
+        name: "mistral-vibe-cli-latest",
+        thinking: "high",
+        provider: "mistral",
+      },
+    },
+  },
+} as const;
+
+/**
+ * A later turn, after Vibe wrote `model_catalog_cache.json` into its home: the
+ * alias phax passed resolved to its canonical name, and `models` keyed by
+ * canonical names. A fresh session and a resume both read like this.
+ */
+export const VIBE313_CONFIG_AFTER_CATALOG = {
+  vibe_version: "3.1.3",
+  config: {
+    active_model: "mistral-medium-latest",
+    catalog_model_aliases: {
+      "mistral-large-4-0": ["mistral-large-4-0-3", "mistral-large-4"],
+      "mistral-medium-latest": ["mistral-medium", "mistral-medium-3.5", "mistral-vibe-cli-latest"],
+      "zai-glm-5-3": ["glm-5-3", "zai-glm-5", "zai-glm-latest"],
+    },
+    models: {
+      "mistral-large-4-0": { name: "mistral-large-4-0", thinking: "high", provider: "mistral" },
+      "mistral-medium-latest": {
+        name: "mistral-medium-latest",
+        thinking: "high",
+        provider: "mistral",
+      },
+      "zai-glm-5-3": { name: "zai-glm-5-3", thinking: "high", provider: "mistral" },
+      "zai-glm-5-3-flash": { name: "zai-glm-5-3-flash", thinking: "high", provider: "mistral" },
+    },
+  },
+} as const;
+
+/** The alias groups of Vibe 3.1.3's cached catalog, as the later turn above read them. */
+export const VIBE313_CATALOG_ALIASES = VIBE313_CONFIG_AFTER_CATALOG.config.catalog_model_aliases;
+
 /** An export as Vibe writes it to `export.json`. */
 export function vibe3ExportText(exported: Vibe3Export): string {
   return `${JSON.stringify(exported, null, 2)}\n`;
@@ -169,6 +224,14 @@ interface FakeVibeOptions {
    */
   readonly configOverride?: Readonly<Record<string, unknown>>;
   /**
+   * The alias groups (canonical name → aliases) of the model catalog Vibe
+   * caches in its home after its first turn there. Given, the first turn that
+   * writes an export reads `catalog_model_aliases: {}` and caches the catalog,
+   * and every later turn canonicalises as Vibe 3.1.3 does; none by default (no
+   * `catalog_model_aliases` at all).
+   */
+  readonly catalogAliases?: Readonly<Record<string, readonly string[]>>;
+  /**
    * The files the nth `-p` turn writes in its cwd before it answers, one list
    * per turn in order, as `{ path, content }` relative to the cwd; none by default.
    */
@@ -213,6 +276,13 @@ interface FakeVibe {
 //   `Error: --model only applies to a new session` on stderr (naming
 //   `--thinking` when only that was given), prints no stream and writes no
 //   export. Its invocation and trace are still recorded.
+// - With `catalogAliases`, the first turn writing an export reads
+//   `catalog_model_aliases: {}` and leaves `model-catalog-cache.json` beside the
+//   fake (Vibe's `model_catalog_cache.json` in its home). Every later turn, new
+//   or resumed, reads those groups as `catalog_model_aliases`, its
+//   `active_model` becomes the canonical name of the group listing it, and its
+//   `models` are keyed by canonical names, each entry's `name` and `alias` that
+//   name (a level set on the alias stays on the canonical entry).
 // - `configOverride` is laid over everything, last.
 const FAKE_VIBE_SCRIPT = `
 const { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } = process.getBuiltinModule("node:fs");
@@ -289,6 +359,29 @@ if (out !== undefined && existsSync(template)) {
       resolved.models = { ...(isPlain(resolved.models) ? resolved.models : {}), [kept.active_model]: kept.entry };
     }
   }
+  const catalog = join(here, "catalog-aliases.json");
+  const catalogCache = join(here, "model-catalog-cache.json");
+  if (existsSync(catalogCache)) {
+    const groups = JSON.parse(readFileSync(catalogCache, "utf8"));
+    const canonicalOf = (name) =>
+      Object.keys(groups).find((canonical) => canonical === name || groups[canonical].includes(name)) ?? name;
+    resolved.catalog_model_aliases = groups;
+    if (typeof resolved.active_model === "string") resolved.active_model = canonicalOf(resolved.active_model);
+    if (isPlain(resolved.models)) {
+      const canonicalModels = {};
+      for (const [name, entry] of Object.entries(resolved.models)) {
+        const canonical = canonicalOf(name);
+        const kept = canonicalModels[canonical];
+        canonicalModels[canonical] = isPlain(entry)
+          ? { ...(isPlain(kept) ? kept : {}), ...entry, name: canonical, alias: canonical }
+          : entry;
+      }
+      resolved.models = canonicalModels;
+    }
+  } else if (existsSync(catalog)) {
+    resolved.catalog_model_aliases = {};
+    writeFileSync(catalogCache, readFileSync(catalog, "utf8"));
+  }
   const override = join(here, "config-override.json");
   const config = existsSync(override)
     ? { ...resolved, ...JSON.parse(readFileSync(override, "utf8")) }
@@ -318,6 +411,9 @@ export function writeFakeVibe(dir: string, options: FakeVibeOptions = {}): FakeV
   if (options.stderr !== undefined) writeFileSync(join(dir, "stderr.txt"), options.stderr);
   if (options.configOverride !== undefined) {
     writeFileSync(join(dir, "config-override.json"), JSON.stringify(options.configOverride));
+  }
+  if (options.catalogAliases !== undefined) {
+    writeFileSync(join(dir, "catalog-aliases.json"), JSON.stringify(options.catalogAliases));
   }
   if (options.turnWrites !== undefined) {
     writeFileSync(join(dir, "turn-writes.json"), JSON.stringify(options.turnWrites));

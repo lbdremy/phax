@@ -262,7 +262,7 @@ phax picks the model and level with Vibe's own flags. Each new session runs:
 vibe -p … --agent accept-edits --model mistral-medium-3.5 --thinking high --output streaming …
 ```
 
-`mistral-medium-3.5` is a model alias built into Vibe, so nothing in `~/.vibe/config.toml` is needed, and phax neither reads nor writes that file. A resumed turn passes neither flag: Vibe refuses `--model` on a resume and keeps the session's model and level. After each confined turn phax reads the export Vibe wrote and refuses the turn's result when its `active_model` or thinking level is not the one phax set.
+`mistral-medium-3.5` is a model alias built into Vibe, so nothing in `~/.vibe/config.toml` is needed, and phax neither reads nor writes that file. A resumed turn passes neither flag: Vibe refuses `--model` on a resume and keeps the session's model and level. After each confined turn phax reads the export Vibe wrote and refuses the turn's result when its `active_model` or thinking level is not the one phax set. Once Vibe has cached its model catalog (`model_catalog_cache.json` in its home, written after its first turn), it reads the alias back under its canonical name: `active_model` is `mistral-medium-latest`, and `models` is keyed by that name. phax accepts that name only when the export's own `catalog_model_aliases` lists `mistral-medium-3.5` under it, and then checks the thinking level under it.
 
 At a review stop, the fresh-start command sets `VIBE_ACTIVE_MODEL=mistral-medium-3.5` and starts Vibe's interactive mode at the model's default thinking level, because interactive mode takes no `--thinking`. phax prints a note saying so under the command.
 

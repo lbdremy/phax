@@ -39,6 +39,7 @@ import { isolateGit } from "../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   VIBE3_EXPORT_SHORT,
+  VIBE313_CATALOG_ALIASES,
   vibe3Assistant,
   vibe3ExportText,
   vibe3StreamText,
@@ -261,6 +262,9 @@ async function runPhase(
   const vibe = writeFakeVibe(join(world.root, "vibe-bin"), {
     stream: vibe3StreamText([vibe3Assistant([vibe3Text("done")])]),
     exportText: vibe3ExportText(VIBE3_EXPORT_SHORT),
+    // As real Vibe does once its catalog is cached, the fix and handoff turns
+    // read the model back under its canonical name.
+    catalogAliases: VIBE313_CATALOG_ALIASES,
     turnWrites: [
       [{ path: "src/phase-01.ts", content: "export const phase01 = 1;\n" }],
       [{ path: "src/phase-01.ts", content: "export const phase01 = 2;\n" }],
@@ -476,7 +480,20 @@ describe("a mistral-vibe secure phase that declares protectedPaths", () => {
       // The post-turn read-back compares each export's config with the entries
       // built from the same resolved root: it accepted all three turns, or the
       // phase would have failed above (the fake resolves its export's config
-      // from the turn's VIBE_TOOLS).
+      // from the turn's VIBE_TOOLS), the later two under the canonical model.
+      const activeModels = ["output", "fix-attempt-01", "handoff-generation"].map(
+        (turn) =>
+          (
+            readJson(join(observed.phaseFolder, `${turn}.vibe-export`, "export.json")) as {
+              config: { active_model: unknown };
+            }
+          ).config.active_model,
+      );
+      expect(activeModels).toEqual([
+        "mistral-medium-3.5",
+        "mistral-medium-latest",
+        "mistral-medium-latest",
+      ]);
 
       const posture = readJson(join(observed.phaseFolder, "security.json")) as {
         protectedPaths: unknown;

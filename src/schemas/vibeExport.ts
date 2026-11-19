@@ -16,6 +16,9 @@ const VibeUsageSchema = Schema.Struct({
  * ended, and the config it ran with. The usage and the cost count that turn
  * only. `config` is read as is: the adapter compares the values phax set
  * (`vibeConfigMismatch`), and Vibe writes it null when it never loaded one.
+ * Its `catalog_model_aliases` (canonical model name → aliases, `{}` before
+ * Vibe has cached its model catalog) is read there too, field by field: a
+ * missing or malformed one accepts only the exact model phax set.
  * Keys phax does not read (`limits`, `steps`, `journal_dir`, timestamps and
  * whatever Vibe adds later) are accepted and dropped.
  */
