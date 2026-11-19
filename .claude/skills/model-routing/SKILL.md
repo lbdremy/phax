@@ -114,7 +114,7 @@ Valid ids: `claude-code`, `mistral-vibe`, `codex-cli`. The list is parsed by `pa
 | Request                               | Priority           | allowDowngrade | Result                                                                     |
 | ------------------------------------- | ------------------ | -------------- | -------------------------------------------------------------------------- |
 | `claude-sonnet-4-6` / `medium`        | claude-code only   | —              | claude-code, `claude-sonnet-4-6`, `medium`, `exact`                        |
-| `claude-sonnet-4-6` / `medium`        | mistral-vibe first | —              | mistral-vibe, `phax-mistral-medium-3.5-high`, `high`, `upgrade` (nearest edge) |
+| `claude-sonnet-4-6` / `medium`        | mistral-vibe first | —              | mistral-vibe, `mistral-medium-3.5`, `high`, `upgrade` (nearest edge) |
 | `gpt-5.5` / `xhigh`                  | codex-cli first    | —              | codex-cli, `gpt-5.5`, `xhigh`, `exact`                                    |
 | `gpt-5.5` / `xhigh` (codex disabled) | —                  | true           | claude-code, `claude-opus-4-8`, `medium`, `equivalent` (hub translation)   |
 | `claude-opus-4-8` / `ultracode`       | any                | any            | claude-code, `claude-opus-4-8`, `ultracode`, `exact`                       |

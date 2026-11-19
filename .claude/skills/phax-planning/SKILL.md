@@ -606,8 +606,7 @@ Cut and write every phase first. Choose its model and effort last, from what the
 | `claude-opus-4-8` | `claude-opus` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `claude-fable-5-1` | `claude-fable` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
 | `claude-fable-5` | `claude-fable` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultracode` |
-| `phax-mistral-medium-3.5-off` | `mistral-medium` | active | `off` |
-| `phax-mistral-medium-3.5-high` | `mistral-medium` | active | `high` |
+| `mistral-medium-3.5` | `mistral-medium` | active | `off` \| `high` |
 | `gpt-6-sol` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
 | `gpt-6-luna` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` |
 | `gpt-6-astra` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |

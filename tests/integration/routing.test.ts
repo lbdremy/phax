@@ -240,7 +240,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     expect(fakeBackend.impl.runCalls).toHaveLength(1);
     const call = fakeBackend.impl.runCalls[0];
     expect(call?.options.provider).toBe("mistral-vibe");
-    expect(call?.options.model).toBe("phax-mistral-medium-3.5-high");
+    expect(call?.options.model).toBe("mistral-medium-3.5");
     expect(call?.options.effort).toBe("high");
 
     // The agent.model.resolved event should have been recorded.
@@ -249,7 +249,7 @@ describe("executePlan routing — mistral-vibe priority", () => {
     if (resolvedEvent?.type === "agent.model.resolved") {
       expect(resolvedEvent.selectedProvider).toBe("mistral-vibe");
       expect(resolvedEvent.selectedFamily).toBe("mistral-medium");
-      expect(resolvedEvent.selectedConcreteModel).toBe("phax-mistral-medium-3.5-high");
+      expect(resolvedEvent.selectedConcreteModel).toBe("mistral-medium-3.5");
       expect(resolvedEvent.relationship).toBe("equivalent");
       expect(resolvedEvent.requestedFamily).toBe("claude-sonnet");
     }
@@ -260,6 +260,6 @@ describe("executePlan routing — mistral-vibe priority", () => {
       selected: { provider: string; concreteModel: string };
     };
     expect(artifact.selected.provider).toBe("mistral-vibe");
-    expect(artifact.selected.concreteModel).toBe("phax-mistral-medium-3.5-high");
+    expect(artifact.selected.concreteModel).toBe("mistral-medium-3.5");
   });
 });

@@ -57,9 +57,7 @@ describe("familyOfId", () => {
     expect(familyOfId("gpt-5.5", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
     expect(familyOfId("gpt-6-sol", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
     expect(familyOfId("gpt-6-luna", DEFAULT_PROVIDER_CONFIG)).toBe("openai-gpt");
-    expect(familyOfId("phax-mistral-medium-3.5-high", DEFAULT_PROVIDER_CONFIG)).toBe(
-      "mistral-medium",
-    );
+    expect(familyOfId("mistral-medium-3.5", DEFAULT_PROVIDER_CONFIG)).toBe("mistral-medium");
   });
 
   it("returns undefined for an id not in the catalog", () => {
@@ -208,7 +206,7 @@ describe("equivalentFor (star lookup)", () => {
       routing,
       DEFAULT_PROVIDER_CONFIG,
     );
-    expect(mistralSub?.id).toBe("phax-mistral-medium-3.5-high");
+    expect(mistralSub?.id).toBe("mistral-medium-3.5");
     expect(mistralSub?.effort).toBe("high");
     expect(mistralSub?.relation).toBe("upgrade");
 
@@ -247,7 +245,7 @@ describe("equivalentFor (star lookup)", () => {
 
   it("spoke → hub: the Vibe off alias still anchors claude-haiku-4-5-20251001 at none", () => {
     const sub = equivalentFor(
-      "phax-mistral-medium-3.5-off",
+      "mistral-medium-3.5",
       "off",
       "claude-haiku",
       routing,
@@ -290,7 +288,7 @@ describe("equivalentFor (star lookup)", () => {
       routing,
       DEFAULT_PROVIDER_CONFIG,
     );
-    expect(sub?.id).toBe("phax-mistral-medium-3.5-high");
+    expect(sub?.id).toBe("mistral-medium-3.5");
     expect(sub?.effort).toBe("high");
     expect(sub?.relation).toBe("equivalent");
   });
@@ -310,7 +308,7 @@ describe("equivalentFor (star lookup)", () => {
         routing,
         DEFAULT_PROVIDER_CONFIG,
       );
-      expect(sub, effort).toEqual({ id: "phax-mistral-medium-3.5-high", effort: "high", relation });
+      expect(sub, effort).toEqual({ id: "mistral-medium-3.5", effort: "high", relation });
     }
     // Haiku 4.5's only edge is the `off` alias.
     expect(
@@ -321,7 +319,7 @@ describe("equivalentFor (star lookup)", () => {
         routing,
         DEFAULT_PROVIDER_CONFIG,
       ),
-    ).toEqual({ id: "phax-mistral-medium-3.5-off", effort: "off", relation: "equivalent" });
+    ).toEqual({ id: "mistral-medium-3.5", effort: "off", relation: "equivalent" });
   });
 
   it("hub → spoke: a Claude id no edge anchors gets no nearest edge", () => {
