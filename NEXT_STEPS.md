@@ -260,12 +260,14 @@ desktop — none is promised by the announcement.
       pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
       `pull-request-closed`); `finding post` refuses a fixed finding on such a pull request;
       `dismiss` and `defer` keep commenting.
-- [ ] **The plan parser's bounded-time property still fails main CI.** 3 of 8 main CI runs
-      (2026-11-18 to 11-19: 690d4135, 9cdcc5aa, 25e04234) failed `Property tests budget` on
-      `tests/unit/property/planParser.property.test.ts` › "parsing finishes in bounded time": the
-      test hit vitest's 30 s timeout (once 117 s), though #238 made the property measure CPU time.
-      The same tree passed on the next push. Find which generated plans are slow (log the seed),
-      and bound the work per case, not only the measured time.
+- [ ] **Reading a plan is super-linear in its nesting.** Brief: `docs/briefs/plan-parser-nesting-time.md`.
+      The daily deep pass is red since 2026-11-18 (run 44320960144, seed 1253054900): a run of
+      61,440 `>` (blockquotes nested once per character) costs `collectPlanStructureErrors` 4.5 s
+      of CPU on CI and 3.4 s on a laptop, mostly inside `mdast-util-from-markdown`; nested lists
+      over 60 KiB sit near the 2 s bound on slow runners. Decide a guard before parsing, a linear
+      parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
+      timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
+      and the deep pass unchanged.
 - [ ] **A test that spawns a child with no timeout can hang the suite.** Seen 2026-11-18 on the
       code-repository review fixes: `tests/integration/groupCommandsJson.test.ts` runs
       `tsx … cost backfill --json` through `spawnSync` with no `timeout`; the child sat idle for
