@@ -145,6 +145,28 @@ describe("phax finding post", () => {
     expect(head(repo, RECORDS_BRANCH)).toBe(recordsBefore);
   });
 
+  it("refuses a fixed finding on a merged pull request, and still posts a dismissal there", async () => {
+    await fixF2();
+    expect((await dismiss("F3", "the second check guards --resume")).code).toBe(0);
+    installFakeGh(repo, "answers", "MERGED");
+    const remoteBefore = remoteHead(repo);
+    const recordsBefore = head(repo, RECORDS_BRANCH);
+
+    const refused = await post("F2", "F3");
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain(`✗ post refused: ${prUrl} is merged`);
+    expect(refused.err).toContain("Name only F3");
+    expect(ghCalls(repo)).toEqual([["pr", "view", prUrl, "--json", "state"]]);
+    expect(remoteHead(repo)).toBe(remoteBefore);
+
+    const dismissed = await post("F3");
+    expect(dismissed.code).toBe(0);
+    expect(ghComments(repo)).toHaveLength(1);
+    expect(ghComments(repo)[0]?.body).toContain("F3 dismissed");
+    expect(remoteHead(repo)).toBe(remoteBefore);
+    expect(head(repo, RECORDS_BRANCH)).toBe(recordsBefore);
+  });
+
   it("refuses a publication record whose pull request failed", async () => {
     await fixF2();
     const file = join(repo.runFolder, "publication.json");

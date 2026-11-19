@@ -85,6 +85,16 @@ describe("renderFindingFix", () => {
   it("adds nothing when the pull request was not posted to", () => {
     expect(renderFindingFix(answer({})).split("\n")).toHaveLength(4);
   });
+
+  it.each([
+    ["pull-request-merged", "merged"],
+    ["pull-request-closed", "closed"],
+  ] as const)("adds one line saying nothing reached a %s pull request", (reason, state) => {
+    const out = renderFindingFix(answer({ pullRequest: { kind: "not-posted", reason } }));
+    expect(out.split("\n").slice(4)).toEqual([
+      `○ the pull request is ${state}: nothing pushed or commented`,
+    ]);
+  });
 });
 
 describe("renderFindingPost", () => {

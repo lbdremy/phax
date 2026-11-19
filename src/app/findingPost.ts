@@ -2,7 +2,9 @@
 // request the run's publication.json names, one comment per named finding naming its fate, after pushing
 // the run branch when a named finding is fixed. It writes no record, so it is the retry when a
 // fate command could not update the pull request, and it never records a fate twice. It ignores
-// `publish.auto`: it is an explicit request to post. Every refusal comes before any push or call.
+// `publish.auto`: it is an explicit request to post. A call naming a fixed finding first asks
+// GitHub the pull request's state and is refused on a merged or closed one, as `fix` posts nothing
+// there. Every refusal comes before any push or comment; only that state query precedes one.
 import { Data, Effect } from "effect";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { isFindingId } from "../domain/findings/fixCall.js";
@@ -22,11 +24,12 @@ import {
 import {
   type FindingPullRequestNotUpdatedError,
   type PullRequestPosted,
+  pullRequestStateBeforeFix,
   pushAndComment,
   readRunPullRequest,
 } from "./findingPullRequest.js";
 
-/** A refusal of the call, made before any push or GitHub call. */
+/** A refusal of the call, made before any push or comment. */
 export class FindingPostRefusedError extends Data.TaggedError("FindingPostRefusedError")<{
   readonly message: string;
 }> {}
@@ -102,17 +105,39 @@ export function postFindings(input: {
       );
     }
 
-    // 5. and 6. Push when a finding is fixed, then comment.
+    // 5. A fixed finding reaches an open pull request only.
+    const repoRoot = run.target.kind === "project" ? run.target.repoRoot : config.repoRoot;
+    const fixed = findings.filter((finding) => finding.fate === "fixed").map((f) => f.id);
+    if (fixed.length > 0) {
+      const state = yield* pullRequestStateBeforeFix({
+        ref: input.ref,
+        run,
+        pullRequest,
+        ids,
+        recorded: [],
+        commit: null,
+        repoRoot,
+      });
+      if (state !== "open") {
+        const others = findings.filter((finding) => finding.fate !== "fixed").map((f) => f.id);
+        return yield* refuse(
+          `${pullRequest} is ${state}: phax pushes nothing to it and posts no fixed comment on it (${fixed.join(", ")} ${fixed.length === 1 ? "is" : "are"} fixed); nothing was pushed or commented` +
+            (others.length > 0 ? `. Name only ${others.join(", ")} to post the rest` : ""),
+        );
+      }
+    }
+
+    // 6. and 7. Push when a finding is fixed, then comment.
     const posted = yield* pushAndComment({
       ref: input.ref,
       run,
       pullRequest,
       findings,
-      push: config.publish.pushBranch && findings.some((finding) => finding.fate === "fixed"),
+      push: config.publish.pushBranch && fixed.length > 0,
       remote: config.publish.remote,
       recorded: [],
       commit: null,
-      repoRoot: run.target.kind === "project" ? run.target.repoRoot : config.repoRoot,
+      repoRoot,
     });
     return {
       run: {
