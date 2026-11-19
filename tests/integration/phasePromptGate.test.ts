@@ -472,9 +472,11 @@ describe("phase prompt names the gate (acceptance)", () => {
     }
     const sections = [...received.values()];
     expect(new Set(sections).size).toBe(1);
+    // Drop the step lines and the partial-command lines nested under them: both
+    // quote the project's own commands, which may name a tool.
     const fixed = (sections[0] ?? "")
       .split("\n")
-      .filter((l) => !l.startsWith("- "))
+      .filter((l) => !/^\s*- /.test(l))
       .join("\n");
     for (const tool of ["pnpm", "npm", "vitest", "jest", "cargo"]) {
       expect(fixed).not.toContain(tool);
