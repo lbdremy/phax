@@ -24,7 +24,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 ### 0.40.0
 
 - **The pull request description's code review findings list is replaced by a Review findings section** of every finding by fate: open and deferred named, fixed and dismissed counted.
-- **With `publish.auto` on, `phax finding fix`, `dismiss` and `defer` now push and comment on the run's existing pull request**, and their `--json` answers gain `pullRequest`. Exit 1 now also covers a pull request not updated.
+- **With `publish.auto` on, `phax finding fix`, `dismiss` and `defer` now push and comment on the run's existing pull request**, `fix` only while GitHub reports it open, and their `--json` answers gain `pullRequest`. Exit 1 now also covers a pull request not updated.
 - **`phax finding post` is new.** It posts the comments of settled findings without recording a fate again.
 - **`code-review` and `compliance-review` move to 0.40.0 shapes whose findings carry an `id`.** An `@lbdremy/phax-schemas` before 0.40.0 refuses them, so upgrade the package. The package reads the 0.32.0 shapes with each id `Unknown`.
 - **The review sessions answer new formats**, `code-review-answer` and `compliance-review-answer`. phax gives each finding its id and keeps the answer as `code-review.json` or `compliance-review.json`.

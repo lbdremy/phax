@@ -138,7 +138,7 @@ phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator
 
 `--commit <sha>` records a commit that exists and makes none, so it takes no path, `-m` or `--body`. Use it for a finding fixed before ids existed (an `unrecorded` finding), and as the retry that a failed record prints. The commit must be, or be an ancestor of, the run's final-phase branch while the run is live, or the base branch: `publish.baseBranch`, else `main`, local or remote-tracking. A commit that changes no path is refused. A backfilled commit has no `Finding:` trailer and may hold several fixes, so its classes are coarser.
 
-Because it writes only a record, `--commit` runs on any run whose records exist, an archived or merged run included.
+Because it writes only a record, `--commit` runs on any run whose records exist, an archived or merged run included. On a merged or closed pull request it then pushes and posts nothing (see [Which pull request](#which-pull-request)).
 
 ## Dismissing and deferring
 
@@ -183,7 +183,7 @@ phax finding post gate-retry F2 F3
 ✓ commented F3 on https://github.com/acme/shop/pull/42
 ```
 
-It refuses an unknown id, a finding that is `open` or `unrecorded`, and a run with no pull request in `publication.json`. It ignores `publish.auto`, because it is an explicit request to post.
+It refuses an unknown id, a finding that is `open` or `unrecorded`, a run with no pull request in `publication.json`, and a `fixed` finding when the pull request is merged or closed: it then pushes and posts nothing, not even the other findings named. Name only the dismissed and deferred ones to post theirs. It ignores `publish.auto`, because it is an explicit request to post.
 
 ## On the pull request
 
@@ -244,20 +244,38 @@ Taken over by `NEXT_STEPS.md`
 
 `@` mentions in a message or reason are rendered as code. A call naming several ids posts several comments.
 
-The pull request is the one `publication.json` in the run's folder names (its archive copy for an archived run): the one `phax publish-pr` opened, or the one it found already open on the run branch and recorded. phax asks GitHub nothing to find it, so a merged or closed pull request is still commented. A pull request opened by hand with `gh pr create` gets fate comments once `phax publish-pr` has found and recorded it, but its description never gets the Review findings section. A pull request is skipped only when `publication.json` does not name it.
+### Which pull request
+
+The pull request is the one `publication.json` in the run's folder names (its archive copy for an archived run): the one `phax publish-pr` opened, or the one it found already open on the run branch and recorded. phax asks GitHub nothing to find it. A pull request opened by hand with `gh pr create` gets fate comments once `phax publish-pr` has found and recorded it, but its description never gets the Review findings section. Apart from a fix on a merged or closed pull request (below), a pull request is skipped only when `publication.json` does not name it.
+
+A run stays `review_open` until it is archived, even after its pull request was merged on GitHub. So before a fixed finding reaches the pull request, `fix` and `phax finding post` ask GitHub its state (`gh pr view <url> --json state`):
+
+- Open: `fix` pushes and comments as above.
+- Merged or closed: `fix` pushes nothing and posts nothing, because its commit is not in the base branch and the push would bring a deleted branch back. The commit and the fates stay, and the command exits 0 and says so (below). `phax finding post` refuses a fixed finding there, pushing and posting nothing.
+- A state that cannot be read fails like a push or a comment (see below): nothing is pushed or posted.
+
+```text
+✓ committed 3fa91c2 fix(review): F2 of gate-retry
+  paths: tests/gate.test.ts (tests)
+✓ recorded F2 fixed on phax/records/v1
+○ the pull request is merged: nothing pushed or commented
+```
+
+`dismiss` and `defer` never ask: their comments claim nothing about the code, so a merged or closed pull request still gets them.
 
 ### When nothing leaves the machine
 
 - With `publish.auto` off, the fate commands push and post nothing and work offline.
 - With no pull request yet, nothing is pushed or posted. The description carries the fates when the pull request is created.
 - With `publish.pushBranch` false, `fix` neither pushes nor posts, because its commit could not be seen. `dismiss` and `defer` still comment.
+- On a merged or closed pull request, `fix` neither pushes nor posts.
 - `dismiss` and `defer` never push. An archived run's `fix --commit` pushes nothing.
 
-The `--json` answers of `fix`, `dismiss` and `defer` carry a `pullRequest` field: `{ "kind": "not-posted", "reason": "publish-auto-off" | "no-pull-request" | "push-branch-off" }`, or `{ "kind": "posted", "url", "pushed", "comments" }`.
+The `--json` answers of `fix`, `dismiss` and `defer` carry a `pullRequest` field: `{ "kind": "not-posted", "reason": "publish-auto-off" | "no-pull-request" | "push-branch-off" | "pull-request-merged" | "pull-request-closed" }`, or `{ "kind": "posted", "url", "pushed", "comments" }`. Only `fix` answers `pull-request-merged` or `pull-request-closed`.
 
 ### When a push or a comment fails
 
-The fates stay recorded and a fix's commit stays. The command exits 1 with `✗ pull request not updated: …`, naming the pull request, git's or gh's first line and the ids not posted, and ends with `Retry with: phax finding post <run> <ids>`. Run it: it posts what is left without recording again. When the remote branch has moved, git refuses the push; run `git pull --no-rebase <remote> <branch>` in the run's final worktree first, then retry.
+This covers a pull request state that cannot be read too. The fates stay recorded and a fix's commit stays. The command exits 1 with `✗ pull request not updated: …`, naming the pull request, git's or gh's first line and the ids not posted, and ends with `Retry with: phax finding post <run> <ids>`. Run it: it posts what is left without recording again. When the remote branch has moved, git refuses the push; run `git pull --no-rebase <remote> <branch>` in the run's final worktree first, then retry.
 
 Exit 1 now covers both a fate not recorded and a pull request not updated; under `--json` only the error tag tells them apart. Do not rerun the fate command on a pull request failure, or it records a second, identical fate.
 
