@@ -11,7 +11,11 @@ queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-par
 mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
 Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-14
+## The queue, as of 2026-11-19
+
+Reordered by the operator on 2026-11-19: first what costs time on every run (the suite, the
+parser), then the reliability and security follow-ups, then the handoff, the clean-up, the
+tolerances, the cockpit, the doctrine and the index, then batch execution.
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
@@ -100,25 +104,72 @@ briefs of live or unspecced work.
       Not in parallel with `code-repository` (operator, 2026-11-18): `phax plans overlap` shares
       `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Plan 2 of
       `finding-ids-and-fates` merged first (operator, 2026-11-18), so it is next. Mistral Large 4 in the catalog is a separate, later change.
+      Running since 2026-11-19 with phax 0.40.0 (plan revised and re-approved for 0.41.0 the same
+      day: the ground had moved under #241 to #245).
 
-### 5c. The test suite and phax's own code (briefs, 2026-11-18/19)
+### 6. What costs time on every run
 
-In this order (operator, 2026-11-19), after `vibe-model-flags`; the specs can be authored while
-it runs.
-
-- [ ] **`test-worlds-built-once`** — `docs/briefs/test-worlds-built-once.md`, spec to author first.
+- [ ] **`test-worlds-built-once`** — `docs/briefs/test-worlds-built-once.md`, spec Approved 2026-11-19 (five verdicts, all the recommendations); plan to
+      author.
       The integration tests' git repositories built once and copied, and a test's many commits
       written in one git process: the suite's time is what turns gates and CI red "under load".
 - [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
+
+### 7. Test reliability follow-ups
+
+A batch from *Small follow-ups*, first the two hangs: give every `spawnSync` and CLI spawn in
+tests a timeout through one shared helper (the 13 h gate on `records-branch-tip`, the 3 h hang on
+#241's review fixes), then the other test-reliability items the batch turns up.
+
+### 8. Security follow-ups
+
+A batch from *Small follow-ups*, the security items that sleep there:
+- **Allowed shell commands run unconfined on Claude Code and Vibe** (a read-only session granted
+  `git diff` writes a file with `--output`): the largest, likely its own brief (Claude Code's native
+  Bash sandbox, Vibe's equivalent).
+- The protected-path items: a `**/` glob blind inside a submodule, `failedStep:
+  "protected-paths"` missing from the run records, `plans lint` silent on a planned edit of a
+  protected path.
+- The Vibe items: the `accept-edits` profile reached through `agent_paths`, the never-run "loose
+  config" e2e case.
+- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
+      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
+      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
+      to another credential when one is available. Both are documented in `docs/security.md`
+      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
+      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
+
+### 9. The phase handoff is an answer
+
+- [ ] **`phase-handoff-answered`** — `docs/briefs/phase-handoff-answered.md` (2026-11-13), spec to
+      author. The handoff becomes a structured answer with a published schema that phax decodes,
+      and every file-plan deviation the reconciliation found must be justified by an entry naming
+      it, instead of today's substring match on free Markdown. So the PR says which deviations are
+      real and which are explained (operator, 2026-11-19: the reviews keep tripping on handoffs
+      that claim what is not so). Replaces the "structured phase handoff" spec candidate.
+
+### 10. Clean-up and tolerances
+
 - [ ] **`suppression-directives`** — `docs/briefs/suppression-directives.md`, spec to author.
       phax's own lint suppressions each name their rule and say why; the unused ones go.
 - [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
       that tightens the protected tolerance files inside a run, and loosens them only by what the
       approved plan declared.
+      Lets a run tighten a ratchet or a baseline it paid, and loosen it only by what was approved.
 
-### 6. The project doctrine
+### 11. The cockpit
+
+- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
+      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
+      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
+      coverage level (§9 Q1), and can read the knowledge index once it exists.
+      Moved before the doctrine (operator, 2026-11-19): quick to build now that phax prints
+      `artifact-status` and `plan-overview` as versioned formats, and usable at once. Refresh the
+      brief first: it was written against 0.31.0.
+
+### 12. The project doctrine, then the knowledge index
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -132,9 +183,6 @@ it runs.
       and every decide mode so a recommendation names the rules it rests on. Today the doctrine
       reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
       assistant's memory.
-
-### 7. The knowledge index
-
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
       questions and arbitrations, runs, gates, costs, reviews, records — queried through the
@@ -144,16 +192,13 @@ it runs.
       After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
       indexes.
 
-### 8. Security: the user layer
+### 13. Batch execution
 
-- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
-      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
-      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
-      to another credential when one is available. Both are documented in `docs/security.md`
-      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
-      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
+- [ ] **`batch-execution-disjoint-plans`** — `docs/specs/2608091526-batch-execution-disjoint-plans.md`
+      (Approved, parked): parallel disjoint plans, published as stacked PRs. Speeds up the queue
+      once the above lands. See *Approved specs — parked*.
 
-### 9. Before 1.0
+### 14. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -162,7 +207,7 @@ it runs.
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 10. Later
+### 15. Later
 
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12), spec
       to author: the operator lets one phase change a protected path, granted when the phase is
@@ -173,16 +218,9 @@ it runs.
       acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
       review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
       Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
-- [ ] The small follow-ups below, in batches.
-
-## A parallel track: the cockpit
-
-- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
-      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
-      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
-      coverage level (§9 Q1), and can read the knowledge index once it exists.
-      Its own track since 2026-11-10 (operator): `command-contracts` already gives it the
-      versioned JSON it reads, so it runs beside the main queue, not after it.
+- [ ] **`node-runtime`** — `docs/briefs/node-runtime.md` (2026-11-12): the binary stays on Deno for
+      now; not urgent (operator, 2026-11-19).
+- [ ] The other small follow-ups below, in batches.
 
 ## Model policy tracking
 
@@ -494,9 +532,6 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Spec candidates, deliberately not written yet
 
-- [ ] **A structured phase handoff** (raised 2026-10-27, out of `structured-output`'s scope). The
-      handoff turn returns a structured answer instead of `phase-handoff.md`'s Markdown; every later
-      phase reads it, so it gets its own spec after `structured-output` lands. No brief yet.
 - [ ] **Oracles provider: the oracle's own quality** (raised 2026-10-23, out of `test-strategy`'s
       scope). The provider checks that an oracle phase's tests fail on their assertion, not on a
       crash or an import error; that table and generator files are oracle files, frozen like the
