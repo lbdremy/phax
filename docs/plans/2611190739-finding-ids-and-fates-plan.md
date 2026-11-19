@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611041509-finding-ids-and-fates.md
 completes-spec: true
+approved:
+  date: 2026-11-19
+  baseline: def39c6
 ---
 # Finding fates on the pull request
 

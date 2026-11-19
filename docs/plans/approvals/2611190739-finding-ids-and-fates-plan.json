@@ -1,0 +1,15 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.25.0.json",
+  "artifact": "docs/plans/2611190739-finding-ids-and-fates-plan.md",
+  "planFingerprint": "afd96ff401d7fedd5c24a1d171f7257615792f57bb14611e490f5136dd061d0b",
+  "approvedAt": "2026-11-19T08:06:02.019Z",
+  "baseline": "def39c6e8dc376dd73cb81a263c8ed1397c1b26d",
+  "sourceSpec": {
+    "path": "docs/specs/2611041509-finding-ids-and-fates.md",
+    "fingerprint": "8c7a4217ed6ea971ed2d83edd74aa5f2b9c6e872a43cd9458cbf41aad63d19c2"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
