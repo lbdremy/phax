@@ -69,7 +69,12 @@
       { "command": "pnpm test:type", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm lint", "surface": "local", "firing": "every-phase" },
       { "command": "pnpm format:check", "surface": "local", "firing": "every-phase" },
-      { "command": "pnpm test", "surface": "local", "firing": "every-phase" },
+      {
+        "command": "pnpm test",
+        "surface": "local",
+        "firing": "every-phase",
+        "partial": { "files": "pnpm test <files>", "diff": "pnpm test --changed" }
+      },
       { "command": "pnpm knip", "surface": "structural", "firing": "every-phase" },
       { "command": "pnpm audit:architecture", "surface": "structural", "firing": "every-phase" },
       {
