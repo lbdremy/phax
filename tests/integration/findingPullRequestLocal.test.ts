@@ -306,6 +306,56 @@ describe("fate commands and the pull request, off the happy path", () => {
     expect(result.out).toContain("✓ commented F3 on");
   });
 
+  it("keeps the commit and the fate on a merged pull request, and pushes and comments nothing", async () => {
+    setPublishAuto(repo, true);
+    installFakeGh(repo, "answers", "MERGED");
+    const remoteBefore = remoteHead(repo);
+    const before = runBranchHead();
+
+    writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
+    const result = await fix(["F2"], "tests/gate.test.ts", "--json");
+
+    expect(result.code).toBe(0);
+    expect(pullRequestOf(result)).toEqual({ kind: "not-posted", reason: "pull-request-merged" });
+    expect(ghCalls(repo)).toEqual([["pr", "view", prUrl, "--json", "state"]]);
+    expect(remoteHead(repo)).toBe(remoteBefore);
+    expect(runBranchHead()).not.toBe(before);
+    expect((await fates())["F2"]).toBe("fixed");
+
+    // dismiss claims nothing about the code: it still comments on the merged pull request.
+    const dismissed = await dismiss("F3");
+    expect(dismissed.code).toBe(0);
+    expect(ghComments(repo)).toHaveLength(1);
+    expect(ghComments(repo)[0]?.body).toContain("F3 dismissed");
+    expect(remoteHead(repo)).toBe(remoteBefore);
+  });
+
+  it("keeps the commit and the fate when the pull request's state cannot be read", async () => {
+    setPublishAuto(repo, true);
+    installFakeGh(repo, "fails");
+    const remoteBefore = remoteHead(repo);
+
+    writeInWorktree(repo, "tests/gate.test.ts", "export const gateTest = 2;\n");
+    const result = await fix(["F2"], "tests/gate.test.ts", "--json");
+
+    expect(result.code).toBe(1);
+    expect(jsonError(result)).toMatchObject({
+      error: "FindingPullRequestNotUpdatedError",
+      exit: 1,
+      fields: {
+        commit: runBranchHead(),
+        recorded: ["F2"],
+        pushed: false,
+        posted: [],
+        unposted: ["F2"],
+        retry: `phax finding post ${repo.shortName} F2`,
+      },
+    });
+    expect(ghComments(repo)).toEqual([]);
+    expect(remoteHead(repo)).toBe(remoteBefore);
+    expect((await fates())["F2"]).toBe("fixed");
+  });
+
   it("stops fix from pushing or posting with publish.pushBranch off, while dismiss still posts", async () => {
     const file = join(repo.repoDir, "phax.json");
     const config = JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>;

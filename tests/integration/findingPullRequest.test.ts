@@ -104,9 +104,10 @@ describe("fate commands update the pull request", () => {
     expect(result.code).toBe(0);
 
     expect(readFileSync(bodyFile, "utf8")).toBe(before);
-    const calls = ghCalls(repo);
-    expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) expect(call.slice(0, 2)).toEqual(["pr", "comment"]);
+    expect(ghCalls(repo).map((call) => call.slice(0, 2))).toEqual([
+      ["pr", "view"],
+      ["pr", "comment"],
+    ]);
     const comments = ghComments(repo);
     expect(comments).toHaveLength(1);
     expect(comments[0]?.body).toContain("F4");

@@ -2,7 +2,8 @@
 // pull request a run has, and pushing the run branch then posting one comment per finding on it.
 // `phax finding post` uses it alone; the fate commands reuse it once they settle a finding. The
 // pull request is the one `publication.json` in the run folder names: phax asks GitHub nothing to
-// find it. Nothing here writes a fate record.
+// find it, only, before a fixed finding reaches it, whether it is still open. Nothing here writes
+// a fate record.
 import { join } from "node:path";
 import { Data, Effect, Result } from "effect";
 import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
@@ -10,7 +11,7 @@ import { renderFateComment } from "../domain/findings/fateComment.js";
 import type { PrFinding } from "../domain/publish/prFindings.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
-import { GitHub, type GitHubError } from "../ports/github.js";
+import { GitHub, type GitHubError, type PullRequestState } from "../ports/github.js";
 import { decodePublication } from "../schemas/publication.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import type { ResolvedFindingRun } from "./findingList.js";
@@ -80,6 +81,18 @@ export function readRunPullRequest(
 const failureLine = (error: GitError | GitHubError | FsError): string =>
   gitFailureLine("stderr" in error && error.stderr ? error.stderr : error.message);
 
+/** The run's final worktree when it is on disk, else null. */
+function existingWorktree(
+  run: ResolvedFindingRun,
+): Effect.Effect<string | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    if (run.worktreePath === null || run.worktreePath === "") return null;
+    const fs = yield* FileSystem;
+    const found = yield* fs.exists(run.worktreePath).pipe(Effect.orElseSucceed(() => false));
+    return found ? run.worktreePath : null;
+  });
+}
+
 export interface PushAndCommentInput {
   /** The run as given on the command line: the retry names it. */
   readonly ref: string;
@@ -143,15 +156,10 @@ export function pushAndComment(
   return Effect.gen(function* () {
     const git = yield* Git;
     const github = yield* GitHub;
-    const fs = yield* FileSystem;
     const { run, pullRequest } = input;
     const ids = input.findings.map((finding) => finding.id);
 
-    const worktreeFound =
-      run.worktreePath !== null &&
-      run.worktreePath !== "" &&
-      (yield* fs.exists(run.worktreePath).pipe(Effect.orElseSucceed(() => false)));
-    const worktree = worktreeFound ? run.worktreePath : null;
+    const worktree = yield* existingWorktree(run);
     const branch = run.runBranch === null ? null : decodeBranchName(run.runBranch);
     const worktreePath = worktree === null ? null : decodeWorktreePath(worktree);
 
@@ -228,19 +236,69 @@ export function pushAndComment(
   });
 }
 
+/**
+ * The state of the run's pull request, asked of GitHub before a fixed finding reaches it: a merged
+ * or closed pull request gets neither the run branch nor a fixed comment, since the commit the
+ * comment names is not in its base branch. gh runs from the run's final worktree, or else
+ * `repoRoot`. A query that fails is a `FindingPullRequestNotUpdatedError`: nothing was pushed or
+ * posted, and its retry is `phax finding post` for every id.
+ */
+export function pullRequestStateBeforeFix(input: {
+  readonly ref: string;
+  readonly run: ResolvedFindingRun;
+  readonly pullRequest: string;
+  /** The ids the call would post: the retry names them all. */
+  readonly ids: readonly string[];
+  readonly recorded: readonly string[];
+  readonly commit: string | null;
+  readonly repoRoot: string;
+}): Effect.Effect<PullRequestState, FindingPullRequestNotUpdatedError, FileSystem | GitHub> {
+  return Effect.gen(function* () {
+    const github = yield* GitHub;
+    const worktree = yield* existingWorktree(input.run);
+    const state = yield* Effect.result(
+      github.pullRequestState({
+        pullRequest: input.pullRequest,
+        repo: worktree ?? input.repoRoot,
+      }),
+    );
+    if (Result.isSuccess(state)) return state.success;
+    return yield* Effect.fail(
+      notUpdated({
+        ref: input.ref,
+        pullRequest: input.pullRequest,
+        what: `could not read its state (${failureLine(state.failure)})`,
+        recorded: input.recorded,
+        commit: input.commit,
+        pushed: false,
+        posted: [],
+        unposted: [...input.ids],
+        hint: "nothing was pushed or commented",
+      }),
+    );
+  });
+}
+
+/** Why a fate command left the run's pull request alone. */
+export type PullRequestNotPostedReason =
+  | "publish-auto-off"
+  | "no-pull-request"
+  | "push-branch-off"
+  | "pull-request-merged"
+  | "pull-request-closed";
+
 /** What a fate command did to the run's pull request: nothing (and why), or the push and comments. */
 export type PullRequestOutcome =
-  | {
-      readonly kind: "not-posted";
-      readonly reason: "publish-auto-off" | "no-pull-request" | "push-branch-off";
-    }
+  | { readonly kind: "not-posted"; readonly reason: PullRequestNotPostedReason }
   | ({ readonly kind: "posted" } & PullRequestPosted);
 
 /**
  * What a fate command does for the pull request once its records landed (§5.22, §5.23). With
  * `publish.auto` off, a run with no pull request in `publication.json`, or a fix while
- * `publish.pushBranch` is off, nothing leaves the machine. Otherwise `fix` pushes the run branch
- * and each finding the call settled gets its comment, in order. `dismiss` and `defer` push nothing.
+ * `publish.pushBranch` is off, nothing leaves the machine. Otherwise `fix` asks GitHub the pull
+ * request's state first: merged or closed, it pushes and posts nothing; open, it pushes the run
+ * branch. Then each finding the call settled gets its comment, in order. `dismiss` and `defer`
+ * push nothing and ask no state: their comments claim nothing about the code.
  */
 export function pullRequestAfterFates(input: {
   readonly ref: string;
@@ -266,6 +324,24 @@ export function pullRequestAfterFates(input: {
     if (input.verb === "fix" && !config.publish.pushBranch) {
       return { kind: "not-posted", reason: "push-branch-off" } as const;
     }
+    const repoRoot = run.target.kind === "project" ? run.target.repoRoot : config.repoRoot;
+    if (input.verb === "fix") {
+      const state = yield* pullRequestStateBeforeFix({
+        ref: input.ref,
+        run,
+        pullRequest,
+        ids: input.findings.map((finding) => finding.id),
+        recorded: input.recorded,
+        commit: input.commit,
+        repoRoot,
+      });
+      if (state === "merged") {
+        return { kind: "not-posted", reason: "pull-request-merged" } as const;
+      }
+      if (state === "closed") {
+        return { kind: "not-posted", reason: "pull-request-closed" } as const;
+      }
+    }
     const posted = yield* pushAndComment({
       ref: input.ref,
       run,
@@ -275,7 +351,7 @@ export function pullRequestAfterFates(input: {
       remote: config.publish.remote,
       recorded: input.recorded,
       commit: input.commit,
-      repoRoot: run.target.kind === "project" ? run.target.repoRoot : config.repoRoot,
+      repoRoot,
     });
     return { kind: "posted", ...posted } as const;
   });

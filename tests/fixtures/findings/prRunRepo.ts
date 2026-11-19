@@ -124,7 +124,8 @@ const LOG_DIR = "log";
  * logs every call: its arguments, NUL-separated, to the next numbered file `log/<nnnn>.args`;
  * for `pr comment`, also the bare remote's `refs/heads/<runBranch>` sha at that moment (empty
  * when the ref is absent) to `log/<nnnn>.head`. In `answers` mode a `pr comment` call answers
- * `<its third argument>#issuecomment-<n>` and exits 0, and any other call exits 1. In `fails`
+ * `<its third argument>#issuecomment-<n>` and exits 0, a `pr view` call answers
+ * `{"state":"<prState>"}` (OPEN unless given) and exits 0, and any other call exits 1. In `fails`
  * mode every call writes `gh: offline` to stderr and exits 1. `fails-first-comment` mode answers
  * as `answers` does, except that the first `pr comment` call the log holds writes
  * `gh: rate limited` to stderr and exits 1. Paths are baked into the script.
@@ -132,6 +133,7 @@ const LOG_DIR = "log";
 export function installFakeGh(
   repo: PrRunRepo,
   mode: "answers" | "fails" | "fails-first-comment",
+  prState: "OPEN" | "MERGED" | "CLOSED" = "OPEN",
 ): void {
   const logDir = join(repo.ghDir, LOG_DIR);
   mkdirSync(logDir, { recursive: true });
@@ -157,6 +159,10 @@ export function installFakeGh(
       ? [
           `if [ "$1" = "pr" ] && [ "$2" = "comment" ]; then`,
           `  echo "$3#issuecomment-$n"`,
+          `  exit 0`,
+          `fi`,
+          `if [ "$1" = "pr" ] && [ "$2" = "view" ]; then`,
+          `  echo '{"state":"${prState}"}'`,
           `  exit 0`,
           `fi`,
           `exit 1`,
