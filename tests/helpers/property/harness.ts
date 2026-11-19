@@ -45,8 +45,19 @@ const randomInt32 = (): number => Math.floor(Math.random() * 2 ** 32) + INT32_MI
 let randomSeed: number | undefined;
 const processRandomSeed = (): number => (randomSeed ??= randomInt32());
 
+export interface PropertyOptions {
+  /**
+   * The inputs this property checks while PHAX_PROPERTY_RUNS is unset, in place of
+   * DEFAULT_PROPERTY_RUNS. A set PHAX_PROPERTY_RUNS (the deep pass) still wins.
+   */
+  readonly defaultRuns?: number;
+}
+
 /** Reads PHAX_PROPERTY_SEED, PHAX_PROPERTY_PATH and PHAX_PROPERTY_RUNS from `env`. */
-export const readPropertyParameters = (env: PropertyEnv): PropertyParameters => {
+export const readPropertyParameters = (
+  env: PropertyEnv,
+  options: PropertyOptions = {},
+): PropertyParameters => {
   const rawSeed = env["PHAX_PROPERTY_SEED"];
   let seed = DEFAULT_PROPERTY_SEED;
   let seedSource: PropertyParameters["seedSource"] = "default";
@@ -81,7 +92,7 @@ export const readPropertyParameters = (env: PropertyEnv): PropertyParameters => 
   }
 
   const rawRuns = env["PHAX_PROPERTY_RUNS"];
-  let runs = DEFAULT_PROPERTY_RUNS;
+  let runs = options.defaultRuns ?? DEFAULT_PROPERTY_RUNS;
   if (rawRuns !== undefined) {
     const parsed = /^\d+$/.test(rawRuns) ? Number(rawRuns) : Number.NaN;
     if (!Number.isSafeInteger(parsed) || parsed < 1) {
@@ -183,9 +194,9 @@ const runWith = <T>(
 export const runProperty = <T>(
   arbitrary: fc.Arbitrary<T>,
   predicate: (value: T) => boolean,
-  options: { readonly env: PropertyEnv; readonly location: PropertyLocation },
+  options: PropertyOptions & { readonly env: PropertyEnv; readonly location: PropertyLocation },
 ): PropertyOutcome<T> =>
-  runWith(readPropertyParameters(options.env), arbitrary, predicate, options.location);
+  runWith(readPropertyParameters(options.env, options), arbitrary, predicate, options.location);
 
 let noticePrinted = false;
 
@@ -206,8 +217,9 @@ export const checkProperty = <T>(
   arbitrary: fc.Arbitrary<T>,
   predicate: (value: T) => boolean,
   env: PropertyEnv = process.env,
+  options: PropertyOptions = {},
 ): void => {
-  const parameters = readPropertyParameters(env);
+  const parameters = readPropertyParameters(env, options);
   const notice = seedNotice(parameters);
   if (notice !== undefined && !noticePrinted) {
     noticePrinted = true;

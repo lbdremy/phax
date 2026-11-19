@@ -240,6 +240,15 @@ const timeOnce = (call: () => unknown): number => {
   return (used.user + used.system) / 1000;
 };
 
+// The inputs the bounded-time property checks while PHAX_PROPERTY_RUNS is unset, in place of the
+// harness's 100; the deep pass still checks 2,000. Its work grows with the large inputs it draws,
+// each parsed four times, so it is the one property whose time is set by its run count: at 100 runs
+// it took 10 to 32 s on CI against its 30-second timeout. Two inputs of over 60 KiB of nested lists
+// and quotes (paths 85 and 88 of the default seed) made half its work; on a slow runner path 85
+// took 2,060 ms of CPU per call, where the retries below triple a call's time. 40 runs still draw
+// 16 large inputs, three of them over 60 KiB.
+const BOUNDED_TIME_RUNS = 40;
+
 // The timings of `call`: one, or three when the first is over the bound (the property judges the
 // fastest). A throw comes back as its description.
 function fastestOfThree(call: () => unknown): readonly number[] | string {
@@ -312,6 +321,8 @@ describe("plan parser", () => {
           }
           return true;
         },
+        process.env,
+        { defaultRuns: BOUNDED_TIME_RUNS },
       );
     },
     propertyTimeout(),
