@@ -334,7 +334,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-build-scope",
       "question": "Where is a world built once: once per run, once per test file, or once per run on first request?",
@@ -356,7 +357,29 @@
         }
       ],
       "recommendation": "per-file",
-      "rationale": "The measured cost is a rebuild per test, and per-file removes it; once records are written in one process a build is a fixed handful of git processes, so repeating it once per file costs seconds, not minutes. It also keeps the builder in the test's own process, with its environment and git isolation as today. Revisit per-run only if the after measures show builds still dominant."
+      "rationale": "The measured cost is a rebuild per test, and per-file removes it; once records are written in one process a build is a fixed handful of git processes, so repeating it once per file costs seconds, not minutes. It also keeps the builder in the test's own process, with its environment and git isolation as today. Revisit per-run only if the after measures show builds still dominant.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "per-file",
+        "abandoned": [
+          "per-run",
+          "per-run-lazy"
+        ],
+        "why": "Operator agrees with the recommendation.",
+        "advocate": "Per-run builds each world once for the whole suite, so a world shared by many files is not rebuilt in each of them; the loss of per-file is that repeated builds.",
+        "principles": [
+          "S1",
+          "C1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-19T11:49:50.473Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-copy",
@@ -379,7 +402,29 @@
         }
       ],
       "recommendation": "dir-copy",
-      "rationale": "It is the only option that keeps a copy byte-identical on every platform; the copy-on-write fast path gives macOS what `cp -c` would, and a world of a few hundred small objects copies in milliseconds anyway."
+      "rationale": "It is the only option that keeps a copy byte-identical on every platform; the copy-on-write fast path gives macOS what `cp -c` would, and a world of a few hundred small objects copies in milliseconds anyway.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "dir-copy",
+        "abandoned": [
+          "clone-local",
+          "apfs-clone"
+        ],
+        "why": "Operator agrees with the recommendation.",
+        "advocate": "`cp -c` gives an instant copy-on-write clone on APFS; the loss of dir-copy is paying for every byte on filesystems without copy-on-write.",
+        "principles": [
+          "S1",
+          "C3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-19T11:49:50.473Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-paths",
@@ -397,7 +442,28 @@
         }
       ],
       "recommendation": "split",
-      "rationale": "The expensive part of a world, the records, holds no path; the path-bound part is cheap to build and built exactly as today, so it needs no rewrite to get right. The copy guard catches a path either way."
+      "rationale": "The expensive part of a world, the records, holds no path; the path-bound part is cheap to build and built exactly as today, so it needs no rewrite to get right. The copy guard catches a path either way.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "split",
+        "abandoned": [
+          "rewrite"
+        ],
+        "why": "Operator agrees with the recommendation.",
+        "advocate": "Rewrite copies the whole world and avoids the few per-test git processes the split keeps; the loss of split is those processes.",
+        "principles": [
+          "S1",
+          "C2"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-19T11:49:50.473Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-gate-tiers",
@@ -415,7 +481,28 @@
         }
       ],
       "recommendation": "keep",
-      "rationale": "This spec makes the integration tier cheap first; whether it then leaves the every-phase gate is the operator's call on the after measures, and keeping it out of this change keeps the change to fixtures only."
+      "rationale": "This spec makes the integration tier cheap first; whether it then leaves the every-phase gate is the operator's call on the after measures, and keeping it out of this change keeps the change to fixtures only.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "keep",
+        "abandoned": [
+          "integration-terminal"
+        ],
+        "why": "Operator agrees with the recommendation.",
+        "advocate": "Splitting the step cuts what each phase waits for at once; the loss of keep is the integration tier's time paid at every phase.",
+        "principles": [
+          "S1",
+          "S9"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-19T11:49:50.473Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-143",
@@ -433,10 +520,30 @@
         }
       ],
       "recommendation": "observe",
-      "rationale": "The kill matches the load failures that raised the timeouts before; the lighter suite is the cheapest test of that cause, and a kill that survives it has earned a brief of its own."
+      "rationale": "The kill matches the load failures that raised the timeouts before; the lighter suite is the cheapest test of that cause, and a kill that survives it has earned a brief of its own.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "observe",
+        "abandoned": [
+          "fix-here"
+        ],
+        "why": "Operator agrees with the recommendation.",
+        "advocate": "Fixing the kill here would resolve a known failure at once if it does not come from load; the loss of observe is deferring that fix.",
+        "principles": [
+          "S1",
+          "S8"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-19T11:49:50.473Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The tests check what they check today: no assertion removed, no test skipped or moved out of the gate; only how their repositories come to exist changes.",

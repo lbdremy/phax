@@ -218,6 +218,10 @@ Given the change, on the machine of the measures, when the full `pnpm test` runs
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-build-scope — Where is a world built once: once per run, once per test file, or once per run on first request?
 
 - per-run — Once per run, in vitest's globalSetup, handed to the tests by path — abandons: Running one test file stays cheap: globalSetup builds every cached world the suite uses, and it runs in another process than the tests, outside their setup files and their environment.
@@ -225,6 +229,9 @@ Given the change, on the machine of the measures, when the full `pnpm test` runs
 - per-run-lazy — Once per run, built by the first worker that asks and shared by the others — abandons: Simplicity: a cross-process build lock every worker waits on, and a failure in one worker's build reaching the others.
 
 Recommendation: per-file — The measured cost is a rebuild per test, and per-file removes it; once records are written in one process a build is a fixed handful of git processes, so repeating it once per file costs seconds, not minutes. It also keeps the builder in the test's own process, with its environment and git isolation as today. Revisit per-run only if the after measures show builds still dominant.
+
+Decision: per-file — by operator (Rémy Loubradou), 2026-11-19
+Why: Operator agrees with the recommendation. Advocate: Per-run builds each world once for the whole suite, so a world shared by many files is not rebuilt in each of them; the loss of per-file is that repeated builds. Principles: S1, C1. Reversibility: cheap. Revised: none.
 
 ### q-copy — How does a test get its copy?
 
@@ -234,12 +241,18 @@ Recommendation: per-file — The measured cost is a rebuild per test, and per-fi
 
 Recommendation: dir-copy — It is the only option that keeps a copy byte-identical on every platform; the copy-on-write fast path gives macOS what `cp -c` would, and a world of a few hundred small objects copies in milliseconds anyway.
 
+Decision: dir-copy — by operator (Rémy Loubradou), 2026-11-19
+Why: Operator agrees with the recommendation. Advocate: `cp -c` gives an instant copy-on-write clone on APFS; the loss of dir-copy is paying for every byte on filesystems without copy-on-write. Principles: S1, C3. Reversibility: cheap. Revised: none.
+
 ### q-paths — How does a copy at another path stay correct, given the absolute paths a world holds (remote URLs in `.git/config`, `state.root` in the committed `phax.json`)?
 
 - split — Cache only the path-free part (the remote's objects and refs, the record commits) and build the path-bound part per test (remote URLs, `phax.json` and its commit) — abandons: A few git processes per test remain: the source repository's init, its remotes and its one commit.
 - rewrite — Copy everything, then rewrite every occurrence of the build path and recommit the committed files that hold it — abandons: Certainty: the rewrite must know every place a path hides (configuration, committed files, worktree links), and one it misses silently points the copy at the cached world.
 
 Recommendation: split — The expensive part of a world, the records, holds no path; the path-bound part is cheap to build and built exactly as today, so it needs no rewrite to get right. The copy guard catches a path either way.
+
+Decision: split — by operator (Rémy Loubradou), 2026-11-19
+Why: Operator agrees with the recommendation. Advocate: Rewrite copies the whole world and avoids the few per-test git processes the split keeps; the loss of split is those processes. Principles: S1, C2. Reversibility: cheap. Revised: none.
 
 ### q-gate-tiers — Once the integration tier is cheap, does `pnpm test` stay one every-phase gate step, or split into `pnpm test:unit` at every phase and `pnpm test:integration` at the terminal phase?
 
@@ -248,6 +261,9 @@ Recommendation: split — The expensive part of a world, the records, holds no p
 
 Recommendation: keep — This spec makes the integration tier cheap first; whether it then leaves the every-phase gate is the operator's call on the after measures, and keeping it out of this change keeps the change to fixtures only.
 
+Decision: keep — by operator (Rémy Loubradou), 2026-11-19
+Why: Operator agrees with the recommendation. Advocate: Splitting the step cuts what each phase waits for at once; the loss of keep is the integration tier's time paid at every phase. Principles: S1, S9. Reversibility: cheap. Revised: none.
+
 ### q-143 — What does this change do about `phaseGuard`'s exit 143 under the full suite?
 
 - observe — Observe: report in the last phase whether the test is still killed over three full runs after the change, and open a brief of its own if it is — abandons: A fix in this change if the kill does not come from load.
@@ -255,9 +271,8 @@ Recommendation: keep — This spec makes the integration tier cheap first; wheth
 
 Recommendation: observe — The kill matches the load failures that raised the timeouts before; the lighter suite is the cheapest test of that cause, and a kill that survives it has earned a brief of its own.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: observe — by operator (Rémy Loubradou), 2026-11-19
+Why: Operator agrees with the recommendation. Advocate: Fixing the kill here would resolve a known failure at once if it does not come from load; the loss of observe is deferring that fix. Principles: S1, S8. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -291,3 +306,11 @@ Constraints:
 ## 11. Docs page
 
 None — The change is to phax's own test fixtures; no operator or user of phax sees it, so no docs page changes.
+
+## 12. Decision log
+
+- 2026-11-19 q-build-scope decided per-file — operator (Rémy Loubradou)
+- 2026-11-19 q-copy decided dir-copy — operator (Rémy Loubradou)
+- 2026-11-19 q-paths decided split — operator (Rémy Loubradou)
+- 2026-11-19 q-gate-tiers decided keep — operator (Rémy Loubradou)
+- 2026-11-19 q-143 decided observe — operator (Rémy Loubradou)
