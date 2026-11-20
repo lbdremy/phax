@@ -123,10 +123,14 @@ briefs of live or unspecced work.
 
 ### 6. What costs time on every run
 
-- [ ] **`test-worlds-built-once`** — `docs/briefs/test-worlds-built-once.md`, spec Approved 2026-11-19 (five verdicts, all the recommendations); plan to
-      author.
-      The integration tests' git repositories built once and copied, and a test's many commits
-      written in one git process: the suite's time is what turns gates and CI red "under load".
+- [x] **`test-worlds-built-once`** — shipped 2026-11-20 (#253). `buildBranchTipWorld`'s worlds
+      built once per file and copied, seed records in one `git fast-import`: `recordsStatusBranch`
+      64 s → 33 s, its 300-record test 37 s → 4 s. The suite did not move (210 s → 210 s): its
+      other slow files spend their time in the run each test drives (`spikes/test-worlds/measures.md`).
+- [ ] **`tests-that-drive-a-run`** — `docs/briefs/tests-that-drive-a-run.md` (2026-11-20), spec to
+      author. The integration files that start, stop, close and resume a whole run (`heldStopRun`,
+      `stopRecords`, `heldStopClose`, `acceptancePairReview`, …) take a fraction of their time:
+      what `test-worlds-built-once` showed is where the suite's time actually goes. Measure first.
 - [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
@@ -150,6 +154,10 @@ A batch from *Small follow-ups*, first the two hangs: give every `spawnSync` and
 tests a timeout through one shared helper (the 13 h gate on `records-branch-tip`, the 3 h hang on
 #241's review fixes), then the other test-reliability items the batch turns up.
 
+- [ ] **`json-schema-kill`** — `docs/briefs/json-schema-kill.md` (2026-11-20). A test spawning
+      `phax --json-schema` under the full suite sometimes sees exit 143 (SIGTERM), empty stderr:
+      `phaseGuard`, `recordsJsonContracts` (0.41.0's release gate), `plansAnswersJson` (#253's
+      gate, #255's CI), three times on 2026-11-20. Find who sends the signal; fix it where it is.
 - [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. The real
       e2e reads the operator's own `~/.phax/providers.json` (the Vibe suite skips without
       `mistral-vibe` enabled there), so checking a branch that changes that file's shape means
@@ -192,10 +200,20 @@ A batch from *Small follow-ups*, the security items that sleep there:
       phax's own lint suppressions each name their rule and say why, the 26 type-aware rules run,
       and each suppression kept is listed with its reason in a protected baseline that only
       shrinks; a directive outside it fails the gate.
+      Baseline shipped 2026-11-20. Clean-up, first part (#255): the 83 `src/` files with no knip
+      entry, 217 of their 293 occurrences fixed (baseline 978 → 895 entries). Left: their 76
+      (41 brand conversions such as `as RunId`, which need a non-validating constructor or a
+      decode: a design decision; the command library's erased types; clack's typing), then the
+      68 `src/` files shared with knip's baseline, then the tests.
 - [ ] **`knip-production`** — `docs/briefs/knip-production.md` (2026-11-20). No spec: two PRs, the
-      baseline (in progress) then the clean-up. knip starts from what phax runs and also runs
+      baseline then the clean-up. knip starts from what phax runs and also runs
       `--production --strict`: about 460 exports and types that nothing, or only tests, use; the
       accepted ones in a protected baseline that only shrinks.
+      Baseline shipped 2026-11-20. Clean-up of what nothing uses (#254): 233 exports and types
+      removed or un-exported, `mdast-util-to-string` moved to devDependencies (baseline 573 → 339).
+      Left: the 339 used only by tests, scripts or the site, for the operator to decide folder by
+      folder (remove with their tests, or keep with a reason): `src/domain` 125, `src/cli` 71,
+      `src/app` 62, `src/schemas` 52, `src/infra` 19, `packages/schemas` 7, `src/ports` 3.
 - [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
       that tightens the protected tolerance files inside a run, and loosens them only by what the
       approved plan declared.
