@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611191142-test-worlds-built-once.md
 completes-spec: true
 approved:
