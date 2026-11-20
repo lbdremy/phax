@@ -105,6 +105,44 @@ export function renderBaseline(baseline: Baseline): string {
   return `${JSON.stringify({ $comment: BASELINE_COMMENT, entries }, null, 2)}\n`;
 }
 
+const stringsOf = (
+  value: unknown,
+  names: readonly string[],
+): Record<string, string> | undefined => {
+  if (typeof value !== "object" || value === null) return undefined;
+  const out: Record<string, string> = {};
+  for (const name of names) {
+    const field: unknown = Object.getOwnPropertyDescriptor(value, name)?.value;
+    if (typeof field !== "string") return undefined;
+    out[name] = field;
+  }
+  return out;
+};
+
+/** Reads the line scripts/knip-reporter.ts prints; throws when it is not a report. */
+export function parseReport(text: string): KnipReport {
+  const document: unknown = JSON.parse(text);
+  const list = (name: string): unknown[] => {
+    const value: unknown =
+      typeof document === "object" && document !== null
+        ? Object.getOwnPropertyDescriptor(document, name)?.value
+        : undefined;
+    if (!Array.isArray(value)) throw new Error(`knip report: \`${name}\` must be an array`);
+    return value;
+  };
+  const findings = list("findings").map((item, index): KnipFinding => {
+    const fields = stringsOf(item, ["type", "file", "name"]);
+    if (fields === undefined) throw new Error(`knip report: finding ${index} is malformed`);
+    return { type: fields["type"] ?? "", file: fields["file"] ?? "", name: fields["name"] ?? "" };
+  });
+  const hints = list("hints").map((item, index) => {
+    const fields = stringsOf(item, ["type", "identifier"]);
+    if (fields === undefined) throw new Error(`knip report: hint ${index} is malformed`);
+    return { type: fields["type"] ?? "", identifier: fields["identifier"] ?? "" };
+  });
+  return { findings, hints };
+}
+
 /** Reads the file's text; throws with what is wrong (an entry missing a field, an entry written twice). */
 export function parseBaseline(text: string): Baseline {
   const document: unknown = JSON.parse(text);
@@ -117,9 +155,9 @@ export function parseBaseline(text: string): Baseline {
   return {
     entries: entries.map((entry: unknown, index): BaselineEntry => {
       const field = (name: string): string => {
-        const value =
+        const value: unknown =
           typeof entry === "object" && entry !== null
-            ? (entry as Record<string, unknown>)[name]
+            ? Object.getOwnPropertyDescriptor(entry, name)?.value
             : undefined;
         if (typeof value !== "string") {
           throw new Error(`knip-baseline.json: entry ${index} has no string \`${name}\``);

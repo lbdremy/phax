@@ -8,6 +8,7 @@ import {
   initialBaseline,
   mergeReports,
   parseBaseline,
+  parseReport,
   passes,
   prune,
   renderBaseline,
@@ -152,5 +153,25 @@ describe("the baseline file", () => {
     ).toThrow("no string `reason`");
     const entry = { ...unusedExport, reason: DEBT };
     expect(() => parseBaseline(JSON.stringify({ entries: [entry, entry] }))).toThrow("repeats");
+  });
+});
+
+describe("the reporter's line", () => {
+  it("is read as a report when its findings and hints are well formed", () => {
+    const line = JSON.stringify({
+      findings: [{ type: "exports", file: "src/a.ts", name: "a" }],
+      hints: [{ type: "ignoreDependencies", identifier: "esbuild" }],
+    });
+    expect(parseReport(line)).toEqual({
+      findings: [{ type: "exports", file: "src/a.ts", name: "a" }],
+      hints: [{ type: "ignoreDependencies", identifier: "esbuild" }],
+    });
+  });
+
+  it("is refused when a finding lacks a field or the lists are missing", () => {
+    expect(() =>
+      parseReport(JSON.stringify({ findings: [{ type: "exports", file: "src/a.ts" }], hints: [] })),
+    ).toThrow(/finding 0/);
+    expect(() => parseReport(JSON.stringify({ findings: [] }))).toThrow(/hints/);
   });
 });
