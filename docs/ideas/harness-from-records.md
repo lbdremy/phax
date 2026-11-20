@@ -114,7 +114,7 @@ every gate command ("Run the gate commands again after your changes…"), termin
 included — spec `2611041203-phase-prompt-names-the-gate` replaces it with a gate section
 and its contract. Partial commands related to a gate step (`partial.files`,
 `partial.diff`, shown and allowed, never run by phax) are a brief,
-`docs/briefs/gate-step-scoped-checks.md`. Independently, splitting a whole gate step into
+`docs/briefs/archive/gate-step-scoped-checks.md`. Independently, splitting a whole gate step into
 tiers (`pnpm test` → `test:unit` + `test:integration`) would show the agent which tiers
 exist, once the gate section lists them.
 

@@ -7,7 +7,7 @@ and checks the same things. A change to the tests' fixtures only; phax gains no 
 `pnpm test` is a gate step that fires at every phase (`phax.json`, profile `standard`). The whole suite takes about
 4 minutes on a 14-core machine, so a plan of six phases waits about 24 minutes on it, before any retry. A phase that
 runs the suite itself pays it again: phases spend 27% of their wall time waiting on feedback commands they run
-themselves, whole-suite test runs the largest share (`docs/briefs/gate-step-scoped-checks.md`, measured 2026-11-04).
+themselves, whole-suite test runs the largest share (`docs/briefs/archive/gate-step-scoped-checks.md`, measured 2026-11-04).
 
 The time is not JavaScript's. It is git's, in the repositories the integration tests build before they check
 anything. A faster runtime would not change it: running the CLI under Bun instead of `tsx` cut one launch from about

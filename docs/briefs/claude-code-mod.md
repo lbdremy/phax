@@ -21,7 +21,7 @@ Write the phax spec "Claude Code mod", its first milestone: reading. A Claude Co
 1. **A pure reader.** phax is the only source of truth. The mod stores nothing and keeps no database: every view is derived from what phax prints, read again on each refresh.
 2. **It never writes.** Any action goes through phax's commands, which keep their checks. In this milestone the mod takes no action at all.
 3. **The current repository.** The mod reads the `phax.json` of the session's working directory and shows that project only.
-4. **phax's JSON only, against its published schemas.** The mod reads what phax prints with `--json` and the sidecars, validated against the versioned schemas of `@lbdremy/phax-schemas`. It parses no Markdown and no human text. Whatever the mod needs that phax prints only as text, or prints unversioned, phax adds first: the spec "Command contracts" (brief `docs/briefs/command-contracts.md`) does, and this spec names it as its prerequisite.
+4. **phax's JSON only, against its published schemas.** The mod reads what phax prints with `--json` and the sidecars, validated against the versioned schemas of `@lbdremy/phax-schemas`. It parses no Markdown and no human text. Whatever the mod needs that phax prints only as text, or prints unversioned, phax adds first: the spec "Command contracts" (brief `docs/briefs/archive/command-contracts.md`) does, and this spec names it as its prerequisite.
 5. **A plan and its runs are one view.** A run is the execution of a plan; it has no view of its own.
 6. **Layout.**
    - **A band above the prompt**, always one line: the runs in progress (an indicator, never an action) and the number of items in the inbox.
