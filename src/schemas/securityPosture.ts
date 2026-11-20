@@ -45,7 +45,7 @@ const ProviderSkippedForSecurityField = {
 };
 
 /** What a closed stop adds: the person's work ran outside enforcement, and each turn phax ran. */
-export const StopPostureSchema = Schema.Struct({
+const StopPostureSchema = Schema.Struct({
   cause: Schema.Literals(["declared", "held"]),
   personWork: Schema.Literal("outside-phax-enforcement"),
   turns: Schema.Array(
@@ -59,7 +59,7 @@ export const StopPostureSchema = Schema.Struct({
   ),
 });
 
-export const SecurityPostureSchema = Schema.Struct({
+const SecurityPostureSchema = Schema.Struct({
   version: Schema.Literal(3),
   ...PostureBaseFields,
   // Null when phax.json declares no protectedPaths; else the globs (the loaded
@@ -78,14 +78,14 @@ export const SecurityPostureSchema = Schema.Struct({
 export type SecurityPosture = Schema.Schema.Type<typeof SecurityPostureSchema>;
 
 /** The file as 0.25.0 wrote it, before a stop could add to it. */
-export const SecurityPostureV1Schema = Schema.Struct({
+const SecurityPostureV1Schema = Schema.Struct({
   version: Schema.Literal(1),
   ...PostureBaseFields,
   ...ProviderSkippedForSecurityField,
 });
 
 /** The file as 0.26.0 through 0.30.x wrote it, before protected paths. */
-export const SecurityPostureV2Schema = Schema.Struct({
+const SecurityPostureV2Schema = Schema.Struct({
   version: Schema.Literal(2),
   ...PostureBaseFields,
   ...ProviderSkippedForSecurityField,

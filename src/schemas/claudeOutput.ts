@@ -69,14 +69,13 @@ const ClaudeRateLimitEventSchema = Schema.Struct({
 export type ClaudeResultOutcomeEvent = Schema.Schema.Type<typeof ClaudeResultOutcomeEventSchema>;
 export type ClaudeApiRetryEvent = Schema.Schema.Type<typeof ClaudeApiRetryEventSchema>;
 
-export const decodeClaudeResultOutcomeEvent = Schema.decodeUnknownResult(
-  ClaudeResultOutcomeEventSchema,
-  { reportInput: true },
-);
-export const decodeClaudeInitEvent = Schema.decodeUnknownResult(ClaudeInitEventSchema, {
+const decodeClaudeResultOutcomeEvent = Schema.decodeUnknownResult(ClaudeResultOutcomeEventSchema, {
   reportInput: true,
 });
-export const decodeClaudeApiRetryEvent = Schema.decodeUnknownResult(ClaudeApiRetryEventSchema, {
+const decodeClaudeInitEvent = Schema.decodeUnknownResult(ClaudeInitEventSchema, {
+  reportInput: true,
+});
+const decodeClaudeApiRetryEvent = Schema.decodeUnknownResult(ClaudeApiRetryEventSchema, {
   reportInput: true,
 });
 const decodeClaudeApiErrorMessage = Schema.decodeUnknownResult(ClaudeApiErrorMessageSchema, {

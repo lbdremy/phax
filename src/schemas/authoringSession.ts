@@ -7,7 +7,7 @@ import { ProviderIdSchema } from "./providerId.js";
  * Local state only — it never reaches the records branch. `retrySessionId` is
  * the corrective resume's session id, or null when the first answer landed.
  */
-export const AuthoringSessionSchema = Schema.Struct({
+const AuthoringSessionSchema = Schema.Struct({
   version: Schema.Literal(1),
   provider: ProviderIdSchema,
   sessionId: Schema.NonEmptyString,

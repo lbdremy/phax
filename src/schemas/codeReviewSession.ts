@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 
-export const CodeReviewSessionSchema = Schema.Struct({
+const CodeReviewSessionSchema = Schema.Struct({
   version: Schema.Literal(1),
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,

@@ -23,7 +23,7 @@ const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 export const FINDING_FATES = ["open", "fixed", "dismissed", "deferred", "unrecorded"] as const;
 
 /** What became of a finding. `unrecorded`: a review persisted before ids existed. */
-export const FindingFateSchema = Schema.Literals(FINDING_FATES).annotate({
+const FindingFateSchema = Schema.Literals(FINDING_FATES).annotate({
   description:
     "What became of the finding: open (no fate record), fixed, dismissed, deferred, or unrecorded (a review persisted before ids existed).",
   ...refusalOverride(
@@ -34,7 +34,7 @@ export const FindingFateSchema = Schema.Literals(FINDING_FATES).annotate({
 export type FindingFate = Schema.Schema.Type<typeof FindingFateSchema>;
 
 /** Whether the run's earlier reviews could be read from the records branch. */
-export const FindingListRecordsSchema = Schema.Literals(["read", "off", "unavailable"]).annotate({
+const FindingListRecordsSchema = Schema.Literals(["read", "off", "unavailable"]).annotate({
   description:
     "read: the records branch was read; off: records are off, the run folder alone was read; unavailable: the records could not be read, the run folder alone was read.",
 });

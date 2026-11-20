@@ -24,14 +24,14 @@ const outsideFiles = BriefPathsSchema.annotate({
  * A brief request inside a phase: `$schema`, the phase facts of the phase's
  * gate request, then `files`.
  */
-export const PhaseBriefRequestFileSchema = Schema.Struct({
+const PhaseBriefRequestFileSchema = Schema.Struct({
   $schema: schemaUrlField("brief-request"),
   ...gateRequestFields,
   files: phaseFiles,
 });
 
 /** A brief request outside a phase: `$schema` and `files` only. */
-export const OutsideBriefRequestFileSchema = Schema.Struct({
+const OutsideBriefRequestFileSchema = Schema.Struct({
   $schema: schemaUrlField("brief-request"),
   files: outsideFiles,
 });
@@ -47,8 +47,8 @@ export const BriefRequestFileSchema = Schema.Union([
   OutsideBriefRequestFileSchema,
 ]);
 
-export type PhaseBriefRequestFile = Schema.Schema.Type<typeof PhaseBriefRequestFileSchema>;
-export type OutsideBriefRequestFile = Schema.Schema.Type<typeof OutsideBriefRequestFileSchema>;
+type PhaseBriefRequestFile = Schema.Schema.Type<typeof PhaseBriefRequestFileSchema>;
+type OutsideBriefRequestFile = Schema.Schema.Type<typeof OutsideBriefRequestFileSchema>;
 export type BriefRequestFile = Schema.Schema.Type<typeof BriefRequestFileSchema>;
 
 /** A brief request inside a phase, without `$schema`. */

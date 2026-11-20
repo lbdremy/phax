@@ -52,7 +52,7 @@ const GlobalFileEntrySchema = Schema.Struct({
   status: GlobalFileStatusSchema,
 });
 
-export const GlobalFileReconciliationSchema = Schema.Struct({
+const GlobalFileReconciliationSchema = Schema.Struct({
   files: Schema.Array(GlobalFileEntrySchema),
   unplanned: Schema.Array(GlobalFileEntrySchema),
   missing: Schema.Array(GlobalFileEntrySchema),

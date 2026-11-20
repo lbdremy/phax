@@ -13,7 +13,7 @@ export const RecordsRemoteSchema = Schema.NonEmptyString.check(
   }),
 );
 
-export const InRepoRecordsDestinationSchema = Schema.Struct({
+const InRepoRecordsDestinationSchema = Schema.Struct({
   kind: Schema.Literal("in-repo"),
   // Required only when the source repo's visibility cannot be detected and
   // transcripts are enabled (spec §5.4) — an explicit statement that the
@@ -21,7 +21,7 @@ export const InRepoRecordsDestinationSchema = Schema.Struct({
   acknowledgedUnknownVisibility: Schema.optional(Schema.Boolean),
 });
 
-export const RepoRecordsDestinationSchema = Schema.Struct({
+const RepoRecordsDestinationSchema = Schema.Struct({
   kind: Schema.Literal("repo"),
   remote: RecordsRemoteSchema,
 });

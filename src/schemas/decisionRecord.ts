@@ -40,7 +40,7 @@ export const VerdictsDecisionOutcomeSchema = Schema.Literals(["committed", "fail
  * domain module; a type test keeps it equal to the reader's kinds plus the
  * three.
  */
-export const DecisionFailureSchema = Schema.Literals([
+const DecisionFailureSchema = Schema.Literals([
   "network",
   "rate-limit",
   "usage-limit",
@@ -72,10 +72,8 @@ export type DecisionRecordOutcome = Schema.Schema.Type<typeof DecisionRecordOutc
  */
 export const DecisionRecordModeSchema = Schema.Literals(["interactive", "verdicts"]);
 
-export type DecisionRecordMode = Schema.Schema.Type<typeof DecisionRecordModeSchema>;
-
 /** Whether the session resumed the artifact's kept authoring session or started a new one. */
-export const DecisionRecordSessionSchema = Schema.Literals(["new", "resumed-authoring"]);
+const DecisionRecordSessionSchema = Schema.Literals(["new", "resumed-authoring"]);
 
 const FingerprintSchema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
   Schema.annotate({ description: "The sha256 hex of the source's text." }),

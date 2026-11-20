@@ -28,7 +28,7 @@ export const RecordPhaseOutcomeSchema = Schema.Union([
 
 export type RecordPhaseOutcome = Schema.Schema.Type<typeof RecordPhaseOutcomeSchema>;
 
-export const ClaudeTokenUsageSchema = Schema.Struct({
+const ClaudeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("claude-code"),
   inputTokens: Schema.Number,
   cacheCreationInputTokens: Schema.Number,
@@ -39,7 +39,7 @@ export const ClaudeTokenUsageSchema = Schema.Struct({
 
 export type ClaudeTokenUsage = Schema.Schema.Type<typeof ClaudeTokenUsageSchema>;
 
-export const CodexTokenUsageSchema = Schema.Struct({
+const CodexTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("codex-cli"),
   inputTokens: Schema.Number,
   cachedInputTokens: Schema.Number,
@@ -54,7 +54,7 @@ export type CodexTokenUsage = Schema.Schema.Type<typeof CodexTokenUsageSchema>;
  * `export.json` each headless turn writes into its `--output-dir` (see
  * `vibeExportFileOf` in `src/domain/records/usage.ts`).
  */
-export const VibeTokenUsageSchema = Schema.Struct({
+const VibeTokenUsageSchema = Schema.Struct({
   provider: Schema.Literal("mistral-vibe"),
   inputTokens: Schema.Number,
   cachedInputTokens: Schema.Number,
@@ -64,7 +64,7 @@ export const VibeTokenUsageSchema = Schema.Struct({
 
 export type VibeTokenUsage = Schema.Schema.Type<typeof VibeTokenUsageSchema>;
 
-export const ProviderTokenUsageSchema = Schema.Union([
+const ProviderTokenUsageSchema = Schema.Union([
   ClaudeTokenUsageSchema,
   CodexTokenUsageSchema,
   VibeTokenUsageSchema,
@@ -209,7 +209,7 @@ export type RecordStop = Schema.Schema.Type<typeof RecordStopSchema>;
  * skills, plugins, memory) was loaded for the phase's headless sessions:
  * `excluded` when they ran project-only, `loaded` otherwise.
  */
-export const UserConfigSchema = Schema.Literals(["excluded", "loaded"]).annotate({
+const UserConfigSchema = Schema.Literals(["excluded", "loaded"]).annotate({
   description:
     "Whether the operator's user-level provider configuration was loaded for the phase's headless sessions.",
 });

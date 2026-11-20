@@ -57,7 +57,7 @@ const HoldPhasesSchema = Schema.NonEmptyArray(
  * The hold resolved when the run was named, one struct per selection: `none`
  * holds nothing; the others list the held phases in plan order.
  */
-export const RunHoldSchema = Schema.Union([
+const RunHoldSchema = Schema.Union([
   Schema.Struct({ selection: Schema.Literal("none") }),
   Schema.Struct({ selection: Schema.Literal("all"), phases: HoldPhasesSchema }),
   Schema.Struct({ selection: Schema.Literal("listed"), phases: HoldPhasesSchema }),
@@ -173,7 +173,7 @@ const AcceptanceStepSchema = Schema.Literals(["authored", "none"]).annotate({
  * outcome: a held close that corrected something names its review commit,
  * and a declared one never does.
  */
-export const PhaseStopSchema = Schema.NullOr(
+const PhaseStopSchema = Schema.NullOr(
   Schema.Union([
     closed(
       Schema.Struct({

@@ -163,7 +163,7 @@ export type SchemaBornFormatId = (typeof SCHEMA_BORN_FORMAT_IDS)[number];
 /** The formats phax wrote before it wrote `$schema`: each has a pre-schema shape. */
 export type PreSchemaFormatId = Exclude<FormatId, SchemaBornFormatId>;
 
-export function isSchemaBornFormatId(value: string): value is SchemaBornFormatId {
+function isSchemaBornFormatId(value: string): value is SchemaBornFormatId {
   return (SCHEMA_BORN_FORMAT_IDS as ReadonlyArray<string>).includes(value);
 }
 

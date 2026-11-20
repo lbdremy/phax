@@ -13,14 +13,14 @@ const SourceSpecBindingSchema = Schema.Struct({
  * directory (informational: verdicts use the project's link), `baseline` the
  * code repository's HEAD at approval.
  */
-export const CodeBaselineSchema = Schema.Struct({
+const CodeBaselineSchema = Schema.Struct({
   root: Schema.NonEmptyString,
   baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
 });
 
 export type CodeBaseline = Schema.Schema.Type<typeof CodeBaselineSchema>;
 
-export const ApprovalRecordSchema = Schema.Struct({
+const ApprovalRecordSchema = Schema.Struct({
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
   baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),

@@ -32,7 +32,7 @@ export type GateStepResult = Schema.Schema.Type<typeof GateStepResultSchema>;
  * repository a protected glob could reach below, which the check cannot see
  * through.
  */
-export const ProtectedChangeKindSchema = Schema.Literals([
+const ProtectedChangeKindSchema = Schema.Literals([
   "created",
   "edited",
   "deleted",
@@ -46,8 +46,6 @@ const ProtectedChangeSchema = Schema.Struct({
   kind: ProtectedChangeKindSchema,
   entry: Schema.NonEmptyString,
 });
-
-export type ProtectedChange = Schema.Schema.Type<typeof ProtectedChangeSchema>;
 
 /**
  * The protected-paths check of an attempt: `null` when it was not run (no list
@@ -72,7 +70,7 @@ const gateAttributionFields = {
   protectedPaths: ProtectedPathsResultSchema,
 };
 
-export const GateAttributionSchema = Schema.Struct(gateAttributionFields);
+const GateAttributionSchema = Schema.Struct(gateAttributionFields);
 
 export type GateAttribution = Schema.Schema.Type<typeof GateAttributionSchema>;
 

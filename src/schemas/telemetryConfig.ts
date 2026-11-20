@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export const TelemetryConfigSchema = Schema.Struct({
+const TelemetryConfigSchema = Schema.Struct({
   enabled: Schema.Boolean,
 });
 

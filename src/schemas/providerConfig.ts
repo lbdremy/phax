@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { ThinkingLevelSchema } from "./modelRouting.js";
 
-export const CatalogEntryStatusSchema = Schema.Literals(["active", "deprecated"]);
+const CatalogEntryStatusSchema = Schema.Literals(["active", "deprecated"]);
 
 const CatalogEntrySchema = Schema.Struct({
   id: Schema.NonEmptyString,
@@ -26,13 +26,12 @@ const ProviderEntrySchema = Schema.Struct({
   ),
 });
 
-export const ProviderConfigSchema = Schema.Struct({
+const ProviderConfigSchema = Schema.Struct({
   providers: Schema.Record(Schema.String, ProviderEntrySchema),
 });
 
 export type ProviderConfig = Schema.Schema.Type<typeof ProviderConfigSchema>;
 export type CatalogEntry = Schema.Schema.Type<typeof CatalogEntrySchema>;
-export type ProviderFamilyEntry = Schema.Schema.Type<typeof ProviderFamilyEntrySchema>;
 
 export const decodeProviderConfig = Schema.decodeUnknownResult(ProviderConfigSchema, {
   onExcessProperty: "error",

@@ -26,7 +26,7 @@ export type AuthoringRecordOutcome = Schema.Schema.Type<typeof AuthoringRecordOu
  * its first answer was the only one, `retried` once the resume was attempted
  * (even when the resume itself failed).
  */
-export const AuthoringRecordRetrySchema = Schema.Literals(["none", "retried"]);
+const AuthoringRecordRetrySchema = Schema.Literals(["none", "retried"]);
 
 export type AuthoringRecordRetry = Schema.Schema.Type<typeof AuthoringRecordRetrySchema>;
 

@@ -16,7 +16,7 @@ const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
   Schema.annotate({ description: "An id: a run of characters without whitespace." }),
 );
 
-export const QuestionOptionSchema = Schema.Struct({
+const QuestionOptionSchema = Schema.Struct({
   id: QuestionIdSchema,
   label: NonEmptyString,
   abandons: NonEmptyString,
@@ -45,7 +45,7 @@ export const TimestampSchema = Schema.String.check(
  * question's recommendation as `chosen`, its rationale as `why` and the
  * author's marker date as `at`. It names no arbiter.
  */
-export const LiftedVerdictSchema = Schema.Struct({
+const LiftedVerdictSchema = Schema.Struct({
   kind: Schema.Literal("lifted"),
   chosen: NonEmptyString,
   abandoned: Schema.Array(NonEmptyString),
@@ -78,8 +78,8 @@ export const PlanDecidedVerdictSchema = Schema.Struct({
   phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
 });
 
-export const SpecVerdictSchema = Schema.Union([SpecDecidedVerdictSchema, LiftedVerdictSchema]);
-export const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
+const SpecVerdictSchema = Schema.Union([SpecDecidedVerdictSchema, LiftedVerdictSchema]);
+const PlanVerdictSchema = Schema.Union([PlanDecidedVerdictSchema, LiftedVerdictSchema]);
 
 export type SpecVerdict = Schema.Schema.Type<typeof SpecVerdictSchema>;
 export type PlanVerdict = Schema.Schema.Type<typeof PlanVerdictSchema>;

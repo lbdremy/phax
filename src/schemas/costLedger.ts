@@ -94,12 +94,6 @@ export type CostLedger = Omit<CostLedgerFile, "$schema">;
 /** One invocation's entry. */
 export type CostLedgerEntry = Schema.Schema.Type<typeof CostLedgerEntrySchema>;
 
-/**
- * What the invocation was: a phase turn, a fix attempt, a handoff, an
- * interactive phase's first or closing turn, or the compliance or code review.
- */
-export type CostLedgerRole = CostLedgerEntry["role"];
-
 /** One reading of a subscription window. */
 export type RateLimitSample = Schema.Schema.Type<typeof RateLimitSampleSchema>;
 

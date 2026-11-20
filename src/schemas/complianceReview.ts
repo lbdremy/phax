@@ -16,11 +16,7 @@ import { refusalOverride } from "./refusal/adapter.js";
 import { schemaUrl } from "./schemaUrl.js";
 import { isExportedPattern, NonEmptyString } from "./strictString.js";
 
-export const VerdictSchema = Schema.Literals([
-  "conformant",
-  "conformant-with-deviations",
-  "divergent",
-]);
+const VerdictSchema = Schema.Literals(["conformant", "conformant-with-deviations", "divergent"]);
 export type Verdict = Schema.Schema.Type<typeof VerdictSchema>;
 
 export const SeveritySchema = Schema.Literals(["info", "deviation", "concern"]);
@@ -37,19 +33,19 @@ export const DimensionSchema = Schema.Literals([
 ]);
 export type Dimension = Schema.Schema.Type<typeof DimensionSchema>;
 
-export const FindingSchema = Schema.Struct({
+const FindingSchema = Schema.Struct({
   dimension: DimensionSchema,
   severity: SeveritySchema,
   message: Schema.String,
 });
-export type Finding = Schema.Schema.Type<typeof FindingSchema>;
+type Finding = Schema.Schema.Type<typeof FindingSchema>;
 
-export const PhaseVerdictSchema = Schema.Struct({
+const PhaseVerdictSchema = Schema.Struct({
   phaseId: NonEmptyString,
   verdict: VerdictSchema,
   findings: Schema.Array(FindingSchema),
 });
-export type PhaseVerdict = Schema.Schema.Type<typeof PhaseVerdictSchema>;
+type PhaseVerdict = Schema.Schema.Type<typeof PhaseVerdictSchema>;
 
 /**
  * The id of a finding of a compliance review file: `C` and a number from 1,
@@ -71,26 +67,24 @@ const FileFindingSchema = Schema.Struct({
 });
 
 /** A finding of a persisted compliance review: `id` first, then what it says. */
-export type PersistedFinding = Schema.Schema.Type<typeof FileFindingSchema>;
+type PersistedFinding = Schema.Schema.Type<typeof FileFindingSchema>;
 
 const FilePhaseVerdictSchema = Schema.Struct({
   ...PhaseVerdictSchema.fields,
   findings: Schema.Array(FileFindingSchema),
 });
 
-export const UnplannedChangeSchema = Schema.Struct({
+const UnplannedChangeSchema = Schema.Struct({
   phaseId: NonEmptyString,
   path: NonEmptyString,
   note: NonEmptyString,
 });
-export type UnplannedChange = Schema.Schema.Type<typeof UnplannedChangeSchema>;
 
-export const UnmetPromiseSchema = Schema.Struct({
+const UnmetPromiseSchema = Schema.Struct({
   phaseId: NonEmptyString,
   promise: NonEmptyString,
   note: NonEmptyString,
 });
-export type UnmetPromise = Schema.Schema.Type<typeof UnmetPromiseSchema>;
 
 const complianceReviewFields = {
   verdict: VerdictSchema,

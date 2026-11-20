@@ -14,7 +14,7 @@ const PrStatusSchema = Schema.Union([
   Schema.Literal("failed"),
 ]);
 
-export const PublicationSchema = Schema.Struct({
+const PublicationSchema = Schema.Struct({
   version: Schema.Literal(1),
   enabled: Schema.Boolean,
   provider: Schema.Literal("github"),
