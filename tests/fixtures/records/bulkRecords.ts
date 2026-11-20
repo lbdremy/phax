@@ -101,9 +101,20 @@ function buildStream(input: BulkRecordsInput): Buffer {
 
 function runFastImport(repo: string, marksFile: string, stream: Buffer): Promise<void> {
   return new Promise((resolve, reject) => {
+    // `fastimport.unpackLimit=0` keeps the pack whatever its size: below the default limit (100
+    // objects) fast-import would start `git unpack-objects` to loosen it, so a small world would
+    // cost one more git process than a large one.
     const child = spawn(
       "git",
-      ["fast-import", "--quiet", "--date-format=raw", "--done", `--export-marks=${marksFile}`],
+      [
+        "-c",
+        "fastimport.unpackLimit=0",
+        "fast-import",
+        "--quiet",
+        "--date-format=raw",
+        "--done",
+        `--export-marks=${marksFile}`,
+      ],
       { cwd: repo, env: process.env, stdio: ["pipe", "ignore", "pipe"] },
     );
     const stderr: Buffer[] = [];

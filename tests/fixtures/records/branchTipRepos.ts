@@ -1,5 +1,13 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmdirSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Effect, Layer } from "effect";
@@ -9,12 +17,27 @@ import { NodeFileSystemLayer } from "../../../src/infra/fs.js";
 import { NodeGitLayer } from "../../../src/infra/git.js";
 import { makeFakeGitHub } from "../../../src/infra/fakes/github.js";
 import type { ResolvedRecordsConfig } from "../../../src/schemas/recordsConfig.js";
+import { isolateGit } from "../../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { assertNoBuildPath, cachedWorld, copyWorld } from "../worlds/worldCache.js";
+import {
+  SEED_ARTIFACT_NAME,
+  SEED_ARTIFACT_TEXT,
+  seedRecordManifest,
+  seedRecordMessage,
+  writeRecordsInBulk,
+} from "./bulkRecords.js";
 
 // Real git repositories in every branch state of the records branch, for the acceptance tests of
-// `phax records sync`. The caller isolates git first (tests/helpers/isolateGit.ts): every repository
-// here carries its own identity, and every record is committed at a fixed, increasing date, so each
-// run builds the same trees and messages.
+// `phax records sync`. Every repository here carries its own identity, every commit has a fixed
+// date (records one second apart from 2026-01-01T00:00:01Z), and the build runs under
+// `isolateGit()`, so each run builds the same trees, messages and commits.
+//
+// A world has two parts. The path-free part (the bare remote with its seed records, written by one
+// `git fast-import`, and the plain files) is built once per test file through the world cache
+// (tests/fixtures/worlds/worldCache.ts) and copied for every test. The path-bound part (the fake
+// ssh script, the upstream clone and the source repository, whose configurations name the world's
+// own path) is built at the test's own path, after the copy.
 //
 // The records remote is a bare repository reached through an `ssh://` URL, the only kind a
 // dedicated destination accepts besides https and scp-like ones. `GIT_SSH_COMMAND` points at a
@@ -136,59 +159,96 @@ function initRepo(dir: string, remote: { name: string; url: string } | null): vo
   if (remote !== null) git(["remote", "add", remote.name, remote.url], dir);
 }
 
-/**
- * Builds the world, in a temporary directory: a bare remote holding `remoteRecords` records on
- * `phax/records/v1`, pushed by a clone of its own; a source repository with phax.json committed;
- * and the paths and configurations of a dedicated clone and of an in-repo destination. No clone
- * exists yet and the source repository has fetched nothing: the helpers below put one of them in
- * a branch state.
- */
-export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promise<BranchTipWorld> {
-  const remoteRecords = options.remoteRecords ?? 4;
-  const base = realpathSync(mkdtempSync(join(tmpdir(), "phax-branch-tip-")));
-  const namespace = "branch-tip";
+const NAMESPACE = "branch-tip";
+const SEED_IDENTITY = { name: "Rita Recorder", email: "rita@records.test" } as const;
+/** The origin every seed record names: the other clone that pushed it. */
+const SEED_ORIGIN = "upstream";
+/** The source repository's initial commit date; record i is committed i seconds later. */
+const SOURCE_COMMIT_DATE = "2026-01-01T00:00:00Z";
+/** The variables a world sets in the test's process until its `cleanup()`. */
+const WORLD_VARIABLES = ["GIT_SSH_COMMAND", ...IDENTITY_VARIABLES] as const;
+
+function recordDate(second: number): Date {
+  return new Date(Date.UTC(2026, 0, 1, 0, 0, second));
+}
+
+function seedKeys(count: number): string[] {
+  return Array.from({ length: count }, (_, index) => recordKey("seed", index + 1));
+}
+
+/** The world's paths at `base`: where its repositories, files and configurations sit. */
+function worldPaths(base: string) {
   const remoteDir = join(base, "remote.git");
-  const remoteUrl = `ssh://records.test${remoteDir}`;
   const stateRoot = join(base, "state");
-  const clonePath = join(stateRoot, "records", namespace);
-  const sourceRepo = join(base, "source");
-  const upstream = join(base, "upstream");
-  const artifactFolder = join(base, "artifacts");
-  const phaseFolder = join(base, "phase-folder");
+  return {
+    remoteDir,
+    remoteUrl: `ssh://records.test${remoteDir}`,
+    stateRoot,
+    clonePath: join(stateRoot, "records", NAMESPACE),
+    sourceRepo: join(base, "source"),
+    upstream: join(base, "upstream"),
+    artifactFolder: join(base, "artifacts"),
+    phaseFolder: join(base, "phase-folder"),
+    sshScript: join(base, "fake-ssh.sh"),
+  };
+}
 
-  const sshScript = join(base, "fake-ssh.sh");
-  writeFileSync(sshScript, FAKE_SSH, { mode: 0o755 });
-  const savedSsh = process.env["GIT_SSH_COMMAND"];
-  process.env["GIT_SSH_COMMAND"] = sshScript;
-  // A clone `phax records sync` makes has no identity of its own, and git is isolated from the
-  // person's config: on a machine whose hostname git cannot turn into an email (CI), a record
-  // commit there would fail with "Author identity unknown".
-  const savedIdentity = IDENTITY_VARIABLES.map((name) => [name, process.env[name]] as const);
-  process.env["GIT_AUTHOR_NAME"] = process.env["GIT_COMMITTER_NAME"] = "Rita Recorder";
-  process.env["GIT_AUTHOR_EMAIL"] = process.env["GIT_COMMITTER_EMAIL"] = "rita@records.test";
+/**
+ * The path-free part, built into `dir` (which must not exist): the bare remote with
+ * `remoteRecords` seed records on its records branch, written by one `git fast-import`, and the
+ * plain files. Nothing written here holds `dir`'s path, so a copy of it is a world at the copy's
+ * path once the path-bound part is built there.
+ */
+async function buildPathFreePart(dir: string, remoteRecords: number): Promise<void> {
+  const paths = worldPaths(dir);
+  mkdirSync(dir);
+  git(["init", "-q", "--bare", "-b", "main", paths.remoteDir], tmpdir());
+  disableGitAutoMaintenance(paths.remoteDir);
+  await writeRecordsInBulk({
+    repo: paths.remoteDir,
+    parent: null,
+    identity: SEED_IDENTITY,
+    records: seedKeys(remoteRecords).map((key, index) => ({
+      key,
+      origin: SEED_ORIGIN,
+      date: recordDate(index + 1),
+    })),
+  });
+  mkdirSync(paths.artifactFolder);
+  writeFileSync(join(paths.artifactFolder, SEED_ARTIFACT_NAME), SEED_ARTIFACT_TEXT);
+  mkdirSync(paths.phaseFolder);
+  writeFileSync(join(paths.phaseFolder, "prompt.md"), "# prompt\n");
+  mkdirSync(paths.stateRoot);
+}
 
-  git(["init", "-q", "--bare", "-b", "main", remoteDir], tmpdir());
-  disableGitAutoMaintenance(remoteDir);
-  mkdirSync(stateRoot);
-  mkdirSync(artifactFolder);
-  writeFileSync(join(artifactFolder, "note.md"), "A record's artifact.\n");
-  mkdirSync(phaseFolder);
-  writeFileSync(join(phaseFolder, "prompt.md"), "# prompt\n");
+/**
+ * The path-bound part, built at `base` next to the path-free part: the fake ssh script (and
+ * `GIT_SSH_COMMAND` pointing at it), the upstream clone holding the remote's records branch and
+ * its tracking ref, as a push leaves them, and the source repository with phax.json committed at
+ * a fixed date. Its git processes do not depend on the number of records.
+ */
+function buildPathBoundPart(base: string): void {
+  const paths = worldPaths(base);
+  writeFileSync(paths.sshScript, FAKE_SSH, { mode: 0o755 });
+  process.env["GIT_SSH_COMMAND"] = paths.sshScript;
 
-  initRepo(upstream, { name: "origin", url: remoteUrl });
-  initRepo(sourceRepo, { name: PUBLISH_REMOTE, url: remoteUrl });
+  initRepo(paths.upstream, { name: "origin", url: paths.remoteUrl });
+  git(["fetch", "-q", "origin"], paths.upstream);
+  git(["update-ref", BRANCH_REF, `refs/remotes/origin/${RECORDS_BRANCH_NAME}`], paths.upstream);
+
+  initRepo(paths.sourceRepo, { name: PUBLISH_REMOTE, url: paths.remoteUrl });
   writeFileSync(
-    join(sourceRepo, "phax.json"),
+    join(paths.sourceRepo, "phax.json"),
     JSON.stringify(
       {
         version: 1,
-        name: namespace,
-        state: { root: stateRoot },
+        name: NAMESPACE,
+        state: { root: paths.stateRoot },
         gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
         publish: { auto: false, remote: PUBLISH_REMOTE },
         records: {
           transcript: false,
-          destination: { kind: "repo", remote: remoteUrl },
+          destination: { kind: "repo", remote: paths.remoteUrl },
           autoPush: false,
         },
       },
@@ -196,12 +256,119 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
       2,
     ) + "\n",
   );
-  writeFileSync(join(sourceRepo, "widget.txt"), "widget\n");
-  git(["add", "."], sourceRepo);
-  git(["commit", "-q", "-m", "chore: initial commit"], sourceRepo);
+  writeFileSync(join(paths.sourceRepo, "widget.txt"), "widget\n");
+  git(["add", "."], paths.sourceRepo);
+  // The identity is the repository's own; it is also named here so that an identity a test set
+  // in its environment (under its own isolation) cannot reach the commit.
+  execFileSync("git", ["commit", "-q", "-m", "chore: initial commit"], {
+    cwd: paths.sourceRepo,
+    stdio: ["pipe", "pipe", "pipe"],
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: SEED_IDENTITY.name,
+      GIT_AUTHOR_EMAIL: SEED_IDENTITY.email,
+      GIT_COMMITTER_NAME: SEED_IDENTITY.name,
+      GIT_COMMITTER_EMAIL: SEED_IDENTITY.email,
+      GIT_AUTHOR_DATE: SOURCE_COMMIT_DATE,
+      GIT_COMMITTER_DATE: SOURCE_COMMIT_DATE,
+    },
+  });
+}
 
-  // Every record commit gets the next second of 2026-01-01, for author and committer alike.
-  let second = 0;
+function normalise(options: BranchTipOptions): { readonly remoteRecords: number } {
+  return { remoteRecords: options.remoteRecords ?? 4 };
+}
+
+/** The cached world for `remoteRecords` in this test file, built at the first request. */
+function cachedBranchTipWorld(remoteRecords: number): Promise<string> {
+  return cachedWorld(`branch-tip-${remoteRecords}`, (dir) => buildPathFreePart(dir, remoteRecords));
+}
+
+/**
+ * The build path of the cached world for these parameters in this test file, building it if it
+ * is absent. For the fixture's own tests.
+ */
+export function branchTipBuildPath(options: BranchTipOptions = {}): Promise<string> {
+  return cachedBranchTipWorld(normalise(options).remoteRecords);
+}
+
+type SavedVariables = readonly (readonly [string, string | undefined])[];
+
+function restoreVariables(saved: SavedVariables): void {
+  for (const [name, value] of saved) {
+    if (value === undefined) delete process.env[name];
+    else process.env[name] = value;
+  }
+}
+
+/**
+ * Builds the world, in a temporary directory: a bare remote holding `remoteRecords` records on
+ * `phax/records/v1`, which a clone of its own (`upstream`) holds too; a source repository with
+ * phax.json committed; and the paths and configurations of a dedicated clone and of an in-repo
+ * destination. No clone exists yet and the source repository has fetched nothing: the helpers
+ * below put one of them in a branch state. The path-free part is a copy of this test file's
+ * cached world.
+ */
+export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promise<BranchTipWorld> {
+  // mkdtemp reserves a unique name; the copy needs a path that does not exist yet.
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "phax-branch-tip-")));
+  rmdirSync(base);
+  return buildBranchTipWorldAt(base, { ...options, fresh: false });
+}
+
+/**
+ * Builds the world at `base`, which must not exist. `fresh: true` bypasses the cache and builds
+ * both parts at `base`; `fresh: false` copies this test file's cached world for these parameters
+ * to `base`, builds the path-bound part there, and refuses a copy that still holds the cached
+ * world's build path. The world's environment is set in this process until its `cleanup()`.
+ */
+export async function buildBranchTipWorldAt(
+  base: string,
+  options: BranchTipOptions & { readonly fresh: boolean },
+): Promise<BranchTipWorld> {
+  if (existsSync(base))
+    throw new Error(`a branch-tip world is built at a new path: ${base} exists`);
+  const { remoteRecords } = normalise(options);
+  const saved: SavedVariables = WORLD_VARIABLES.map((name) => [name, process.env[name]] as const);
+  const release = isolateGit();
+  try {
+    let buildPath: string | null = null;
+    if (options.fresh) {
+      await buildPathFreePart(base, remoteRecords);
+    } else {
+      buildPath = await cachedBranchTipWorld(remoteRecords);
+      copyWorld(buildPath, base);
+    }
+    buildPathBoundPart(base);
+    if (buildPath !== null) assertNoBuildPath(base, buildPath);
+  } catch (error) {
+    release();
+    restoreVariables(saved);
+    removeTempDir(base);
+    throw error;
+  }
+  release();
+  // A clone `phax records sync` makes has no identity of its own, and git is isolated from the
+  // person's config: on a machine whose hostname git cannot turn into an email (CI), a record
+  // commit there would fail with "Author identity unknown".
+  process.env["GIT_AUTHOR_NAME"] = process.env["GIT_COMMITTER_NAME"] = SEED_IDENTITY.name;
+  process.env["GIT_AUTHOR_EMAIL"] = process.env["GIT_COMMITTER_EMAIL"] = SEED_IDENTITY.email;
+  return worldAt(base, remoteRecords, saved);
+}
+
+/** The world's handle once both parts are built at `base`. */
+function worldAt(
+  base: string,
+  remoteRecords: number,
+  savedVariables: SavedVariables,
+): BranchTipWorld {
+  const paths = worldPaths(base);
+  const { remoteDir, remoteUrl, stateRoot, clonePath, sourceRepo, upstream } = paths;
+  const { artifactFolder, phaseFolder } = paths;
+
+  // Every record commit gets the next second of 2026-01-01, for author and committer alike; the
+  // seed records took the first `remoteRecords` seconds.
+  let second = remoteRecords;
   async function commitOne(target: RecordsRepo, key: string, origin: string): Promise<string> {
     second += 1;
     const date = new Date(Date.UTC(2026, 0, 1, 0, 0, second)).toISOString();
@@ -216,15 +383,9 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
             remote: target.remote,
             folder: artifactFolder,
             key,
-            artifactPaths: ["note.md"],
-            manifest: { kind: "seed", key, origin },
-            message: [
-              "records(phase-01): committed",
-              "",
-              `Run-Id: ${key.split("/")[0]}`,
-              "Phase-Id: phase-01",
-              `Origin: ${origin}`,
-            ].join("\n"),
+            artifactPaths: [SEED_ARTIFACT_NAME],
+            manifest: seedRecordManifest(key, origin),
+            message: seedRecordMessage(key, origin),
           }),
           LAYER,
         ),
@@ -242,17 +403,16 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
   }
 
   const upstreamTarget: RecordsRepo = { repo: upstream, remote: "origin" };
-  const remoteKeys: string[] = [];
+  const remoteKeys: string[] = seedKeys(remoteRecords);
   async function pushRemoteRecords(count: number): Promise<string> {
     for (let i = 0; i < count; i += 1) {
       const key = recordKey("seed", remoteKeys.length + 1);
-      await commitOne(upstreamTarget, key, "upstream");
+      await commitOne(upstreamTarget, key, SEED_ORIGIN);
       remoteKeys.push(key);
     }
     git(["push", "-q", "origin", RECORDS_BRANCH_NAME], upstream);
     return git(["rev-parse", BRANCH_REF], remoteDir);
   }
-  await pushRemoteRecords(remoteRecords);
 
   let phaseRuns = 0;
   async function writePhaseRecords(
@@ -305,7 +465,7 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
 
   return {
     base,
-    namespace,
+    namespace: NAMESPACE,
     remoteDir,
     remoteUrl,
     stateRoot,
@@ -323,12 +483,7 @@ export async function buildBranchTipWorld(options: BranchTipOptions = {}): Promi
     },
     writePhaseRecords,
     cleanup: () => {
-      if (savedSsh === undefined) delete process.env["GIT_SSH_COMMAND"];
-      else process.env["GIT_SSH_COMMAND"] = savedSsh;
-      for (const [name, value] of savedIdentity) {
-        if (value === undefined) delete process.env[name];
-        else process.env[name] = value;
-      }
+      restoreVariables(savedVariables);
       removeTempDir(base);
     },
   };
