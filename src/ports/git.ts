@@ -15,7 +15,7 @@ export class GitError extends Data.TaggedError("GitError")<{
 }> {}
 
 /** A file to write into a records tree: a repo-relative path and its raw bytes. */
-export interface GitFileEntry {
+interface GitFileEntry {
   readonly path: string;
   readonly content: Uint8Array;
 }
@@ -61,7 +61,7 @@ export interface CommitFiles {
 }
 
 /** How a commit takes its message. */
-export interface CommitOptions {
+interface CommitOptions {
   /**
    * Keep the message byte for byte (`git commit --cleanup=verbatim`): no
    * collapsed blank lines, no stripped trailing whitespace, no dropped `#`

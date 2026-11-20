@@ -21,7 +21,7 @@ side effects (filesystem, shell, git, Claude, editor, clock) are allowed.
 | `backend.ts` (Backend)   | `claudeCli.ts` (ClaudeCliBackend) | `claude` CLI; streams JSONL, captures session id                 |
 | `editor.ts` (Editor)     | `editor.ts` (NodeEditor)          | Configured editor command                                        |
 | `lock.ts` (Lock)         | `lock.ts` (FileLock)              | Lock files under `~/.phax/locks/`                                |
-| `output.ts` (OutputPort) | _(in cli/)_ `consoleOutput`       | `console.log` / `console.error`                                  |
+| `output.ts` (OutputPort) | _(in cli/)_ `outputPortOf`        | the command's `say` / `progress`                                 |
 
 ## No shell interpolation
 
