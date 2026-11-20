@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611201446-bounded-test-spawns.md",
+  "specFingerprint": "3bde2c81c6ca3235ce58fa8670166916984c2bd2e29d6e8418cef03c71c7b3a0",
+  "approvedAt": "2026-11-20T14:55:53.180Z",
+  "baseline": "fbefefa12862b460287b5b30afe3fb80e234a346",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
