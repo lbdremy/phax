@@ -3,14 +3,12 @@ import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import type { RunReviewInfo } from "./runReviewInfo.js";
 import type { ProtectedChange } from "./security/protectedPaths.js";
 
-export type { RunReviewInfo };
-
 export interface StatePatch {
   readonly run?: Partial<RunStatus> | undefined;
   readonly phase?: Partial<PhaseStatus> | undefined;
 }
 
-export interface ResumeContext {
+interface ResumeContext {
   readonly reason:
     | "Rate limit"
     | "Usage limit"
@@ -60,12 +58,12 @@ export interface GateRefusal {
   readonly remedy: string;
 }
 
-export interface PersistState {
+interface PersistState {
   readonly type: "PersistState";
   readonly patch: StatePatch;
 }
 
-export interface EmitTrace {
+interface EmitTrace {
   readonly type: "EmitTrace";
   readonly name: string;
   readonly status: "ok" | "failed" | "info";
@@ -73,35 +71,35 @@ export interface EmitTrace {
   readonly details?: Record<string, unknown> | undefined;
 }
 
-export interface WriteResumeInstructions {
+interface WriteResumeInstructions {
   readonly type: "WriteResumeInstructions";
   readonly ctx: ResumeContext;
 }
 
-export interface RunCleanupShell {
+interface RunCleanupShell {
   readonly type: "RunCleanupShell";
   readonly commands: readonly string[];
   readonly cwd: string;
 }
 
-export interface WriteAtomic {
+interface WriteAtomic {
   readonly type: "WriteAtomic";
   readonly path: string;
   readonly content: string;
 }
 
-export interface OpenRunReview {
+interface OpenRunReview {
   readonly type: "OpenRunReview";
   readonly info: RunReviewInfo;
 }
 
-export interface MoveRunToArchive {
+interface MoveRunToArchive {
   readonly type: "MoveRunToArchive";
   readonly from: string;
   readonly to: string;
 }
 
-export interface RecordCommitMetadata {
+interface RecordCommitMetadata {
   readonly type: "RecordCommitMetadata";
   readonly hash: string;
 }
@@ -111,21 +109,21 @@ export interface RecordCommitMetadata {
 // folder while a close runs, restored when the close is refused or
 // interrupted, and discarded when the stop commits, resets or is archived.
 
-export interface WriteReviewStop {
+interface WriteReviewStop {
   readonly type: "WriteReviewStop";
   readonly reviewStop: ReviewStop;
 }
 
-export interface ParkReviewStop {
+interface ParkReviewStop {
   readonly type: "ParkReviewStop";
 }
 
-export interface RestoreReviewStop {
+interface RestoreReviewStop {
   readonly type: "RestoreReviewStop";
   readonly lastClose: LastClose;
 }
 
-export interface DiscardReviewStop {
+interface DiscardReviewStop {
   readonly type: "DiscardReviewStop";
 }
 

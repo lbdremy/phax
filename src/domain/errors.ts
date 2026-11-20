@@ -190,12 +190,6 @@ export class GateStepRefusedError extends Data.TaggedError("GateStepRefusedError
   protectedChanges: readonly ProtectedChange[];
 }> {}
 
-export class FixAttemptFailedError extends Data.TaggedError("FixAttemptFailedError")<{
-  message: string;
-  attempt: number;
-  sessionId: string;
-}> {}
-
 export class ArchiveBlockedByDirtyWorktreeError extends Data.TaggedError(
   "ArchiveBlockedByDirtyWorktreeError",
 )<{
