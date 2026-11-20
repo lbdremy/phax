@@ -52,6 +52,18 @@ export function makeNodeBackendLayer(
   );
 }
 
+/** The failure for a provider the dispatcher has no branch for. */
+function notWired(
+  provider: string,
+  providerConfig: ProviderConfig,
+): Effect.Effect<never, AgentInvocationError> {
+  return Effect.fail(
+    new AgentInvocationError({
+      message: `Provider "${provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
+    }),
+  );
+}
+
 function nodeBackend(
   providerConfig: ProviderConfig,
   roots: ProviderStoreRootsValue,
@@ -81,11 +93,7 @@ function nodeBackend(
           }
           return runCodexAgent(prompt, options, entry);
         }
-        return Effect.fail(
-          new AgentInvocationError({
-            message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
-          }),
-        );
+        return notWired(options.provider, providerConfig);
       }),
 
     complete: (prompt, options) => {
@@ -110,11 +118,7 @@ function nodeBackend(
         }
         return runVibeCompletion(prompt, options, entry);
       }
-      return Effect.fail(
-        new AgentInvocationError({
-          message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
-        }),
-      );
+      return notWired(options.provider, providerConfig);
     },
 
     probe: (prompt, options) => runClaudeProbe(prompt, options),
@@ -142,11 +146,7 @@ function nodeBackend(
           }
           return runCodexAgent(prompt, options, entry, sessionId);
         }
-        return Effect.fail(
-          new AgentInvocationError({
-            message: `Provider "${options.provider}" is not yet wired in the dispatcher (config: ${JSON.stringify(Object.keys(providerConfig.providers))})`,
-          }),
-        );
+        return notWired(options.provider, providerConfig);
       }),
 
     captureTranscript: (request) => {
