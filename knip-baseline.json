@@ -1,0 +1,3443 @@
+{
+  "$comment": "Findings of knip the operator accepted, each with its reason; `debt` is paid by a clean-up. scripts/knip-baseline.ts fails on a finding outside this file and on an entry nothing matches; `pnpm knip --prune` drops the latter. A protected path: a run never adds to it.",
+  "entries": [
+    {
+      "type": "dependencies",
+      "file": "package.json",
+      "name": "mdast-util-to-string",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "packages/schemas/src/document.ts",
+      "name": "MISSING_SCHEMA_MESSAGE",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "packages/schemas/src/formats/recordManifests.ts",
+      "name": "RecordManifestShapes",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "packages/schemas/src/shapes.ts",
+      "name": "developmentBuildMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "packages/schemas/src/shapes.ts",
+      "name": "missingSchemaMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "packages/schemas/src/shapes.ts",
+      "name": "newerReleaseMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "packages/schemas/src/shapes.ts",
+      "name": "preSchemaUnsupportedMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "packages/schemas/src/shapes.ts",
+      "name": "Shape",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/adjustPlan.ts",
+      "name": "PrepareAdjustResultReady",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/adjustPlan.ts",
+      "name": "PrepareAdjustResultRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/adjustPlan.ts",
+      "name": "PrepareAdjustResultUnsupported",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/analyzePlanOverlap.ts",
+      "name": "analyzeReadjustmentImpact",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/analyzePlanOverlap.ts",
+      "name": "loadAndMapPlanInput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/architectureProvider.ts",
+      "name": "ARCHITECTURE_TIMEOUT_MS",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/artifactStatus.ts",
+      "name": "ApprovalInfo",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/artifactStatus.ts",
+      "name": "ArtifactAuthoring",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/artifactStatus.ts",
+      "name": "ArtifactQuestions",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/artifactStatus.ts",
+      "name": "BoundPlan",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/assignmentBounds.ts",
+      "name": "resolveBoundParts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/authorArtifact.ts",
+      "name": "AUTHORING_DOCUMENT_FILENAME",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/authorArtifact.ts",
+      "name": "AUTHORING_TRANSCRIPT_FILENAME",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/authorArtifact.ts",
+      "name": "authoringCommitMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/briefProvider.ts",
+      "name": "BRIEF_TIMEOUT_MS",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/closeStop.ts",
+      "name": "Closer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/commit.ts",
+      "name": "buildCommitBody",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/commit.ts",
+      "name": "gateLogTrailerValue",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/completeRunArtifacts.ts",
+      "name": "RunCompletionKeptSpec",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/completeRunArtifacts.ts",
+      "name": "RunCompletionTransition",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/costBackfill.ts",
+      "name": "BackfilledLedger",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/createArtifact.ts",
+      "name": "ResolvedSourceSpec",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/decideArtifact.ts",
+      "name": "decideCommitMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/decideArtifact.ts",
+      "name": "Authored",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/decideArtifact.ts",
+      "name": "DecideSessionFacts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/decideVerdicts.ts",
+      "name": "verdictsCommitMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/decideVerdicts.ts",
+      "name": "VerdictsSource",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/dryRun.ts",
+      "name": "DryRunPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/enterPhase.ts",
+      "name": "Notice",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/estimatePlan.ts",
+      "name": "readEstimatePlan",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/estimatePlan.ts",
+      "name": "SizedPlanPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/eventAdapter.ts",
+      "name": "eventify",
+      "reason": "debt"
+    },
+    {
+      "type": "files",
+      "file": "src/app/eventAdapter.ts",
+      "name": "src/app/eventAdapter.ts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/finalReport.ts",
+      "name": "renderPublicationSection",
+      "reason": "debt"
+    },
+    {
+      "type": "files",
+      "file": "src/app/finalReview.ts",
+      "name": "src/app/finalReview.ts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/findingFateRecords.ts",
+      "name": "fateRecordKey",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/findingFateRecords.ts",
+      "name": "ReadFateRecord",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/findingFateRecords.ts",
+      "name": "UnreadableFateRecord",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/findingFix.ts",
+      "name": "FindingFixRefusedError",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/findingList.ts",
+      "name": "RECORDS_OFF_NOTE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/findingPost.ts",
+      "name": "FindingPostRefusedError",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/findingPullRequest.ts",
+      "name": "PullRequestNotPostedReason",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/findingSettle.ts",
+      "name": "FindingSettleRefusedError",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/handoffGuidance.ts",
+      "name": "buildHandoffGuidanceBlock",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/handoffInjection.ts",
+      "name": "reconciliationPath",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/headlessWriter.ts",
+      "name": "DraftRefusalReason",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/initProject.ts",
+      "name": "initProject",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/initProject.ts",
+      "name": "writeConfigSchemaFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/interactiveFiles.ts",
+      "name": "FIRST_READING_FILE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/interactiveFiles.ts",
+      "name": "INTERACTIVE_SESSION_FILE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/interactiveFiles.ts",
+      "name": "SEED_RUN_FILE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/interactiveStop.ts",
+      "name": "detailedInstructionsOf",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/loadPlan.ts",
+      "name": "olderPhaxPlanMessage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/loadReviewHandoffInputs.ts",
+      "name": "loadReviewNoteGroups",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/migrateApprovals.ts",
+      "name": "MIGRATION_COMMIT_SUBJECT",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/phaxState.ts",
+      "name": "phaseSubStateFromStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/planCacheStore.ts",
+      "name": "cacheEntryPath",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/planStaleness.ts",
+      "name": "computePlanStaleness",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/planStaleness.ts",
+      "name": "ComputePlanStalenessOptions",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/promptGeneration.ts",
+      "name": "generatePhasePrompt",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/promptGeneration.ts",
+      "name": "GeneratePhasePromptOptions",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/providerQuery.ts",
+      "name": "excerpt",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/publishRun.ts",
+      "name": "GitError",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/publishRun.ts",
+      "name": "GitHubError",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/publishRun.ts",
+      "name": "PublicationResultKind",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/pushedBrief.ts",
+      "name": "PUSHED_BRIEF_RECORD",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/recordsBranchSync.ts",
+      "name": "RecordsBranchOutcome",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/recordsExplain.ts",
+      "name": "RecordDiffStat",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/recordsList.ts",
+      "name": "RecordListEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/recordsStatus.ts",
+      "name": "PendingRecordEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resolveRunInfo.ts",
+      "name": "resolvePhaseInfo",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resolveRunInfo.ts",
+      "name": "PhaseInfo",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resolveRunRef.ts",
+      "name": "ResolveRunRefVariant",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resume.ts",
+      "name": "findNextResumablePhase",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resume.ts",
+      "name": "inspectResume",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resume.ts",
+      "name": "inspectResumeFromInfo",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resume.ts",
+      "name": "readOwedHandoffs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resume.ts",
+      "name": "readPresentWorktrees",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resume.ts",
+      "name": "OwedStep",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resume.ts",
+      "name": "ResumeDecision",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resume.ts",
+      "name": "ResumeFacts",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resume.ts",
+      "name": "ResumeRefusal",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/resume.ts",
+      "name": "ResumeRefusalReason",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/resumeInstructions.ts",
+      "name": "buildResumeInstructions",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/reviewCode.ts",
+      "name": "loadCodeReviewWorklist",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/reviewCode.ts",
+      "name": "reviewCodeHeadless",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCode.ts",
+      "name": "CodeReviewWorklist",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCode.ts",
+      "name": "HeadlessCodeReviewResult",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCode.ts",
+      "name": "PrepareCodeReviewResultReady",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCode.ts",
+      "name": "PrepareCodeReviewResultRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCode.ts",
+      "name": "PrepareCodeReviewResultUnsupported",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/reviewCompliance.ts",
+      "name": "reviewCompliance",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewCompliance.ts",
+      "name": "ComplianceReviewResult",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/reviewHandoff.ts",
+      "name": "buildReviewHandoffContent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewHandoff.ts",
+      "name": "PhaseContent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviewHandoff.ts",
+      "name": "ReviewHandoffExtras",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/reviseArtifact.ts",
+      "name": "ReviseSource",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/runPreflight.ts",
+      "name": "RUN_PREFLIGHT_CHECKS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/runPreflight.ts",
+      "name": "mcpAllowlistPreflight",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/runPreflight.ts",
+      "name": "FreshRunPreflightStep",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/runPreflight.ts",
+      "name": "RunPreflightCheck",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/runPreflight.ts",
+      "name": "RunPreflightRefusal",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/app/runReviews.ts",
+      "name": "ReadRunReview",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/securityStatus.ts",
+      "name": "buildSecurityStatusReport",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/app/telemetry/reportBuilders.ts",
+      "name": "reportShellFailure",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/catalogue.ts",
+      "name": "ErrorContract",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/catalogue.ts",
+      "name": "StdinContract",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/command.ts",
+      "name": "Parsed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/command.ts",
+      "name": "Terminal",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/define.ts",
+      "name": "DocumentOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/define.ts",
+      "name": "strip",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "DocumentOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "kebabCase",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "strip",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "ArgShape",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Binding",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Catalogue",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "CommandContract",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "CommandDef",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Completer",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Document",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "ErrorContract",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Group",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "JsonSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Parsed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "ProgramExits",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "StdinContract",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Tagged",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Terminal",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/index.ts",
+      "name": "Undeclared",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/commandLibrary/contract/shapes.ts",
+      "name": "Completer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/written.ts",
+      "name": "utf8Bytes",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commandLibrary/contract/written.ts",
+      "name": "utf8Text",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commands/reportConfigError.ts",
+      "name": "reportConfigError",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commands/runLayers.ts",
+      "name": "EXIT_CODE_MEANINGS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/commands/stopOutput.ts",
+      "name": "renderStopCloseRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/adjustPlan.ts",
+      "name": "DEFAULT_EFFORT",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/adjustPlan.ts",
+      "name": "DEFAULT_MODEL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/adjustPlan.ts",
+      "name": "makeAdjustPlanCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/agent.ts",
+      "name": "REAL_AGENT_LAYERS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/agent.ts",
+      "name": "makeAgentGroup",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/agent.ts",
+      "name": "makeAgentResolveCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/artifact.ts",
+      "name": "ARCHIVE_RETIRED",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/artifactDecide.ts",
+      "name": "renderVerdictsReport",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/artifactDecide.ts",
+      "name": "verdictsReportJson",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/artifactRevise.ts",
+      "name": "renderReviseReport",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/definitions/artifactRevise.ts",
+      "name": "ReviseReport",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/artifactStatus.ts",
+      "name": "renderArtifactStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "FindingFixOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "FindingPostOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "renderFindingDefer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "renderFindingDismiss",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "renderFindingFix",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "renderFindingList",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/finding.ts",
+      "name": "renderFindingPost",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/ls.ts",
+      "name": "renderRunList",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/plansEstimate.ts",
+      "name": "PlansEstimateOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/program.ts",
+      "name": "PHAX_LICENSE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/publishPr.ts",
+      "name": "makePublishPrCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/records.ts",
+      "name": "makeRecordsInitCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/resetPhase.ts",
+      "name": "makeResetPhaseCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/resume.ts",
+      "name": "makeResumeCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/review.ts",
+      "name": "makeReviewCodeCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/review.ts",
+      "name": "makeReviewComplianceCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/review.ts",
+      "name": "makeReviewHandoffCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/run.ts",
+      "name": "makeRunCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/run.ts",
+      "name": "pickGateProfileId",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/sessions.ts",
+      "name": "makeEnterCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/sessions.ts",
+      "name": "makeEnterPhaseCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/sessions.ts",
+      "name": "makeOpenCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/sessions.ts",
+      "name": "makeShellCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/definitions/skills.ts",
+      "name": "makeSkillsInstallCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/definitions/skills.ts",
+      "name": "SkillsInstallRoots",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/interruptHandler.ts",
+      "name": "syncRecordInterruptedInvocation",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/cli/interruptHandler.ts",
+      "name": "syncSaveInterruptedRun",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/cli/interruptHandler.ts",
+      "name": "SavedInterrupt",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/approvalRecordFile.ts",
+      "name": "PLAN_APPROVAL_RECORD_DIR",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/approvalRecordFile.ts",
+      "name": "SPEC_APPROVAL_RECORD_DIR",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/approvalRecordFile.ts",
+      "name": "isLiveArtifactPath",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/lineage.ts",
+      "name": "STALENESS_REASONS",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/artifact/lineage.ts",
+      "name": "StalenessReason",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/name.ts",
+      "name": "SLUG_PATTERN",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/sidecar.ts",
+      "name": "sidecarAgreement",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/status.ts",
+      "name": "PLAN_STATUSES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/status.ts",
+      "name": "SPEC_STATUSES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/status.ts",
+      "name": "parsePlanStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/artifact/status.ts",
+      "name": "parseSpecStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/branded.ts",
+      "name": "decodeGateProfileId",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/branded.ts",
+      "name": "decodeWorkspaceId",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/branded.ts",
+      "name": "GateProfileId",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/branded.ts",
+      "name": "WorkspaceId",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/brief/render.ts",
+      "name": "BRIEF_PUSH_CAP",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/fit.ts",
+      "name": "REFERENCE_MODEL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/fit.ts",
+      "name": "RUN_DRAWS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/fit.ts",
+      "name": "RUN_SEED",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/fit.ts",
+      "name": "repriceRatio",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/history.ts",
+      "name": "MIN_SAMPLE_USD",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/ledger.ts",
+      "name": "CUMULATIVE_SINCE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/ledger.ts",
+      "name": "messageCostUsd",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/cost/ledger.ts",
+      "name": "reportsCumulative",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/decide/doctrine.ts",
+      "name": "principleIdsOf",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/decide/handAuthored.ts",
+      "name": "stampHandVerdicts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/decide/revision.ts",
+      "name": "stampSessionVerdicts",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/decide/verdicts.ts",
+      "name": "GivenVerdict",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "DispositionKind",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "EventDispositionMatrix",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "Handled",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "Ignored",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "Rejected",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "Stale",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/disposition.ts",
+      "name": "Unexpected",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "DiscardReviewStop",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "EmitTrace",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "MoveRunToArchive",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "OpenRunReview",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "ParkReviewStop",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "PersistState",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "RecordCommitMetadata",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "RestoreReviewStop",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "ResumeContext",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "RunCleanupShell",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "RunReviewInfo",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "WriteAtomic",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "WriteResumeInstructions",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/effects.ts",
+      "name": "WriteReviewStop",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/errors.ts",
+      "name": "FixAttemptFailedError",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "AgentInvocationCompleted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "AgentInvocationStarted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "ArtifactCompletionFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "CleanupCompleted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "CleanupFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "CleanupStarted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "CommitCreated",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "CommitFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "FinalReviewOpened",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "FixCompleted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "FixStarted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "GateFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "GatePassed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "GateStarted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "GateStepRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HandoffMissing",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HandoffProtectedPathsChanged",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HandoffRequested",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HandoffTurnFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HandoffValidated",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "HoldPointFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "NetworkFailureDetected",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "PhaseHadNoChanges",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "PhaseStartRequested",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "PhaxEventType",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RateLimitDetected",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "ReviewStopReached",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunArchiveRequested",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunCompleted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunFailed",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunInterruptRequested",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunResumeRequested",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "RunStarted",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "StopCloseRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "StopCloser",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "StopRecordRefused",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/events.ts",
+      "name": "WorktreeCreated",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/gate/attemptFiles.ts",
+      "name": "attemptNumberOf",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/gate/attemptFiles.ts",
+      "name": "recordedAttempts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/init/detect.ts",
+      "name": "slugify",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/interactive/handoff.ts",
+      "name": "INTERACTIVE_HANDOFF_SECTIONS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/interactive/turnPrompts.ts",
+      "name": "CLOSING_DIFF_LIMIT_BYTES",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/plan/acceptanceCheck.ts",
+      "name": "AcceptanceCheckPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/plan/interactiveCheck.ts",
+      "name": "InteractiveCheckPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/plan/lint.ts",
+      "name": "LintCheck",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/plan/lint.ts",
+      "name": "LintSeverity",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/plan/phaseHeader.ts",
+      "name": "readHeaderParagraph",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/plan/phaseHeader.ts",
+      "name": "HeaderParagraph",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/plan/planPath.ts",
+      "name": "describeNotCanonical",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/plan/planPath.ts",
+      "name": "isCanonicalPlanPath",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/plan/testLineGrammar.ts",
+      "name": "parseTestLine",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/planOverlap/compute.ts",
+      "name": "classifyShared",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/prune.ts",
+      "name": "pruneExitCode",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/prune.ts",
+      "name": "CheckedOutBranch",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/prune.ts",
+      "name": "PruneKeptReason",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/prune.ts",
+      "name": "PruneOutcome",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/prune.ts",
+      "name": "PruneReport",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/prune.ts",
+      "name": "PruneWorktree",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/publish/prBody.ts",
+      "name": "PR_BODY_MAX_BYTES",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/reconciliation/global.ts",
+      "name": "GlobalFileEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/reconciliation/global.ts",
+      "name": "GlobalFileStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/reconciliation/types.ts",
+      "name": "ChangeStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/reducer.ts",
+      "name": "describeCause",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/revise/revision.ts",
+      "name": "appendedOpenQuestions",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/revise/revision.ts",
+      "name": "firstQuestionFreezeViolation",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/revise/revision.ts",
+      "name": "restoreLineage",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/revise/revision.ts",
+      "name": "revisedByTrailer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/routing/catalog.ts",
+      "name": "isDeprecated",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/routing/phaseModelPolicy.ts",
+      "name": "phaseModelPolicyFindings",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/routing/prices.ts",
+      "name": "CLAUDE_LIST_PRICES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/runRef.ts",
+      "name": "formatQualifiedName",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/runRef.ts",
+      "name": "parseRunKey",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/agentCommands.ts",
+      "name": "ARCHITECTURE_AGENT_COMMAND",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/capabilities.ts",
+      "name": "CapabilitySupport",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/capabilities.ts",
+      "name": "JailStrength",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/capabilities.ts",
+      "name": "SecurityMark",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/phaseGuard.ts",
+      "name": "PHASE_GUARD_CLASSIFICATION",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/phaseGuard.ts",
+      "name": "PhaseGuardClass",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/protectedPaths.ts",
+      "name": "mirroredAtTarget",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/protectedPaths.ts",
+      "name": "nativeProtectedGlobs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/protectedPaths.ts",
+      "name": "reachesBelow",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/protectedPaths.ts",
+      "name": "NativeProtectedGlob",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/protectedPaths.ts",
+      "name": "ProtectedChangeKind",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/skillEditGrants.ts",
+      "name": "resolveSkillEditGrants",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/stopPosture.ts",
+      "name": "phaxTurnsOf",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/security/stopPosture.ts",
+      "name": "readOnlyNarrowingOf",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/stopPosture.ts",
+      "name": "PhaxTurn",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/security/stopPosture.ts",
+      "name": "ReadOnlyNarrowing",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/claudeAuthentication.ts",
+      "name": "CLAUDE_NOT_AUTHENTICATED_SIGNATURES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/claudePermissionFlags.ts",
+      "name": "gateCommandAllowRules",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/outcome.ts",
+      "name": "FAILURE_KINDS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/outcome.ts",
+      "name": "isTransientFailure",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/signatures.ts",
+      "name": "NETWORK_SIGNATURES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/session/signatures.ts",
+      "name": "normalizeResetAt",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/skills/catalog.ts",
+      "name": "EXPOSED_SKILLS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/skills/catalog.ts",
+      "name": "PHAX_CLI_SKILL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/skills/catalog.ts",
+      "name": "PHAX_DECIDE_REVIEW_SKILL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/skills/catalog.ts",
+      "name": "PHAX_PLANNING_SKILL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/skills/catalog.ts",
+      "name": "PHAX_SPEC_SKILL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "archiveRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "committedToCleanedUp",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "committedToReviewOpen",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "completeRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "failRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "interruptRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "openRunReview",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "pendingToSettingUp",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "rateLimitPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "rateLimitRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "rateLimitedToRunning",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "resumeRateLimitedRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "runningToPassed",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "settingUpToRunning",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "skipPhase",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "startRun",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/state.ts",
+      "name": "stopRun",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/state.ts",
+      "name": "PhaseSubStateName",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/state.ts",
+      "name": "PhaxStateName",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/domain/state.ts",
+      "name": "RunState",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/telemetry/report.ts",
+      "name": "BODY_THRESHOLD_BYTES",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/telemetry/report.ts",
+      "name": "TAIL_SIZE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/whatsNext.ts",
+      "name": "RESUME_BUFFER_SECONDS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/whatsNext.ts",
+      "name": "resumeWhenClearCommand",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/domain/whatsNext.ts",
+      "name": "secondsUntil",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/claudeCli.ts",
+      "name": "runClaudeAgent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/fakes/editor.ts",
+      "name": "FakeEditorImpl",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/fakes/github.ts",
+      "name": "FakeGitHubImpl",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/infra/fakes/github.ts",
+      "name": "GitHubCall",
+      "reason": "debt"
+    },
+    {
+      "type": "files",
+      "file": "src/infra/fakes/index.ts",
+      "name": "src/infra/fakes/index.ts",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/fakes/lock.ts",
+      "name": "FakeLockImpl",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/fakes/session.ts",
+      "name": "FakeSessionImpl",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/infra/fakes/session.ts",
+      "name": "FakeSessionInvocation",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/fs.ts",
+      "name": "makeNodeFileSystemOps",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/claudeCode.ts",
+      "name": "buildArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/claudeCode.ts",
+      "name": "buildCompletionArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/claudeCode.ts",
+      "name": "buildProbeArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/claudeSkillEditSettings.ts",
+      "name": "buildSkillEditGrantSettings",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/codexCli.ts",
+      "name": "buildCodexArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/codexCli.ts",
+      "name": "buildCodexCompletionArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/codexCli.ts",
+      "name": "codexSessionDayFolders",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/providers/mistralVibe.ts",
+      "name": "buildVibeArgs",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/telemetry/composite.ts",
+      "name": "makeCompositeSystemTelemetryLayer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/telemetry/inMemory.ts",
+      "name": "makeInMemoryTelemetryLayer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/telemetry/jsonFile.ts",
+      "name": "makeJsonFileSystemTelemetryLayer",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/infra/terminal.ts",
+      "name": "makeNodeTerminalLayer",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/ports/fs.ts",
+      "name": "WriteModeOptions",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/ports/git.ts",
+      "name": "CommitOptions",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/ports/git.ts",
+      "name": "GitFileEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/ports/git.ts",
+      "name": "WriteTreeCommitInput",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/ports/lock.ts",
+      "name": "LockFileSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/ports/output.ts",
+      "name": "consoleOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/ports/shell.ts",
+      "name": "ShellRunOptions",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/acceptanceLift.ts",
+      "name": "liftPhaseAcceptance",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/acceptanceLift.ts",
+      "name": "liftRecordedSurface",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/acceptanceLift.ts",
+      "name": "liftTestLine",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/acceptanceLift.ts",
+      "name": "liftTestLines",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/acceptanceLift.ts",
+      "name": "PhaseOracleToLift",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/adjustPlanSession.ts",
+      "name": "AdjustPlanSessionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/answerSchemas.ts",
+      "name": "ANSWER_FORMATS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/approvalRecord.ts",
+      "name": "ApprovalRecordSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/approvalRecord.ts",
+      "name": "CodeBaselineSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/approvalRecord.ts",
+      "name": "encodeApprovalRecordFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "ApprovedStampSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "PlanApprovedStampSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "PlanFrontmatterSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "SpecBoundPlanFrontmatterSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "SpecFrontmatterSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactFrontmatter.ts",
+      "name": "SpecLessPlanFrontmatterSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactStatus.ts",
+      "name": "decodePlanStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactStatus.ts",
+      "name": "decodeSpecStatus",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/artifactStatusDocument.ts",
+      "name": "encodeArtifactStatusFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/assignments.ts",
+      "name": "AssignmentBoundSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/assignments.ts",
+      "name": "EffortRangeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/assignments.ts",
+      "name": "GlobsBoundSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/assignments.ts",
+      "name": "PartBoundSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/assignments.ts",
+      "name": "GlobsBound",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/assignments.ts",
+      "name": "PartBound",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/authoringRecord.ts",
+      "name": "AuthoringRecordRetrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/authoringSession.ts",
+      "name": "AuthoringSessionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/brief.ts",
+      "name": "OutsideBriefRequestFileSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/brief.ts",
+      "name": "PhaseBriefRequestFileSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/brief.ts",
+      "name": "OutsideBriefRequestFile",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/brief.ts",
+      "name": "PhaseBriefRequestFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/claudeOutput.ts",
+      "name": "decodeClaudeApiRetryEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/claudeOutput.ts",
+      "name": "decodeClaudeInitEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/claudeOutput.ts",
+      "name": "decodeClaudeResultOutcomeEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/claudeStream.ts",
+      "name": "ClaudeStreamEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/claudeStream.ts",
+      "name": "StreamWindowReading",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codeReview.ts",
+      "name": "encodeCodeReviewFile",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/codeReview.ts",
+      "name": "CodeReviewEscape",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/codeReview.ts",
+      "name": "CodeReviewLens",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/codeReview.ts",
+      "name": "CodeReviewSeverity",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codeReviewSession.ts",
+      "name": "CodeReviewSessionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "CodexAgentMessageItemSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "CodexItemCompletedAgentMessageEventSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "CodexThreadStartedEventSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "decodeCodexErrorEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "decodeCodexTurnCompletedEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "decodeCodexTurnFailedEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "CodexItemCompletedAgentMessageEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/codexOutput.ts",
+      "name": "CodexThreadStartedEvent",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "FindingSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "PhaseVerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "UnmetPromiseSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "UnplannedChangeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "VerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "encodeComplianceReviewFile",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "Finding",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "PersistedFinding",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "PhaseVerdict",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "UnmetPromise",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "UnplannedChange",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/complianceReview.ts",
+      "name": "Verdict",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/costLedger.ts",
+      "name": "CostLedgerRole",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "DecisionFailureSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "DecisionRecordModeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "DecisionRecordSessionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "InteractiveDecisionOutcomeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "VerdictsDecisionOutcomeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/decisionRecord.ts",
+      "name": "DecisionRecordMode",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/extractedPlanCacheEntry.ts",
+      "name": "ExtractedPlanCacheEntrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "CommitShaSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "DeferredFateEntrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "DismissedFateEntrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "FindingDismissalVerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "FindingIdSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "FixedBySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "FixedFateEntrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingFateRecord.ts",
+      "name": "OperatorBySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingList.ts",
+      "name": "FindingFateSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingList.ts",
+      "name": "FindingListRecordsSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/findingList.ts",
+      "name": "encodeFindingListFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/firstReading.ts",
+      "name": "encodeFirstReadingFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/gateAttribution.ts",
+      "name": "GateAttributionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/gateAttribution.ts",
+      "name": "ProtectedChangeKindSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/gateAttribution.ts",
+      "name": "ProtectedChange",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/githubPrView.ts",
+      "name": "GithubPrViewSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/githubPrView.ts",
+      "name": "GithubPrView",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/githubRepoView.ts",
+      "name": "GithubRepoViewSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/githubRepoView.ts",
+      "name": "GithubRepoView",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/globalReconciliation.ts",
+      "name": "GlobalFileReconciliationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/globalReconciliation.ts",
+      "name": "GlobalFileEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/interactiveHandoff.ts",
+      "name": "encodeInteractiveHandoffFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/modelRouting.ts",
+      "name": "ModelRoutingSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/packageJson.ts",
+      "name": "PackageJsonSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/persisted.ts",
+      "name": "liftPlanDocumentV0_26_0",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/persisted.ts",
+      "name": "readPersisted",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/persisted.ts",
+      "name": "readPlanDocumentFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/persisted.ts",
+      "name": "readSchemaBornPersisted",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/persisted.ts",
+      "name": "readSpecDocumentFile",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "MissingFact",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "PersistedSpec",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "PlanDocumentV0_28_0Value",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "PlanDocumentV0_33_0Value",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "PlanPathList",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "ReportFormatId",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "SchemaBornPersistedSpec",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/persisted.ts",
+      "name": "SpecDocumentV0_27_0Value",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "AcceptanceConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "ArchitectureConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "AuthoringConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "AuthoringKindConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "BriefConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "CodeReviewConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "ComplianceReviewConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "DEFAULT_AUTHORING_EFFORT",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "DEFAULT_AUTHORING_MODEL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "DEFAULT_CODE_REVIEW_MODEL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "DEFAULT_COMPLIANCE_REVIEW_MODEL",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "PhaxConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "PhaxUserOverlaySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "PlanAuditorConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "PublishConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "AcceptanceConfig",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "ArchitectureConfig",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "BriefConfig",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "Firing",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "GateOutput",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "PhaxConfigWorkspace",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "ResolvedRecordsConfig",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/phaxConfig.ts",
+      "name": "ResolvedSecurityConfig",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/phaxPlan.ts",
+      "name": "PhaseAcceptanceSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/planAudit.ts",
+      "name": "PlanAuditFindingSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/planAudit.ts",
+      "name": "PlanAuditResponseSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/planAudit.ts",
+      "name": "PlanAuditFinding",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/planLint.ts",
+      "name": "encodePlanLintFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/planOverview.ts",
+      "name": "encodePlanOverviewFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/planPath.ts",
+      "name": "PLAN_PATH_PATTERN",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/providerConfig.ts",
+      "name": "CatalogEntryStatusSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/providerConfig.ts",
+      "name": "ProviderConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/providerConfig.ts",
+      "name": "ProviderFamilyEntry",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/publication.ts",
+      "name": "PublicationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/publication.ts",
+      "name": "Publication",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/questions.ts",
+      "name": "AUTHORING_ARBITRATED_MESSAGE",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/questions.ts",
+      "name": "LiftedVerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/questions.ts",
+      "name": "PlanVerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/questions.ts",
+      "name": "QuestionOptionSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/questions.ts",
+      "name": "SpecVerdictSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/questions.ts",
+      "name": "LiftedVerdict",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/reconciliation.ts",
+      "name": "PhaseFileReconciliationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/reconciliation.ts",
+      "name": "encodePhaseFileReconciliation",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/recordsConfig.ts",
+      "name": "InRepoRecordsDestinationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/recordsConfig.ts",
+      "name": "RecordsDestinationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/recordsConfig.ts",
+      "name": "RepoRecordsDestinationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/refusal/render.ts",
+      "name": "formatActual",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/registry.ts",
+      "name": "RegistryEntrySchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/report.ts",
+      "name": "ReportLocationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/report.ts",
+      "name": "ReportRelatedLocationSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/reviewStop.ts",
+      "name": "DeclaredReviewStopFile",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/reviewStop.ts",
+      "name": "HeldReviewStopFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runList.ts",
+      "name": "RunListRowSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runList.ts",
+      "name": "encodeRunListFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runRecord.ts",
+      "name": "ClaudeTokenUsageSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runRecord.ts",
+      "name": "CodexTokenUsageSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runRecord.ts",
+      "name": "ProviderTokenUsageSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runRecord.ts",
+      "name": "UserConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/runRecord.ts",
+      "name": "VibeTokenUsageSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/schemaUrl.ts",
+      "name": "FORMAT_IDS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/schemaUrl.ts",
+      "name": "PRE_SCHEMA_FORMAT_IDS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/schemaUrl.ts",
+      "name": "SCHEMA_BORN_FORMAT_IDS",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/schemaUrl.ts",
+      "name": "isSchemaBornFormatId",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityConfig.ts",
+      "name": "SecurityProfileSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityPosture.ts",
+      "name": "SecurityPostureSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityPosture.ts",
+      "name": "SecurityPostureV1Schema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityPosture.ts",
+      "name": "SecurityPostureV2Schema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityPosture.ts",
+      "name": "StopPostureSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/securityPosture.ts",
+      "name": "decodeSecurityPosture",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/specApprovalRecord.ts",
+      "name": "SpecApprovalRecordSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/specApprovalRecord.ts",
+      "name": "encodeSpecApprovalRecordFile",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/status.ts",
+      "name": "PhaseStopSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/status.ts",
+      "name": "RunHoldSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/surface.ts",
+      "name": "Surface",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/telemetryConfig.ts",
+      "name": "TelemetryConfigSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "files",
+      "file": "src/schemas/telemetryEvents.ts",
+      "name": "src/schemas/telemetryEvents.ts",
+      "reason": "debt"
+    },
+    {
+      "type": "types",
+      "file": "src/schemas/telemetryEvents.ts",
+      "name": "SemanticTelemetryEventFromSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/testLine.ts",
+      "name": "RESERVED_CRITERIA",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/testLine.ts",
+      "name": "TestLoopSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/testLine.ts",
+      "name": "TestSizeSchema",
+      "reason": "debt"
+    },
+    {
+      "type": "exports",
+      "file": "src/schemas/testLine.ts",
+      "name": "TestTechniqueSchema",
+      "reason": "debt"
+    }
+  ]
+}
