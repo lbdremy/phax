@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -11,12 +10,20 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // The seven root inspection commands (`validate`, `session-info`, `path`, `brief`,
 // `architecture`, `completions`, `report`) through the command runner, spawned as
@@ -25,8 +32,6 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 // PATH: no real ~/.phax, ~/.claude, ~/.codex or ~/.vibe, no global git config, no real provider
 // and no real `gh` is touched.
 //   ac-json-every-command, ac-text-unchanged and ac-error-sentence.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const NAMESPACE = "made-up";
 const SHORT = "my-run";
@@ -42,11 +47,11 @@ let fakeBin: string;
 let ghLog: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[], cwd = repo): SpawnSyncReturns<string> {
+function runCli(args: readonly string[], cwd = repo): BoundedExit {
   // The fake `usage` and `gh` come first on PATH; HOME is a temporary home.
-  return spawnSync("tsx", [mainTs, ...args], {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd,
-    encoding: "utf8",
     env: {
       ...phaxHomeEnv(),
       PATH: `${fakeBin}:${process.env["PATH"] ?? ""}`,
@@ -61,7 +66,7 @@ function write(root: string, rel: string, content: string): void {
 }
 
 function git(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd, stdio: "ignore" });
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function messageLines(stderr: string): ReadonlyArray<{ kind: string }> {

@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -12,7 +11,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
@@ -26,21 +24,32 @@ import {
   seedArchivedRun,
   type PruneRepo,
 } from "./helpers/pruneRepo.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  SCRIPT_BOUND_MS,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `init`, `unlock`, `archive` and `prune` on the command runner (spec command-contracts:
 // ac-json-every-command, ac-written, ac-no-person, ac-error-sentence, ac-text-unchanged): each
 // spawns `tsx src/cli/main.ts` in a temporary repository, with a temporary PHAX home and an
 // isolated git configuration, so no real ~/.phax or global git config is read.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 
 let restoreGit: () => void;
 let roots: PruneRepo;
 let scratch: string;
 
-function runCli(args: readonly string[], cwd: string = roots.repo): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[], cwd: string = roots.repo): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd,
+    env: phaxHomeEnv(),
+  });
 }
 
 /** The lines of a stream, each parsed: every line of stderr under `--json` is a message. */
@@ -115,8 +124,14 @@ function seedRun(name: string, state: "review_open" | "created"): void {
 
 /** A process id that no process holds now. */
 function deadPid(): number {
-  const child = spawnSync("node", ["-e", ""]);
-  return child.pid;
+  const child = boundedSpawn(
+    process.execPath,
+    ["-e", "process.stdout.write(String(process.pid))"],
+    {
+      boundMs: SCRIPT_BOUND_MS,
+    },
+  );
+  return Number(child.stdout);
 }
 
 beforeAll(() => {

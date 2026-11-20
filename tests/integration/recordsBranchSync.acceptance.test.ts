@@ -1,6 +1,3 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Layer } from "effect";
 import { readRecordsBranch } from "../../src/app/recordsBranch.js";
@@ -33,6 +30,14 @@ import {
 } from "../fixtures/records/branchTipRepos.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import {
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Acceptance tests of spec records-branch-tip §5.4–§5.8 and §5.12, frozen until the phase that
 // implements `syncRecordsBranch` and the `records sync --replay` command: every test carries
@@ -43,7 +48,6 @@ import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 // operator decision of 2026-11-06 amending §5.8: a shared key no longer refuses the replay.
 
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer);
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 let restoreGit: () => void;
 const worlds: BranchTipWorld[] = [];
@@ -97,7 +101,10 @@ const tipOf = (repo: string): string => git(["rev-parse", BRANCH_REF], repo);
 
 /** A commit's raw bytes: its author line, and its message exactly as stored. */
 function rawCommit(repo: string, sha: string): { author: string; message: string } {
-  const raw = execFileSync("git", ["cat-file", "commit", sha], { cwd: repo, encoding: "utf8" });
+  const raw = boundedOutput("git", ["cat-file", "commit", sha], {
+    boundMs: GIT_BOUND_MS,
+    cwd: repo,
+  });
   const split = raw.indexOf("\n\n");
   const headers = raw.slice(0, split).split("\n");
   return {
@@ -222,11 +229,10 @@ describe("phax records sync without --replay refuses a branch that has split", (
       const localTip = tipOf(world.clonePath);
       const remoteTip = world.remoteTip();
 
-      const result = spawnSync("tsx", [mainTs, "records", "sync", "--json"], {
+      const result = boundedSpawn(CLI_LAUNCHER, cliArgs("records", "sync", "--json"), {
+        boundMs: CLI_BOUND_MS,
         cwd: world.sourceRepo,
-        encoding: "utf8",
         env: phaxHomeEnv(),
-        stdio: ["ignore", "pipe", "pipe"],
       });
 
       expect(result.status, result.stderr).toBe(1);

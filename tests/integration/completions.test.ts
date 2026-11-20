@@ -1,23 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { dirname, join } from "node:path";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  SCRIPT_BOUND_MS,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
-const mainTs = join(repoRoot, "src/cli/main.ts");
 
-function runCli(args: string[], env?: NodeJS.ProcessEnv): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
-    encoding: "utf8",
+function runCli(args: string[], env?: NodeJS.ProcessEnv): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     env: { ...phaxHomeEnv(), ...env },
   });
 }
 
 function isUsageAvailable(): boolean {
-  const check = spawnSync("usage", ["--version"], { encoding: "utf8" });
-  return check.error === undefined && check.status === 0;
+  try {
+    return boundedSpawn("usage", ["--version"], { boundMs: SCRIPT_BOUND_MS }).status === 0;
+  } catch {
+    return false; // not installed
+  }
 }
 
 function pathWithoutUsage(): string {

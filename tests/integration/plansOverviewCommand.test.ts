@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -10,20 +9,26 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `phax plans overview` from source in a made-up git repository. HOME, the git
 // configuration and the state root are all temporary, and the fake `claude`
 // and `codex` are on PATH, so no real ~/.phax, ~/.claude, ~/.codex, ~/.vibe or
 // global git config is read and no real provider can start.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 let base: string;
 let repo: string;
@@ -34,17 +39,13 @@ let restoreGit: () => void;
 const PLAN_REL = "docs/plans/2610240900-widget-plan.md";
 
 function git(args: readonly string[]): string {
-  return execFileSync("git", args, {
-    cwd: repo,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 }
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd: repo,
-    encoding: "utf8",
     env: {
       ...phaxHomeEnv(),
       PATH: fake.env["PATH"]!,

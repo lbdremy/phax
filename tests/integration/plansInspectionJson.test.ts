@@ -1,21 +1,26 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { WIDGET_PLAN_REL, widgetPlanMd } from "../fixtures/commandAnswers/before.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `phax plans status`, `plans overlap` and `plans estimate` through the command runner, spawned
 // as `tsx src/cli/main.ts` in a temporary repository with a temporary HOME and git
 // configuration: no real ~/.phax, ~/.claude, ~/.codex, ~/.vibe or global git config is read, no
 // provider runs and no probe is made (`--no-probe`, `--no-extract`).
 //   ac-json-every-command, ac-error-sentence, ac-written and ac-groups.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const MESSAGE_KINDS = ["note", "written", "error", "refused", "defect"];
 const OTHER_PLAN_REL = "docs/plans/2610240910-other-plan.md";
@@ -25,8 +30,12 @@ let base: string;
 let repo: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[], cwd = repo): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[], cwd = repo): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd,
+    env: phaxHomeEnv(),
+  });
 }
 
 function write(rel: string, content: string): void {
@@ -35,7 +44,7 @@ function write(rel: string, content: string): void {
 }
 
 function git(...args: string[]): void {
-  execFileSync("git", args, { cwd: repo, stdio: "ignore" });
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 }
 
 function messageLines(stderr: string): ReadonlyArray<{ kind: string }> {
@@ -167,7 +176,7 @@ describe("a broken phax.json", () => {
     broken = join(base, "broken");
     mkdirSync(broken);
     writeFileSync(join(broken, "phax.json"), "{ not json");
-    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: broken });
+    boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: broken });
   });
 
   // ac-error-sentence
