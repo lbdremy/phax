@@ -1,9 +1,10 @@
 Write the phax spec `lint-baseline`: phax's own lint suppressions each name their rule and say why, the unused ones go,
 and every one that stays is listed with its reason in a committed, protected baseline; a directive the baseline does
 not hold fails the gate, and so does an entry no directive matches any more. A change to phax's own code and gate only;
-phax gains no feature. It takes over the brief `suppression-directives` (2026-11-18, archived), whose clean-up is its
-first part. It also makes the rules the config switches on run: 26 of them, `no-floating-promises` among them, need
-oxlint's type-aware mode, which phax's lint never turns on, and none of them has ever run.
+phax gains no feature. It also makes the rules the config switches on run: 26 of them, `no-floating-promises` among
+them, need oxlint's type-aware mode, which phax's lint never turns on, and none of them has ever run. What they find
+goes into the baseline with today's directives; the clean-up of the brief `suppression-directives` (2026-11-18,
+archived), which this one takes over, comes after, in plans of its own.
 
 ## Why
 
@@ -55,8 +56,8 @@ new exception to the lint is the operator's decision, made in a file a phase can
 
 ## Settled (do not reopen)
 
-1. **phax's code only.** No phax feature, no `phax.json` key, no record: the clean-up and the baseline check are the
-   whole change.
+1. **phax's code only.** No phax feature, no `phax.json` key, no record: the type-aware mode, the baseline check and
+   the baseline are the whole change.
 2. **The tool's own grammar.** A directive names the rules it silences and says why after `--`, oxlint's syntax; the
    `oxlint-disable` spelling everywhere. The directive stays in the code, next to the line it excuses.
 3. **A baseline, outside oxlint, is the operator's permission.** A committed file lists the directives allowed, each
@@ -77,36 +78,42 @@ new exception to the lint is the operator's decision, made in a file a phase can
    per file, with its reason, rather than one per line; it is not switched off in `.oxlintrc.json`.
 9. **The same shape as knip's baseline**: one format, one way of identifying an entry, one way of failing, so an
    operator reads both the same way.
+10. **Two stages: the baseline first, then the rest.** This spec switches the stricter check on and lays the
+    baseline under it, written from every finding of today, so the gate is strict and green the day it lands and
+    anything new fails from then on. The clean-up is not in it: plans of their own, one folder or one rule at a time,
+    each shrinking the baseline. Until `gate-tolerances` gives a run its own route, the script has a `--prune` command
+    that drops the entries nothing matches any more, which the operator runs after such a run, as ESLint's
+    `--prune-suppressions` does.
 
 ## What the spec must cover
 
-- **The clean-up, outside `src/schemas/history/`:** each directive kept with its reason or removed because the code is
-  fixed; the 3 unused ones removed; the `eslint-disable` spelling replaced.
-- **The two whole-file `no-explicit-any` of `src/cli/commandLibrary/contract/`:** narrowed to the lines that need it,
-  or replaced by a type that is not `any`, or kept for the file with a reason that says why no narrower form works.
-  The 8 `no-explicit-any` in tests, the same question line by line.
+- **What this spec leaves to the clean-up plans** (named, not done), outside `src/schemas/history/`: each directive
+  kept with its reason or removed because the code is fixed; the 3 unused ones removed; the `eslint-disable` spelling
+  replaced; the two whole-file `no-explicit-any` of `src/cli/commandLibrary/contract/` narrowed to the lines that need
+  it, replaced by a type that is not `any`, or kept with a reason that says why no narrower form works; the 8
+  `no-explicit-any` in tests, the same question line by line; what the type-aware rules found.
 - **The baseline:** where the file lives and its format; what identifies an entry (the file, the rule and the kind,
   one line or the whole file, with a count per file, never the line number, which moves with every edit); what a
   count lets through (one fixed, another added in the same file for the same rule) and whether that is accepted.
-- **The order:** the clean-up first, then the baseline written from what is left, so it starts with only the
-  suppressions the operator agrees with; or today's 74 written as they are and burnt down plan by plan. Say which.
+- **The first content:** today's 74 directives and what the type-aware rules find, each with the reason it gives in
+  the code, or `debt` when it gives none, until a clean-up plan settles it; the script's `--prune`.
 - **The unused directives of the frozen modules:** how the step fails on an unused directive while the 6 in
   `src/schemas/history/` cannot go: the frozen modules out of the unused check, or their 6 held by the baseline.
 - **Protected paths and order:** `.oxlintrc.json`, the baseline and the workflows are protected, so a phase cannot
   change them. Say which changes the operator makes by hand outside the run, and in what order against the phases,
   until `gate-tolerances` gives a run its own route.
 - **The type-aware rules:** the lint runs with `--type-aware` and `oxlint-tsgolint` as a dev dependency, at a version
-  that matches the TypeScript the project pins (7.x); what the 26 rules find on today's code, counted by rule, and
-  whether it is fixed in the plan or held by the baseline like any accepted exception; the time the mode adds to a
-  gate step that fires at every phase.
+  that matches the TypeScript the project pins (7.x); what the 26 rules find on today's code, counted by rule and held
+  by the baseline; the time the mode adds to a gate step that fires at every phase.
 - **Every rule switched on runs:** a check, in the lint step or beside it, that fails when a rule the config enables
   cannot run (a type-aware rule without the mode, a plugin not loaded), so a rule set to `error` is never silently
   skipped again. For instance, one sample per enabled rule that breaks it, linted in a test that expects the error.
 - **The gate step:** the lint and the baseline check, one step or two; read as a log or as a `gate-report`, so each new
   directive lands in the fix loop with its file.
 - **Acceptance:** the step red on a directive added outside the baseline, on a directive without a reason, on an
-  unused directive, on a stale entry and on a floating promise, each shown in a test; green on the code after the
-  clean-up; the count of entries by rule, with their reasons, in the plan's last phase.
+  unused directive, on a stale entry and on a new floating promise, each shown in a test, and `--prune` shown removing
+  a stale entry; green on today's code with the baseline in place; the count of entries by rule and by reason in the
+  plan's last phase.
 
 ## Open questions
 

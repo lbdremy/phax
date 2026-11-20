@@ -1,6 +1,7 @@
 Write the phax spec `knip-production`: phax's dead-code gate sees the code that only tests use and the exports that
-nothing uses, because knip starts from what phax runs and also runs in production mode; what it then finds is removed,
-or kept with its reason. A change to phax's own code and gate only; phax gains no feature.
+nothing uses, because knip starts from what phax runs and also runs in production mode; what it finds today goes into a
+baseline, and the clean-up that empties it comes after, in plans of its own. A change to phax's own code and gate only;
+phax gains no feature.
 
 ## Why
 
@@ -71,6 +72,12 @@ Each run used a temporary config next to `knip.json`, removed afterwards. Only t
    a phase that fixes a finding leaves a stale entry it may not remove itself, which is what `gate-tolerances`
    (`docs/briefs/gate-tolerances.md`) is for. oxlint's suppressions get a baseline of the same shape
    (`docs/briefs/lint-baseline.md`).
+7. **Two stages: the baseline first, then the rest.** This spec switches the stricter check on and lays the
+   baseline under it, written from every finding of today, so the gate is strict and green the day it lands and
+   anything new fails from then on. The clean-up is not in it: plans of their own, one folder or one rule at a time,
+   each shrinking the baseline. Until `gate-tolerances` gives a run its own route, the script has a `--prune` command
+   that drops the entries nothing matches any more, which the operator runs after such a run, as ESLint's
+   `--prune-suppressions` does.
 
 ## What the spec must cover
 
@@ -86,29 +93,31 @@ Each run used a temporary config next to `knip.json`, removed afterwards. Only t
 - **What ships besides the CLI:** `packages/schemas` and the JSON schemas `scripts/schemas-json.ts` builds from
   `src/schemas` (so a schema that only the build reads is not dead), the usage spec and the model catalog the scripts
   generate. Say how each is kept out of the production findings, or counted as production.
-- **The clean-up, by folder:** each unused file, export and type removed or kept with its reason; the 4 product files
-  first; `mdast-util-to-string` moved to `devDependencies`. An export only its own file uses loses its `export`.
+- **What this spec leaves to the clean-up plans** (named, not done): each unused file, export and type removed or kept
+  with its reason; the 4 product files first; `mdast-util-to-string` moved to `devDependencies`; an export only its
+  own file uses loses its `export`. The audit matrix above is the worked case those plans follow.
 - **The baseline:** where the file lives and its format; what identifies a finding (the file, the issue type and the
   symbol's name, never the line, which moves with every edit); the reason each entry carries; the script that
   compares, in phax's own scripts, and whether the gate step reads its result as a log or as a `gate-report`, so each
   new finding lands in the fix loop with its file. knip's JSON is one object per file, `{"issues": [{"file": …,
   "exports": [{"name": …, "line": …}], "types": […], "files": […], "dependencies": […], …}]}` (knip 6.45, 233 files
-  in the production run). The baseline's first content: the accepted exceptions of the clean-up, or every finding of
-  today, burnt down plan by plan. Say which.
+  in the production run). Its first content is every finding of today (item 7), each with the reason `debt` until a
+  clean-up plan settles it; the script's `--prune`.
 - **Protected paths:** `knip.json` and `.github/workflows/**` are protected, so a phase cannot change them. Say which
   changes the operator makes by hand outside the run (the new `knip.json`, the second gate step) and in what order
   against the phases, so the gate is never red on code a phase was not allowed to fix.
-- **Acceptance:** both knip runs at zero findings outside the baseline in the plan's last phase, a new finding and a
-  stale entry each shown failing the step, with a count of what was removed and what was kept, by reason; the full
-  suite and `pnpm typecheck` green.
+- **Acceptance:** both knip runs green on today's code with the baseline in place; a new finding and a stale entry
+  each shown failing the step, and `--prune` shown removing the stale entry; the baseline's count by issue type and
+  folder in the plan's last phase; the full suite and `pnpm typecheck` green.
 
 ## Open questions
 
 - **One step or two.** On the product's code the production run sees everything the default run sees (the 345 exports
   hold the 123); the default run adds the tests, the scripts, the site and the dev dependencies. Two steps cost two
   runs per phase; whether one is enough is for the spec to measure.
-- **Dead, or used only by tests.** The two are reported alike in production. The 123 go with nothing else; the 222 go
-  with the tests that hold them, which changes what the suite checks. Whether the plan removes those tests, or keeps
-  some exports as test support with their reason, is the operator's to decide, export by export or by folder.
-- **The size of the clean-up.** About 460 exports and types in all: one plan, or one plan per folder, `src/schemas`
-  first. With the baseline holding today's findings, the gate can go in before the clean-up and each plan shrinks it.
+- **Dead, or used only by tests** (for the clean-up plans). The two are reported alike in production. The 123 go with
+  nothing else; the 222 go with the tests that hold them, which changes what the suite checks. Whether the plan removes
+  those tests, or keeps some exports as test support with their reason, is the operator's to decide, export by export or
+  by folder.
+- **The order of the clean-up plans.** About 460 exports and types in all: one plan per folder, `src/schemas` first,
+  or by kind of finding, the unused files first.
