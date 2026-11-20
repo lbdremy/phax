@@ -590,7 +590,7 @@ function isControl(code: number): boolean {
 function stdinPathLine(path: string): string {
   const plain =
     !path.startsWith('"') &&
-    ![...path].some((char) => char === "\\" || isControl(char.charCodeAt(0)));
+    !Array.from(path).some((char) => char === "\\" || isControl(char.charCodeAt(0)));
   if (plain) return path;
   let quoted = "";
   for (const char of path) {

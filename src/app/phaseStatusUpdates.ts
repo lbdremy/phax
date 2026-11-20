@@ -45,7 +45,10 @@ export function readPhaseCommit(phaseFolderPath: string): Effect.Effect<
   });
 }
 
-const isFullCommit = Schema.is(FullCommitShaSchema);
+// A check, not a type guard: the decoded type already says full, and the
+// message must still show a hash the check refuses.
+const isFullCommitSha = Schema.is(FullCommitShaSchema);
+const isFullCommit = (hash: string): boolean => isFullCommitSha(hash);
 
 /** The phase's `status.json`, through the persisted reader; a refusal is an FsError. */
 export function readPhaseStatus(

@@ -45,8 +45,8 @@ export function matchesAnyGlob(globs: readonly string[], paths: readonly string[
 // Iterative, backtracking only to the last `*`, so it is linear-times-length
 // rather than exponential in the number of stars.
 function matchSegment(globSegment: string, textSegment: string): boolean {
-  const glob = [...globSegment];
-  const text = [...textSegment];
+  const glob = Array.from(globSegment);
+  const text = Array.from(textSegment);
   let gi = 0;
   let ti = 0;
   let star = -1;

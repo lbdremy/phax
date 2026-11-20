@@ -45,7 +45,7 @@ export function architectureGlobProblem(glob: string): string | undefined {
   // phax prints a glob as a Markdown code span on one line: a backtick or a
   // control character would break out of it.
   if (glob.includes("`")) return `${quoted} contains a backtick`;
-  if ([...glob].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) {
+  if (Array.from(glob).some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) {
     return `${quoted} contains a control character`;
   }
   for (const segment of glob.split("/")) {
