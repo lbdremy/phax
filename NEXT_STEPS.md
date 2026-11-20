@@ -223,7 +223,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       every project) and the project's own doctrine of taste, a versioned document in the
       repository with a CLI to add, retire and supersede entries, loaded by headless authoring
       and every decide mode so a recommendation names the rules it rests on. Today the doctrine
-      reaches only decide, after the choice, and the operator's rules live in `CLAUDE.md` and an
+      reaches only decide, after the choice, and the operator's rules live in `AGENTS.md` and an
       assistant's memory.
 - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
       rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,

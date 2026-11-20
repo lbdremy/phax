@@ -29,6 +29,7 @@
     ".claude/skills/validation-boundaries"
   ],
   "excludeFiles": [
+    "AGENTS.md",
     "CLAUDE.md",
     "NEXT_STEPS.md",
     "acceptance-coverage.md",
