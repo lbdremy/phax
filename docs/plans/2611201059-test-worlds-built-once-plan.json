@@ -32,7 +32,8 @@
       "No acceptance phase: the spec changes no surface a user of phax sees (§11 \"None\"), only test fixtures; every test line is in-phase.",
       "No interactive phase: no phase sets a pattern a later phase repeats."
     ],
-    "openQuestions": [
+    "openQuestions": [],
+    "arbitratedQuestions": [
       {
         "id": "q-measures-message",
         "question": "phax writes each phase's commit body from the plan, before any measure exists, so the last phase cannot put its measured numbers into its own commit message as §5.12 and ac-measures ask. Where do the before and after measures live in the change's history?",
@@ -49,10 +50,31 @@
           }
         ],
         "recommendation": "measures-file",
-        "rationale": "It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message."
+        "rationale": "It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message.",
+        "verdict": {
+          "kind": "decided",
+          "chosen": "measures-file",
+          "abandoned": [
+            "amend-at-review"
+          ],
+          "why": "It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message.",
+          "advocate": "Amending the last commit puts the numbers in the commit message itself, exactly as §5.12 and ac-measures word it, so a reader of `git log` alone sees what they are and not only where they are; the loss of measures-file is that letter of the criterion.",
+          "principles": [
+            "E0",
+            "C4"
+          ],
+          "reversibility": "cheap",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-20T11:19:41.369Z",
+          "revised": [],
+          "phase": "phase-05"
+        },
+        "history": []
       }
-    ],
-    "arbitratedQuestions": []
+    ]
   },
   "phases": [
     {

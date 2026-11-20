@@ -39,7 +39,7 @@ Every command is already covered: `node`, `pnpm test:unit` and `pnpm test:integr
 - No acceptance phase: the spec changes no surface a user of phax sees (§11 "None"), only test fixtures; every test line is in-phase.
 - No interactive phase: no phase sets a pattern a later phase repeats.
 
-## Open questions
+## Arbitrated questions
 
 ### q-measures-message — phax writes each phase's commit body from the plan, before any measure exists, so the last phase cannot put its measured numbers into its own commit message as §5.12 and ac-measures ask. Where do the before and after measures live in the change's history?
 
@@ -47,6 +47,13 @@ Every command is already covered: `node`, `pnpm test:unit` and `pnpm test:integr
 - amend-at-review — The last phase writes the same file and its handoff carries the exact block; during the kept-open final review the operator amends the last commit's body to paste the block above phax's trailers, before publishing — abandons: A fully automated run: the criterion is met only by a manual operator step the run cannot check, and the final phase's commit id changes after phax recorded it, which phax's records and resume may not expect.
 
 Recommendation: measures-file — It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message.
+
+Decision: measures-file — by operator (Rémy Loubradou), 2026-11-20
+Why: It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message. Advocate: Amending the last commit puts the numbers in the commit message itself, exactly as §5.12 and ac-measures word it, so a reader of `git log` alone sees what they are and not only where they are; the loss of measures-file is that letter of the criterion. Principles: E0, C4. Reversibility: cheap. Revised: none. Phase: phase-05.
+
+## Decision log
+
+- 2026-11-20 q-measures-message decided measures-file — operator (Rémy Loubradou)
 
 ---
 
