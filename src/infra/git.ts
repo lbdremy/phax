@@ -346,6 +346,8 @@ interface RawDiffRow {
   readonly oldPath: string | null;
 }
 
+const PLAIN_DIFF_STATUSES = ["A", "M", "D", "T"] as const;
+
 // `git diff-tree -r -z -M --raw` prints, per entry,
 // `:<old mode> <new mode> <old id> <new id> <status>\0<path>\0`, and an
 // `R<score>` status is followed by two paths, the old then the new. Any other
@@ -377,7 +379,14 @@ function parseDiffTreeRawZ(
       i += 3;
       continue;
     }
-    rows.push({ status: status as RawDiffRow["status"], newMode, path, oldPath: null });
+    // The header's pattern leaves A, M, D or T here.
+    const plain = PLAIN_DIFF_STATUSES.find((each) => each === status);
+    if (plain === undefined) {
+      return Effect.fail(
+        new GitError({ message: `Unexpected diff-tree row "${fields[i]!}"`, command }),
+      );
+    }
+    rows.push({ status: plain, newMode, path, oldPath: null });
     i += 2;
   }
   return Effect.succeed(rows);
