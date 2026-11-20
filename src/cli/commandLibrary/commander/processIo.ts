@@ -20,17 +20,20 @@ const why = (error: unknown): string => {
   return message.replace(/^[A-Z0-9_]+: /, "").replace(/, [a-z]+ '.*'$/, "");
 };
 
+/** Whether a stream is a terminal: Node sets `isTTY` only on one, whatever its type says. */
+const isTerminal = (stream: { readonly isTTY?: boolean }): boolean => stream.isTTY === true;
+
 /** The process as the runner reads it: the arguments after the script, stdin read once when a
  *  command declares it, the environment, the terminal, stdout and stderr, and the files. */
 export function processIo(process: NodeJS.Process): Io {
-  const isTty = process.stdout.isTTY === true;
+  const isTty = isTerminal(process.stdout);
   const columns = process.stdout.columns;
   // Read once, on the first evaluation of `stdin`; every evaluation answers the same text.
   let stdin: Promise<string> | undefined;
   return {
     argv: process.argv.slice(2),
     stdin: Effect.promise(() => (stdin ??= readAll(process.stdin))),
-    stdinIsTerminal: process.stdin.isTTY === true,
+    stdinIsTerminal: isTerminal(process.stdin),
     readFile: (path) =>
       Effect.tryPromise({
         try: async (): Promise<Uint8Array> => new Uint8Array(await readFile(path)),

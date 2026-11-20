@@ -252,7 +252,7 @@ function author(context: NewContext) {
         ),
       );
     }
-    const flagEffort = flags.effort as Effort | undefined;
+    const flagEffort = flags.effort;
 
     const configResult = loadConfig(process.cwd());
     if (Result.isFailure(configResult)) {

@@ -70,7 +70,7 @@ export function captureFromStore(
   root: string | null,
   sessionId: string,
   lookup: (root: string) => Promise<TranscriptRead>,
-): Effect.Effect<TranscriptRead, never> {
+): Effect.Effect<TranscriptRead> {
   if (!isSafeSessionId(sessionId)) return Effect.succeed(UNSAFE_SESSION_ID);
   if (root === null) return Effect.succeed(NO_PROVIDER_STORE);
   return Effect.promise(() => lookup(root).catch(unreadable));

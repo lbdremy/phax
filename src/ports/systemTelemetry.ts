@@ -14,19 +14,19 @@ export interface SystemTelemetryOps {
     operation: Effect.Effect<A, E, R>,
   ): Effect.Effect<A, E, R>;
 
-  recordEvent(event: SemanticTelemetryEvent): Effect.Effect<void, never, never>;
+  recordEvent(event: SemanticTelemetryEvent): Effect.Effect<void, never>;
 
-  recordTransition(transition: StateTransitionTelemetryEvent): Effect.Effect<void, never, never>;
+  recordTransition(transition: StateTransitionTelemetryEvent): Effect.Effect<void, never>;
 
-  recordError(report: SystemErrorReport): Effect.Effect<void, never, never>;
+  recordError(report: SystemErrorReport): Effect.Effect<void, never>;
 
-  incrementCounter(name: string, attrs?: TelemetryAttributes): Effect.Effect<void, never, never>;
+  incrementCounter(name: string, attrs?: TelemetryAttributes): Effect.Effect<void, never>;
 
   recordDuration(
     name: string,
     durationMs: number,
     attrs?: TelemetryAttributes,
-  ): Effect.Effect<void, never, never>;
+  ): Effect.Effect<void, never>;
 }
 
 export class SystemTelemetry extends Context.Service<SystemTelemetry, SystemTelemetryOps>()(

@@ -85,9 +85,7 @@ export function makeClackPromptLayer(): Layer.Layer<Prompt> {
           options: opts.options as unknown as Parameters<
             typeof clackPrompts.multiselect<A>
           >[0]["options"],
-          ...(opts.initialValues !== undefined
-            ? { initialValues: opts.initialValues as Array<A> }
-            : {}),
+          ...(opts.initialValues !== undefined ? { initialValues: opts.initialValues } : {}),
           ...(opts.required !== undefined ? { required: opts.required } : {}),
         }),
       ) as Effect.Effect<ReadonlyArray<A>, PromptError | PromptCancelled>,

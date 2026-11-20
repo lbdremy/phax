@@ -176,7 +176,7 @@ function usageOf(input: WriteRecordInput): Effect.Effect<TokenUsage, never, File
 function computeVerifiedSurfacesForPhase(
   fs: FileSystemOps,
   phaseFolderPath: string,
-): Effect.Effect<readonly RecordedSurface[], never> {
+): Effect.Effect<readonly RecordedSurface[]> {
   return Effect.gen(function* () {
     const attributionPath = join(phaseFolderPath, GATE_ATTRIBUTION_FILE);
     const exists = yield* fs.exists(attributionPath).pipe(Effect.orElseSucceed(() => false));

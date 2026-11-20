@@ -188,7 +188,7 @@ export interface BackendOps {
    * It reads only that session's transcript, never a credential or
    * configuration file.
    */
-  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never>;
+  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead>;
 }
 
 export class Backend extends Context.Service<Backend, BackendOps>()("phax/Backend") {}

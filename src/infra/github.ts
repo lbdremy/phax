@@ -26,15 +26,15 @@ function ghRun(
       new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
         nodeExecFile("gh", [...args], { cwd }, (err, stdout, stderr) => {
           if (err) {
-            reject(Object.assign(err, { stdout: String(stdout), stderr: String(stderr) }));
+            reject(Object.assign(err, { stdout, stderr }));
           } else {
-            resolve({ stdout: String(stdout), stderr: String(stderr) });
+            resolve({ stdout, stderr });
           }
         });
       }),
     catch: (err) => {
       const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
-      const stderrStr = e.stderr !== undefined ? String(e.stderr) : undefined;
+      const stderrStr = e.stderr !== undefined ? e.stderr : undefined;
       const exitCode = typeof e.code === "number" ? e.code : undefined;
       return new GitHubError({
         message: e.message,
@@ -50,10 +50,7 @@ function ghRun(
 function ghRunAllowFail(
   args: readonly string[],
   cwd: string,
-): Effect.Effect<
-  { stdout: string; stderr: string; exitCode: number; message: string | null },
-  never
-> {
+): Effect.Effect<{ stdout: string; stderr: string; exitCode: number; message: string | null }> {
   return ghRun(args, cwd).pipe(
     Effect.map((r) => ({ ...r, exitCode: 0, message: null })),
     Effect.catch((err) =>

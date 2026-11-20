@@ -59,19 +59,19 @@ const makeVerboseRendererOps = (output: OutputPort): SystemTelemetryOps => ({
     return operation;
   },
 
-  recordEvent(event: SemanticTelemetryEvent): Effect.Effect<void, never, never> {
+  recordEvent(event: SemanticTelemetryEvent): Effect.Effect<void, never> {
     return Effect.sync(() => {
       output.log(formatSemanticEvent(event));
     });
   },
 
-  recordTransition(transition: StateTransitionTelemetryEvent): Effect.Effect<void, never, never> {
+  recordTransition(transition: StateTransitionTelemetryEvent): Effect.Effect<void, never> {
     return Effect.sync(() => {
       output.log(formatSemanticEvent(transition));
     });
   },
 
-  recordError(report: SystemErrorReport): Effect.Effect<void, never, never> {
+  recordError(report: SystemErrorReport): Effect.Effect<void, never> {
     return Effect.sync(() => {
       const location =
         report.adapter !== undefined ? `  ${report.adapter}/${report.operation ?? "?"}` : "";
@@ -79,7 +79,7 @@ const makeVerboseRendererOps = (output: OutputPort): SystemTelemetryOps => ({
     });
   },
 
-  incrementCounter(_name: string, _attrs?: TelemetryAttributes): Effect.Effect<void, never, never> {
+  incrementCounter(_name: string, _attrs?: TelemetryAttributes): Effect.Effect<void, never> {
     return Effect.void;
   },
 
@@ -87,7 +87,7 @@ const makeVerboseRendererOps = (output: OutputPort): SystemTelemetryOps => ({
     _name: string,
     _durationMs: number,
     _attrs?: TelemetryAttributes,
-  ): Effect.Effect<void, never, never> {
+  ): Effect.Effect<void, never> {
     return Effect.void;
   },
 });

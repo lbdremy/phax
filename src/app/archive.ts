@@ -131,7 +131,7 @@ export function archive(
         worktreesFrom: worktreesDirExists ? worktreesFrom : undefined,
         worktreesTo: worktreesDirExists ? worktreesTo : undefined,
       },
-      { runPath, shortName: shortName as string },
+      { runPath, shortName },
     );
     if (result.disposition !== "Handled") {
       return yield* Effect.fail(
@@ -151,7 +151,7 @@ export function archive(
     // 6. Update registry index (run-status.json is already written by the
     //    dispatcher above; this call only refreshes the central registry.json).
     //    archivePath points at the umbrella directory, not the runs subfolder.
-    yield* setRunStatus(stateRoot, namespace, shortName as string, {
+    yield* setRunStatus(stateRoot, namespace, shortName, {
       state: "archived",
       archivePath,
     });
