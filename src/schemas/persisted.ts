@@ -872,7 +872,7 @@ export type SpecDocumentV0_25_0Value = Omit<SpecDocumentV0_25_0, "$schema">;
  * A spec document in its 0.27.0 shape, as a 0.27.0 sidecar carried it: the
  * current in-memory document under a release-pattern `$schema`, which is dropped.
  */
-export type SpecDocumentV0_27_0Value = Omit<SpecDocumentV0_27_0, "$schema">;
+type SpecDocumentV0_27_0Value = Omit<SpecDocumentV0_27_0, "$schema">;
 
 /**
  * A plan document in its 0.20.0 shape, as a 0.20.0 sidecar or one written
@@ -898,7 +898,7 @@ export type PlanDocumentV0_26_0Value = DistributiveOmit<PlanDocumentV0_26_0, "$s
  * 0.32.0 document's shape under a release-pattern `$schema`, which is dropped.
  * Its test lines have the loop `oracle | in-phase`.
  */
-export type PlanDocumentV0_28_0Value = DistributiveOmit<PlanDocumentV0_28_0, "$schema">;
+type PlanDocumentV0_28_0Value = DistributiveOmit<PlanDocumentV0_28_0, "$schema">;
 
 /**
  * A plan document in its 0.32.0 shape, as a 0.32.0 sidecar carried it: the
@@ -912,10 +912,10 @@ export type PlanDocumentV0_32_0Value = DistributiveOmit<PlanDocumentV0_32_0, "$s
  * current in-memory document under its const `$schema`, which is dropped,
  * except that its file lists hold any string, canonical or not.
  */
-export type PlanDocumentV0_33_0Value = DistributiveOmit<PlanDocumentV0_33_0, "$schema">;
+type PlanDocumentV0_33_0Value = DistributiveOmit<PlanDocumentV0_33_0, "$schema">;
 
 /** A phase's three file lists, in plan order. */
-export type PlanPathList = "plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit";
+type PlanPathList = "plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit";
 
 const PLAN_PATH_LISTS: ReadonlyArray<PlanPathList> = [
   "plannedFilesToCreate",
@@ -1182,7 +1182,7 @@ function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift
  * naming its first departure; nothing else changes. Its plan paths are then
  * read (`withCanonicalPlanPaths`).
  */
-export function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentLift {
+function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentLift {
   const readings = Arr.map(older.phases, (phase) =>
     readTestStrategyText(phase.testStrategy, { beforeAcceptance: true }),
   );
@@ -1609,7 +1609,7 @@ export interface AnswerBounds {
  * own `$schema`: the three reports, and the two answers of a declared
  * interactive phase's turns.
  */
-export type ReportFormatId =
+type ReportFormatId =
   | "gate-report"
   | "brief-report"
   | "architecture-report"

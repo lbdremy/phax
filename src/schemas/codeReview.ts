@@ -57,10 +57,6 @@ export const CodeReviewEscapeSchema = Schema.Literals(ESCAPE_IDS).annotate(
   notOneOf("an escape", ESCAPE_IDS),
 );
 
-export type CodeReviewSeverity = Schema.Schema.Type<typeof CodeReviewSeveritySchema>;
-export type CodeReviewLens = Schema.Schema.Type<typeof CodeReviewLensSchema>;
-export type CodeReviewEscape = Schema.Schema.Type<typeof CodeReviewEscapeSchema>;
-
 export const CODE_REVIEW_SEVERITIES = CodeReviewSeveritySchema.literals;
 export const CODE_REVIEW_LENSES = CodeReviewLensSchema.literals;
 export const CODE_REVIEW_ESCAPES = CodeReviewEscapeSchema.literals;

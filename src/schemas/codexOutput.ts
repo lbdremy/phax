@@ -20,26 +20,21 @@ import { Result, Schema } from "effect";
  * session is then read from the last `error` event.
  */
 
-export const CodexThreadStartedEventSchema = Schema.Struct({
+const CodexThreadStartedEventSchema = Schema.Struct({
   type: Schema.Literal("thread.started"),
   thread_id: Schema.String,
 });
 
-export const CodexAgentMessageItemSchema = Schema.Struct({
+const CodexAgentMessageItemSchema = Schema.Struct({
   id: Schema.String,
   type: Schema.Literal("agent_message"),
   text: Schema.String,
 });
 
-export const CodexItemCompletedAgentMessageEventSchema = Schema.Struct({
+const CodexItemCompletedAgentMessageEventSchema = Schema.Struct({
   type: Schema.Literal("item.completed"),
   item: CodexAgentMessageItemSchema,
 });
-
-export type CodexThreadStartedEvent = Schema.Schema.Type<typeof CodexThreadStartedEventSchema>;
-export type CodexItemCompletedAgentMessageEvent = Schema.Schema.Type<
-  typeof CodexItemCompletedAgentMessageEventSchema
->;
 
 const decodeThreadStarted = Schema.decodeUnknownResult(CodexThreadStartedEventSchema, {
   reportInput: true,
@@ -77,14 +72,13 @@ const CodexErrorEventSchema = Schema.Struct({
   message: Schema.String,
 });
 
-export const decodeCodexTurnCompletedEvent = Schema.decodeUnknownResult(
-  CodexTurnCompletedEventSchema,
-  { reportInput: true },
-);
-export const decodeCodexTurnFailedEvent = Schema.decodeUnknownResult(CodexTurnFailedEventSchema, {
+const decodeCodexTurnCompletedEvent = Schema.decodeUnknownResult(CodexTurnCompletedEventSchema, {
   reportInput: true,
 });
-export const decodeCodexErrorEvent = Schema.decodeUnknownResult(CodexErrorEventSchema, {
+const decodeCodexTurnFailedEvent = Schema.decodeUnknownResult(CodexTurnFailedEventSchema, {
+  reportInput: true,
+});
+const decodeCodexErrorEvent = Schema.decodeUnknownResult(CodexErrorEventSchema, {
   reportInput: true,
 });
 

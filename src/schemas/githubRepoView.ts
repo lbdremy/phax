@@ -10,9 +10,7 @@ const RepoWebUrlSchema = Schema.String.check(
 );
 
 /** `gh repo view --json url`'s answer: an object with exactly one `url` field. */
-export const GithubRepoViewSchema = Schema.Struct({ url: RepoWebUrlSchema });
-
-export type GithubRepoView = Schema.Schema.Type<typeof GithubRepoViewSchema>;
+const GithubRepoViewSchema = Schema.Struct({ url: RepoWebUrlSchema });
 
 export const decodeGithubRepoView = Schema.decodeUnknownResult(GithubRepoViewSchema, {
   onExcessProperty: "error",

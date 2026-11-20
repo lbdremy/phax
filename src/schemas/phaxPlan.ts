@@ -28,7 +28,7 @@ const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
  * here: whether a plan's acceptance pair is well formed beyond its shape is a
  * lint rule.
  */
-export const PhaseAcceptanceSchema = Schema.NullOr(
+const PhaseAcceptanceSchema = Schema.NullOr(
   Schema.Struct({
     passedBy: PhaseIdSchema,
     files: Schema.Array(NonEmptyString),

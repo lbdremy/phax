@@ -57,7 +57,7 @@ const ORDERED_LINES =
   "Checked by phax's parser: lines starts at 1 or above and ends at or after its start.";
 
 /** Where a finding is: a file, and the lines in it or null for the whole file. */
-export const ReportLocationSchema = Schema.Struct(locationFields)
+const ReportLocationSchema = Schema.Struct(locationFields)
   .check(
     Schema.makeFilter(linesViolation, {
       description: `A file and the lines in it. ${ORDERED_LINES}`,
@@ -69,7 +69,7 @@ export const ReportLocationSchema = Schema.Struct(locationFields)
 export type ReportLocation = Schema.Schema.Type<typeof ReportLocationSchema>;
 
 /** Another location a finding involves, and why. */
-export const ReportRelatedLocationSchema = Schema.Struct({
+const ReportRelatedLocationSchema = Schema.Struct({
   ...locationFields,
   why: described(Schema.NonEmptyString, "Why the finding involves this location, in one line."),
 })

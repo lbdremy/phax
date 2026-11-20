@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { ExtractedPhaxPlanSchema } from "./phaxPlan.js";
 
-export const ExtractedPlanCacheEntrySchema = Schema.Struct({
+const ExtractedPlanCacheEntrySchema = Schema.Struct({
   version: Schema.Literal(1),
   key: Schema.NonEmptyString,
   planMdSha256: Schema.NonEmptyString,

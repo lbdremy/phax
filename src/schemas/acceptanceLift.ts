@@ -18,7 +18,7 @@ import type { TestLine, TestLoop, TestSize, TestTechnique } from "./testLine.js"
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 
 /** A phase's acceptance tests as a shape before 0.33.0 recorded them: the `oracle` key. */
-export interface PhaseOracleToLift {
+interface PhaseOracleToLift {
   readonly dischargedBy: string;
   readonly files: ReadonlyArray<string>;
 }
@@ -115,12 +115,12 @@ export function newlyReservedCriterionAt(lines: ReadonlyArray<TestLineToLift>): 
 }
 
 /** A test line with its loop lifted; every other coordinate kept, in its place. */
-export function liftTestLine(line: TestLineToLift): TestLine {
+function liftTestLine(line: TestLineToLift): TestLine {
   return { ...line, loop: liftTestLoop(line.loop) };
 }
 
 /** The lines of a list, each with its loop lifted. */
-export function liftTestLines(lines: ReadonlyArray<TestLineToLift>): ReadonlyArray<TestLine> {
+function liftTestLines(lines: ReadonlyArray<TestLineToLift>): ReadonlyArray<TestLine> {
   return lines.map(liftTestLine);
 }
 
@@ -128,7 +128,7 @@ export function liftTestLines(lines: ReadonlyArray<TestLineToLift>): ReadonlyArr
  * A phase's acceptance tests lifted: `{ dischargedBy, files }` becomes
  * `{ passedBy, files }` and null stays null. An `{ passedBy, files }` is kept.
  */
-export function liftPhaseAcceptance(oracle: PhaseOracleToLift | PhaseAcceptance): PhaseAcceptance {
+function liftPhaseAcceptance(oracle: PhaseOracleToLift | PhaseAcceptance): PhaseAcceptance {
   if (oracle === null) return null;
   if ("passedBy" in oracle) return oracle;
   return { passedBy: oracle.dischargedBy, files: oracle.files };
@@ -207,7 +207,7 @@ export function liftPlanExtractionTestLines(
 export type RecordedSurfaceBeforeAcceptance = "local" | "structural" | "product" | "oracle";
 
 /** The recorded surface `oracle` is now `acceptance`; every other surface is kept. */
-export function liftRecordedSurface(
+function liftRecordedSurface(
   surface: RecordedSurfaceBeforeAcceptance | RecordedSurface,
 ): RecordedSurface {
   return surface === "oracle" ? "acceptance" : surface;

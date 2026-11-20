@@ -140,10 +140,6 @@ export const SemanticTelemetryEventSchema = Schema.Union([
   StopTranscriptTelemetryEventSchema,
 ]);
 
-export type SemanticTelemetryEventFromSchema = Schema.Schema.Type<
-  typeof SemanticTelemetryEventSchema
->;
-
 export const decodeSemanticTelemetryEvent = Schema.decodeUnknownResult(
   SemanticTelemetryEventSchema,
   { reportInput: true },

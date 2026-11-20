@@ -44,23 +44,23 @@ export const PlanAuditorConfigSchema = Schema.Struct({
 
 export type PlanAuditorConfig = Schema.Schema.Type<typeof PlanAuditorConfigSchema>;
 
-export const ArchitectureConfigSchema = Schema.Struct({
+const ArchitectureConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotate({
     description:
       'The architecture provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. phax writes an architecture request {"$schema": "https://docs.phax.run/schemas/architecture-request/<release>.json", "files"} to its stdin and reads an architecture report {"$schema": "https://docs.phax.run/schemas/architecture-report/<release>.json", "body", "parts"} on stdout, which phax renders to Markdown; a provider that declines exits non-zero. Full contract: `phax --usage`, cmd architecture.',
   }),
 });
 
-export type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
+type ArchitectureConfig = Schema.Schema.Type<typeof ArchitectureConfigSchema>;
 
-export const AcceptanceConfigSchema = Schema.Struct({
+const AcceptanceConfigSchema = Schema.Struct({
   command: Schema.NonEmptyString.annotate({
     description:
       'The acceptance provider command. The string is split on whitespace with no shell — use a wrapper script for paths with spaces or pipelines. At the gate of an acceptance phase or its passing phase only, phax writes an acceptance request {"$schema": "https://docs.phax.run/schemas/acceptance-request/<release>.json", "verdict", "phase", "acceptancePhase", "base", "files"} (plus "acceptanceCommit" on a "passed" request) to its stdin, and judges the gate report the provider prints on stdout exactly like an `output: "gate-report"` step, with a fixed 120 s limit. `phax plans lint`, `phax validate`, the run preflight and authoring never run it. Full contract: `phax --usage`, cmd run.',
   }),
 });
 
-export type AcceptanceConfig = Schema.Schema.Type<typeof AcceptanceConfigSchema>;
+type AcceptanceConfig = Schema.Schema.Type<typeof AcceptanceConfigSchema>;
 
 export interface ResolvedPublishConfig {
   readonly auto: boolean;
@@ -87,10 +87,8 @@ export function resolvePublishConfig(raw: PublishConfig | undefined): ResolvedPu
 const NonEmptyCommandArray = Schema.NonEmptyArray(Schema.NonEmptyString);
 
 const FiringSchema = Schema.Literals(["every-phase", "terminal"]);
-export type Firing = Schema.Schema.Type<typeof FiringSchema>;
 
 const GateOutputSchema = Schema.Literals(["log", "gate-report"]);
-export type GateOutput = Schema.Schema.Type<typeof GateOutputSchema>;
 
 const GATE_OUTPUT_DESCRIPTION =
   '"log" (default) streams raw command output. "gate-report": phax reads a gate report {"$schema": "https://docs.phax.run/schemas/gate-report/<release>.json", "outcome": "checked", "findings", "review"} on stdout, judges the step from it and saves it as printed as checks-attempt-NN.report-SS.json, SS being the step\'s position among the steps the attempt runs. Any finding fails the step whatever the exit code; an empty list passes on exit 0; anything else is a broken step that fails with the raw log. A report step does not have to declare input.';
@@ -173,7 +171,7 @@ export const ComplianceReviewConfigSchema = Schema.Struct({
   effort: Schema.optional(EffortLiteral),
 });
 
-export const CodeReviewConfigSchema = Schema.Struct({
+const CodeReviewConfigSchema = Schema.Struct({
   enabled: Schema.optional(Schema.Boolean).annotateKey({
     description:
       "Run the headless code review when a run reaches review, after the compliance review and before the pull request. False when absent.",
@@ -186,14 +184,14 @@ export type CodeReviewConfig = Schema.Schema.Type<typeof CodeReviewConfigSchema>
 
 export type ComplianceReviewConfig = Schema.Schema.Type<typeof ComplianceReviewConfigSchema>;
 
-export const AuthoringKindConfigSchema = Schema.Struct({
+const AuthoringKindConfigSchema = Schema.Struct({
   model: Schema.optional(Schema.NonEmptyString),
   effort: Schema.optional(EffortLiteral),
 });
 
 export type AuthoringKindConfig = Schema.Schema.Type<typeof AuthoringKindConfigSchema>;
 
-export const AuthoringConfigSchema = Schema.Struct({
+const AuthoringConfigSchema = Schema.Struct({
   spec: Schema.optional(AuthoringKindConfigSchema),
   plan: Schema.optional(AuthoringKindConfigSchema),
 });
@@ -278,7 +276,7 @@ export const decodeCodeLinkDeclaration = Schema.decodeUnknownResult(
   { onExcessProperty: "error", errors: "all", reportInput: true },
 );
 
-export const PhaxConfigSchema = Schema.Struct({
+const PhaxConfigSchema = Schema.Struct({
   $schema: Schema.optional(Schema.String),
   version: Schema.Literal(1),
   name: Schema.NonEmptyString,
@@ -341,7 +339,6 @@ export const PhaxConfigSchema = Schema.Struct({
 });
 
 export type PhaxConfig = Schema.Schema.Type<typeof PhaxConfigSchema>;
-export type PhaxConfigWorkspace = Schema.Schema.Type<typeof WorkspaceSchema>;
 
 // a tenth of Haiku 4.5's per-token price ($0.10/$0.50 vs $1/$5); 29 at low on AA (2026-10-13 read)
 export const DEFAULT_EXTRACT_MODEL = "claude-haiku-5-5";
@@ -396,8 +393,6 @@ export interface ResolvedConfig {
   };
 }
 
-export type { ResolvedSecurityConfig, ResolvedRecordsConfig };
-
 export const decodePhaxConfig = Schema.decodeUnknownResult(PhaxConfigSchema, {
   onExcessProperty: "error",
   errors: "all",
@@ -408,7 +403,7 @@ export function getPhaxConfigJsonSchema(): object {
   return editorJsonSchema(PhaxConfigSchema);
 }
 
-export const PhaxUserOverlaySchema = Schema.Struct({
+const PhaxUserOverlaySchema = Schema.Struct({
   state: Schema.optional(
     Schema.Struct({
       root: Schema.NonEmptyString,

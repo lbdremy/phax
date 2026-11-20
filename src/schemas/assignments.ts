@@ -7,7 +7,7 @@ import { Schema } from "effect";
 import { ArchitectureGlobSchema, ArchitecturePartIdSchema, GLOB_DIALECT } from "./architecture.js";
 import { PlanEffortSchema } from "./phaxPlan.js";
 
-export const EffortRangeSchema = Schema.Struct({
+const EffortRangeSchema = Schema.Struct({
   min: PlanEffortSchema,
   max: PlanEffortSchema,
 }).annotate({
@@ -18,7 +18,7 @@ export const EffortRangeSchema = Schema.Struct({
 const BOUND_MODEL_DESCRIPTION =
   "The model a governed phase takes: a catalog model id, never ranked against another.";
 
-export const PartBoundSchema = Schema.Struct({
+const PartBoundSchema = Schema.Struct({
   kind: Schema.Literal("part"),
   part: ArchitecturePartIdSchema.annotate({
     description:
@@ -28,7 +28,7 @@ export const PartBoundSchema = Schema.Struct({
   effort: EffortRangeSchema,
 });
 
-export const GlobsBoundSchema = Schema.Struct({
+const GlobsBoundSchema = Schema.Struct({
   kind: Schema.Literal("globs"),
   globs: Schema.NonEmptyArray(ArchitectureGlobSchema).annotate({
     description: `The files the bound covers, as globs: ${GLOB_DIALECT}`,
@@ -37,14 +37,12 @@ export const GlobsBoundSchema = Schema.Struct({
   effort: EffortRangeSchema,
 });
 
-export const AssignmentBoundSchema = Schema.Union([PartBoundSchema, GlobsBoundSchema]);
+const AssignmentBoundSchema = Schema.Union([PartBoundSchema, GlobsBoundSchema]);
 
 export const AssignmentsSchema = Schema.NonEmptyArray(AssignmentBoundSchema).annotate({
   description:
     "The repository owner's assignment bounds, ordered from most to least demanding: the first bound that matches any of a phase's planned files governs it. A phase conforms when it takes the bound's model at an effort within the range; a departure needs an **Assignment reason:** line. Accepted in phax.json only.",
 });
 
-export type PartBound = Schema.Schema.Type<typeof PartBoundSchema>;
-export type GlobsBound = Schema.Schema.Type<typeof GlobsBoundSchema>;
 export type AssignmentBound = Schema.Schema.Type<typeof AssignmentBoundSchema>;
 export type Assignments = Schema.Schema.Type<typeof AssignmentsSchema>;

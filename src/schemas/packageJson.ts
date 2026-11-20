@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 
-export const PackageJsonSchema = Schema.Struct({
+const PackageJsonSchema = Schema.Struct({
   name: Schema.optional(Schema.String),
   scripts: Schema.optional(Schema.Record(Schema.String, Schema.String)),
   packageManager: Schema.optional(Schema.String),

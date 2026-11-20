@@ -15,7 +15,7 @@ import { NonEmptyString, isExportedPattern } from "./strictString.js";
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
 /** A finding's id: `F<n>` for a code-review finding, `C<n>` for a compliance finding. */
-export const FindingIdSchema = Schema.String.check(isExportedPattern(/^[FC][1-9][0-9]*$/)).pipe(
+const FindingIdSchema = Schema.String.check(isExportedPattern(/^[FC][1-9][0-9]*$/)).pipe(
   Schema.annotate({
     description: "A finding id: F<n> (code review) or C<n> (compliance review).",
     ...refusalOverride(
@@ -25,7 +25,7 @@ export const FindingIdSchema = Schema.String.check(isExportedPattern(/^[FC][1-9]
 );
 
 /** A git commit sha: lowercase hex, 40 (sha-1) or 64 (sha-256) characters. */
-export const CommitShaSchema = Schema.String.check(
+const CommitShaSchema = Schema.String.check(
   isExportedPattern(/^([0-9a-f]{40}|[0-9a-f]{64})$/),
 ).pipe(Schema.annotate({ description: "A git commit sha, lowercase hex of 40 or 64 characters." }));
 
@@ -35,10 +35,10 @@ const OperatorSchema = Schema.Struct({
 }).annotate(strictKeys);
 
 /** Who set a dismissal or a deferral: an operator only. */
-export const OperatorBySchema = OperatorSchema;
+const OperatorBySchema = OperatorSchema;
 
 /** Who recorded a fix: an operator, or a machine by its grant. */
-export const FixedBySchema = Schema.Union([
+const FixedBySchema = Schema.Union([
   OperatorSchema,
   Schema.Struct({
     kind: Schema.Literal("machine"),
@@ -72,7 +72,7 @@ const PathClassesSchema = Schema.Array(PathClassSchema)
   });
 
 /** A fix: the commit, the classes of its paths, and who recorded it. */
-export const FixedFateEntrySchema = Schema.Struct({
+const FixedFateEntrySchema = Schema.Struct({
   fate: Schema.Literal("fixed"),
   commit: CommitShaSchema,
   pathClasses: PathClassesSchema,
@@ -81,7 +81,7 @@ export const FixedFateEntrySchema = Schema.Struct({
 }).annotate(strictKeys);
 
 /** The verdict of a dismissal: a decided verdict that chooses dismiss, by an operator. */
-export const FindingDismissalVerdictSchema = Schema.Struct({
+const FindingDismissalVerdictSchema = Schema.Struct({
   kind: Schema.Literal("decided"),
   chosen: Schema.Literal("dismiss"),
   abandoned: Schema.Tuple([Schema.Literal("fix"), Schema.Literal("defer")]),
@@ -97,13 +97,13 @@ export const FindingDismissalVerdictSchema = Schema.Struct({
 }).annotate(strictKeys);
 
 /** A dismissal: the finding is not worth fixing, decided by an operator. */
-export const DismissedFateEntrySchema = Schema.Struct({
+const DismissedFateEntrySchema = Schema.Struct({
   fate: Schema.Literal("dismissed"),
   verdict: FindingDismissalVerdictSchema,
 }).annotate(strictKeys);
 
 /** A deferral: another document takes the finding over, decided by an operator. */
-export const DeferredFateEntrySchema = Schema.Struct({
+const DeferredFateEntrySchema = Schema.Struct({
   fate: Schema.Literal("deferred"),
   to: NonEmptyString.annotate({
     description:

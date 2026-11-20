@@ -15,8 +15,8 @@ import { Schema } from "effect";
 import { refusalMessage } from "./refusal/adapter.js";
 import { isExportedPattern } from "./strictString.js";
 
-export const TestSizeSchema = Schema.Literals(["small", "medium", "large"]);
-export const TestTechniqueSchema = Schema.Literals([
+const TestSizeSchema = Schema.Literals(["small", "medium", "large"]);
+const TestTechniqueSchema = Schema.Literals([
   "example",
   "boundary",
   "table",

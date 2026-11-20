@@ -48,7 +48,7 @@ const EquivalenceEdgeSchema = Schema.Struct({
 // effort to be present.
 const EquivalenceSpokeSchema = Schema.Record(Schema.String, EquivalenceEdgeSchema);
 
-export const ModelRoutingSchema = Schema.Struct({
+const ModelRoutingSchema = Schema.Struct({
   version: Schema.Literal(2),
   providerPriority: Schema.NonEmptyArray(ProviderIdSchema),
   allowDowngrade: Schema.Boolean,

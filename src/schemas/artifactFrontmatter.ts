@@ -2,19 +2,19 @@ import { Result, Predicate, Schema, SchemaIssue } from "effect";
 import { PlanStatusSchema, SpecStatusSchema } from "./artifactStatus.js";
 import { refusalMessage } from "./refusal/adapter.js";
 
-export const ApprovedStampSchema = Schema.Struct({
+const ApprovedStampSchema = Schema.Struct({
   date: Schema.String,
   baseline: Schema.NonEmptyString,
 });
 
 // A plan's stamp also carries the short code baseline when its project links a code repository.
-export const PlanApprovedStampSchema = Schema.Struct({
+const PlanApprovedStampSchema = Schema.Struct({
   date: Schema.String,
   baseline: Schema.NonEmptyString,
   code: Schema.optional(Schema.NonEmptyString),
 });
 
-export const SpecFrontmatterSchema = Schema.Struct({
+const SpecFrontmatterSchema = Schema.Struct({
   status: SpecStatusSchema,
   date: Schema.String,
   audience: Schema.String,
@@ -24,14 +24,14 @@ export const SpecFrontmatterSchema = Schema.Struct({
 export type SpecFrontmatter = Schema.Schema.Type<typeof SpecFrontmatterSchema>;
 
 // A plan without a source spec completes none, so it carries no `completes-spec`.
-export const SpecLessPlanFrontmatterSchema = Schema.Struct({
+const SpecLessPlanFrontmatterSchema = Schema.Struct({
   status: PlanStatusSchema,
   "source-spec": Schema.Null,
   approved: Schema.optional(PlanApprovedStampSchema),
 });
 
 // A plan naming a source spec states whether its run completes that spec.
-export const SpecBoundPlanFrontmatterSchema = Schema.Struct({
+const SpecBoundPlanFrontmatterSchema = Schema.Struct({
   status: PlanStatusSchema,
   "source-spec": Schema.NonEmptyString,
   "completes-spec": Schema.Boolean.annotate(
@@ -46,7 +46,7 @@ export const SpecBoundPlanFrontmatterSchema = Schema.Struct({
   approved: Schema.optional(PlanApprovedStampSchema),
 });
 
-export const PlanFrontmatterSchema = Schema.Union([
+const PlanFrontmatterSchema = Schema.Union([
   SpecLessPlanFrontmatterSchema,
   SpecBoundPlanFrontmatterSchema,
 ]);

@@ -10,7 +10,7 @@ import { RunStateSchema } from "./status.js";
 
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
-export const RunListRowSchema = Schema.Struct({
+const RunListRowSchema = Schema.Struct({
   qualifiedName: Schema.NonEmptyString.annotate({
     description: "The run's qualified name: `<namespace>.<short name>`.",
   }),

@@ -183,8 +183,8 @@ export const ReviewStopFileSchema = Schema.Union([
   HeldReviewStopFileSchema,
 ]).annotate(strictKeys);
 
-export type DeclaredReviewStopFile = Schema.Schema.Type<typeof DeclaredReviewStopFileSchema>;
-export type HeldReviewStopFile = Schema.Schema.Type<typeof HeldReviewStopFileSchema>;
+type DeclaredReviewStopFile = Schema.Schema.Type<typeof DeclaredReviewStopFileSchema>;
+type HeldReviewStopFile = Schema.Schema.Type<typeof HeldReviewStopFileSchema>;
 export type ReviewStopFile = Schema.Schema.Type<typeof ReviewStopFileSchema>;
 
 /** A declared review stop, without `$schema`. */

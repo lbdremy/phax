@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 
-export const AdjustPlanSessionSchema = Schema.Struct({
+const AdjustPlanSessionSchema = Schema.Struct({
   version: Schema.Literal(1),
   planPath: Schema.NonEmptyString,
   landedRunKey: Schema.NonEmptyString,

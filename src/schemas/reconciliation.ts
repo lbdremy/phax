@@ -1,7 +1,7 @@
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
 
-export const PhaseFileReconciliationSchema = Schema.Struct({
+const PhaseFileReconciliationSchema = Schema.Struct({
   phaseId: Schema.NonEmptyString,
   createdAsPlanned: Schema.Array(Schema.String),
   editedAsPlanned: Schema.Array(Schema.String),

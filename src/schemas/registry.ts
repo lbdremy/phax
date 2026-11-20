@@ -14,7 +14,7 @@ const RunStateSchema = Schema.Union([
   Schema.Literal("awaiting_review"),
 ]);
 
-export const RegistryEntrySchema = Schema.Struct({
+const RegistryEntrySchema = Schema.Struct({
   namespace: Schema.NonEmptyString,
   shortName: Schema.NonEmptyString,
   runId: Schema.NonEmptyString,
