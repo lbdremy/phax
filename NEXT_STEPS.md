@@ -135,6 +135,10 @@ attempt, a relaunch, and once a release.
       returns holds a gate for hours (13 h, 3 h). Find who sends the signal and fix it there; one bounded
       spawn helper for tests, and a guard against a new unbounded one. Takes over the two *Small
       follow-ups* on spawns with no timeout.
+- [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
+      2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
+      deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
+      it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions.
 - [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
