@@ -1,7 +1,12 @@
-Write the phax spec `knip-production`: phax's dead-code gate sees the code that only tests use and the exports that
+`knip-production`: phax's dead-code gate sees the code that only tests use and the exports that
 nothing uses, because knip starts from what phax runs and also runs in production mode; what it finds today goes into a
 baseline, and the clean-up that empties it comes after, in plans of its own. A change to phax's own code and gate only;
 phax gains no feature.
+
+**How it is done** (operator, 2026-11-20): no spec and no plan. Two pull requests made in an interactive session,
+one after the other: the first lays the mechanism and the baseline (stage 1), the second does the clean-up (stage 2).
+knip and oxlint are never mixed in one pull request. Where this brief says "the spec", read "the first pull request";
+"the clean-up plans" are the second.
 
 ## Why
 

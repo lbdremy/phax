@@ -1,10 +1,15 @@
-Write the phax spec `lint-baseline`: phax's own lint suppressions each name their rule and say why, the unused ones go,
+`lint-baseline`: phax's own lint suppressions each name their rule and say why, the unused ones go,
 and every one that stays is listed with its reason in a committed, protected baseline; a directive the baseline does
 not hold fails the gate, and so does an entry no directive matches any more. A change to phax's own code and gate only;
 phax gains no feature. It also makes the rules the config switches on run: 26 of them, `no-floating-promises` among
 them, need oxlint's type-aware mode, which phax's lint never turns on, and none of them has ever run. What they find
 goes into the baseline with today's directives; the clean-up of the brief `suppression-directives` (2026-11-18,
 archived), which this one takes over, comes after, in plans of its own.
+
+**How it is done** (operator, 2026-11-20): no spec and no plan. Two pull requests made in an interactive session,
+one after the other: the first lays the mechanism and the baseline (stage 1), the second does the clean-up (stage 2).
+knip and oxlint are never mixed in one pull request. Where this brief says "the spec", read "the first pull request";
+"the clean-up plans" are the second.
 
 ## Why
 
