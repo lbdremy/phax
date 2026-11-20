@@ -135,6 +135,20 @@ function commitsOf(world: BranchTipWorld): Record<string, string[]> {
   );
 }
 
+/**
+ * The remote tip a world of `remoteRecords` records holds, from a fresh build at a scratch path of
+ * the test's own: the records hold no path, so every build of these parameters has this tip. A test
+ * compares with it instead of with a value an earlier test left, so it passes run alone.
+ */
+async function freshRemoteTip(remoteRecords: number): Promise<string> {
+  const world = await buildBranchTipWorldAt(newWorldPath(), { remoteRecords, fresh: true });
+  try {
+    return world.remoteTip();
+  } finally {
+    world.cleanup();
+  }
+}
+
 function isGitCommand(words: readonly string[], name: string): boolean {
   return (words[0] === "git" && words[1] === name) || words[0] === `git-${name}`;
 }
@@ -152,15 +166,15 @@ describe("a branch-tip world copied from the file's cached world", () => {
   });
 
   // ac-built-once
-  let builtOnceTip: string | undefined;
-
   it("builds the 300-record world for the first request of the file", async () => {
     const world = track(await buildBranchTipWorld({ remoteRecords: 300 }));
-    builtOnceTip = world.remoteTip();
     expect(world.remoteKeys).toHaveLength(300);
+    expect(world.remoteTip()).toBe(await freshRemoteTip(300));
   });
 
   it("builds no remote and writes no record for a second request with the same parameters", async () => {
+    // Run alone, this test makes the first request itself; after the test above it is a copy.
+    track(await buildBranchTipWorld({ remoteRecords: 300 }));
     const { value: world, commands } = await withGitTrace(() =>
       buildBranchTipWorld({ remoteRecords: 300 }),
     );
@@ -174,8 +188,7 @@ describe("a branch-tip world copied from the file's cached world", () => {
         isGitCommand(words, "hash-object"),
     );
     expect(offending).toEqual([]);
-    expect(builtOnceTip).toBeDefined();
-    expect(world.remoteTip()).toBe(builtOnceTip);
+    expect(world.remoteTip()).toBe(await freshRemoteTip(300));
   });
 
   // ac-identical
@@ -250,23 +263,22 @@ describe("a branch-tip world copied from the file's cached world", () => {
   });
 
   // ac-isolated
-  let isolatedBuildTip: string | undefined;
-
   it("lets a test push records to its own copy's remote", async () => {
     const world = track(await buildBranchTipWorld({ remoteRecords: 6 }));
-    isolatedBuildTip = world.remoteTip();
+    const buildTip = world.remoteTip();
+    expect(buildTip).toBe(await freshRemoteTip(6));
     const ahead = await putBranchAhead(world);
     git(["push", "-q", "origin", RECORDS_BRANCH_NAME], world.clonePath);
     expect(world.remoteTip()).toBe(ahead.localTip);
-    expect(world.remoteTip()).not.toBe(isolatedBuildTip);
+    expect(world.remoteTip()).not.toBe(buildTip);
   });
 
   it("keeps another test's pushed records out of a later copy and out of the cached world", async () => {
+    const buildTip = await freshRemoteTip(6);
     const world = track(await buildBranchTipWorld({ remoteRecords: 6 }));
-    expect(isolatedBuildTip).toBeDefined();
-    expect(world.remoteTip()).toBe(isolatedBuildTip);
+    expect(world.remoteTip()).toBe(buildTip);
     const buildPath = await branchTipBuildPath({ remoteRecords: 6 });
-    expect(git(["rev-parse", BRANCH_REF], join(buildPath, "remote.git"))).toBe(isolatedBuildTip);
+    expect(git(["rev-parse", BRANCH_REF], join(buildPath, "remote.git"))).toBe(buildTip);
   });
 
   // ac-bulk-count
@@ -322,14 +334,33 @@ describe("a branch-tip world built under a person's global git configuration", (
   });
 
   // ac-git-isolation
-  it("carries none of its identity or default branch", async () => {
+  it("carries none of its identity, default branch, template or hooks", async () => {
     const saved = envOf(["GIT_CONFIG_GLOBAL", "GIT_CONFIG_NOSYSTEM"]);
     const configDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-branch-tip-gitconfig-")));
     try {
+      // The identity and the default branch are also set explicitly by the builder, so they alone
+      // cannot tell an isolated build from a leaking one. A template directory and a hooks path
+      // can: git copies the template into every repository it inits, and runs the hook on every
+      // commit, unless the person's configuration is kept away.
+      const templateDir = join(configDir, "template");
+      mkdirSync(templateDir);
+      writeFileSync(join(templateDir, "person-template-marker"), "from the person's template\n");
+      const hooksDir = join(configDir, "hooks");
+      mkdirSync(hooksDir);
+      const hookMarker = join(configDir, "person-hook-ran");
+      writeFileSync(join(hooksDir, "post-commit"), `#!/bin/sh\ntouch '${hookMarker}'\n`, {
+        mode: 0o755,
+      });
       const globalConfig = join(configDir, "gitconfig");
       writeFileSync(
         globalConfig,
-        "[user]\n\tname = Someone Else\n\temail = someone@else.test\n[init]\n\tdefaultBranch = trunk\n",
+        [
+          "[user]\n\tname = Someone Else\n\temail = someone@else.test",
+          "[init]\n\tdefaultBranch = trunk",
+          `\ttemplateDir = ${templateDir}`,
+          `[core]\n\thooksPath = ${hooksDir}`,
+          "",
+        ].join("\n"),
       );
       process.env["GIT_CONFIG_GLOBAL"] = globalConfig;
       process.env["GIT_CONFIG_NOSYSTEM"] = "1";
@@ -342,8 +373,12 @@ describe("a branch-tip world built under a person's global git configuration", (
         }
       }
       for (const repo of repositories(world.base)) {
-        expect(git(["symbolic-ref", "HEAD"], join(world.base, repo)), repo).toBe("refs/heads/main");
+        const repoPath = join(world.base, repo);
+        expect(git(["symbolic-ref", "HEAD"], repoPath), repo).toBe("refs/heads/main");
+        const gitDir = existsSync(join(repoPath, ".git")) ? join(repoPath, ".git") : repoPath;
+        expect(existsSync(join(gitDir, "person-template-marker")), repo).toBe(false);
       }
+      expect(existsSync(hookMarker)).toBe(false);
     } finally {
       cleanupAll();
       restoreEnv(saved);
