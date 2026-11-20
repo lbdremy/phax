@@ -51,6 +51,9 @@ const InitOutput = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("aborted") }),
 ]);
 
+/** Whether stdin is a terminal: Node sets `isTTY` only on one, whatever its type says. */
+const stdinIsTerminal = (stream: { readonly isTTY?: boolean }): boolean => stream.isTTY === true;
+
 function makeInitCommand(layers: InitLayers) {
   return defineCommand({
     name: "init",
@@ -80,7 +83,7 @@ function makeInitCommand(layers: InitLayers) {
     run: ({ input }) =>
       Effect.gen(function* () {
         const cwd = process.cwd();
-        const interactive = Boolean(process.stdin.isTTY) && input.flags.yes !== true;
+        const interactive = stdinIsTerminal(process.stdin) && input.flags.yes !== true;
         const outcome = yield* runInitWizard({
           cwd,
           ...(input.flags.force === true ? { force: true } : {}),

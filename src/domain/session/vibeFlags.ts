@@ -310,7 +310,7 @@ function selectionMismatch(
   if (active !== selection.model && !canonical) {
     return `active_model is ${shown(active)}, phax set ${JSON.stringify(selection.model)}`;
   }
-  const model = active as string;
+  const model = active;
   const models = actual["models"];
   const entry = isPlainObject(models) ? models[model] : undefined;
   const thinking = isPlainObject(entry) ? entry["thinking"] : undefined;

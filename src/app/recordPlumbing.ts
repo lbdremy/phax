@@ -334,7 +334,7 @@ function readTranscriptUsage(
   fs: FileSystemOps,
   provider: "claude-code" | "codex-cli",
   outputPath: string,
-): Effect.Effect<ProviderTokenUsage | undefined, never> {
+): Effect.Effect<ProviderTokenUsage | undefined> {
   return Effect.gen(function* () {
     const exists = yield* fs.exists(outputPath).pipe(Effect.orElseSucceed(() => false));
     if (!exists) return undefined;
@@ -348,7 +348,7 @@ function readTranscriptUsage(
 function readVibeExportUsage(
   fs: FileSystemOps,
   transcriptPath: string,
-): Effect.Effect<ProviderTokenUsage | undefined, never> {
+): Effect.Effect<ProviderTokenUsage | undefined> {
   return Effect.gen(function* () {
     const text = yield* fs
       .readText(vibeExportFileOf(transcriptPath))

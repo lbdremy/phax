@@ -62,7 +62,7 @@ export function cleanupPhase(
       return yield* Effect.fail(
         new ArchiveBlockedByDirtyWorktreeError({
           message: `Worktree at "${worktreePath}" has uncommitted changes. Cannot run cleanup.`,
-          worktreePath: worktreePath as string,
+          worktreePath,
         }),
       );
     }
@@ -81,7 +81,7 @@ export function cleanupPhase(
     yield* dispatch(startedEvent, dispatchCtx);
 
     yield* runEffect(
-      { type: "RunCleanupShell", commands: cleanupCommands, cwd: worktreePath as string },
+      { type: "RunCleanupShell", commands: cleanupCommands, cwd: worktreePath },
       runnerCtx,
     );
 

@@ -281,7 +281,7 @@ export class FakeBackendImpl implements BackendOps {
     );
   }
 
-  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead, never> {
+  captureTranscript(request: TranscriptRequest): Effect.Effect<TranscriptRead> {
     this.captureCalls.push(request);
     const bytes = this.transcripts.get(request.sessionId);
     return Effect.succeed(

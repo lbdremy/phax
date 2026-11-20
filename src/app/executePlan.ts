@@ -549,7 +549,7 @@ export function executePlan(
       const result = yield* writeRecord({
         repoRoot: config.repoRoot,
         phaseFolderPath: args.phaseFolderPath,
-        runId: runId as string,
+        runId,
         phaseId: args.phaseId,
         provider: args.provider,
         model: args.model,
@@ -715,7 +715,7 @@ export function executePlan(
   function dispatchCtx(phaseFolderPath?: string, phaseId?: string): DispatcherContext {
     return {
       runPath,
-      shortName: shortName as string,
+      shortName,
       phaseFolderPath,
       phaseId,
     };
@@ -980,7 +980,7 @@ export function executePlan(
       repoRoot: config.repoRoot,
       isFinalPhase: false,
       runPath,
-      shortName: shortName as string,
+      shortName,
       phaseId: phase.id,
     }).pipe(
       Effect.catch((e) =>
@@ -1153,7 +1153,7 @@ export function executePlan(
       ...(config.records.destination.kind === "repo"
         ? { recordsClonePath: recordsClonePath(config.stateRoot, namespace) }
         : {}),
-      runId: runId as string,
+      runId,
     }).pipe(
       Effect.map(
         (listed) =>
@@ -1445,14 +1445,14 @@ export function executePlan(
         const posture = yield* readPhasePosture(phaseFolderPath);
         return yield* stopAtHeldPhase({
           runId,
-          shortName: shortName as string,
+          shortName,
           runPath,
           mainCheckout: config.repoRoot,
           phases: plan.phases,
           phase,
           phaseIndex: args.phaseIndex,
           phaseFolder: phaseFolderPath,
-          worktree: worktreePath as string,
+          worktree: worktreePath,
           provider,
           model,
           effort,
@@ -1498,7 +1498,7 @@ export function executePlan(
             : Effect.fail(
                 new AwaitingReviewStopError({
                   message: `Run "${shortName}" awaits review at ${phase.id} (held: --hold)`,
-                  run: shortName as string,
+                  run: shortName,
                   phase: phase.id,
                   report,
                 }),
@@ -1641,7 +1641,7 @@ export function executePlan(
           const reentryWorktree = reentry.worktree;
           const stopFolder = join(runPath, phase.id);
           currentPhaseFolderPath = stopFolder;
-          currentWorktreePath = reentryWorktree as string;
+          currentWorktreePath = reentryWorktree;
 
           // What the record needs was read before RunResumeRequested; a
           // cleanup re-entry writes no record.
@@ -1655,11 +1655,11 @@ export function executePlan(
             closeInFlight = true;
             const report = yield* closeStop({
               runId,
-              shortName: shortName as string,
+              shortName,
               runPath,
               phase,
               phaseFolder: stopFolder,
-              worktree: reentryWorktree as string,
+              worktree: reentryWorktree,
               gateSteps,
               gateRequest: phaseFactsFor(stopFolder, phase.id, false).pipe(
                 Effect.map(serializeGateRequest),
@@ -1741,7 +1741,7 @@ export function executePlan(
           config.stateRoot,
           config.repoRoot,
         );
-        currentWorktreePath = stopWorktree as string;
+        currentWorktreePath = stopWorktree;
         yield* recordPhaseWorktreeAndBranch(stopFolder, stopWorktree, preparedStopBranch.branch);
         yield* telemetry.recordEvent(
           makeAdapterCallSucceededTelemetryEvent({
@@ -1760,11 +1760,11 @@ export function executePlan(
           phaseFolderPath: stopFolder,
           setupCommands,
         });
-        yield* writePhasePlanFile(stopWorktree as string, planMd);
+        yield* writePhasePlanFile(stopWorktree, planMd);
 
         const { resolution, securityPolicy, frozenResult } = yield* resolvePhaseAgent({
           phase,
-          worktreePath: stopWorktree as string,
+          worktreePath: stopWorktree,
           phaseFolderPath: stopFolder,
           gateCommands: gateCommandStrings,
           partialCommands: partialPrefixes,
@@ -1775,14 +1775,14 @@ export function executePlan(
         const executedHandoffs = yield* readExecutedHandoffs(runPath, plan.phases, i);
         const report = yield* stopAtDeclaredPhase({
           runId,
-          shortName: shortName as string,
+          shortName,
           runPath,
           mainCheckout: config.repoRoot,
           phases: plan.phases,
           phase,
           phaseIndex: i,
           phaseFolder: stopFolder,
-          worktree: stopWorktree as string,
+          worktree: stopWorktree,
           provider: resolution.selected.provider,
           model: resolution.selected.concreteModel,
           effort: resolution.selected.thinking ?? phase.effort,
@@ -1796,7 +1796,7 @@ export function executePlan(
         return yield* Effect.fail(
           new AwaitingReviewStopError({
             message: `Run "${shortName}" awaits review at ${phase.id} (declared: interactive phase)`,
-            run: shortName as string,
+            run: shortName,
             phase: phase.id,
             report,
           }),
@@ -1814,7 +1814,7 @@ export function executePlan(
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
         currentPhaseFolderPath = heldFolder;
-        currentWorktreePath = holdPointReentry.worktree as string;
+        currentWorktreePath = holdPointReentry.worktree;
         currentSessionId = undefined;
         currentProvider = undefined;
         currentModel = undefined;
@@ -1824,7 +1824,7 @@ export function executePlan(
         // before anything runs and with no stop opened.
         if (config.protectedPaths !== undefined) {
           const changes = yield* checkProtectedPaths({
-            worktree: holdPointReentry.worktree as string,
+            worktree: holdPointReentry.worktree,
             base: yield* notedPhaseCommit(heldFolder),
             list: config.protectedPaths,
           });
@@ -1853,7 +1853,7 @@ export function executePlan(
         if (config.brief !== undefined) {
           yield* closePulledBriefs({
             output,
-            worktreePath: holdPointReentry.worktree as string,
+            worktreePath: holdPointReentry.worktree,
             phaseFolderPath: heldFolder,
             phaseId: phase.id,
           });
@@ -1889,7 +1889,7 @@ export function executePlan(
         const heldFolder = join(runPath, phase.id);
         currentPhaseId = phase.id;
         currentPhaseFolderPath = heldFolder;
-        currentWorktreePath = stopReentry.worktree as string;
+        currentWorktreePath = stopReentry.worktree;
         currentSessionId = undefined;
         // Left unset: no failure after the commit writes a `failed` record,
         // and the record below is passed its values explicitly.
@@ -1915,11 +1915,11 @@ export function executePlan(
           closeInFlight = true;
           const report = yield* closeStop({
             runId,
-            shortName: shortName as string,
+            shortName,
             runPath,
             phase,
             phaseFolder: heldFolder,
-            worktree: stopReentry.worktree as string,
+            worktree: stopReentry.worktree,
             gateSteps,
             gateRequest: phaseFactsFor(heldFolder, phase.id, false).pipe(
               Effect.map(serializeGateRequest),
@@ -1964,7 +1964,7 @@ export function executePlan(
         const folder = join(runPath, phase.id);
         currentPhaseId = phase.id;
         currentPhaseFolderPath = folder;
-        currentWorktreePath = worktree === null ? undefined : (worktree as string);
+        currentWorktreePath = worktree === null ? undefined : worktree;
         currentSessionId = undefined;
         // Left unset: the phase committed, so no failure from here writes a
         // `failed` record, and the record below is passed its values.
@@ -1977,7 +1977,7 @@ export function executePlan(
         if (config.brief !== undefined && worktree !== null) {
           yield* closePulledBriefs({
             output,
-            worktreePath: worktree as string,
+            worktreePath: worktree,
             phaseFolderPath: folder,
             phaseId: phase.id,
           });
@@ -2099,14 +2099,14 @@ export function executePlan(
         // Only these two re-entries run the agent again; a commit, cleanup or
         // completion re-entry runs none, so it needs no fresh copy.
         if (isResumeFromGate || isResumeFromHandoff) {
-          yield* writePhasePlanFile(worktreePath as string, planMd);
+          yield* writePhasePlanFile(worktreePath, planMd);
         }
         // A resume asks no new brief (spec §5.6) but restores the request file.
         if (config.brief !== undefined) {
           phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           yield* writeBriefRequestOrWarn(
             output,
-            worktreePath as string,
+            worktreePath,
             phase.id,
             stampBriefRequest(phaseBriefRequest(phaseFacts, null)),
           );
@@ -2114,12 +2114,12 @@ export function executePlan(
         sessionId = resumeSessionId as ClaudeSessionId;
         currentPhaseId = phase.id;
         currentPhaseFolderPath = phaseFolderPath;
-        currentWorktreePath = worktreePath as string;
-        currentSessionId = sessionId as string;
+        currentWorktreePath = worktreePath;
+        currentSessionId = sessionId;
 
         const securityPolicy = resolveSecurityPolicy({
           mode: securityMode,
-          worktreePath: worktreePath as string,
+          worktreePath,
           config: config.security,
         });
         // A binding is always written at phase launch, so on resume it must be
@@ -2148,7 +2148,7 @@ export function executePlan(
           provider: binding.provider,
           model: binding.model,
           effort: binding.effort,
-          cwd: worktreePath as string,
+          cwd: worktreePath,
           security: securityPolicy,
           agentCommands: resumeFrozenResult.records.map((r) => r.command),
           skillEditGrants,
@@ -2203,7 +2203,7 @@ export function executePlan(
           config.repoRoot,
         );
 
-        currentWorktreePath = worktreePath as string;
+        currentWorktreePath = worktreePath;
         yield* recordPhaseWorktreeAndBranch(phaseFolderPath, worktreePath, phaseBranch);
         yield* telemetry.recordEvent(
           makeAdapterCallSucceededTelemetryEvent({
@@ -2222,7 +2222,7 @@ export function executePlan(
         );
 
         yield* setupPhase({ worktreePath, phaseFolderPath, setupCommands });
-        yield* writePhasePlanFile(worktreePath as string, planMd);
+        yield* writePhasePlanFile(worktreePath, planMd);
 
         const previousHandoff = yield* readPreviousHandoff(runPath, plan.phases, i);
         const previousReconciliation = yield* readPreviousReconciliation(runPath, plan.phases, i);
@@ -2234,13 +2234,13 @@ export function executePlan(
         if (config.brief !== undefined) {
           phaseFacts = phaseFactsAt(phaseBase, phase.id, isFinal);
           const briefRequest = stampBriefRequest(phaseBriefRequest(phaseFacts, null));
-          yield* writeBriefRequestOrWarn(output, worktreePath as string, phase.id, briefRequest);
+          yield* writeBriefRequestOrWarn(output, worktreePath, phase.id, briefRequest);
           briefSection = yield* pushBrief({
             output,
             command: config.brief.command,
             push: config.brief.push,
             request: briefRequest,
-            worktreePath: worktreePath as string,
+            worktreePath,
             phaseFolderPath,
             phaseId: phase.id,
           });
@@ -2275,7 +2275,7 @@ export function executePlan(
 
         const { resolution, securityPolicy, frozenResult } = yield* resolvePhaseAgent({
           phase,
-          worktreePath: worktreePath as string,
+          worktreePath,
           phaseFolderPath,
           gateCommands: gateCommandStrings,
           partialCommands: partialPrefixes,
@@ -2287,8 +2287,8 @@ export function executePlan(
           try: () =>
             writeAgentBinding(phaseFolderPath, {
               version: 1,
-              shortName: shortName as string,
-              runId: runId as string,
+              shortName,
+              runId,
               phaseId: phase.id,
               phaseIndex: i,
               phaseName: phase.title,
@@ -2298,8 +2298,8 @@ export function executePlan(
               effort: resolution.selected.thinking ?? phase.effort,
               sessionId: null,
               sessionHandle: null,
-              worktreePath: worktreePath as string,
-              cwd: worktreePath as string,
+              worktreePath,
+              cwd: worktreePath,
               launchedAt: new Date().toISOString(),
               status: "launching",
             }),
@@ -2314,7 +2314,7 @@ export function executePlan(
           provider: resolution.selected.provider,
           model: resolution.selected.concreteModel,
           effort: resolution.selected.thinking ?? phase.effort,
-          cwd: worktreePath as string,
+          cwd: worktreePath,
           security: securityPolicy,
           agentCommands: frozenResult.records.map((r) => r.command),
           skillEditGrants,
@@ -2359,13 +2359,13 @@ export function executePlan(
           ),
         );
         sessionId = agentResult.sessionId;
-        currentSessionId = sessionId as string;
+        currentSessionId = sessionId;
         // Sole owner of the launching → running binding transition. persistSessionId
         // (called by real providers during streaming) writes session-id.txt and
         // patches status.json only; it no longer touches agent-binding.json.
         yield* Effect.promise(() =>
           patchAgentBindingSession(phaseFolderPath, {
-            sessionId: sessionId as string,
+            sessionId,
             status: "running",
           }),
         );
@@ -2382,7 +2382,7 @@ export function executePlan(
             runId,
             operationId: phase.id,
             artifact: "claude-session-id",
-            path: sessionId as string,
+            path: sessionId,
           }),
         );
       }
@@ -2433,17 +2433,17 @@ export function executePlan(
               ? null
               : { list: config.protectedPaths, base: phaseBase },
           steps: phaseSteps,
-          cwd: worktreePath as string,
+          cwd: worktreePath,
           phaseFolderPath,
           sessionId,
           agentOptions,
           maxFixAttempts: config.maxFixAttempts,
-          run: shortName as string,
+          run: shortName,
           phaseId: phase.id,
           runPath,
           gateRequest,
           ...(acceptanceStep === undefined ? {} : { acceptanceStep }),
-          ...(isResumeFromGate ? { worktreePath: worktreePath as string } : {}),
+          ...(isResumeFromGate ? { worktreePath } : {}),
         });
         gateLogPath = gateOutcome.attemptLogPath;
       } else if (isResumeFromCommit) {
@@ -2495,7 +2495,7 @@ export function executePlan(
         // protected change against the phase base, commit nothing.
         if (isResumeFromCommit && config.protectedPaths !== undefined) {
           const changes = yield* checkProtectedPaths({
-            worktree: worktreePath as string,
+            worktree: worktreePath,
             base: phaseBase,
             list: config.protectedPaths,
           });
@@ -2511,8 +2511,8 @@ export function executePlan(
           phase,
           worktreePath,
           phaseFolderPath,
-          runId: runId as string,
-          shortName: shortName as string,
+          runId,
+          shortName,
           sessionId,
           gateLogPath,
           repoRoot: config.repoRoot,
@@ -2567,7 +2567,7 @@ export function executePlan(
             phase,
             worktreePath,
             phaseFolderPath,
-            runId: runId as string,
+            runId,
             fileReconciliationMode: config.fileReconciliationMode,
             acceptanceTestFiles: passedAcceptanceTestFiles(plan.phases, phase.id),
           });
@@ -2589,9 +2589,9 @@ export function executePlan(
           sessionId,
           agentOptions,
           phaseFolderPath,
-          worktreePath: worktreePath as string,
+          worktreePath,
           runPath,
-          shortName: shortName as string,
+          shortName,
           phaseId: phase.id,
           reconciliation,
           protectedPaths: handoffProtectedPaths,
@@ -2725,7 +2725,7 @@ export function executePlan(
       if (config.brief !== undefined) {
         yield* closePulledBriefs({
           output,
-          worktreePath: worktreePath as string,
+          worktreePath,
           phaseFolderPath,
           phaseId: phase.id,
         });
@@ -2756,7 +2756,7 @@ export function executePlan(
           effort: agentOptions.effort,
           mode: phase.mode,
           stop: null,
-          usage: { kind: "session", sessionId: sessionId as string },
+          usage: { kind: "session", sessionId },
           outcome: "committed",
           ...(recordSourceSha !== undefined ? { sourceSha: recordSourceSha } : {}),
         });
@@ -2789,7 +2789,7 @@ export function executePlan(
         // Idempotent, so a resume that partially succeeded re-applies nothing.
         if (opts.planRepoRelPath !== undefined && opts.planRepoRelPath.length > 0) {
           artifactCompletions = yield* completeRunArtifacts({
-            worktreePath: worktreePath as string,
+            worktreePath,
             planRepoRelPath: opts.planRepoRelPath,
             nowIso: new Date().toISOString(),
           }).pipe(

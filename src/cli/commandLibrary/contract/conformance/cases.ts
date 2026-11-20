@@ -57,7 +57,7 @@ const Todos = Schema.Struct({ todos: Schema.Array(Schema.String) });
 // ---------------------------------------------------------------- the commands
 
 interface Recording {
-  readonly command: Command<never>;
+  readonly command: Command;
   /** The input each `run` received. */
   readonly seen: unknown[];
 }
@@ -138,7 +138,7 @@ const envReject = () =>
   });
 
 /** A command whose run fails with `NotFound`, mapped to `MAPPED`. */
-const finding = (name: string): Command<never> =>
+const finding = (name: string): Command =>
   defineCommand({
     name,
     summary: "fails with NotFound",
@@ -169,7 +169,7 @@ function showing(name: string, policy: typeof strip | typeof reject) {
 
 // ---------------------------------------------------------------- the calls
 
-const program = (...commands: ReadonlyArray<Command<never> | Group<never>>) =>
+const program = (...commands: ReadonlyArray<Command | Group>) =>
   defineProgram({
     name: "suite",
     version: "9.9.9",
@@ -183,7 +183,7 @@ const programWith = (
     readonly usage?: ProgramUsage;
     readonly options?: NonNullable<Program<never>["options"]>;
   },
-  ...commands: ReadonlyArray<Command<never> | Group<never>>
+  ...commands: ReadonlyArray<Command | Group>
 ) =>
   defineProgram({
     name: "suite",
@@ -219,7 +219,7 @@ interface Called {
 
 function call(
   runner: Runner,
-  commands: ReadonlyArray<Command<never> | Group<never>>,
+  commands: ReadonlyArray<Command | Group>,
   argv: ReadonlyArray<string>,
   options: CallOptions = {},
 ): Effect.Effect<Called> {
@@ -358,7 +358,7 @@ const WHOLE_ENV = { TODOS_DB: "db", PATH: "/bin" };
 /** One program per defect, each with a mapped code beside it. */
 interface DefectKind {
   readonly label: string;
-  readonly command: Command<never>;
+  readonly command: Command;
 }
 
 function defectKinds(): ReadonlyArray<DefectKind> {
@@ -435,7 +435,7 @@ const defectCase = (kind: string): Case => ({
 /** `ok` runs; `bad` maps `Gone` to the program's defect code. */
 function collidingCommands(): {
   readonly ok: Recording;
-  readonly bad: Command<never>;
+  readonly bad: Command;
 } {
   return {
     ok: recording("ok", {}),
@@ -602,7 +602,7 @@ interface Printed {
 
 function printed(
   runner: Runner,
-  commands: ReadonlyArray<Command<never> | Group<never>>,
+  commands: ReadonlyArray<Command | Group>,
   argv: ReadonlyArray<string>,
 ): Effect.Effect<Printed> {
   return call(runner, commands, argv).pipe(
@@ -2849,7 +2849,7 @@ const programOf = (
     readonly usage?: ProgramUsage;
     readonly options?: NonNullable<Program<never>["options"]>;
   },
-  ...commands: ReadonlyArray<Command<never> | Group<never>>
+  ...commands: ReadonlyArray<Command | Group>
 ) =>
   defineProgram({
     name: "suite",
@@ -3409,7 +3409,7 @@ export const cases: ReadonlyArray<Case> = [
         const received: unknown[] = [];
         // The types refuse a value answered without an output contract; a command that gets
         // there anyway (a plain object, an older definition) is handed its value as is.
-        const list: Command<never> = {
+        const list: Command = {
           name: "list",
           summary: "lists",
           input: {},

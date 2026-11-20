@@ -288,7 +288,7 @@ export class FakeGitImpl implements GitOps {
         }),
       );
     }
-    const existingPath = this.checkedOutBranches.get(branch as string);
+    const existingPath = this.checkedOutBranches.get(branch);
     if (existingPath !== undefined) {
       return Effect.fail(
         new GitError({
@@ -297,7 +297,7 @@ export class FakeGitImpl implements GitOps {
         }),
       );
     }
-    this.checkedOutBranches.set(branch as string, path as string);
+    this.checkedOutBranches.set(branch, path);
     return Effect.void;
   }
 
@@ -383,7 +383,7 @@ export class FakeGitImpl implements GitOps {
 
   worktreeIsClean(path: WorktreePath): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "worktreeIsClean", path });
-    const queue = this.worktreeIsCleanQueue.get(path as string);
+    const queue = this.worktreeIsCleanQueue.get(path);
     if (queue !== undefined && queue.length > 0) {
       return Effect.succeed(queue.shift()!);
     }
@@ -398,7 +398,7 @@ export class FakeGitImpl implements GitOps {
   }
 
   diffNameStatus(path: WorktreePath): Effect.Effect<readonly NameStatusEntry[], GitError> {
-    this.calls.push({ method: "diffNameStatus", path: path as string });
+    this.calls.push({ method: "diffNameStatus", path });
     return Effect.succeed(this.diffNameStatusQueue.get(path as string) ?? []);
   }
 
@@ -423,7 +423,7 @@ export class FakeGitImpl implements GitOps {
         }),
       );
     }
-    this.pushedBranches.add(branch as string);
+    this.pushedBranches.add(branch);
     return Effect.void;
   }
 

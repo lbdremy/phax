@@ -495,7 +495,7 @@ export function runGatesWithFixLoop(
                 message: `Gate attempts exhausted: protected paths changed (${pathsOf(failure.protectedChanges)}) ${budget}`,
                 logPath: failure.logPath,
                 attempt,
-                phaseId: phaseId as string,
+                phaseId,
                 failure: {
                   failedStep: failure.failedStep,
                   protectedChanges: failure.protectedChanges,
@@ -510,7 +510,7 @@ export function runGatesWithFixLoop(
                 } ${budget}`,
                 logPath: failure.logPath,
                 attempt,
-                phaseId: phaseId as string,
+                phaseId,
                 failure: {
                   failedStep: failure.failedStep,
                   command: failure.command,

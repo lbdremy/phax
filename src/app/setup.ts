@@ -44,7 +44,7 @@ export function setupPhase(
 
       const result = yield* shell.run({
         command: tokens,
-        cwd: worktreePath as string,
+        cwd: worktreePath,
       });
 
       if (result.stdout) logLines.push(result.stdout.trimEnd());

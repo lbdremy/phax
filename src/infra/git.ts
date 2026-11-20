@@ -42,7 +42,7 @@ interface GitRunOptions {
 
 function toGitError(err: unknown, command: string, args: readonly string[]): GitError {
   const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
-  const stderrStr = e.stderr !== undefined ? String(e.stderr) : undefined;
+  const stderrStr = e.stderr !== undefined ? e.stderr : undefined;
   const exitCode = typeof e.code === "number" ? e.code : undefined;
   return new GitError({
     message: e.message,
@@ -66,7 +66,7 @@ function runGitProcess(
       [...args],
       { cwd, encoding, maxBuffer: MAX_BUFFER, ...(env !== undefined ? { env } : {}) },
       (err, stdout, stderr) => {
-        const stderrStr = Buffer.isBuffer(stderr) ? stderr.toString("utf8") : String(stderr);
+        const stderrStr = Buffer.isBuffer(stderr) ? stderr.toString("utf8") : stderr;
         if (err) {
           reject(Object.assign(err, { stdout, stderr: stderrStr }));
         } else {
@@ -538,7 +538,7 @@ function gitRunAllowFail(
   args: readonly string[],
   cwd: string,
   opts: GitRunOptions = {},
-): Effect.Effect<{ stdout: string; stderr: string; exitCode: number }, never> {
+): Effect.Effect<{ stdout: string; stderr: string; exitCode: number }> {
   return Effect.sync(() => ({ stdout: "", stderr: "", exitCode: 0 })).pipe(
     Effect.flatMap(() =>
       gitRun(args, cwd, opts).pipe(
@@ -677,7 +677,7 @@ function compareTrackedFiles(
 // Where an ignored symbolic link at `path` leads: `worktree` when its target
 // resolves to a path inside the worktree other than its root and outside
 // `.phax-context/`, else `elsewhere` (outside, there, or nowhere).
-function linkTarget(root: string, path: string): Effect.Effect<"worktree" | "elsewhere", never> {
+function linkTarget(root: string, path: string): Effect.Effect<"worktree" | "elsewhere"> {
   return Effect.promise(async () => {
     try {
       const target = await realpath(join(root, path));

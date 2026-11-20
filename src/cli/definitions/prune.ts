@@ -247,6 +247,9 @@ function renderPrune(value: PruneOutput): string {
   return appliedLines(value).join("\n");
 }
 
+/** Whether stdin is a terminal: Node sets `isTTY` only on one, whatever its type says. */
+const stdinIsTerminal = (stream: { readonly isTTY?: boolean }): boolean => stream.isTTY === true;
+
 function makePruneCommand(layers: PruneLayers) {
   return defineCommand({
     name: "prune",
@@ -309,7 +312,7 @@ function makePruneCommand(layers: PruneLayers) {
           dryRun: input.flags.dryRun === true,
           yes: input.flags.yes === true,
           json: false,
-          stdinIsTTY: Boolean(process.stdin.isTTY),
+          stdinIsTTY: stdinIsTerminal(process.stdin),
         });
         const result = yield* prune({
           namespace: config.namespace,
