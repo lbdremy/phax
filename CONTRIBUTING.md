@@ -33,6 +33,8 @@ When a check fails, fix the cause: run `pnpm format` rather than adding a lint e
 
 A knip finding is fixed in the code. `knip-baseline.json` holds the findings accepted for now and is the operator's (a protected path): `pnpm knip --prune` and `pnpm knip --init` are the operator's to run.
 
+A lint error is fixed in the code. A new disable directive (`// oxlint-disable-next-line <rule> -- <why>`) also needs the operator's entry in `lint-baseline.json`, a protected path; `pnpm lint --prune` (drop what the code no longer has) and `pnpm lint --init` are the operator's.
+
 ## Branch rules
 
 [`.github/rulesets/main.json`](.github/rulesets/main.json) is the rule set protecting `main`, kept here so every change to it is in the history. It refuses deleting `main` and force-pushing to it, and lands a change only through a pull request merged by rebase, once the `ci` and `security-audit` checks pass. Repository admins bypass it, so a doc-only commit can still go straight to `main`. A change to the file takes effect when it is imported: Settings → Rules → Rulesets → New ruleset → Import a ruleset, then delete the rule set it replaces.
