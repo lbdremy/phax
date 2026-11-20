@@ -289,6 +289,16 @@ per-phase model and effort arbitration, never a router), and `phax.json` now dec
 test step only (lint and format run on the whole repository in under 0.3 s: nothing to narrow). Later, not briefed: letting a run amend its own plan (a phase found
 the plan wrong) with a bounded, linted and recorded amendment instead of failing, once `phase-graph` exists.
 
+### 17. Several runs on one machine (to place in the queue)
+
+Added 2026-11-20 by the operator, after a measure of where a project's runs spend their time: runs side by side
+are fine until their heavy steps coincide, and then each pays (a gate of 4.4 min alone took 6.5 to 9.4 min).
+
+- [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
+      setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
+      none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`
+      and `do-attempts` put several gates in flight inside one run.
+
 ## Model policy tracking
 
 Since `planning-skill-defaults`, phases default to `claude-sonnet-5-5` at `medium`, where they used
