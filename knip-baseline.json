@@ -2,12 +2,6 @@
   "$comment": "Findings of knip the operator accepted, each with its reason; `debt` is paid by a clean-up. scripts/knip-baseline.ts fails on a finding outside this file and on an entry nothing matches; `pnpm knip --prune` drops the latter. A protected path: a run never adds to it.",
   "entries": [
     {
-      "type": "dependencies",
-      "file": "package.json",
-      "name": "mdast-util-to-string",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "packages/schemas/src/document.ts",
       "name": "MISSING_SCHEMA_MESSAGE",
@@ -47,42 +41,6 @@
       "type": "types",
       "file": "packages/schemas/src/shapes.ts",
       "name": "Shape",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/adjustPlan.ts",
-      "name": "PrepareAdjustResultReady",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/adjustPlan.ts",
-      "name": "PrepareAdjustResultRefused",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/adjustPlan.ts",
-      "name": "PrepareAdjustResultUnsupported",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/analyzePlanOverlap.ts",
-      "name": "analyzeReadjustmentImpact",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/analyzePlanOverlap.ts",
-      "name": "loadAndMapPlanInput",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/architectureProvider.ts",
-      "name": "ARCHITECTURE_TIMEOUT_MS",
       "reason": "debt"
     },
     {
@@ -135,18 +93,6 @@
     },
     {
       "type": "exports",
-      "file": "src/app/briefProvider.ts",
-      "name": "BRIEF_TIMEOUT_MS",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/closeStop.ts",
-      "name": "Closer",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/app/commit.ts",
       "name": "buildCommitBody",
       "reason": "debt"
@@ -155,24 +101,6 @@
       "type": "exports",
       "file": "src/app/commit.ts",
       "name": "gateLogTrailerValue",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/completeRunArtifacts.ts",
-      "name": "RunCompletionKeptSpec",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/completeRunArtifacts.ts",
-      "name": "RunCompletionTransition",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/costBackfill.ts",
-      "name": "BackfilledLedger",
       "reason": "debt"
     },
     {
@@ -188,42 +116,6 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/app/decideArtifact.ts",
-      "name": "Authored",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/decideArtifact.ts",
-      "name": "DecideSessionFacts",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/decideVerdicts.ts",
-      "name": "verdictsCommitMessage",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/decideVerdicts.ts",
-      "name": "VerdictsSource",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/dryRun.ts",
-      "name": "DryRunPhase",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/enterPhase.ts",
-      "name": "Notice",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/app/estimatePlan.ts",
       "name": "readEstimatePlan",
@@ -236,21 +128,9 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/app/eventAdapter.ts",
-      "name": "eventify",
-      "reason": "debt"
-    },
-    {
       "type": "files",
       "file": "src/app/eventAdapter.ts",
       "name": "src/app/eventAdapter.ts",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/finalReport.ts",
-      "name": "renderPublicationSection",
       "reason": "debt"
     },
     {
@@ -266,63 +146,9 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/app/findingFateRecords.ts",
-      "name": "ReadFateRecord",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/findingFateRecords.ts",
-      "name": "UnreadableFateRecord",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/findingFix.ts",
-      "name": "FindingFixRefusedError",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/findingList.ts",
-      "name": "RECORDS_OFF_NOTE",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/findingPost.ts",
-      "name": "FindingPostRefusedError",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/findingPullRequest.ts",
-      "name": "PullRequestNotPostedReason",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/findingSettle.ts",
-      "name": "FindingSettleRefusedError",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/app/handoffGuidance.ts",
       "name": "buildHandoffGuidanceBlock",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/handoffInjection.ts",
-      "name": "reconciliationPath",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/headlessWriter.ts",
-      "name": "DraftRefusalReason",
       "reason": "debt"
     },
     {
@@ -339,24 +165,6 @@
     },
     {
       "type": "exports",
-      "file": "src/app/interactiveFiles.ts",
-      "name": "FIRST_READING_FILE",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/interactiveFiles.ts",
-      "name": "INTERACTIVE_SESSION_FILE",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/interactiveFiles.ts",
-      "name": "SEED_RUN_FILE",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/app/interactiveStop.ts",
       "name": "detailedInstructionsOf",
       "reason": "debt"
@@ -369,20 +177,8 @@
     },
     {
       "type": "exports",
-      "file": "src/app/loadReviewHandoffInputs.ts",
-      "name": "loadReviewNoteGroups",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/app/migrateApprovals.ts",
       "name": "MIGRATION_COMMIT_SUBJECT",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/phaxState.ts",
-      "name": "phaseSubStateFromStatus",
       "reason": "debt"
     },
     {
@@ -404,24 +200,6 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/app/promptGeneration.ts",
-      "name": "generatePhasePrompt",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/promptGeneration.ts",
-      "name": "GeneratePhasePromptOptions",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/providerQuery.ts",
-      "name": "excerpt",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/app/publishRun.ts",
       "name": "GitError",
@@ -440,33 +218,9 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/app/pushedBrief.ts",
-      "name": "PUSHED_BRIEF_RECORD",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/app/recordsBranchSync.ts",
       "name": "RecordsBranchOutcome",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/recordsExplain.ts",
-      "name": "RecordDiffStat",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/recordsList.ts",
-      "name": "RecordListEntry",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/recordsStatus.ts",
-      "name": "PendingRecordEntry",
       "reason": "debt"
     },
     {
@@ -626,12 +380,6 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/app/reviseArtifact.ts",
-      "name": "ReviseSource",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/app/runPreflight.ts",
       "name": "RUN_PREFLIGHT_CHECKS",
@@ -659,18 +407,6 @@
       "type": "types",
       "file": "src/app/runPreflight.ts",
       "name": "RunPreflightRefusal",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/app/runReviews.ts",
-      "name": "ReadRunReview",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/app/securityStatus.ts",
-      "name": "buildSecurityStatusReport",
       "reason": "debt"
     },
     {
@@ -1287,134 +1023,8 @@
     },
     {
       "type": "types",
-      "file": "src/domain/disposition.ts",
-      "name": "Handled",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/disposition.ts",
-      "name": "Ignored",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/disposition.ts",
-      "name": "Rejected",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/disposition.ts",
-      "name": "Stale",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/disposition.ts",
-      "name": "Unexpected",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "DiscardReviewStop",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "EmitTrace",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "MoveRunToArchive",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "OpenRunReview",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "ParkReviewStop",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "PersistState",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "RecordCommitMetadata",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "RestoreReviewStop",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "ResumeContext",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "RunCleanupShell",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "RunReviewInfo",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "WriteAtomic",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "WriteResumeInstructions",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/effects.ts",
-      "name": "WriteReviewStop",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/domain/errors.ts",
-      "name": "FixAttemptFailedError",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
       "file": "src/domain/events.ts",
       "name": "AgentInvocationCompleted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "AgentInvocationStarted",
       "reason": "debt"
     },
     {
@@ -1438,12 +1048,6 @@
     {
       "type": "types",
       "file": "src/domain/events.ts",
-      "name": "CleanupStarted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
       "name": "CommitCreated",
       "reason": "debt"
     },
@@ -1451,24 +1055,6 @@
       "type": "types",
       "file": "src/domain/events.ts",
       "name": "CommitFailed",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "FinalReviewOpened",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "FixCompleted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "FixStarted",
       "reason": "debt"
     },
     {
@@ -1486,12 +1072,6 @@
     {
       "type": "types",
       "file": "src/domain/events.ts",
-      "name": "GateStarted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
       "name": "GateStepRefused",
       "reason": "debt"
     },
@@ -1504,54 +1084,6 @@
     {
       "type": "types",
       "file": "src/domain/events.ts",
-      "name": "HandoffProtectedPathsChanged",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "HandoffRequested",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "HandoffTurnFailed",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "HandoffValidated",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "HoldPointFailed",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "NetworkFailureDetected",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "PhaseHadNoChanges",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "PhaseStartRequested",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
       "name": "PhaxEventType",
       "reason": "debt"
     },
@@ -1559,66 +1091,6 @@
       "type": "types",
       "file": "src/domain/events.ts",
       "name": "RateLimitDetected",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "ReviewStopReached",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunArchiveRequested",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunCompleted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunFailed",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunInterruptRequested",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunResumeRequested",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "RunStarted",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "StopCloseRefused",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "StopCloser",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/events.ts",
-      "name": "StopRecordRefused",
       "reason": "debt"
     },
     {
@@ -1721,36 +1193,6 @@
       "type": "exports",
       "file": "src/domain/prune.ts",
       "name": "pruneExitCode",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/prune.ts",
-      "name": "CheckedOutBranch",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/prune.ts",
-      "name": "PruneKeptReason",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/prune.ts",
-      "name": "PruneOutcome",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/prune.ts",
-      "name": "PruneReport",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/domain/prune.ts",
-      "name": "PruneWorktree",
       "reason": "debt"
     },
     {
@@ -2151,12 +1593,6 @@
     },
     {
       "type": "exports",
-      "file": "src/infra/claudeCli.ts",
-      "name": "runClaudeAgent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/infra/fakes/editor.ts",
       "name": "FakeEditorImpl",
       "reason": "debt"
@@ -2195,12 +1631,6 @@
       "type": "types",
       "file": "src/infra/fakes/session.ts",
       "name": "FakeSessionInvocation",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/infra/fs.ts",
-      "name": "makeNodeFileSystemOps",
       "reason": "debt"
     },
     {
@@ -2284,73 +1714,13 @@
     {
       "type": "types",
       "file": "src/ports/git.ts",
-      "name": "CommitOptions",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/ports/git.ts",
-      "name": "GitFileEntry",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/ports/git.ts",
       "name": "WriteTreeCommitInput",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/ports/lock.ts",
-      "name": "LockFileSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/ports/output.ts",
-      "name": "consoleOutput",
       "reason": "debt"
     },
     {
       "type": "types",
       "file": "src/ports/shell.ts",
       "name": "ShellRunOptions",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/acceptanceLift.ts",
-      "name": "liftPhaseAcceptance",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/acceptanceLift.ts",
-      "name": "liftRecordedSurface",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/acceptanceLift.ts",
-      "name": "liftTestLine",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/acceptanceLift.ts",
-      "name": "liftTestLines",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/acceptanceLift.ts",
-      "name": "PhaseOracleToLift",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/adjustPlanSession.ts",
-      "name": "AdjustPlanSessionSchema",
       "reason": "debt"
     },
     {
@@ -2362,55 +1732,7 @@
     {
       "type": "exports",
       "file": "src/schemas/approvalRecord.ts",
-      "name": "ApprovalRecordSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/approvalRecord.ts",
-      "name": "CodeBaselineSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/approvalRecord.ts",
       "name": "encodeApprovalRecordFile",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "ApprovedStampSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "PlanApprovedStampSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "PlanFrontmatterSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "SpecBoundPlanFrontmatterSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "SpecFrontmatterSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/artifactFrontmatter.ts",
-      "name": "SpecLessPlanFrontmatterSchema",
       "reason": "debt"
     },
     {
@@ -2432,96 +1754,6 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/assignments.ts",
-      "name": "AssignmentBoundSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/assignments.ts",
-      "name": "EffortRangeSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/assignments.ts",
-      "name": "GlobsBoundSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/assignments.ts",
-      "name": "PartBoundSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/assignments.ts",
-      "name": "GlobsBound",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/assignments.ts",
-      "name": "PartBound",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/authoringRecord.ts",
-      "name": "AuthoringRecordRetrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/authoringSession.ts",
-      "name": "AuthoringSessionSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/brief.ts",
-      "name": "OutsideBriefRequestFileSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/brief.ts",
-      "name": "PhaseBriefRequestFileSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/brief.ts",
-      "name": "OutsideBriefRequestFile",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/brief.ts",
-      "name": "PhaseBriefRequestFile",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/claudeOutput.ts",
-      "name": "decodeClaudeApiRetryEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/claudeOutput.ts",
-      "name": "decodeClaudeInitEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/claudeOutput.ts",
-      "name": "decodeClaudeResultOutcomeEvent",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/schemas/claudeStream.ts",
       "name": "ClaudeStreamEvent",
@@ -2540,141 +1772,9 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/schemas/codeReview.ts",
-      "name": "CodeReviewEscape",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/codeReview.ts",
-      "name": "CodeReviewLens",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/codeReview.ts",
-      "name": "CodeReviewSeverity",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codeReviewSession.ts",
-      "name": "CodeReviewSessionSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "CodexAgentMessageItemSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "CodexItemCompletedAgentMessageEventSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "CodexThreadStartedEventSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "decodeCodexErrorEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "decodeCodexTurnCompletedEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "decodeCodexTurnFailedEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "CodexItemCompletedAgentMessageEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/codexOutput.ts",
-      "name": "CodexThreadStartedEvent",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "FindingSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "PhaseVerdictSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "UnmetPromiseSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "UnplannedChangeSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "VerdictSchema",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/schemas/complianceReview.ts",
       "name": "encodeComplianceReviewFile",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "Finding",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "PersistedFinding",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "PhaseVerdict",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "UnmetPromise",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/complianceReview.ts",
-      "name": "UnplannedChange",
       "reason": "debt"
     },
     {
@@ -2684,27 +1784,9 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/schemas/costLedger.ts",
-      "name": "CostLedgerRole",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/decisionRecord.ts",
-      "name": "DecisionFailureSchema",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/schemas/decisionRecord.ts",
       "name": "DecisionRecordModeSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/decisionRecord.ts",
-      "name": "DecisionRecordSessionSchema",
       "reason": "debt"
     },
     {
@@ -2720,78 +1802,6 @@
       "reason": "debt"
     },
     {
-      "type": "types",
-      "file": "src/schemas/decisionRecord.ts",
-      "name": "DecisionRecordMode",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/extractedPlanCacheEntry.ts",
-      "name": "ExtractedPlanCacheEntrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "CommitShaSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "DeferredFateEntrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "DismissedFateEntrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "FindingDismissalVerdictSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "FindingIdSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "FixedBySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "FixedFateEntrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingFateRecord.ts",
-      "name": "OperatorBySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingList.ts",
-      "name": "FindingFateSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/findingList.ts",
-      "name": "FindingListRecordsSchema",
-      "reason": "debt"
-    },
-    {
       "type": "exports",
       "file": "src/schemas/findingList.ts",
       "name": "encodeFindingListFile",
@@ -2804,54 +1814,6 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/gateAttribution.ts",
-      "name": "GateAttributionSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/gateAttribution.ts",
-      "name": "ProtectedChangeKindSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/gateAttribution.ts",
-      "name": "ProtectedChange",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/githubPrView.ts",
-      "name": "GithubPrViewSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/githubPrView.ts",
-      "name": "GithubPrView",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/githubRepoView.ts",
-      "name": "GithubRepoViewSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/githubRepoView.ts",
-      "name": "GithubRepoView",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/globalReconciliation.ts",
-      "name": "GlobalFileReconciliationSchema",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/schemas/globalReconciliation.ts",
       "name": "GlobalFileEntry",
@@ -2861,24 +1823,6 @@
       "type": "exports",
       "file": "src/schemas/interactiveHandoff.ts",
       "name": "encodeInteractiveHandoffFile",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/modelRouting.ts",
-      "name": "ModelRoutingSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/packageJson.ts",
-      "name": "PackageJsonSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/persisted.ts",
-      "name": "liftPlanDocumentV0_26_0",
       "reason": "debt"
     },
     {
@@ -2920,73 +1864,13 @@
     {
       "type": "types",
       "file": "src/schemas/persisted.ts",
-      "name": "PlanDocumentV0_28_0Value",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/persisted.ts",
-      "name": "PlanDocumentV0_33_0Value",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/persisted.ts",
-      "name": "PlanPathList",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/persisted.ts",
-      "name": "ReportFormatId",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/persisted.ts",
       "name": "SchemaBornPersistedSpec",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/persisted.ts",
-      "name": "SpecDocumentV0_27_0Value",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "AcceptanceConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "ArchitectureConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "AuthoringConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "AuthoringKindConfigSchema",
       "reason": "debt"
     },
     {
       "type": "exports",
       "file": "src/schemas/phaxConfig.ts",
       "name": "BriefConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "CodeReviewConfigSchema",
       "reason": "debt"
     },
     {
@@ -3022,18 +1906,6 @@
     {
       "type": "exports",
       "file": "src/schemas/phaxConfig.ts",
-      "name": "PhaxConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "PhaxUserOverlaySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxConfig.ts",
       "name": "PlanAuditorConfigSchema",
       "reason": "debt"
     },
@@ -3046,73 +1918,7 @@
     {
       "type": "types",
       "file": "src/schemas/phaxConfig.ts",
-      "name": "AcceptanceConfig",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "ArchitectureConfig",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
       "name": "BriefConfig",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "Firing",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "GateOutput",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "PhaxConfigWorkspace",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "ResolvedRecordsConfig",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/phaxConfig.ts",
-      "name": "ResolvedSecurityConfig",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/phaxPlan.ts",
-      "name": "PhaseAcceptanceSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/planAudit.ts",
-      "name": "PlanAuditFindingSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/planAudit.ts",
-      "name": "PlanAuditResponseSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/planAudit.ts",
-      "name": "PlanAuditFinding",
       "reason": "debt"
     },
     {
@@ -3134,30 +1940,6 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/providerConfig.ts",
-      "name": "CatalogEntryStatusSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/providerConfig.ts",
-      "name": "ProviderConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/providerConfig.ts",
-      "name": "ProviderFamilyEntry",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/publication.ts",
-      "name": "PublicationSchema",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/schemas/publication.ts",
       "name": "Publication",
@@ -3170,39 +1952,9 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/questions.ts",
-      "name": "LiftedVerdictSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/questions.ts",
-      "name": "PlanVerdictSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/questions.ts",
-      "name": "QuestionOptionSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/questions.ts",
-      "name": "SpecVerdictSchema",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/schemas/questions.ts",
       "name": "LiftedVerdict",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/reconciliation.ts",
-      "name": "PhaseFileReconciliationSchema",
       "reason": "debt"
     },
     {
@@ -3214,19 +1966,7 @@
     {
       "type": "exports",
       "file": "src/schemas/recordsConfig.ts",
-      "name": "InRepoRecordsDestinationSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/recordsConfig.ts",
       "name": "RecordsDestinationSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/recordsConfig.ts",
-      "name": "RepoRecordsDestinationSchema",
       "reason": "debt"
     },
     {
@@ -3237,74 +1977,8 @@
     },
     {
       "type": "exports",
-      "file": "src/schemas/registry.ts",
-      "name": "RegistryEntrySchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/report.ts",
-      "name": "ReportLocationSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/report.ts",
-      "name": "ReportRelatedLocationSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/reviewStop.ts",
-      "name": "DeclaredReviewStopFile",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/reviewStop.ts",
-      "name": "HeldReviewStopFile",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runList.ts",
-      "name": "RunListRowSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/schemas/runList.ts",
       "name": "encodeRunListFile",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runRecord.ts",
-      "name": "ClaudeTokenUsageSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runRecord.ts",
-      "name": "CodexTokenUsageSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runRecord.ts",
-      "name": "ProviderTokenUsageSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runRecord.ts",
-      "name": "UserConfigSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/runRecord.ts",
-      "name": "VibeTokenUsageSchema",
       "reason": "debt"
     },
     {
@@ -3327,50 +2001,8 @@
     },
     {
       "type": "exports",
-      "file": "src/schemas/schemaUrl.ts",
-      "name": "isSchemaBornFormatId",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/securityConfig.ts",
-      "name": "SecurityProfileSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/securityPosture.ts",
-      "name": "SecurityPostureSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/securityPosture.ts",
-      "name": "SecurityPostureV1Schema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/securityPosture.ts",
-      "name": "SecurityPostureV2Schema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/securityPosture.ts",
-      "name": "StopPostureSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/schemas/securityPosture.ts",
       "name": "decodeSecurityPosture",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/specApprovalRecord.ts",
-      "name": "SpecApprovalRecordSchema",
       "reason": "debt"
     },
     {
@@ -3380,39 +2012,15 @@
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/status.ts",
-      "name": "PhaseStopSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/status.ts",
-      "name": "RunHoldSchema",
-      "reason": "debt"
-    },
-    {
       "type": "types",
       "file": "src/schemas/surface.ts",
       "name": "Surface",
       "reason": "debt"
     },
     {
-      "type": "exports",
-      "file": "src/schemas/telemetryConfig.ts",
-      "name": "TelemetryConfigSchema",
-      "reason": "debt"
-    },
-    {
       "type": "files",
       "file": "src/schemas/telemetryEvents.ts",
       "name": "src/schemas/telemetryEvents.ts",
-      "reason": "debt"
-    },
-    {
-      "type": "types",
-      "file": "src/schemas/telemetryEvents.ts",
-      "name": "SemanticTelemetryEventFromSchema",
       "reason": "debt"
     },
     {
@@ -3425,18 +2033,6 @@
       "type": "exports",
       "file": "src/schemas/testLine.ts",
       "name": "TestLoopSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/testLine.ts",
-      "name": "TestSizeSchema",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
-      "file": "src/schemas/testLine.ts",
-      "name": "TestTechniqueSchema",
       "reason": "debt"
     }
   ]
