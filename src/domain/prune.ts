@@ -190,11 +190,6 @@ export function isUnderRoot(path: string, root: string): boolean {
 
 // ── Plan and report ──────────────────────────────────────────────────────────
 
-/** A run's outcome: planned (`would-*`, the preview) or applied. */
-export type PruneOutcome = "pruned" | "kept" | "would-prune" | "would-keep";
-
-export type PruneKeptReason = "unpreserved-commits" | "branch-checked-out" | "removal-failed";
-
 /** The part of a run that a removal step addresses (`local branches`: listing them failed). */
 export type PrunePart =
   | "cost ledger"
@@ -209,7 +204,7 @@ export interface UnpreservedBranch {
   readonly unpreservedCommits: number;
 }
 
-export interface CheckedOutBranch {
+interface CheckedOutBranch {
   readonly branch: BranchName;
   readonly worktreePath: string;
 }
@@ -221,7 +216,7 @@ export type PruneKept =
   | { readonly reason: "removal-failed"; readonly part: PrunePart; readonly message: string };
 
 /** A worktree as git lists it, as far as prune cares. */
-export interface PruneWorktree {
+interface PruneWorktree {
   readonly path: string;
   readonly branch: string | null;
   readonly prunable: boolean;
@@ -291,7 +286,7 @@ export interface PruneRunReport {
   readonly kept: PruneKept | null;
 }
 
-export interface PruneReport {
+interface PruneReport {
   readonly runs: readonly PruneRunReport[];
   readonly totals: PruneTotals;
 }

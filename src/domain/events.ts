@@ -14,19 +14,19 @@ export interface PhaxEventBase {
 }
 
 // Run-shaped events
-export interface RunStarted extends PhaxEventBase {
+interface RunStarted extends PhaxEventBase {
   readonly type: "RunStarted";
 }
 
-export interface RunResumeRequested extends PhaxEventBase {
+interface RunResumeRequested extends PhaxEventBase {
   readonly type: "RunResumeRequested";
 }
 
-export interface RunInterruptRequested extends PhaxEventBase {
+interface RunInterruptRequested extends PhaxEventBase {
   readonly type: "RunInterruptRequested";
 }
 
-export interface RunArchiveRequested extends PhaxEventBase {
+interface RunArchiveRequested extends PhaxEventBase {
   readonly type: "RunArchiveRequested";
   readonly force: boolean;
   readonly from: string;
@@ -37,22 +37,22 @@ export interface RunArchiveRequested extends PhaxEventBase {
   readonly worktreesTo?: string | undefined;
 }
 
-export interface RunFailed extends PhaxEventBase {
+interface RunFailed extends PhaxEventBase {
   readonly type: "RunFailed";
   readonly cause: unknown;
 }
 
-export interface FinalReviewOpened extends PhaxEventBase {
+interface FinalReviewOpened extends PhaxEventBase {
   readonly type: "FinalReviewOpened";
   readonly info: RunReviewInfo;
 }
 
-export interface RunCompleted extends PhaxEventBase {
+interface RunCompleted extends PhaxEventBase {
   readonly type: "RunCompleted";
 }
 
 // Phase-shaped events
-export interface PhaseStartRequested extends PhaxEventBase {
+interface PhaseStartRequested extends PhaxEventBase {
   readonly type: "PhaseStartRequested";
   readonly phaseId: PhaseId;
 }
@@ -62,7 +62,7 @@ export interface WorktreeCreated extends PhaxEventBase {
   readonly path: WorktreePath;
 }
 
-export interface AgentInvocationStarted extends PhaxEventBase {
+interface AgentInvocationStarted extends PhaxEventBase {
   readonly type: "AgentInvocationStarted";
 }
 
@@ -71,7 +71,7 @@ export interface AgentInvocationCompleted extends PhaxEventBase {
   readonly sessionId: ClaudeSessionId;
 }
 
-export interface GateStarted extends PhaxEventBase {
+interface GateStarted extends PhaxEventBase {
   readonly type: "GateStarted";
   readonly attempt: number;
 }
@@ -104,12 +104,12 @@ export type GateFailed = GateFailedFields &
       }
   );
 
-export interface FixStarted extends PhaxEventBase {
+interface FixStarted extends PhaxEventBase {
   readonly type: "FixStarted";
   readonly attempt: number;
 }
 
-export interface FixCompleted extends PhaxEventBase {
+interface FixCompleted extends PhaxEventBase {
   readonly type: "FixCompleted";
   readonly sessionId: ClaudeSessionId;
 }
@@ -153,11 +153,11 @@ export interface GateStepRefused extends PhaxEventBase {
   readonly protectedChanges: readonly ProtectedChange[];
 }
 
-export interface HandoffRequested extends PhaxEventBase {
+interface HandoffRequested extends PhaxEventBase {
   readonly type: "HandoffRequested";
 }
 
-export interface HandoffValidated extends PhaxEventBase {
+interface HandoffValidated extends PhaxEventBase {
   readonly type: "HandoffValidated";
 }
 
@@ -171,7 +171,7 @@ export interface CommitCreated extends PhaxEventBase {
   readonly hash: string;
 }
 
-export interface CleanupStarted extends PhaxEventBase {
+interface CleanupStarted extends PhaxEventBase {
   readonly type: "CleanupStarted";
 }
 
@@ -181,7 +181,7 @@ export interface CleanupCompleted extends PhaxEventBase {
 
 // Cross-cutting: a phase that produced no changes when the agent finished.
 // Transitions run → interrupted, phase → skipped, writes resume-instructions.md.
-export interface PhaseHadNoChanges extends PhaxEventBase {
+interface PhaseHadNoChanges extends PhaxEventBase {
   readonly type: "PhaseHadNoChanges";
   readonly phaseId: PhaseId;
   readonly worktreePath: WorktreePath;
@@ -232,7 +232,7 @@ export interface RateLimitDetected extends PhaxEventBase {
 // `rate_limited`), persisting `stoppedReason: network_failure`. `sessionId`
 // comes from the failure, since the run's session id is unset when the phase
 // turn itself fails.
-export interface NetworkFailureDetected extends PhaxEventBase {
+interface NetworkFailureDetected extends PhaxEventBase {
   readonly type: "NetworkFailureDetected";
   readonly cause: AgentSessionFailedError;
   readonly worktreePath?: WorktreePath | undefined;
@@ -242,7 +242,7 @@ export interface NetworkFailureDetected extends PhaxEventBase {
 // The handoff turn's session failed (any kind but a limit): takes the
 // transitions HandoffMissing takes, with no missing section, and persists the
 // failure line, so a resume re-runs only the handoff.
-export interface HandoffTurnFailed extends PhaxEventBase {
+interface HandoffTurnFailed extends PhaxEventBase {
   readonly type: "HandoffTurnFailed";
   readonly cause: AgentSessionFailedError;
 }
@@ -251,7 +251,7 @@ export interface HandoffTurnFailed extends PhaxEventBase {
 // resume out of a failed handoff, or at a held phase's hold-point re-entry:
 // takes the transitions HandoffMissing takes, with no missing section, and
 // persists the paths as `lastError`. No new stoppedReason.
-export interface HandoffProtectedPathsChanged extends PhaxEventBase {
+interface HandoffProtectedPathsChanged extends PhaxEventBase {
   readonly type: "HandoffProtectedPathsChanged";
   readonly changes: NonEmptyProtectedChanges;
   /** The phase worktree the resume instructions point at. */
@@ -266,7 +266,7 @@ export interface PhaseResetRequested extends PhaxEventBase {
 
 // The run reached a stop at a phase and waits for a person: run and phase
 // enter awaiting_review, and review-stop.json is written.
-export interface ReviewStopReached extends PhaxEventBase {
+interface ReviewStopReached extends PhaxEventBase {
   readonly type: "ReviewStopReached";
   readonly phaseId: PhaseId;
   readonly cause: StopCause;
@@ -276,7 +276,7 @@ export interface ReviewStopReached extends PhaxEventBase {
 
 // A close of the stop was refused: the run returns to awaiting_review, and
 // review-stop.json is restored with `lastClose`.
-export interface StopCloseRefused extends PhaxEventBase {
+interface StopCloseRefused extends PhaxEventBase {
   readonly type: "StopCloseRefused";
   readonly phaseId: PhaseId;
   readonly lastClose: LastClose;
@@ -286,7 +286,7 @@ export interface StopCloseRefused extends PhaxEventBase {
 export type ClosedAcceptanceStep = "authored" | "none";
 
 /** Who closed a stop: the git identity of the checkout that ran the close. */
-export interface StopCloser {
+interface StopCloser {
   readonly name: string;
   readonly email: string;
 }
@@ -325,7 +325,7 @@ export interface HeldStopClosed extends PhaxEventBase {
 
 // The hold point failed before the run reached the held stop: the phase is
 // already committed, so the run pauses resumable at that commit.
-export interface HoldPointFailed extends PhaxEventBase {
+interface HoldPointFailed extends PhaxEventBase {
   readonly type: "HoldPointFailed";
   readonly phaseId: PhaseId;
   readonly phaseCommit: string;
@@ -337,7 +337,7 @@ export interface HoldPointFailed extends PhaxEventBase {
 // held: the close stands, so the run pauses resumable with the phase
 // committed and the record still owed, written by the closed stop's re-entry.
 // `phaseCommit` is the declared commit, or a held phase's own commit.
-export interface StopRecordRefused extends PhaxEventBase {
+interface StopRecordRefused extends PhaxEventBase {
   readonly type: "StopRecordRefused";
   readonly phaseId: PhaseId;
   readonly cause: "declared" | "held";

@@ -1,27 +1,27 @@
 import type { PhaxCommand } from "./effects.js";
 
-export interface Handled<S> {
+interface Handled<S> {
   readonly kind: "Handled";
   readonly nextState: S;
   readonly effects: readonly PhaxCommand[];
 }
 
-export interface Ignored {
+interface Ignored {
   readonly kind: "Ignored";
   readonly reason: string;
 }
 
-export interface Stale {
+interface Stale {
   readonly kind: "Stale";
   readonly reason: string;
 }
 
-export interface Rejected {
+interface Rejected {
   readonly kind: "Rejected";
   readonly reason: string;
 }
 
-export interface Unexpected {
+interface Unexpected {
   readonly kind: "Unexpected";
   readonly reason: string;
 }
