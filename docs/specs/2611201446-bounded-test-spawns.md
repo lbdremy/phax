@@ -250,12 +250,19 @@ Given the change merged, when `pnpm test` runs 20 times in a row on a macOS lapt
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-gate-bound — Should phax give a configured gate step a wall-clock limit, so that a hung step fails its attempt instead of holding a run for hours, in this change or in a separate one?
 
 - separate — A separate spec. This change bounds the tests' own children and adds no phax feature. — abandons: Protection against a hang from a cause other than a test spawn (a hung pnpm install, or a deadlocked tool in a gate step) until that spec ships.
 - here — Here. Every gate step gets a time cap, configured in gateProfiles, and a step that reaches it fails its attempt. — abandons: The brief's 'phax gains no feature', and a bounded change. It is a new required config field that every phax.json must declare, since persisted shapes take no optional shims.
 
 Recommendation: separate — Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6.
+
+Decision: separate — by operator (Rémy Loubradou), 2026-11-20
+Why: Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6. Advocate: The strongest case for here: a hung gate step of any origin (a stuck pnpm install, a deadlocked tool) holds a run for hours today, and only a cap on every gate step closes that class of hang, so waiting for another spec leaves the 13 h failure open. Principles: S1, S9. Reversibility: cheap. Revised: none.
 
 ### q-scope — Should every existing spawn under tests/ move to the bounded spawn now, or only the CLI spawns, with the others listed as exemptions?
 
@@ -264,6 +271,9 @@ Recommendation: separate — Both recorded hangs (13 h and 3 h) were test spawns
 
 Recommendation: all — The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way.
 
+Decision: all — by operator (Rémy Loubradou), 2026-11-20
+Why: The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way. Advocate: The strongest case for cli-first: the 29 CLI spawns are the ones that failed, so moving them alone gives a small, quickly reviewed diff that fixes the observed failures at once, instead of a change touching about 170 files. Principles: S1, S2, S5. Reversibility: cheap. Revised: none.
+
 ### q-bound-form — Should each call state its own bound, or should a CLI spawn take one shared default that a test can raise?
 
 - per-call — Required at every call, with no default. — abandons: Brevity. Every call states a number, and the numbers can drift from one file to the next.
@@ -271,9 +281,8 @@ Recommendation: all — The goal is 'every child a test starts', and an exemptio
 
 Recommendation: per-call — The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: per-call — by operator (Rémy Loubradou), 2026-11-20
+Why: The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses. Advocate: The strongest case for default: with 170 call sites, a shared default per kind of spawn keeps each call short and the numbers consistent, and a test that needs more raises it, so the exception is what stands out. Principles: S1, S5. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -302,3 +311,9 @@ Constraints:
 ## 11. Docs page
 
 None — Nothing a phax user can see changes: this is about how the test suite starts children. The helper's doc comment and the guard's failure message tell a contributor how to spawn in a test.
+
+## 12. Decision log
+
+- 2026-11-20 q-gate-bound decided separate — operator (Rémy Loubradou)
+- 2026-11-20 q-scope decided all — operator (Rémy Loubradou)
+- 2026-11-20 q-bound-form decided per-call — operator (Rémy Loubradou)

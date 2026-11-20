@@ -349,7 +349,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-gate-bound",
       "question": "Should phax give a configured gate step a wall-clock limit, so that a hung step fails its attempt instead of holding a run for hours, in this change or in a separate one?",
@@ -366,7 +367,28 @@
         }
       ],
       "recommendation": "separate",
-      "rationale": "Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6."
+      "rationale": "Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "separate",
+        "abandoned": [
+          "here"
+        ],
+        "why": "Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6.",
+        "advocate": "The strongest case for here: a hung gate step of any origin (a stuck pnpm install, a deadlocked tool) holds a run for hours today, and only a cap on every gate step closes that class of hang, so waiting for another spec leaves the 13 h failure open.",
+        "principles": [
+          "S1",
+          "S9"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-20T14:52:03.698Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-scope",
@@ -384,7 +406,29 @@
         }
       ],
       "recommendation": "all",
-      "rationale": "The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way."
+      "rationale": "The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "all",
+        "abandoned": [
+          "cli-first"
+        ],
+        "why": "The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way.",
+        "advocate": "The strongest case for cli-first: the 29 CLI spawns are the ones that failed, so moving them alone gives a small, quickly reviewed diff that fixes the observed failures at once, instead of a change touching about 170 files.",
+        "principles": [
+          "S1",
+          "S2",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-20T14:52:03.698Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-bound-form",
@@ -402,10 +446,30 @@
         }
       ],
       "recommendation": "per-call",
-      "rationale": "The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses."
+      "rationale": "The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "per-call",
+        "abandoned": [
+          "default"
+        ],
+        "why": "The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses.",
+        "advocate": "The strongest case for default: with 170 call sites, a shared default per kind of spawn keeps each call short and the numbers consistent, and a test that needs more raises it, so the exception is what stands out.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-20T14:52:03.698Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The brief's three settled points: no assertion removed, no test skipped, no retry added; no timeout raised in vitest.config.ts; the fix goes where the cause is, and if the cause is upstream the suite avoids it and the issue is reported (r-cause-upstream).",
