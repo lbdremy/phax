@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, absurd } from "effect";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { selectRecordArtifacts } from "../domain/records/assemble.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -218,6 +218,8 @@ export function revisionRecordWarning(
       return `revision record refused${followingFailedSession ? ", following the failed session" : ""}: ${record.message} (remedy: ${record.remedy})`;
     case "write-failed":
       return `failed to write the revision record (${record.message})`;
+    default:
+      return absurd(record);
   }
 }
 

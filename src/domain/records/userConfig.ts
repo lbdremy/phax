@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { ProviderId } from "../../schemas/providerId.js";
 import type { UserConfig } from "../../schemas/runRecord.js";
 
@@ -16,5 +17,7 @@ export function userConfigOf(provider: ProviderId): UserConfig {
       return "loaded";
     case "mistral-vibe":
       return "loaded";
+    default:
+      return absurd(provider);
   }
 }

@@ -68,5 +68,6 @@ export function setupPhase(
     if (logLines.length > 0) {
       yield* fs.writeAtomic(logPath, logLines.join("\n"));
     }
+    return undefined;
   });
 }

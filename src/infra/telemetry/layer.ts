@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, absurd } from "effect";
 import type { RunId } from "../../domain/branded.js";
 import type { SemanticTelemetryEvent } from "../../domain/telemetry/events.js";
 import type { SystemErrorReport } from "../../domain/telemetry/errors.js";
@@ -47,6 +47,8 @@ const formatSemanticEvent = (event: SemanticTelemetryEvent): string => {
       return `phax·acceptance.edits.unjudged  files=[${event.files.join(",")}]`;
     case "stop.transcript":
       return `phax·stop.transcript  ${event.sessionId}  provider=${event.provider}  outcome=${event.outcome}${event.reason !== undefined ? `  reason=${event.reason}` : ""}`;
+    default:
+      return absurd(event);
   }
 };
 

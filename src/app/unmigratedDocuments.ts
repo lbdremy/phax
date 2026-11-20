@@ -97,7 +97,7 @@ export function refuseUnmigratedDocuments(
 ): Effect.Effect<void, FsError | DocumentMigrationRequiredError, FileSystem> {
   return Effect.gen(function* () {
     const { unmigrated } = yield* scanLiveSidecars();
-    if (unmigrated.length === 0) return;
+    if (unmigrated.length === 0) return undefined;
     return yield* Effect.fail(
       new DocumentMigrationRequiredError({
         gesture,

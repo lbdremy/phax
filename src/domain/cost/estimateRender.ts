@@ -4,6 +4,7 @@
 // P90 scenarios, and the verdict. `nowMs` serves only the age of a last
 // sample; instants are shown in the given time zone. Warnings are not
 // rendered here: the command prints them on stderr.
+import { absurd } from "effect";
 import type { EstimateReport } from "./estimate.js";
 
 export interface RenderEstimateOptions {
@@ -205,6 +206,8 @@ function verdictLine(report: EstimateReport): string {
       return "Verdict: windows-unavailable — estimate only";
     case "uncalibrated":
       return `Verdict: uncalibrated — estimate only; not calibrated: ${report.uncalibrated.join(", ")}`;
+    default:
+      return absurd(report);
   }
 }
 

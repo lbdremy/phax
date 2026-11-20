@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, absurd } from "effect";
 import { Backend, type BackendOps } from "../../ports/backend.js";
 import type { ProviderStoreRootsValue } from "../../domain/session/storeRoots.js";
 import { AgentInvocationError } from "../../domain/errors.js";
@@ -157,6 +157,8 @@ function nodeBackend(
           return captureCodexTranscript(roots.codex, request);
         case "mistral-vibe":
           return captureVibeTranscript(request);
+        default:
+          return absurd(request.provider);
       }
     },
   };

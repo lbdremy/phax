@@ -1,3 +1,5 @@
+import { absurd } from "effect";
+
 /** The seven relations between the local records branch and its remote tip. */
 export const RECORDS_BRANCH_STATES = [
   "in-sync",
@@ -98,6 +100,8 @@ export function recordsBranchPhrase(state: RecordsBranchState, remote: string): 
       return `missing locally (${remote} has one)`;
     case "no-remote-branch":
       return `not on ${remote} yet`;
+    default:
+      return absurd(state);
   }
 }
 

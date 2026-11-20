@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { ProviderId } from "./routing/types.js";
 
 export type AdapterId = "claude" | "codex" | "mistral";
@@ -10,5 +11,7 @@ export function providerToAdapter(provider: ProviderId): AdapterId {
       return "codex";
     case "mistral-vibe":
       return "mistral";
+    default:
+      return absurd(provider);
   }
 }

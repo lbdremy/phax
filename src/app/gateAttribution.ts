@@ -96,5 +96,6 @@ export function recordProtectedPaths(input: {
     );
     yield* fs.writeAtomic(input.stepRecordPath, document);
     yield* fs.writeAtomic(input.attributionPath, document);
+    return undefined;
   });
 }

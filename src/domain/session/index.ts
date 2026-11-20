@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { ProviderId } from "../../domain/routing/types.js";
 import type { SessionAdapter } from "./types.js";
 import { claudeSessionAdapter } from "./claude.js";
@@ -14,5 +15,7 @@ export function getSessionAdapter(provider: ProviderId): SessionAdapter {
       return codexSessionAdapter;
     case "mistral-vibe":
       return mistralSessionAdapter;
+    default:
+      return absurd(provider);
   }
 }

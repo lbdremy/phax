@@ -229,5 +229,6 @@ export function generatePhaseHandoff(
     // and post-run consumers (review, archive) can read it without depending on
     // the gitignored `.phax-context/` folder in the worktree.
     yield* fs.writeAtomic(join(phaseFolderPath, "phase-handoff.md"), content);
+    return undefined;
   });
 }

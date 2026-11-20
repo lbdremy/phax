@@ -1,4 +1,4 @@
-import { Result } from "effect";
+import { Result, absurd } from "effect";
 import { ArtifactValidationError } from "../errors.js";
 import { isApprovalRecordPath } from "./approvalRecordFile.js";
 import { decodeArtifactFrontmatter, type FrontmatterProblem } from "./frontmatter.js";
@@ -69,6 +69,8 @@ export function frontmatterProblemMessage(
       return `${repoRelPath} has invalid YAML frontmatter: ${problem.detail}`;
     case "schema":
       return `${repoRelPath} has invalid frontmatter (allowed for a ${kind}: ${ALLOWED_KEYS[kind]}):\n${problem.detail}`;
+    default:
+      return absurd(problem);
   }
 }
 

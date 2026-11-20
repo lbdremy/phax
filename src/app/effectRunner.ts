@@ -1,4 +1,4 @@
-import { Effect, Result } from "effect";
+import { Effect, Result, absurd } from "effect";
 import { dirname, join } from "node:path";
 import type { RunId } from "../domain/branded.js";
 import type { PhaxCommand } from "../domain/effects.js";
@@ -152,6 +152,7 @@ function restoreReviewStop(
     }
     yield* writeReviewStop(ctx, { ...decoded.success, lastClose });
     if (source === parked) yield* fs.remove(parked);
+    return undefined;
   });
 }
 
@@ -271,6 +272,7 @@ function runCleanupShell(
         );
       }
     }
+    return undefined;
   });
 }
 
@@ -360,5 +362,7 @@ export function run(
           }),
         ),
       );
+    default:
+      return absurd(cmd);
   }
 }

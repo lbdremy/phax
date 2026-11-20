@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, absurd } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
@@ -745,6 +745,8 @@ function observeWorktreeEffect(
             return { status: "deleted", path: row.path };
           case "T":
             return { status: "type-changed", path: row.path };
+          default:
+            return absurd(row.status);
         }
       });
       // A link the staged tree adds, retargets or puts in place of a file,

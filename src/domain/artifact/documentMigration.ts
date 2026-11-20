@@ -1,4 +1,4 @@
-import { Result } from "effect";
+import { Result, absurd } from "effect";
 import {
   type DocumentSidecar,
   type PlanDocumentLift,
@@ -127,6 +127,8 @@ function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "cur
     case "0.20.0":
     case "pre-schema":
       return renderPlanBodyV0_26_0(planDocumentV0_20_0AsV0_26_0(sidecar.older));
+    default:
+      return absurd(sidecar);
   }
 }
 

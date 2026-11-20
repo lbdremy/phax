@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { OverviewCoverage, OverviewPhase, PlanOverview } from "./overview.js";
 import { renderTestLine } from "./testLineGrammar.js";
 
@@ -19,6 +20,8 @@ function acceptanceRoleText(role: OverviewPhase["acceptanceRole"]): string {
       return `passes ${role.acceptancePhase}`;
     case "none":
       return "none";
+    default:
+      return absurd(role);
   }
 }
 
@@ -76,6 +79,8 @@ function renderCoverage(coverage: OverviewCoverage): string[] {
       ]);
       return [`acceptance criteria of ${coverage.slug}`, ...renderRows(rows)];
     }
+    default:
+      return absurd(coverage);
   }
 }
 
@@ -87,6 +92,8 @@ function architectureLine(architecture: PlanOverview["architecture"]): string {
       return "architecture: no provider configured — planned files shown";
     case "failed":
       return "architecture: provider failed — planned files shown";
+    default:
+      return absurd(architecture);
   }
 }
 
@@ -98,6 +105,8 @@ function frontmatterText(frontmatter: PlanOverview["frontmatter"]): string {
       return "no frontmatter";
     case "undecodable":
       return `frontmatter does not decode: ${frontmatter.problem}`;
+    default:
+      return absurd(frontmatter);
   }
 }
 

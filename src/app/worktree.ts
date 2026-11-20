@@ -88,6 +88,7 @@ export function checkCleanWorkingTree(
         }),
       );
     }
+    return undefined;
   });
 }
 

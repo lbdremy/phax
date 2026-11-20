@@ -292,6 +292,7 @@ export function refuseOldApprovalLedgers(): Effect.Effect<
         }),
       );
     }
+    return undefined;
   });
 }
 

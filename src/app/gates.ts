@@ -286,7 +286,7 @@ export function runGates(
           // Review notes never fail a step.
           if (result.exitCode === 0) {
             stepResults.push({ command: rawCommand, surface, result: "pass" });
-            return;
+            return undefined;
           }
           const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no finding`;
           logLines.push(`provider error: ${message}`);

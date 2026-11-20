@@ -1,4 +1,4 @@
-import { Result } from "effect";
+import { Result, absurd } from "effect";
 import { GRANT_PATTERN, type ApprovedBy } from "../../schemas/approvedBy.js";
 
 /** Who performs an approval: a machine and its grant, the operator, or no one recorded. */
@@ -71,5 +71,7 @@ export function describeArbiter(arbiter: Arbiter): string {
       return `operator (${arbiter.name})`;
     case "unattributed":
       return "unattributed";
+    default:
+      return absurd(arbiter);
   }
 }
