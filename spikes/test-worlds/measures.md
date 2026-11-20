@@ -15,6 +15,31 @@ before and 172 after, because the script spawned vitest without `node_modules/.b
 `compare` now also flags a new test that fails, and both the before and the three after
 runs below were taken again with it.
 
+## Re-taken at review (2026-11-20, `reports/`)
+
+The before report behind the numbers below was taken on a modified tree and then deleted, so
+the review took both again, one after the other on an idle machine, and kept them in
+`reports/` with the comparison (`reports/compare.txt`): the before on a worktree of the base
+commit 8601df67, the after on c2df34cf (this change with the review's fixes).
+
+```
+Measures (14 cores, vitest 5.1.0), before -> after:
+  suite wall time: 209.9 s -> 210.3 s
+  sum of file times: 2378.5 s -> 2391.5 s
+    integration: 2214.8 s -> 2226.3 s
+    unit: 163.7 s -> 165.2 s
+  recordsStatusBranch: 63.6 s -> 32.6 s
+  the 300-record test: 36,893 ms -> 3,599 ms
+  branchTipWorldCache (the fixture's own criterion tests): 0 s -> 32.8 s
+```
+
+The same reading as the three runs below: `recordsStatusBranch` and the 300-record test got
+faster, the suite did not, and the fixture's own criterion tests cost about what
+`recordsStatusBranch` saved. The test-by-test check found nothing missing, failing or newly
+skipped; it names two new tests outside the fixture's files, the sidecar tests that
+`tests/unit/archivedPlanSidecars.test.ts` and `archivedSpecSidecars.test.ts` generate for every
+archived plan and spec, here this change's own plan and spec, archived by the run.
+
 ## §6 block (run 1 of 3, as `compare` prints it)
 
 ```
