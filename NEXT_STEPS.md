@@ -11,11 +11,13 @@ queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-par
 mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
 Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
 
-## The queue, as of 2026-11-19
+## The queue, as of 2026-11-20
 
-Reordered by the operator on 2026-11-19: first what costs time on every run (the suite, the
-parser), then the reliability and security follow-ups, then the handoff, the clean-up, the
-tolerances, the cockpit, the doctrine and the index, then batch execution.
+Reordered by the operator on 2026-11-20, by what holds work back: first the gates that turn red with
+nothing to fix, then what costs time on every run (the gate, the suite, runs side by side), then
+the work a run cannot finish today (tolerances, a run's bases, the e2e home, the rest of the
+clean-ups); then the agent's command line, the security follow-ups, the handoff, the clean-up, the
+cockpit, the doctrine and the index, batch execution.
 
 In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
 briefs of live or unspecced work.
@@ -121,24 +123,67 @@ briefs of live or unspecced work.
       To settle: its thinking levels as the API takes them, its price, the equivalence edges
       (which Claude ids it serves), and whether `mistral-medium-3.5` stays.
 
-### 6. What costs time on every run
+### 6. Gates red without a defect
+
+Placed first by the operator on 2026-11-20: a gate or a CI run that turns red with nothing to fix costs a fix
+attempt, a relaunch, and once a release.
+
+- [ ] **`bounded-test-spawns`** — `docs/briefs/bounded-test-spawns.md` (2026-11-20), spec to author.
+      One brief for two failures with one root, children that tests spawn with no bound: under the full
+      suite a spawned `phax --json-schema` exits 143 (SIGTERM, empty stderr), four times on 2026-11-20
+      (0.41.0's release gate, #253's gate, #255's CI, main's CI on c15c768e); and a `spawnSync` that never
+      returns holds a gate for hours (13 h, 3 h). Find who sends the signal and fix it there; one bounded
+      spawn helper for tests, and a guard against a new unbounded one. Takes over the two *Small
+      follow-ups* on spawns with no timeout.
+- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
+      Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
+      daily on it).
+
+### 7. What costs time on every run
 
 - [x] **`test-worlds-built-once`** — shipped 2026-11-20 (#253). `buildBranchTipWorld`'s worlds
       built once per file and copied, seed records in one `git fast-import`: `recordsStatusBranch`
       64 s → 33 s, its 300-record test 37 s → 4 s. The suite did not move (210 s → 210 s): its
       other slow files spend their time in the run each test drives (`spikes/test-worlds/measures.md`).
+- [ ] **Measure the gate, step by step** — no brief yet. The `standard` profile runs format, typecheck,
+      test:type, type-aware lint, test, knip (two passes) and the architecture audit one after the other,
+      several of them type-checking the same code. The gate records hold each step's duration: measure
+      them over the last runs, then decide whether independent steps run side by side or one step does
+      another's work.
 - [ ] **`tests-that-drive-a-run`** — `docs/briefs/tests-that-drive-a-run.md` (2026-11-20), spec to
       author. The integration files that start, stop, close and resume a whole run (`heldStopRun`,
       `stopRecords`, `heldStopClose`, `acceptancePairReview`, …) take a fraction of their time:
       what `test-worlds-built-once` showed is where the suite's time actually goes. Measure first.
-- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
-      Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
-      daily on it).
+- [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
+      setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
+      none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`
+      and `do-attempts` put several gates in flight inside one run.
 
-### 6b. The agent's command line
+### 8. Work a run cannot finish today
+
+- [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
+      that tightens the protected tolerance files inside a run, and loosens them only by what the
+      approved plan declared.
+      Lets a run tighten a ratchet or a baseline it paid, and loosen it only by what was approved.
+- [ ] **`run-start-and-base`** — `docs/briefs/run-start-and-base.md` (2026-11-20), spec to author.
+      `phax run` takes the commit a run starts from and the branch its pull request targets as options,
+      records and prints both: a run stacked on another branch than the default one needs no
+      configuration edit and no switch of the main checkout.
+- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. The real
+      e2e reads the operator's own `~/.phax/providers.json` (the Vibe suite skips without
+      `mistral-vibe` enabled there), so checking a branch that changes that file's shape means
+      breaking the released phax the operator drives. One resolution point for phax's home, a
+      variable to move it, and each real-provider e2e in a temporary phax home; the provider CLIs'
+      sign-ins stay in the real `HOME`. PR #248 moved the direct Vibe adapter cases out of the
+      routed suite meanwhile.
+- [ ] **The rest of the knip and lint clean-ups** — see `knip-production` and `lint-baseline` in
+      section 12: the second lint pull request (the 68 `src/` files shared with knip's baseline), and the
+      operator's decision on the 339 knip entries only tests, scripts or the site use.
+
+### 9. The agent's command line
 
 Placed by the operator on 2026-11-19, right after the test-speed items above. From the same conversation as
-section 16: what an agent driving phax would want from its command line besides detaching a run.
+section 18: what an agent driving phax would want from its command line besides detaching a run.
 
 - [ ] **`agent-cli-ergonomics`** — `docs/briefs/agent-cli-ergonomics.md`, spec to author. Three small changes:
       a preview never exits 0 (`--dry-run` previews; no terminal and no `--yes` refuses with its own code), short
@@ -148,25 +193,7 @@ section 16: what an agent driving phax would want from its command line besides 
 - [ ] **`inbox`** — `docs/briefs/inbox.md`, spec to author. One versioned document for the current project:
       everything that waits, on whom, with its next steps. The `claude-code-mod` inbox reads it too.
 
-### 7. Test reliability follow-ups
-
-A batch from *Small follow-ups*, first the two hangs: give every `spawnSync` and CLI spawn in
-tests a timeout through one shared helper (the 13 h gate on `records-branch-tip`, the 3 h hang on
-#241's review fixes), then the other test-reliability items the batch turns up.
-
-- [ ] **`json-schema-kill`** — `docs/briefs/json-schema-kill.md` (2026-11-20). A test spawning
-      `phax --json-schema` under the full suite sometimes sees exit 143 (SIGTERM), empty stderr:
-      `phaseGuard`, `recordsJsonContracts` (0.41.0's release gate), `plansAnswersJson` (#253's
-      gate, #255's CI), three times on 2026-11-20. Find who sends the signal; fix it where it is.
-- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. The real
-      e2e reads the operator's own `~/.phax/providers.json` (the Vibe suite skips without
-      `mistral-vibe` enabled there), so checking a branch that changes that file's shape means
-      breaking the released phax the operator drives. One resolution point for phax's home, a
-      variable to move it, and each real-provider e2e in a temporary phax home; the provider CLIs'
-      sign-ins stay in the real `HOME`. PR #248 moved the direct Vibe adapter cases out of the
-      routed suite meanwhile.
-
-### 8. Security follow-ups
+### 10. Security follow-ups
 
 A batch from *Small follow-ups*, the security items that sleep there:
 - **Allowed shell commands run unconfined on Claude Code and Vibe** (a read-only session granted
@@ -184,7 +211,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
-### 9. The phase handoff is an answer
+### 11. The phase handoff is an answer
 
 - [ ] **`phase-handoff-answered`** — `docs/briefs/phase-handoff-answered.md` (2026-11-13), spec to
       author. The handoff becomes a structured answer with a published schema that phax decodes,
@@ -193,7 +220,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       real and which are explained (operator, 2026-11-19: the reviews keep tripping on handoffs
       that claim what is not so). Replaces the "structured phase handoff" spec candidate.
 
-### 10. Clean-up and tolerances
+### 12. Clean-up
 
 - [ ] **`lint-baseline`** — `docs/briefs/lint-baseline.md` (2026-11-20, takes over the archived
       `suppression-directives`). No spec: two PRs, the baseline then the clean-up, after knip's.
@@ -214,12 +241,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       Left: the 339 used only by tests, scripts or the site, for the operator to decide folder by
       folder (remove with their tests, or keep with a reason): `src/domain` 125, `src/cli` 71,
       `src/app` 62, `src/schemas` 52, `src/infra` 19, `packages/schemas` 7, `src/ports` 3.
-- [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
-      that tightens the protected tolerance files inside a run, and loosens them only by what the
-      approved plan declared.
-      Lets a run tighten a ratchet or a baseline it paid, and loosen it only by what was approved.
-
-### 11. The cockpit
+### 13. The cockpit
 
 - [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
       cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
@@ -229,7 +251,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       `artifact-status` and `plan-overview` as versioned formats, and usable at once. Refresh the
       brief first: it was written against 0.31.0.
 
-### 12. The project doctrine, then the knowledge index
+### 14. The project doctrine, then the knowledge index
 
 - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
       10 open questions, kept for the operator to think over (brief:
@@ -252,13 +274,13 @@ A batch from *Small follow-ups*, the security items that sleep there:
       After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
       indexes.
 
-### 13. Batch execution
+### 15. Batch execution
 
 - [ ] **`batch-execution-disjoint-plans`** — `docs/specs/2608091526-batch-execution-disjoint-plans.md`
       (Approved, parked): parallel disjoint plans, published as stacked PRs. Speeds up the queue
       once the above lands. See *Approved specs — parked*.
 
-### 14. Before 1.0
+### 16. Before 1.0
 
 - [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
       1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
@@ -267,7 +289,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
       pitfalls it found went upstream as Effect-TS/effect#10525.
 
-### 15. Later
+### 17. Later
 
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12), spec
       to author: the operator lets one phase change a protected path, granted when the phase is
@@ -282,7 +304,7 @@ A batch from *Small follow-ups*, the security items that sleep there:
       now; not urgent (operator, 2026-11-19).
 - [ ] The other small follow-ups below, in batches.
 
-### 16. Delegation from an agent (to place in the queue)
+### 18. Delegation from an agent (to place in the queue)
 
 Added 2026-11-19 from a conversation with the operator about what would make an agent delegate to phax rather than
 to its own subagents or a cloud agent: the guarantees (worktree, gate, reconciliation, records) without the
@@ -294,7 +316,7 @@ placed among the items above; the operator orders them. The four build on each o
       Smallest and independent of the rest.
 - [ ] **`phase-graph`** — `docs/briefs/phase-graph.md`, spec to author. A plan's phases declare what they depend
       on; disjoint independent phases run at the same time, each gated in its own worktree, merged where a later
-      phase depends on several. Shares its merge question with `batch-execution-disjoint-plans` (item 13).
+      phase depends on several. Shares its merge question with `batch-execution-disjoint-plans` (item 15).
 - [ ] **`phax-do`** — `docs/briefs/phax-do.md`, spec to author. `phax do "<intent>" --files …`: one phase without
       a spec or plan, with the gate, the reconciliation and the records; refused beyond a bound set by the
       operator. A command of its own (operator, 2026-11-19), the same use case as `run`.
@@ -306,16 +328,6 @@ Related, recorded the same day: `knowledge-index` gained use 8 (similar phases, 
 per-phase model and effort arbitration, never a router), and `phax.json` now declares partial commands on the
 test step only (lint and format run on the whole repository in under 0.3 s: nothing to narrow). Later, not briefed: letting a run amend its own plan (a phase found
 the plan wrong) with a bounded, linted and recorded amendment instead of failing, once `phase-graph` exists.
-
-### 17. Several runs on one machine (to place in the queue)
-
-Added 2026-11-20 by the operator, after a measure of where a project's runs spend their time: runs side by side
-are fine until their heavy steps coincide, and then each pays (a gate of 4.4 min alone took 6.5 to 9.4 min).
-
-- [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
-      setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
-      none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`
-      and `do-attempts` put several gates in flight inside one run.
 
 ## Model policy tracking
 
@@ -424,11 +436,6 @@ desktop — none is promised by the announcement.
       parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
-- [ ] **A test that spawns a child with no timeout can hang the suite.** Seen 2026-11-18 on the
-      code-repository review fixes: `tests/integration/groupCommandsJson.test.ts` runs
-      `tsx … cost backfill --json` through `spawnSync` with no `timeout`; the child sat idle for
-      3 hours and vitest's own timeout cannot fire on a blocked worker. Give every `spawnSync`
-      in tests a timeout (a shared helper), and find why that child idled.
 - [ ] **`approve` ignores a `code` key in `phax.local.json`.** Since #241 a plan approval reads only
       the project phax.json's `code` (so an unrelated overlay error never blocks it); `validate`
       and `run` refuse `code` outside the project layer, `approve` just does not see it. Decide
@@ -474,12 +481,6 @@ desktop — none is promised by the announcement.
       command. Probe Claude Code's native Bash sandbox (settings, seatbelt on macOS) with a write
       allowlist of the worktree (none for a read-only session), apply it to every Claude session, and
       find Vibe's equivalent; until then `docs/security.md` states the limit.
-- [ ] **A test's `spawnSync` with no timeout can hang a gate for hours.** Found 2026-11-07 on the
-      `records-branch-tip` run: phase-05's gate sat 13 h in `tests/integration/usageSpecCompleters.test.ts`,
-      whose `spawnSync` of `phax ls --complete` never returned (not reproduced by hand; the child ignored
-      SIGTERM), and a synchronous spawn blocks the vitest worker, so the test timeout never fires. Some 40
-      test files call `spawnSync`, most with no `timeout`. Give every CLI spawn in tests a `timeout`
-      (one shared helper), and consider a wall-clock limit on a gate step so a hung step fails the attempt.
 - [ ] **The codex e2e suite checks a provider the router no longer picks.** Found 2026-11-06
       reviewing #193. `realFlow [codex-cli] (secure) > each phase recorded the expected security
       posture and provider` fails: `tests/e2e/fixtures/minimal-repo/plan.md` asks for
