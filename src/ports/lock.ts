@@ -2,7 +2,7 @@ import { Context, Effect, Schema } from "effect";
 import type { FsError } from "./fs.js";
 import type { LockConflictError } from "../domain/errors.js";
 
-export const LockFileSchema = Schema.Struct({
+const LockFileSchema = Schema.Struct({
   runKey: Schema.NonEmptyString,
   pid: Schema.Int,
   status: Schema.Literal("active"),

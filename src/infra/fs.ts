@@ -77,7 +77,7 @@ async function writeAtomicFile(
   await nodeRename(tmpPath, resolved);
 }
 
-export function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
+function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSystemOps {
   return {
     readText: (path) =>
       Effect.tryPromise({
