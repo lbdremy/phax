@@ -59,7 +59,10 @@ Integration files over 30 s, before -> after:
 
 The suite's wall time and sum of file times do not move beyond run-to-run noise: the suite
 is saturated on 14 cores and the files over 30 s other than `recordsStatusBranch` and
-`recordsBranchSync.acceptance` do not build branch-tip worlds. What moved is the target:
+`recordsBranchSync.acceptance` do not build branch-tip worlds. The spec's goal, a suite that takes a
+fraction of its time, is not met: those files spend their time in the run each test drives, not in
+building a world, which no fixture of this change touches. Making them cheaper is a brief of its
+own: `docs/briefs/tests-that-drive-a-run.md`. What moved is the target:
 `recordsStatusBranch` went from 92.6 s to 34 to 37 s and
 `recordsBranchSync.acceptance` from 66.2 s to 51.5 s in run 1.
 
@@ -89,6 +92,12 @@ entry in the temporary directory).
 | 2   | passed                                                            | passed                                                 |
 | 3   | passed                                                            | passed                                                 |
 
-Conclusion: gone. Neither test was killed with exit 143 in any of the three runs, and no
-brief is owed. (In the first, discarded set of reports both failed, in the before too, with
-`tsx` missing from `PATH`: a measuring-script defect, not exit 143.)
+Conclusion: not seen in these three runs, which does not show the kill is gone. The spec chose
+`observe` on the premise that a lighter suite would remove the load behind it, and the suite is
+not lighter (wall time and sum of file times unchanged, above), so a pass here cannot be put down
+to this change. The same kill came back the same day elsewhere: a gate run of this change's last
+phase killed `plansAnswersJson`'s `--json-schema` call with exit 143, and the 0.41.0 release gate on
+CI killed `recordsJsonContracts`'s "--json-schema prints its entry…" the same way (it passed on
+retry). Each time it is a spawned `phax --json-schema` under the full suite. A brief is owed, and
+written: `docs/briefs/json-schema-kill.md`. (In the first, discarded set of reports both tests failed,
+before too, with `tsx` missing from `PATH`: a measuring-script defect, not exit 143.)
