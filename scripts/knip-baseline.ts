@@ -16,6 +16,7 @@ import {
   initialBaseline,
   mergeReports,
   parseBaseline,
+  parseReport,
   passes,
   prune,
   renderBaseline,
@@ -50,7 +51,7 @@ function runKnip(extra: readonly string[]): KnipReport {
     );
   }
   try {
-    return JSON.parse(stdout.trim().split("\n").at(-1) ?? "") as KnipReport;
+    return parseReport(stdout.trim().split("\n").at(-1) ?? "");
   } catch {
     return fail(`${stdout}${result.stderr ?? ""}${label} gave no report`, 2);
   }

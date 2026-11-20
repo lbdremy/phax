@@ -8,15 +8,20 @@
 // lists see only part of the repository; the default run checks them).
 import { relative } from "node:path";
 
-import type { IssueType, Reporter } from "knip";
+import type { Reporter } from "knip";
 
 import type { KnipFinding, KnipReport } from "./knipBaseline.js";
 
 const knipBaselineReporter: Reporter = (options) => {
   const findings: KnipFinding[] = [];
-  for (const [type, reported] of Object.entries(options.report)) {
-    if (!reported) continue;
-    for (const bySymbol of Object.values(options.issues[type as IssueType])) {
+  const reported = new Set(
+    Object.entries(options.report)
+      .filter(([, on]) => on)
+      .map(([type]) => type),
+  );
+  for (const [type, byFile] of Object.entries(options.issues)) {
+    if (!reported.has(type)) continue;
+    for (const bySymbol of Object.values(byFile)) {
       for (const issue of Object.values(bySymbol)) {
         if (issue.severity !== undefined && issue.severity !== "error") continue;
         findings.push({
