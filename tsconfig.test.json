@@ -10,6 +10,8 @@
     "tests/**/*",
     "packages/schemas/**/*",
     "site/**/*",
+    "scripts/knip-baseline.ts",
+    "scripts/knip-reporter.ts",
     "scripts/release-notes.ts",
     "scripts/rerender-spec.ts",
     "scripts/schemas-smoke.ts"

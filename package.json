@@ -31,7 +31,7 @@
     "lint:fix": "oxlint --fix .",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
-    "knip": "knip",
+    "knip": "tsx scripts/knip-baseline.ts",
     "gen:usage-spec": "tsx scripts/generate-usage-spec.ts",
     "gen:model-catalog": "tsx scripts/generate-model-catalog.ts",
     "docs:cli": "tsx scripts/docs-cli.ts",

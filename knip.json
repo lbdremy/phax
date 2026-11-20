@@ -1,14 +1,13 @@
 {
+  // knip starts from what phax runs: the CLI (package.json's bin, which knip reads on its own) and the
+  // published schemas package, suffixed `!` so that `knip --production` reads it too; then the scripts,
+  // the site and the tests, for the default run.
+  // An entry's exports are never checked, so no folder of src/ is an entry. What knip finds and the
+  // operator accepted is in knip-baseline.json, compared by scripts/knip-baseline.ts.
   "entry": [
-    "src/schemas/*.ts",
-    "src/domain/*.ts",
-    "src/ports/*.ts",
-    "src/infra/*.ts",
-    "src/infra/fakes/*.ts",
-    "src/app/*.ts",
+    "packages/schemas/src/index.ts!",
     "tests/**/*.test.ts",
     "tests/type/*.ts",
-    "packages/schemas/src/index.ts",
     "packages/schemas/build/*.ts",
     "site/rspress.config.ts",
     "site/pages.ts",
@@ -18,18 +17,23 @@
     "examples/vitest-acceptance/main.mjs"
   ],
   "project": [
-    "src/**/*.ts",
+    "src/**/*.ts!",
+    "packages/schemas/src/**/*.ts!",
+    // Test support kept in src/ on purpose, left out of the production run only: the fakes the tests
+    // inject, the command library's conformance suite, and the audit matrix the reducer's tests read.
+    "!src/infra/fakes/**!",
+    "!src/cli/commandLibrary/contract/conformance/**!",
+    "!src/cli/commandLibrary/contract/conformanceReport.ts!",
+    "!src/domain/matrix.ts!",
     "tests/**/*.ts",
-    "packages/schemas/**/*.ts",
+    "packages/schemas/build/**/*.ts",
     "site/**/*.{ts,tsx}",
     "examples/vitest-acceptance/**/*.mjs"
   ],
-  "ignoreDependencies": [
-    "esbuild",
-    "@fontsource/ibm-plex-sans",
-    "@fontsource/ibm-plex-mono",
-    "react"
-  ],
+  // The ignore lists are checked by the default run, which reads the site and the tests that need them;
+  // knip gives no configuration hint in production mode, which reads only part of the repository.
+  "ignoreDependencies": ["@fontsource/ibm-plex-sans", "@fontsource/ibm-plex-mono", "react"],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
-  "ignoreBinaries": ["usage", "vibe"]
+  "ignoreBinaries": ["usage", "vibe"],
+  "treatConfigHintsAsErrors": true
 }
