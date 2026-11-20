@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, absurd } from "effect";
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { Doctrine } from "../domain/decide/doctrine.js";
 import { selectRecordArtifacts } from "../domain/records/assemble.js";
@@ -265,6 +265,8 @@ export function decisionRecordWarning(
       return `decision record refused${followingFailedSession ? ", following the failed session" : ""}: ${record.message} (remedy: ${record.remedy})`;
     case "write-failed":
       return `failed to write the decision record (${record.message})`;
+    default:
+      return absurd(record);
   }
 }
 

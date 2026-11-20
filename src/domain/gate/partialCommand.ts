@@ -1,4 +1,4 @@
-import { Result } from "effect";
+import { Result, absurd } from "effect";
 import type { GateStep } from "../../schemas/phaxConfig.js";
 
 export type PartialVariant = "files" | "diff";
@@ -113,6 +113,8 @@ export function describePartialRefusal(refusal: PartialCommandRefusal): string {
       return 'a partial command has an empty segment; join commands with "|" only';
     case "leading-placeholder":
       return "a command segment cannot start with a placeholder; it would allow every command";
+    default:
+      return absurd(refusal);
   }
 }
 

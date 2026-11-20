@@ -3,7 +3,7 @@
 // removed (`stale`: the holder's process is gone, `expired`: the lock outlived its lifetime,
 // `forced`, or `none`: there was no lock); the text is a view of that answer. A lock held by a
 // live process is a declared error, as is a configuration that does not load.
-import { Data, Effect, Result } from "effect";
+import { Data, Effect, Result, absurd } from "effect";
 import * as Schema from "effect/Schema";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
 import { runKey } from "../../domain/runRef.js";
@@ -53,6 +53,8 @@ function unlockSentence(value: UnlockOutput): string {
       return `Stale lock for "${value.qualifiedName}" removed (process no longer running).`;
     case "expired":
       return `Stale lock for "${value.qualifiedName}" removed (lock expired).`;
+    default:
+      return absurd(value.removed);
   }
 }
 

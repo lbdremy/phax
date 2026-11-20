@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { SemanticTelemetryEvent } from "./events.js";
 
 /** Stable projection of a semantic event — no transport or correlation fields. */
@@ -125,5 +126,7 @@ export const projectEvent = (e: SemanticTelemetryEvent): SemanticTraceSnapshotEn
         outcome: e.outcome,
         ...(e.reason !== undefined ? { reason: e.reason } : {}),
       };
+    default:
+      return absurd(e);
   }
 };

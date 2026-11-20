@@ -1,4 +1,4 @@
-import { Effect, Result } from "effect";
+import { Effect, Result, absurd } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { Shell } from "../ports/shell.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
@@ -140,6 +140,8 @@ function architectureOf(
         return { kind: "failed", message: pulled.reason } as const;
       case "refused":
         return { kind: "failed", message: pulled.message } as const;
+      default:
+        return absurd<never>(pulled);
     }
   });
 }

@@ -586,7 +586,7 @@ export function executePlan(
         if (result.branchNote !== null) {
           output.warn(`[phax] Warning: phase "${args.phaseId}" — ${result.branchNote}.`);
         }
-        return;
+        return undefined;
       }
       if (result.kind === "refused") {
         const message = `Phase "${args.phaseId}" — records destination refused: ${result.message} (remedy: ${result.remedy})`;
@@ -598,7 +598,7 @@ export function executePlan(
           } else {
             output.warn(`[phax] Warning: ${message}`);
           }
-          return;
+          return undefined;
         }
         return yield* Effect.fail(
           new RecordsDestinationRefusedError({
@@ -609,6 +609,7 @@ export function executePlan(
           }),
         );
       }
+      return undefined;
     });
   }
 

@@ -52,7 +52,7 @@ export function cleanupPhase(
 
   return Effect.gen(function* () {
     if (isFinalPhase) {
-      return;
+      return undefined;
     }
 
     const git = yield* Git;
@@ -87,5 +87,6 @@ export function cleanupPhase(
 
     const completedEvent: PhaxEvent = { ...baseEvent(), type: "CleanupCompleted" };
     yield* dispatch(completedEvent, dispatchCtx);
+    return undefined;
   });
 }

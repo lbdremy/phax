@@ -117,6 +117,12 @@ function finalize(
   };
 }
 
+// An exhaustive switch's default: the types leave no value to reach it. This
+// module imports no Effect, so it does not use Effect's `absurd`.
+function unreachable(value: never): never {
+  throw new Error(`Unhandled family source: ${JSON.stringify(value)}`);
+}
+
 function familyOriginNote(request: RoutingRequest, source: FamilyResolution["source"]): string {
   switch (source) {
     case "catalog":
@@ -127,6 +133,8 @@ function familyOriginNote(request: RoutingRequest, source: FamilyResolution["sou
       return ` (heuristic from "${request.model}")`;
     case "fallback":
       return ` (unknown model "${request.model}", defaulted to claude-sonnet)`;
+    default:
+      return unreachable(source);
   }
 }
 

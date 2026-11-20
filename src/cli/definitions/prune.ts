@@ -5,7 +5,7 @@
 // by line, as it was printed. Without `--yes` or `--dry-run` the call may ask a person, so `--json`
 // is refused for it; without `--json` a declined confirmation and a missing terminal are declared
 // errors with today's sentences. Exit 3 when an applied prune kept a run; 7 for a locked run.
-import { Data, Effect, Result, Layer } from "effect";
+import { Data, Effect, Result, Layer, absurd } from "effect";
 import * as Schema from "effect/Schema";
 import { prune } from "../../app/prune.js";
 import {
@@ -187,6 +187,8 @@ function describeKept(kept: PruneKept): string {
         .join(", ");
     case "removal-failed":
       return `could not remove ${kept.part}: ${kept.message}`;
+    default:
+      return absurd(kept);
   }
 }
 
@@ -380,6 +382,8 @@ function makePruneCommand(layers: PruneLayers) {
               })),
               totals: result.report.totals,
             } satisfies PruneOutput;
+          default:
+            return absurd<never>(result);
         }
       }).pipe(Effect.mapError(exposeMessage)),
     exits: {

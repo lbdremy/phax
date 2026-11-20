@@ -7,7 +7,7 @@
 // pause is a declared error, one tag per exit code, its text today's lines; a held run lock is a
 // `LockConflictError` whose fields are exactly the run's short name and the holder's pid.
 import { join } from "node:path";
-import { Data, Effect } from "effect";
+import { Data, Effect, absurd } from "effect";
 import * as Schema from "effect/Schema";
 import { formatDryRunReport, type DryRunReport } from "../../app/dryRun.js";
 import type { RunCompletionReport } from "../../app/completeRunArtifacts.js";
@@ -350,6 +350,8 @@ function outcomeSections(value: RunAnswer, headline: boolean): ReadonlyArray<str
     case "already-in-review":
     case "paused":
       return [];
+    default:
+      return absurd(outcome);
   }
 }
 
@@ -388,6 +390,8 @@ export function outcomeNotes(value: RunAnswer): string {
     case "preview":
     case "stopped":
       return "";
+    default:
+      return absurd(outcome);
   }
 }
 

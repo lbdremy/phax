@@ -155,5 +155,6 @@ export function archive(
       state: "archived",
       archivePath,
     });
+    return undefined;
   });
 }

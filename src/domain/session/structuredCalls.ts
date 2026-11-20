@@ -1,3 +1,4 @@
+import { absurd } from "effect";
 import type { ProviderId } from "../routing/types.js";
 
 /** The nine calls that ask a provider for a structured answer. */
@@ -57,6 +58,8 @@ export function handsSchemaNatively(
       return true;
     case "mistral-vibe":
       return false;
+    default:
+      return absurd(provider);
   }
 }
 

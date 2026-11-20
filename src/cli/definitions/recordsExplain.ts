@@ -4,7 +4,7 @@
 // for, `null` when the record does not carry it; today's text is rendered from those facts alone.
 // A commit that is not found, that no phax phase produced, or whose record is not found is a
 // declared error, exit 1, with today's sentence.
-import { Data, Effect, Layer } from "effect";
+import { Data, Effect, Layer, absurd } from "effect";
 import * as Schema from "effect/Schema";
 import {
   briefArtifactsInOrder,
@@ -655,6 +655,8 @@ function renderExplained(value: Explained): string {
       return renderDecision(value).join("\n");
     case "revision":
       return renderRevision(value).join("\n");
+    default:
+      return absurd(value);
   }
 }
 
@@ -720,6 +722,8 @@ export const recordsExplainCommand = defineCommand({
           return decisionFacts(outcome.record, input.flags);
         case "found-revision":
           return revisionFacts(outcome.record, input.flags);
+        default:
+          return absurd<never>(outcome);
       }
     }).pipe(Effect.mapError(exposeMessage)),
   exits: {

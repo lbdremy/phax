@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, absurd } from "effect";
 import type * as Schema from "effect/Schema";
 import * as SchemaAST from "effect/SchemaAST";
 import type { Io, Source, StdinDocument } from "../contract/index.js";
@@ -189,5 +189,7 @@ export function readDocument(
         })),
       );
     }
+    default:
+      return absurd(reading);
   }
 }

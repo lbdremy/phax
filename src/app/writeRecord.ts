@@ -1,4 +1,4 @@
-import { Effect, Result } from "effect";
+import { Effect, Result, absurd } from "effect";
 import { join } from "node:path";
 import { assembleRecord } from "../domain/records/assemble.js";
 import { verifiedSurfaces as computeVerifiedSurfaces } from "../domain/gate/verifiedSurfaces.js";
@@ -163,6 +163,8 @@ function usageOf(input: WriteRecordInput): Effect.Effect<TokenUsage, never, File
       return Effect.succeed(input.usage.usage);
     case "none":
       return Effect.succeed(UNAVAILABLE_TOKEN_USAGE);
+    default:
+      return absurd(input.usage);
   }
 }
 

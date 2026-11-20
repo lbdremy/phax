@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, absurd } from "effect";
 import { FileSystem } from "../ports/fs.js";
 import { type Git } from "../ports/git.js";
 import { type GitHub } from "../ports/github.js";
@@ -164,6 +164,8 @@ export function reviewRecordWarning(
       return `${review} entry refused: ${status.message} (remedy: ${status.remedy})`;
     case "write-failed":
       return `the ${review} entry was not committed to ${RECORDS_BRANCH_NAME} (${status.message}) — it is pending: ${REVIEW_RECORD_FILES[review]} stays in the run folder, and the next review keeps it as ${review}.unrecorded-<NN>.json so its findings stay listed; rerun \`${retryCommand}\` to record a new review`;
+    default:
+      return absurd(status);
   }
 }
 
