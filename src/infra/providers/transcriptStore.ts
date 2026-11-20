@@ -1,4 +1,4 @@
-import { Effect } from "effect";
+import { Effect, Predicate } from "effect";
 import { readdir, readFile } from "node:fs/promises";
 import { isSafeSessionId } from "../../domain/sessionId.js";
 import type { TranscriptRead } from "../../ports/backend.js";
@@ -33,7 +33,7 @@ function unreadable(err: unknown): TranscriptRead {
 
 /** Whether an error means the path is not there (as opposed to not readable). */
 export function isAbsence(err: unknown): boolean {
-  const code = (err as NodeJS.ErrnoException | undefined)?.code;
+  const code = Predicate.hasProperty(err, "code") ? err.code : undefined;
   return code === "ENOENT" || code === "ENOTDIR";
 }
 

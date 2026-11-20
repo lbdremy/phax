@@ -1,4 +1,4 @@
-import { Effect, Result, Layer } from "effect";
+import { Effect, Predicate, Result, Layer } from "effect";
 import { open as nodeOpen, readFile, rm, mkdir } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { Lock, decodeLockFile, type LockFile, type LockStatus } from "../ports/lock.js";
@@ -22,6 +22,11 @@ function isPidRunning(pid: number): boolean {
 
 function nowIso(): string {
   return new Date().toISOString();
+}
+
+/** The `code` of a Node system error, read off whatever was thrown. */
+function errnoCode(err: unknown): unknown {
+  return Predicate.hasProperty(err, "code") ? err.code : undefined;
 }
 
 function wrapFsError(err: unknown): FsError {
@@ -83,7 +88,7 @@ export function makeNodeLockLayer(
           try {
             await writeLockFile(path, newLock);
           } catch (openErr) {
-            const code = (openErr as NodeJS.ErrnoException).code;
+            const code = errnoCode(openErr);
             if (code !== "EEXIST") throw openErr;
 
             const existing = await readLockFile(path);
@@ -111,7 +116,7 @@ export function makeNodeLockLayer(
             try {
               await writeLockFile(path, newLock);
             } catch (retryErr) {
-              const retryCode = (retryErr as NodeJS.ErrnoException).code;
+              const retryCode = errnoCode(retryErr);
               if (retryCode === "EEXIST") {
                 throw new LockConflictError({
                   message: `Run "${key}" was locked by another process during stale-lock cleanup`,
