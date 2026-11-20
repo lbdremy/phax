@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611191142-test-worlds-built-once.md
 completes-spec: true
+approved:
+  date: 2026-11-20
+  baseline: efe807b
 ---
 # Test worlds built once
 
