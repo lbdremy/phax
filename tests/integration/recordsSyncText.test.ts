@@ -1,6 +1,3 @@
-import { spawnSync } from "node:child_process";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   BRANCH_REF,
@@ -13,13 +10,13 @@ import {
 } from "../fixtures/records/branchTipRepos.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 // What `phax records sync` prints in text mode (spec records-branch-tip §6): the fast-forward
 // line names both tips, the refusal of a split branch prints its two normative lines, and a
 // replay names the previous tip. Real git, a dedicated records clone, git isolated from the
 // person's configuration.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 const short = (sha: string): string => sha.slice(0, 7);
 
 let restoreGit: () => void;
@@ -41,12 +38,10 @@ async function newWorld(options?: BranchTipOptions): Promise<BranchTipWorld> {
 }
 
 function sync(world: BranchTipWorld, ...flags: string[]) {
-  return spawnSync("tsx", [mainTs, "records", "sync", ...flags], {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs("records", "sync", ...flags), {
+    boundMs: CLI_BOUND_MS,
     cwd: world.sourceRepo,
-    encoding: "utf8",
     env: phaxHomeEnv(),
-    stdio: ["ignore", "pipe", "pipe"],
-    timeout: 60_000,
   });
 }
 

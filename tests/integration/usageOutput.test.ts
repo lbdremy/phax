@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, readFileSync } from "node:fs";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  SCRIPT_BOUND_MS,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
-const mainTs = join(repoRoot, "src/cli/main.ts");
 const specPath = join(repoRoot, "phax.usage.kdl");
 
-function runCli(args: string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
-    encoding: "utf8",
+function runCli(args: string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     env: phaxHomeEnv(),
   });
 }
@@ -62,8 +68,14 @@ describe("phax --usage", () => {
   it(
     "--usage-format json produces JSON output when usage CLI is available",
     () => {
-      const checkUsage = spawnSync("usage", ["--version"], { encoding: "utf8" });
-      if (checkUsage.error !== undefined || checkUsage.status !== 0) {
+      let usageAvailable: boolean;
+      try {
+        usageAvailable =
+          boundedSpawn("usage", ["--version"], { boundMs: SCRIPT_BOUND_MS }).status === 0;
+      } catch {
+        usageAvailable = false; // not installed
+      }
+      if (!usageAvailable) {
         // usage CLI not available — skip
         return;
       }

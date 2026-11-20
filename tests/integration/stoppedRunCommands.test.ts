@@ -1,7 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
-import { execFileSync, spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { archive } from "../../src/app/archive.js";
@@ -26,6 +24,14 @@ import {
   type World,
 } from "../helpers/stoppedRunFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import {
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // The commands that act on a run waiting at a declared stop: the made-up
 // invoice-export run stopped at phase-03 by the real stop, beside credit-notes
@@ -241,9 +247,9 @@ describe("phax reset-phase on a waiting run", () => {
 
     expect(call.err).toBe("");
     expect(existsSync(run.worktree)).toBe(false);
-    const branches = execFileSync("git", ["branch", "--list"], {
+    const branches = boundedOutput("git", ["branch", "--list"], {
+      boundMs: GIT_BOUND_MS,
       cwd: world.repoRoot,
-      encoding: "utf8",
     });
     expect(branches).not.toContain("phase-03");
     expect(existsSync(stopPath(run))).toBe(false);
@@ -395,8 +401,6 @@ describe("phax adjust-plan --landed on a waiting run", () => {
 });
 
 describe("the phase guard inside a stopped phase's worktree", () => {
-  const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
-
   it("refuses phax resume and phax enter-phase, and the run stays awaiting_review", async () => {
     const run = await stopRun(world);
     const home = join(world.root, "home");
@@ -407,9 +411,9 @@ describe("the phase guard inside a stopped phase's worktree", () => {
       ["resume", run.shortName],
       ["enter-phase", run.shortName, "phase-03"],
     ]) {
-      const result = spawnSync("tsx", [mainTs, ...args], {
+      const result = boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+        boundMs: CLI_BOUND_MS,
         cwd: run.worktree,
-        encoding: "utf8",
         env: { ...process.env, HOME: home },
       });
       expect(result.status).toBe(1);

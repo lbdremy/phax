@@ -17,17 +17,38 @@
 // `expectSignal` is returned as a result. Any other ending throws a `BoundedSpawnError` naming
 // the command, the bound, the signal, who ended the child and everything it wrote.
 //
+// A foreign-signal error ends with a `diagnosis:` block: the worker, supervisor and child pids,
+// parents and process groups, the moment, and the related lines of a ps snapshot the supervisor
+// took when it saw the ending. The sender is named when the platform reports it.
+//
+// PHAX_SPAWN_DIAG_LOG: when it names a file, every ending other than a normal exit (a bound
+// included) appends one JSON line to it: the diagnosis fields, the command line, the ending, the
+// vitest pool id and the test file. Unset, nothing is written.
+//
 // The supervisor runs this file under node's type stripping: it imports only node: modules and
 // uses erasable TypeScript only. Keep it that way.
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  appendFileSync,
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { constants as osConstants, tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** The bound of a phax CLI call: about 15 s at most under a loaded gate, with 4× headroom. */
 export const CLI_BOUND_MS = 60_000;
+
+/** The bound of a git call. */
+export const GIT_BOUND_MS = 20_000;
+
+/** The bound of a call to another tool or script. */
+export const SCRIPT_BOUND_MS = 25_000;
 
 /** Time between the SIGTERM at the bound and the SIGKILL that follows it. No call sets it. */
 const GRACE_MS = 2_000;
@@ -84,6 +105,10 @@ interface SupervisorReport {
   /** Descendants SIGKILL ended: at the grace's end, or left over after a normal exit. */
   readonly descendantsKilled: number | null;
   readonly error: string | null;
+  /** `ps -A -o pid,ppid,pgid,stat,lstart,command` at the moment of a non-normal ending. */
+  readonly snapshot: string | null;
+  /** ISO moment the supervisor saw the ending. */
+  readonly seenAt: string | null;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -109,6 +134,22 @@ function supervise(callPath: string): void {
   let ending = false;
   let killed = false;
   let reported = false;
+  let snapshot: string | null = null;
+  let seenAt: string | null = null;
+
+  // Taken once, when the supervisor first sees an ending other than a normal exit.
+  const takeSnapshot = (): void => {
+    if (snapshot !== null) return;
+    seenAt = new Date().toISOString();
+    try {
+      snapshot = execFileSync("ps", ["-A", "-o", "pid,ppid,pgid,stat,lstart,command"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+    } catch {
+      snapshot = "";
+    }
+  };
 
   // The pids of the group's members, from ps; null when ps cannot answer.
   const members = (): number[] | null => {
@@ -176,6 +217,8 @@ function supervise(callPath: string): void {
       childKilled,
       descendantsKilled,
       error: spawnError,
+      snapshot: kind === "exit" ? null : snapshot,
+      seenAt: kind === "exit" ? null : seenAt,
     };
     writeFileSync(call.reportPath, JSON.stringify(ended));
     process.exit(0);
@@ -193,6 +236,7 @@ function supervise(callPath: string): void {
   const endGroup = (): void => {
     if (ending) return;
     ending = true;
+    takeSnapshot();
     if (pgid === null) {
       reportWhenDone();
       return;
@@ -235,6 +279,7 @@ function supervise(callPath: string): void {
     });
   } catch (error) {
     spawnError = error instanceof Error ? error.message : String(error);
+    takeSnapshot();
     report();
     return;
   }
@@ -245,6 +290,7 @@ function supervise(callPath: string): void {
   child.on("error", (error) => {
     if (child?.pid !== undefined) return; // a later error of a started child: its exit reports
     spawnError = error.message;
+    takeSnapshot();
     report();
   });
   const bound = setTimeout(() => {
@@ -253,6 +299,7 @@ function supervise(callPath: string): void {
   }, call.boundMs);
   child.on("exit", (status, signal) => {
     childExit = { status, signal };
+    if (signal !== null && !ending) takeSnapshot();
     if (ending) {
       reportWhenDone();
       return;
@@ -280,7 +327,8 @@ interface SpawnOptions {
   readonly input?: string | Buffer;
 }
 
-interface BoundedExit {
+/** What a call that ended by a normal exit returns. */
+export interface BoundedExit {
   readonly status: number;
   readonly signal: null;
   readonly stdout: string;
@@ -387,24 +435,32 @@ export function boundedSpawn(
 
     // Written by the supervisor above, in this same file.
     const report: SupervisorReport = JSON.parse(readFileSync(call.reportPath, "utf8"));
-    const fail = (lines: string): BoundedSpawnError =>
+    const fail = (lines: string, after = ""): BoundedSpawnError =>
       new BoundedSpawnError(
-        `bounded spawn: \`${line}\` ${lines}\n${output}`,
+        `bounded spawn: \`${line}\` ${lines}\n${output}${after}`,
         report.childPid ?? undefined,
       );
     const foreign = (signal: string): string =>
       `ended by ${signal}, not by its bound (${boundMs} ms)`;
+    // A foreign-signal ending: logged, and its message ends with the diagnosis block.
+    const diagnosed = (lines: string): BoundedSpawnError => {
+      const diagnosis = diagnose(report);
+      logEnding(line, report, diagnosis);
+      return fail(lines, `\n${diagnosisBlock(diagnosis)}`);
+    };
 
     if (report.kind === "spawn-error") {
+      logEnding(line, report, diagnose(report));
       const cwd = options.cwd === undefined ? "" : ` (cwd ${options.cwd})`;
       throw fail(`could not start: ${report.error ?? "unknown error"}${cwd}`);
     }
     if (report.kind === "bound") {
+      logEnding(line, report, diagnose(report));
       throw fail(`reached its bound (${boundMs} ms) and was ended by it\n  ${groupEnding(report)}`);
     }
     if (report.kind === "supervisor-signal") {
       const signal = report.supervisorSignal ?? "a signal";
-      throw fail(
+      throw diagnosed(
         `${foreign(signal)}\n  the supervisor itself received ${signal} after ` +
           `${report.termAtMs ?? report.elapsedMs} ms and ended the child: ${groupEnding(report)}`,
       );
@@ -412,7 +468,7 @@ export function boundedSpawn(
     if (report.kind === "signal") {
       const signal = report.signal ?? "SIGKILL";
       if (signal === options.expectSignal) return { status: null, signal, stdout, stderr };
-      throw fail(
+      throw diagnosed(
         `${foreign(signal)}\n  the child received ${signal} from outside the bounded spawn ` +
           `after ${report.elapsedMs} ms`,
       );
@@ -423,7 +479,7 @@ export function boundedSpawn(
       return { status: null, signal: relayed, stdout, stderr };
     }
     if (relayed !== undefined) {
-      throw fail(
+      throw diagnosed(
         `${foreign(relayed)}\n  sent through ${displayCommand(command)}: exit status ${status}, ` +
           `after ${report.elapsedMs} ms`,
       );
@@ -450,6 +506,104 @@ export function boundedOutput(
       streams(result.stdout, result.stderr),
     undefined,
   );
+}
+
+interface Row {
+  readonly pid: number;
+  readonly ppid: number;
+  readonly pgid: number;
+  readonly text: string;
+}
+
+interface Diagnosis {
+  readonly worker: { pid: number; ppid: number; pgid: number | null };
+  readonly supervisor: { pid: number; ppid: number | null; pgid: number | null };
+  readonly child: { pid: number | null; pgid: number | null };
+  readonly moment: string;
+  readonly elapsedMs: number;
+  readonly sender: string;
+  readonly related: string[];
+}
+
+function parseSnapshot(snapshot: string | null): Row[] {
+  const rows: Row[] = [];
+  for (const text of (snapshot ?? "").split("\n")) {
+    const match = /^\s*(\d+)\s+(\d+)\s+(\d+)\s/.exec(text);
+    if (match !== null) {
+      rows.push({ pid: Number(match[1]), ppid: Number(match[2]), pgid: Number(match[3]), text });
+    }
+  }
+  return rows;
+}
+
+function diagnose(report: SupervisorReport): Diagnosis {
+  const rows = parseSnapshot(report.snapshot);
+  const byPid = new Map(rows.map((row) => [row.pid, row]));
+  const worker = byPid.get(process.pid);
+  const supervisor = byPid.get(report.supervisorPid);
+  const ancestors = new Set<number>();
+  for (let row = worker; row !== undefined && !ancestors.has(row.pid); row = byPid.get(row.ppid)) {
+    ancestors.add(row.pid);
+  }
+  const groups = new Set<number>(
+    [worker?.pgid, report.pgid].filter((id): id is number => id !== undefined && id !== null),
+  );
+  const related = rows
+    .filter((row) => ancestors.has(row.pid) || groups.has(row.pgid) || row.pid === report.childPid)
+    .map((row) => row.text.trim());
+  return {
+    worker: { pid: process.pid, ppid: process.ppid, pgid: worker?.pgid ?? null },
+    supervisor: {
+      pid: report.supervisorPid,
+      ppid: supervisor?.ppid ?? null,
+      pgid: supervisor?.pgid ?? null,
+    },
+    child: { pid: report.childPid, pgid: report.pgid },
+    moment: report.seenAt ?? new Date().toISOString(),
+    elapsedMs: report.elapsedMs,
+    sender: "not reported by the platform",
+    related,
+  };
+}
+
+function diagnosisBlock(d: Diagnosis): string {
+  const id = (n: number | null): string => (n === null ? "unknown" : String(n));
+  return [
+    "  diagnosis:",
+    `    worker: pid ${d.worker.pid}, parent ${d.worker.ppid}, group ${id(d.worker.pgid)}`,
+    `    supervisor: pid ${d.supervisor.pid}, parent ${id(d.supervisor.ppid)}, group ${id(d.supervisor.pgid)}`,
+    `    child: pid ${id(d.child.pid)}, group ${id(d.child.pgid)}`,
+    `    moment: ${d.moment} (${d.elapsedMs} ms after the start)`,
+    `    sender: ${d.sender}`,
+    "    ps (pid ppid pgid stat lstart command), the worker, its ancestors, its group and the child's group:",
+    ...d.related.map((row) => `      ${row}`),
+  ].join("\n");
+}
+
+// One JSON line per non-normal ending, when PHAX_SPAWN_DIAG_LOG names a file.
+function logEnding(line: string, report: SupervisorReport, diagnosis: Diagnosis): void {
+  const path = process.env["PHAX_SPAWN_DIAG_LOG"];
+  if (path === undefined || path === "") return;
+  // vitest keeps the running file on its worker state; read it without importing vitest.
+  const state: unknown = Reflect.get(globalThis, "__vitest_worker__");
+  const file: unknown =
+    typeof state === "object" && state !== null ? Reflect.get(state, "filepath") : null;
+  try {
+    appendFileSync(
+      path,
+      `${JSON.stringify({
+        ending: report.kind,
+        signal: report.signal ?? report.supervisorSignal,
+        status: report.status,
+        command: line,
+        ...diagnosis,
+        vitestPoolId: process.env["VITEST_POOL_ID"] ?? null,
+        testFile: typeof file === "string" ? file : null,
+      })}\n`,
+    );
+  } catch {
+    // a log that cannot be written must not hide the ending itself
+  }
 }
 
 function definedEnv(env: NodeJS.ProcessEnv): Record<string, string> {

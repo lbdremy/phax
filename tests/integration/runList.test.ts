@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -9,7 +8,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Result } from "effect";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { parseRunList } from "../../packages/schemas/src/index.js";
@@ -30,6 +28,13 @@ import { phaxCall } from "../helpers/runnerCall.js";
 import { patchJson, stopRun, type StoppedRun } from "../helpers/stoppedRunFixture.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 import { LS_JSON_BEFORE, LS_REGISTRY } from "../fixtures/commandAnswers/before.js";
+import {
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `phax ls --json` on the made-up world: invoice-export held at phase-02,
 // credit-notes stopped at its declared phase-03 and payments-fix failed, in one
@@ -276,7 +281,6 @@ describe("phax ls --json carries the pull request phax opened", () => {
 // ac-versioned-stable: the 0.33.0 bytes of `ls --json`, from before.ts, are the
 // new output once pullRequest and the $schema stamp are set aside.
 describe("phax ls --json is today's output apart from pullRequest and the stamp", () => {
-  const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
   let restoreGit: () => void;
   let base: string;
 
@@ -287,7 +291,7 @@ describe("phax ls --json is today's output apart from pullRequest and the stamp"
     const state = join(base, "state");
     mkdirSync(repo);
     mkdirSync(state);
-    spawnSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
+    boundedSpawn("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: repo });
     writeFileSync(
       join(repo, "phax.json"),
       JSON.stringify({
@@ -306,9 +310,9 @@ describe("phax ls --json is today's output apart from pullRequest and the stamp"
   });
 
   it("matches the output captured before the change", () => {
-    const result = spawnSync("tsx", [mainTs, "ls", "--json"], {
+    const result = boundedSpawn(CLI_LAUNCHER, cliArgs("ls", "--json"), {
+      boundMs: CLI_BOUND_MS,
       cwd: join(base, "repo"),
-      encoding: "utf8",
       env: phaxHomeEnv(),
     });
 

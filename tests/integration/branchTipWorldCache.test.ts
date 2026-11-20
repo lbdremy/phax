@@ -1,4 +1,3 @@
-import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -12,7 +11,6 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RECORDS_BRANCH_NAME } from "../../src/app/writeRecord.js";
 import {
@@ -28,13 +26,12 @@ import {
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { removeTempDir } from "../helpers/tempGit.js";
+import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 // The branch-tip world is built once per test file and copied for every test: spec
 // test-worlds-built-once §5.1 to §5.9 (ac-built-once, ac-identical, ac-deterministic, ac-guard,
 // ac-isolated, ac-bulk-count, ac-env, ac-git-isolation). Each test that needs a cache entry of its
 // own in this file takes its own `remoteRecords`.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const RITA = "Rita Recorder|rita@records.test|Rita Recorder|rita@records.test";
 const WORLD_VARIABLES = [
@@ -308,11 +305,10 @@ describe("a branch-tip world copied from the file's cached world", () => {
         expect(process.env["GIT_SSH_COMMAND"]).toBe(join(world.base, "fake-ssh.sh"));
         expect(process.env["GIT_AUTHOR_NAME"]).toBe("Rita Recorder");
         await putBranchAhead(world, { localOnly: 0 });
-        const result = spawnSync("tsx", [mainTs, "records", "status", "--json"], {
+        const result = boundedSpawn(CLI_LAUNCHER, cliArgs("records", "status", "--json"), {
+          boundMs: CLI_BOUND_MS,
           cwd: world.sourceRepo,
-          encoding: "utf8",
           env: phaxHomeEnv(),
-          stdio: ["ignore", "pipe", "pipe"],
         });
         expect(result.status, result.stderr).toBe(0);
         const status: unknown = JSON.parse(result.stdout);

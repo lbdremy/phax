@@ -179,6 +179,41 @@ setInterval(() => {}, 1000);
     expect(await goneWithin(error.childPid ?? 0)).toBe(true);
   });
 
+  it("gives a foreign signal a diagnosis block and one line in PHAX_SPAWN_DIAG_LOG", () => {
+    const child = script(
+      "diag-term.mjs",
+      `process.kill(process.pid, "SIGTERM");
+setInterval(() => {}, 1000);
+`,
+    );
+    const log = join(work, "diag.jsonl");
+    const before = process.env["PHAX_SPAWN_DIAG_LOG"];
+    process.env["PHAX_SPAWN_DIAG_LOG"] = log;
+    let error: BoundedSpawnError;
+    try {
+      error = thrown(() => boundedSpawn(process.execPath, [child], { boundMs: SCRIPT_MS }));
+    } finally {
+      if (before === undefined) delete process.env["PHAX_SPAWN_DIAG_LOG"];
+      else process.env["PHAX_SPAWN_DIAG_LOG"] = before;
+    }
+    expect(error.childPid).toBeGreaterThan(0);
+    const message = error.message;
+    expect(message).toContain("diagnosis:");
+    expect(message).toContain(`worker: pid ${process.pid}`);
+    expect(message).toContain(`child: pid ${error.childPid}`);
+    expect(message).toContain("sender: not reported by the platform");
+    expect(message.indexOf("stderr (")).toBeLessThan(message.indexOf("diagnosis:"));
+
+    const lines = readFileSync(log, "utf8").trimEnd().split("\n");
+    expect(lines).toHaveLength(1);
+    const entry: { ending: string; signal: string; child: { pid: number }; moment: string } =
+      JSON.parse(lines[0] ?? "");
+    expect(entry.ending).toBe("signal");
+    expect(entry.signal).toBe("SIGTERM");
+    expect(entry.child.pid).toBe(error.childPid);
+    expect(Number.isNaN(Date.parse(entry.moment))).toBe(false);
+  });
+
   it("fails a child that SIGTERMs itself, naming the signal and its output (ac-foreign-signal)", () => {
     const child = script(
       "self-term.mjs",

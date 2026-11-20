@@ -12,18 +12,23 @@ import {
   type ExitCode,
 } from "../../src/cli/commandLibrary/contract/index.js";
 import { phaxProgram } from "../../src/cli/definitions/program.js";
-import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // A made-up repository with two linked worktrees: one holding `.phax-context/`
 // (a phase worktree) and one without. The CLI runs from source with HOME at a
 // temp dir, so no real ~/.phax is read or written.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 let base: string;
 let mainRoot: string;
@@ -32,13 +37,13 @@ let plainWorktree: string;
 let home: string;
 
 function git(cwd: string, args: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "ignore" });
+  boundedOutput("git", args.split(" "), { boundMs: GIT_BOUND_MS, cwd });
 }
 
-function runCli(cwd: string, args: string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
+function runCli(cwd: string, args: string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd,
-    encoding: "utf8",
     env: { ...process.env, HOME: home },
   });
 }

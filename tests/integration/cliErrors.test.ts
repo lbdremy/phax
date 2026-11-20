@@ -1,20 +1,24 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
-
-const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
-const mainTs = join(repoRoot, "src/cli/main.ts");
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // A command the phase guard refuses must run from a temporary cwd: this
 // repository's own phases run the tests from inside a phase worktree.
-function runCli(args: string[], cwd?: string): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
-    encoding: "utf8",
+function runCli(args: string[], cwd?: string): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     env: phaxHomeEnv(),
     ...(cwd !== undefined ? { cwd } : {}),
   });
@@ -76,7 +80,7 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
       tmpDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-cli-errors-")));
       const repo = join(tmpDir, "repo");
       mkdirSync(repo);
-      execSync("git init -q", { cwd: repo });
+      boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: repo });
       disableGitAutoMaintenance(repo);
       writeFileSync(
         join(repo, "phax.json"),
@@ -113,10 +117,16 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
       // resolves symlinks, so tmpRepoRoot must match or the plan path's
       // repo-relative classification silently fails on macOS's /tmp symlink.
       tmpRepoRoot = realpathSync(mkdtempSync(join(tmpdir(), "phax-cli-errors-stale-")));
-      execSync("git init -q", { cwd: tmpRepoRoot });
+      boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: tmpRepoRoot });
       disableGitAutoMaintenance(tmpRepoRoot);
-      execSync('git config user.email "test@example.com"', { cwd: tmpRepoRoot });
-      execSync('git config user.name "Test"', { cwd: tmpRepoRoot });
+      boundedOutput("git", ["config", "user.email", "test@example.com"], {
+        boundMs: GIT_BOUND_MS,
+        cwd: tmpRepoRoot,
+      });
+      boundedOutput("git", ["config", "user.name", "Test"], {
+        boundMs: GIT_BOUND_MS,
+        cwd: tmpRepoRoot,
+      });
 
       writeFileSync(
         join(tmpRepoRoot, "phax.json"),
@@ -193,12 +203,15 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
           "",
         ].join("\n"),
       );
-      execSync("git add -A", { cwd: tmpRepoRoot });
-      execSync('git commit -q -m "seed"', { cwd: tmpRepoRoot });
-
-      const result = spawnSync("tsx", [mainTs, "run", "--plan", planPath], {
+      boundedOutput("git", ["add", "-A"], { boundMs: GIT_BOUND_MS, cwd: tmpRepoRoot });
+      boundedOutput("git", ["commit", "-q", "-m", "seed"], {
+        boundMs: GIT_BOUND_MS,
         cwd: tmpRepoRoot,
-        encoding: "utf8",
+      });
+
+      const result = boundedSpawn(CLI_LAUNCHER, cliArgs("run", "--plan", planPath), {
+        boundMs: CLI_BOUND_MS,
+        cwd: tmpRepoRoot,
         env: phaxHomeEnv(),
       });
 

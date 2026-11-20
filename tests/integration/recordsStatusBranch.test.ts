@@ -1,6 +1,3 @@
-import { spawnSync } from "node:child_process";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Layer } from "effect";
 import { describeRecordsPushFailure } from "../../src/app/recordsBranch.js";
@@ -25,12 +22,12 @@ import {
 } from "../fixtures/records/branchTipRepos.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 // `phax records status` reports the branch state; a refused push names the state and the fix.
 //   ac-status-states, ac-status-pending and ac-push-message.
 
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer);
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 let restoreGit: () => void;
 const worlds: BranchTipWorld[] = [];
@@ -65,12 +62,11 @@ function pending(world: BranchTipWorld) {
 }
 
 function runStatus(world: BranchTipWorld, json: boolean): string {
-  const result = spawnSync("tsx", [mainTs, "records", "status", ...(json ? ["--json"] : [])], {
-    cwd: world.sourceRepo,
-    encoding: "utf8",
-    env: phaxHomeEnv(),
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const result = boundedSpawn(
+    CLI_LAUNCHER,
+    cliArgs("records", "status", ...(json ? ["--json"] : [])),
+    { boundMs: CLI_BOUND_MS, cwd: world.sourceRepo, env: phaxHomeEnv() },
+  );
   expect(result.status, result.stderr).toBe(0);
   return result.stdout;
 }

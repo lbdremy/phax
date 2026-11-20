@@ -1,6 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import {
   cpSync,
   existsSync,
@@ -29,6 +28,15 @@ import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `cost backfill`, `schema upgrade`, `security status` and `skills install` through the command
 // runner, spawned as `tsx src/cli/main.ts` in temporary repositories with a temporary HOME and git
@@ -36,7 +44,6 @@ import { memoryIo } from "../unit/commandLibrary/commander/support/memoryIo.js";
 // touched.
 //   ac-json-every-command, ac-written, ac-error-sentence, ac-written-on-failure and ac-groups.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 const bundleRoot = join(fileURLToPath(import.meta.url), "../../..", ".claude", "skills");
 
 const NAMESPACE = "made-up";
@@ -55,8 +62,12 @@ let bare: string;
 let state: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[], cwd = repo): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[], cwd = repo): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd,
+    env: phaxHomeEnv(),
+  });
 }
 
 function messageLines(stderr: string): ReadonlyArray<{ kind: string }> {
@@ -72,14 +83,20 @@ function sha256(path: string): string {
 
 function initRepo(root: string, config: Record<string, unknown>): void {
   mkdirSync(root);
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: root, stdio: "ignore" });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: root });
   disableGitAutoMaintenance(root);
   // isolateGit leaves no identity: the fixture's commit names its own.
-  execFileSync("git", ["config", "--local", "user.name", "Ada Example"], { cwd: root });
-  execFileSync("git", ["config", "--local", "user.email", "ada@example.test"], { cwd: root });
+  boundedOutput("git", ["config", "--local", "user.name", "Ada Example"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: root,
+  });
+  boundedOutput("git", ["config", "--local", "user.email", "ada@example.test"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: root,
+  });
   writeFileSync(join(root, "phax.json"), JSON.stringify(config));
-  execFileSync("git", ["add", "-A"], { cwd: root, stdio: "ignore" });
-  execFileSync("git", ["commit", "-q", "-m", "initial"], { cwd: root, stdio: "ignore" });
+  boundedOutput("git", ["add", "-A"], { boundMs: GIT_BOUND_MS, cwd: root });
+  boundedOutput("git", ["commit", "-q", "-m", "initial"], { boundMs: GIT_BOUND_MS, cwd: root });
 }
 
 /** A made-up Claude stream with one result. */
@@ -121,7 +138,7 @@ beforeAll(() => {
   // A directory with no phax.json, for the commands that refuse without one.
   bare = join(base, "bare");
   mkdirSync(bare);
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: bare, stdio: "ignore" });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: bare });
 
   // A kept run with no cost ledger.
   const entry: RegistryEntry = {
@@ -328,7 +345,7 @@ describe("skills install failing part way", () => {
     // A repository, so the files installed are named from its root.
     const project = join(base, "partial-project");
     mkdirSync(project);
-    execFileSync("git", ["init", "-q", "-b", "main"], { cwd: project, stdio: "ignore" });
+    boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: project });
 
     const program = defineProgram({
       name: "phax",

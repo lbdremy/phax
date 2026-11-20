@@ -1,14 +1,21 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { LS_REGISTRY } from "../fixtures/commandAnswers/before.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Acceptance tests of spec command-contracts for `phax ls`, frozen until the
 // phase that moves it onto the command runner: every test carries `.fails`,
@@ -17,14 +24,16 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 // real ~/.phax, ~/.claude, ~/.codex, ~/.vibe or global git config is read.
 //   ac-unknown-option, ac-help and ac-json-schema-command for `ls`.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
-
 let base: string;
 let repo: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd: repo, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd: repo,
+    env: phaxHomeEnv(),
+  });
 }
 
 beforeAll(() => {
@@ -34,7 +43,7 @@ beforeAll(() => {
   const state = join(base, "state");
   mkdirSync(repo);
   mkdirSync(state);
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: repo });
   disableGitAutoMaintenance(repo);
   writeFileSync(
     join(repo, "phax.json"),

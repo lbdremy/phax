@@ -1,7 +1,5 @@
-import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { archive } from "../../src/app/archive.js";
@@ -35,6 +33,7 @@ import {
 import { patchJson, stopRun } from "../helpers/stoppedRunFixture.js";
 import { childEnvUnder } from "../helpers/providerStoreRoots.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 // The commands that act on a run waiting at a held stop: the made-up
 // invoice-export run holding phase-02 (`--hold phase-02`), built by the real
@@ -509,8 +508,6 @@ describe("phax archive and adjust-plan on a held run", () => {
 });
 
 describe("the phase guard inside a held phase's worktree", () => {
-  const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
-
   it("refuses phax resume and phax enter-phase, and the run stays awaiting_review", () => {
     const home = join(world.root, "guard-home");
     mkdirSync(home, { recursive: true });
@@ -520,9 +517,9 @@ describe("the phase guard inside a held phase's worktree", () => {
       ["resume", SHORT],
       ["enter-phase", SHORT, "phase-02"],
     ]) {
-      const result = spawnSync("tsx", [mainTs, ...args], {
+      const result = boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+        boundMs: CLI_BOUND_MS,
         cwd: tree(),
-        encoding: "utf8",
         env: childEnvUnder(home),
       });
       expect(result.status).toBe(1);

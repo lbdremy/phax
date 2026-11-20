@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Result } from "effect";
 import { artifactFingerprint } from "../../src/app/approvalRecordStore.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
@@ -14,6 +12,15 @@ import { decodeSpecDocumentFile } from "../../src/schemas/specDocument.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Acceptance test of spec command-contracts (ac-artifact-status), frozen until
 // the phase that moves `phax artifact status` onto the command runner: every
@@ -21,8 +28,6 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 // no `--json`. Each spawns `tsx src/cli/main.ts` in a temporary repository with
 // a temporary HOME and git configuration, so no real ~/.phax, ~/.claude,
 // ~/.codex, ~/.vibe or global git config is read.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const DRAFT_SPEC = "docs/specs/2611011200-garden-sync.md";
 const DRAFT_SIDECAR = "docs/specs/2611011200-garden-sync.json";
@@ -35,15 +40,15 @@ let repo: string;
 let restoreGit: () => void;
 
 function git(args: readonly string[]): string {
-  return execFileSync("git", args, {
-    cwd: repo,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 }
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd: repo, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd: repo,
+    env: phaxHomeEnv(),
+  });
 }
 
 function write(rel: string, content: string): void {

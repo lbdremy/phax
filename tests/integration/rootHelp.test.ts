@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +6,13 @@ import { fileURLToPath } from "node:url";
 import { PHAX_RELEASE } from "../../src/schemas/release.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Today's root help, pinned byte for byte. The fixture is the stdout of
 // `tsx src/cli/main.ts --help` run in a temporary directory (never a phase
@@ -15,17 +21,16 @@ import { removeTempDir } from "../helpers/tempGit.js";
 // --json), and phase-09's runner-written root help must reproduce it.
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
-const mainTs = join(repoRoot, "src/cli/main.ts");
 const fixturePath = join(repoRoot, "tests/fixtures/help/phax-root-help.txt");
 
 const CLI_SPAWN_TIMEOUT_MS = 30_000;
 
-function runCli(args: ReadonlyArray<string>): SpawnSyncReturns<string> {
+function runCli(args: ReadonlyArray<string>): BoundedExit {
   const cwd = mkdtempSync(join(tmpdir(), "phax-root-help-"));
   try {
-    return spawnSync("tsx", [mainTs, ...args], {
+    return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+      boundMs: CLI_BOUND_MS,
       cwd,
-      encoding: "utf8",
       env: { ...phaxHomeEnv(), COLUMNS: "80" },
     });
   } finally {
