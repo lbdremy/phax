@@ -68,7 +68,7 @@ function isEmptyListRefusal(raw: unknown, refusal: Refusal): boolean {
   let value: unknown = raw;
   for (const segment of refusal.path.slice(0, -1)) {
     if (typeof value !== "object" || value === null) return false;
-    value = (value as Record<PropertyKey, unknown>)[segment];
+    value = Reflect.get(value, segment);
   }
   return Array.isArray(value) && value.length === 0;
 }
@@ -85,10 +85,10 @@ function gateStepOutputCommand(raw: unknown, path: ReadonlyArray<PropertyKey>): 
   let step: unknown = raw;
   for (const segment of path.slice(0, -1)) {
     if (typeof step !== "object" || step === null) return undefined;
-    step = (step as Record<PropertyKey, unknown>)[segment];
+    step = Reflect.get(step, segment);
   }
-  if (typeof step !== "object" || step === null) return undefined;
-  const command = (step as Record<string, unknown>)["command"];
+  if (typeof step !== "object" || step === null || !("command" in step)) return undefined;
+  const command = step.command;
   return typeof command === "string" ? command : undefined;
 }
 
@@ -147,9 +147,7 @@ export function formatAnswerViolations(input: unknown, err: Schema.SchemaError):
     const planPath = refusedPlanPath(first, ["plan"]);
     if (planPath === undefined) return violationLine(first);
     const plan =
-      typeof input === "object" && input !== null
-        ? (input as Record<string, unknown>)["plan"]
-        : undefined;
+      typeof input === "object" && input !== null && "plan" in input ? input.plan : undefined;
     const phaseId = phaseIdAt(plan, planPath.phase) ?? `phases[${String(planPath.phase)}]`;
     return `${refusalPath(first.path, "bracketed")}: ${phaseId} plans ${JSON.stringify(planPath.written)}, which ${refusalMessage(first)}`;
   }
@@ -221,11 +219,11 @@ export function formatPlanDocumentViolation(input: unknown, err: Schema.SchemaEr
 }
 
 function phaseIdAt(input: unknown, i: number): string | undefined {
-  if (typeof input !== "object" || input === null) return undefined;
-  const phases = (input as Record<string, unknown>)["phases"];
+  if (typeof input !== "object" || input === null || !("phases" in input)) return undefined;
+  const phases = input.phases;
   if (!Array.isArray(phases)) return undefined;
   const phase: unknown = phases[i];
-  if (typeof phase !== "object" || phase === null) return undefined;
-  const id = (phase as Record<string, unknown>)["id"];
+  if (typeof phase !== "object" || phase === null || !("id" in phase)) return undefined;
+  const id = phase.id;
   return typeof id === "string" ? id : undefined;
 }

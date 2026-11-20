@@ -233,10 +233,10 @@ export function decodeAuthoredSpecDocument(
   if (
     typeof input === "object" &&
     input !== null &&
-    Array.isArray((input as { readonly arbitratedQuestions?: unknown }).arbitratedQuestions)
+    "arbitratedQuestions" in input &&
+    Array.isArray(input.arbitratedQuestions)
   ) {
-    const arbitrated = (input as { readonly arbitratedQuestions: ReadonlyArray<unknown> })
-      .arbitratedQuestions;
+    const arbitrated: ReadonlyArray<unknown> = input.arbitratedQuestions;
     const violation = authoringArbitratedViolation(arbitrated, []);
     if (violation !== undefined) return Result.fail(formatViolationAt(violation));
   }
