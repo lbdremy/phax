@@ -1,0 +1,502 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2611191142-test-worlds-built-once.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "test-worlds-built-once",
+    "title": "Test worlds built once",
+    "requiredCommands": [
+      "node",
+      "pnpm test",
+      "pnpm test:unit",
+      "pnpm test:integration"
+    ]
+  },
+  "preamble": {
+    "summary": "Make `buildBranchTipWorld` (tests/fixtures/records/branchTipRepos.ts) build its expensive, path-free part once per test file and hand every test its own directory copy, and write the records a world is built with in one `git fast-import` process instead of one `commitRecordTree` call each. Every existing test keeps its file, full name and assertions. Nothing under `src/` changes; `vitest.config.ts`, `phax.json` and the runtime stay as they are.\n\nThe five operator decisions of the spec (§9b) are settled and shape every phase: worlds are cached per test file (q-build-scope `per-file`); a copy is a recursive directory copy, copy-on-write where the filesystem offers it (q-copy `dir-copy`); only the path-free part is cached, and the path-bound part is built per test exactly as today (q-paths `split`); `pnpm test` stays one every-phase gate step (q-gate-tiers `keep`); and `phaseGuard`'s exit 143 is only observed, in the last phase (q-143 `observe`).\n\nShape, core to surface: phase-01 adds a measuring script and takes the \"before\" on the unchanged tree; phase-02 adds the bulk record write and proves it equal to `commitRecordTree`; phase-03 adds the per-file world cache (build once, copy, copy guard, cleanup at the file's end); phase-04 rebuilds `buildBranchTipWorld` on both, with its environment handling, and carries the spec's criterion tests; phase-05 measures the change, compares it with the before test by test, observes q-143 and records the measures.\n\nMeasures on main at 0c6135c1 (2026-11-20, 14 cores, vitest 5.1), from the plan's brief: 22,512 tests (22,482 passed, 30 skipped), 205 s wall time; sum of file times 2,227 s (integration 2,100 s, unit 127 s); 21 integration files of 30 s or more (1,082 s); `recordsStatusBranch` 105 s, its 300-record test 63 s. phase-01 measures its own before on the run's base commit, because main moves.",
+    "requiredCommandsNote": "Every command is already covered: `node`, `pnpm test:unit` and `pnpm test:integration` are entries of `security.agentCommands` in `phax.json`, and `pnpm test` is a gate command of the `standard` profile. No security configuration change is needed. The measuring script (`node spikes/test-worlds/measure.mjs …`) spawns vitest's own binary from `node_modules` with the JSON reporter, which is what `pnpm test` (`vitest run`) runs; no `pnpm exec vitest` or other new command is granted.",
+    "technicalArbitrations": [
+      "Builders covered: `buildBranchTipWorld` only, used by `recordsStatusBranch`, `recordsBranchSync.acceptance`, `recordsBranchSyncUnits` and `recordsSyncText`. `createHeldWorld` (tests/helpers/heldRunFixture.ts) and `createWorld` (tests/helpers/stoppedRunFixture.ts) init one repository with one commit, about five git processes per test: `heldStopRun`'s 18 tests spend about 1 s of its 94 s building worlds, the rest is the run each test drives; the same holds for `stopRecords` (86 s), `heldStopClose` (64 s), `acceptancePairReview` (67 s), and `decideVerdicts` (59 s, 99 tests) has no world builder. Covering them would not move the measures. Loss accepted: those files keep their time.",
+      "`recordsWriteParent` and `writeReviewRecord` call `commitRecordTree` to test it; they keep doing so, and so do the records a test adds after its build (`writeRecords`, `pushRemoteRecords`, `writePhaseRecords`): only the records a world is built with go through the bulk record write (spec §10).",
+      "The split (q-paths): the cached, path-free part of a branch-tip world is the bare remote `remote.git` (initialised with `-b main`, auto-maintenance off, its records branch written by the bulk record write) plus the path-free plain files (`artifacts/note.md`, `phase-folder/prompt.md`, `state/`). The per-test, path-bound part is built at the test's own path: the upstream clone (init, identity, `origin` remote at the copy's `ssh://` URL, one `git fetch`, one `update-ref` of the local records branch to the fetched tip), the source repository (init, identity, `mirror` remote, `phax.json` holding the copy's `state.root` and URL, `widget.txt`, one commit), the fake ssh script and the environment. Loss accepted: about fifteen git processes per test remain, the same whatever the number of records.",
+      "A fresh build is the same builder with the cache bypassed, building both parts at the given path. Its records go through the bulk record write too; their equality with today's per-record `commitRecordTree` path is held by phase-02's equality test (§5.7), not by keeping the old path alive.",
+      "Fixed dates (§5.3): the bulk records keep today's dates (record i at 2026-01-01T00:00:0i Z, one second apart, author and committer alike) and the source repository's initial commit, which today takes the current time, gets the fixed date 2026-01-01T00:00:00Z. Records added later in a test continue from the next second, as today. Loss accepted: none a caller observes; no test reads that commit's date.",
+      "Cleanup (§5.10) with a per-file cache: the cache lives in the cache module's own state, and the module registers a vitest `afterAll` at its top level that removes the file's cache root, as tests/setup/phaxHomeGuard.ts registers its hooks. This relies on vitest's default per-file module isolation, which `vitest.config.ts` (protected, unchanged) keeps. Loss accepted: a worker killed in the middle of a file leaves that file's cache directory in the temporary directory; no process-exit sweep is added.",
+      "Every cached world is built under `isolateGit()` (§5.9), taken by the cache around the build and released before the builder sets the world's own environment; the branch-tip builder also builds its per-test part under the same isolation, so a person's or a test's global git configuration never reaches a world's commits or branches.",
+      "The copy guard scans the raw bytes of every regular file of a finished copy (after the per-test part is built) for the cached world's build path and throws, naming the copy, the build path and the first file, relative to the copy, that holds it. Compressed git objects cannot hide a path the split never writes, so a raw-byte scan is enough.",
+      "The fixture's own tests live under tests/integration/ (real git, one machine): `vitest.config.ts` is protected and its two projects' include globs are kept, so no new test location or project is added.",
+      "\"No cached world left behind\" (ac-cleanup) is checked twice: a named test runs a nested vitest on a probe test file with a private TMPDIR and checks the directory afterwards, and the measuring script lists the `phax-world-cache-*` entries of the temporary directory before and after each full run.",
+      "Measures (§5.11, §5.12): `spikes/test-worlds/measure.mjs`, run with `node`, runs the whole suite through vitest's own binary with `--reporter=json` (what `pnpm test` runs), times the wall clock, and writes a compact tab-separated report of every file and test with repository-relative paths, so reports taken in two phase worktrees compare. phase-01 takes the before on its unchanged tree (the run's base commit) and commits it as `spikes/test-worlds/before.tsv`; phase-05 takes the after on the same machine (phax runs every phase locally), compares, records the measures in `spikes/test-worlds/measures.md`, and deletes the before report, keeping the script.",
+      "Reading of ac-same-tests: every test that passed in the before report passes in the after one, under the same file, full name and project; a test skipped before (30 on 0c6135c1, conditional skips) must still be present and is not required to pass; a test newly skipped, missing or failing is a failure; and every test the after adds is in one of the fixture's own test files.",
+      "No acceptance phase: the spec changes no surface a user of phax sees (§11 \"None\"), only test fixtures; every test line is in-phase.",
+      "No interactive phase: no phase sets a pattern a later phase repeats."
+    ],
+    "openQuestions": [
+      {
+        "id": "q-measures-message",
+        "question": "phax writes each phase's commit body from the plan, before any measure exists, so the last phase cannot put its measured numbers into its own commit message as §5.12 and ac-measures ask. Where do the before and after measures live in the change's history?",
+        "options": [
+          {
+            "id": "measures-file",
+            "label": "The last phase writes the measures, in §6's shape, into `spikes/test-worlds/measures.md`, committed in the same commit; the plan's commit body names that file",
+            "abandons": "The letter of §5.12 and ac-measures: the numbers sit in a committed file of the last commit's diff, not in its message, so a reader of `git log` alone sees where they are, not what they are."
+          },
+          {
+            "id": "amend-at-review",
+            "label": "The last phase writes the same file and its handoff carries the exact block; during the kept-open final review the operator amends the last commit's body to paste the block above phax's trailers, before publishing",
+            "abandons": "A fully automated run: the criterion is met only by a manual operator step the run cannot check, and the final phase's commit id changes after phax recorded it, which phax's records and resume may not expect."
+          }
+        ],
+        "recommendation": "measures-file",
+        "rationale": "It keeps every number produced, checked and committed by the run itself, in the very commit the spec names, and needs no rewrite of a commit phax recorded; §6 marks the commit-message shape as indicative. The operator can still paste the file into the pull request or merge message."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "Measuring script and the before report",
+      "objective": "Add a measuring script that runs the whole suite with vitest's JSON reporter and turns it into a compact report and a before/after comparison, and commit the report of the unchanged tree as the \"before\" the last phase compares with.",
+      "detailedInstructions": [
+        "Create `spikes/test-worlds/measure.mjs`, plain ESM JavaScript for Node (>= 26), no dependency beyond Node's standard library. It is run as `node spikes/test-worlds/measure.mjs <mode> …` from the repository root. `spikes/` is outside knip's project but `pnpm lint` (oxlint, type-aware) and `pnpm format`/`format:check` (oxfmt) read it: write lint-clean code and never add a disable directive.",
+        "Mode `run --out <report path>`: (1) list the entries of `os.tmpdir()` whose name starts with `phax-world-cache-`; (2) note the start time; (3) spawn vitest's own binary, resolved from the repository root's `node_modules` (`node_modules/.bin/vitest`, or vitest's package entry through `createRequire`), as `vitest run --reporter=json --outputFile=<a temporary JSON path>`, with stdio inherited for stderr so progress shows, and wait for it; a non-zero exit from failing tests does not stop the report, a missing or unreadable JSON file does (exit 2 with a message); (4) note the wall time in seconds; (5) list the `phax-world-cache-*` entries again; (6) write the report.",
+        "Report format (tab-separated, one record per line, so oxfmt leaves it alone and git diffs it line by line): meta lines `M\\t<key>\\t<value>` for `wall-seconds`, `cores` (`os.availableParallelism()`), `vitest` (version read from vitest's package.json), `commit` (the `HEAD` commit, read with `git rev-parse HEAD` through `execFileSync`), `node`, and `world-cache-left` (the `phax-world-cache-*` entries present after the run and not before, comma-separated, empty when none); file lines `F\\t<repo-relative file>\\t<project>\\t<file seconds>` (file seconds = the JSON's `endTime - startTime` for that file, in seconds); test lines `T\\t<repo-relative file>\\t<project>\\t<full name>\\t<state>\\t<duration ms>`. Paths are made repository-relative with `/` separators, because each phase runs in its own worktree at another absolute path. The project is `unit` for `tests/unit/**` and `integration` for `tests/integration/**` (the two projects of vitest.config.ts); state is vitest's assertion status (`passed`, `failed`, `skipped`, `pending`, `todo`). Sort file and test lines so two reports of the same tree differ only in times and states. Escape a tab or newline inside a full name (replace with a single space) so the format stays one record per line.",
+        "Mode `compare <before report> <after report> [--allow-new <repo-relative test file>]...`: print, in the shape of the spec's §6 (\"Measures (<cores> cores, vitest <version>), before -> after:\"), the suite wall time, the sum of file times and its split by project (integration, unit), then \"Integration files over 30 s, before -> after:\" listing every integration file over 30 s in either report, by its base name without `.test.ts`, slowest-before first, with both times; then the full name and both durations of the test \"counts only the local-only records of a diverged branch sharing 300 with the remote\" (file `tests/integration/recordsStatusBranch.test.ts`) and whether the after duration is under 10 s; then the state in the after report of `phaseGuard`'s \"lets phax --json-schema print the runner's catalogue\" and of `tests/integration/recordsJsonContracts.test.ts`'s \"--json-schema prints its entry…\" test (match by file and a full-name prefix); then the `world-cache-left` value of the after report.",
+        "The compare's test-by-test check, by (file, full name): every test `passed` in the before must be `passed` in the after under the same project; every test present in the before must be present in the after; a test not `skipped`/`pending`/`todo` in the before that is so in the after is \"newly skipped\"; a test present only in the after must be in one of the `--allow-new` files. Print every missing, not-passing, newly skipped or unexpected new test, one per line with its file and full name, and exit 1 when there is any; exit 0 otherwise. Also exit 1 when the after's `world-cache-left` is not empty.",
+        "Run it on the unchanged tree: `node spikes/test-worlds/measure.mjs run --out spikes/test-worlds/before.tsv`. Run nothing heavy alongside it, so the before is a fair base. Then run `node spikes/test-worlds/measure.mjs compare spikes/test-worlds/before.tsv spikes/test-worlds/before.tsv` and check it exits 0 and prints the before numbers on both sides. Commit `before.tsv` as written.",
+        "Add `spikes/test-worlds/README.md`: what the script is for (the spec `test-worlds-built-once`, §5.11 and §5.12), its two modes with an example command each, the report format, and that `before.tsv` is the before of this change, deleted by the change's last phase.",
+        "Do not touch anything under `tests/`, `src/`, `vitest.config.ts`, `phax.json` or `package.json`: the before must be taken on the base tree's tests."
+      ],
+      "planMarkdownAnchor": "#phase-01-measure-script",
+      "plannedFilesToCreate": [
+        "spikes/test-worlds/measure.mjs",
+        "spikes/test-worlds/README.md",
+        "spikes/test-worlds/before.tsv"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer of the measuring contract consumed by phase-05: `node spikes/test-worlds/measure.mjs run --out <path>` writes a report in the format above; `node spikes/test-worlds/measure.mjs compare <before> <after> [--allow-new <file>]...` prints the §6-shaped measures and the test-by-test check and exits 1 on any missing, failing, newly skipped or unexpected test, or on a cached world left behind. phase-05 relies on the flags, the exit codes and the repository-relative paths, not on the script's internals.",
+      "testStrategy": [
+        {
+          "guarantee": "the script runs the whole suite on the unchanged tree and writes a report with the meta, file and test records of every file and test vitest ran",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "the written before.tsv against vitest's own JSON totals for the same run",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "comparing a report with itself reports no missing, failing, newly skipped or new test, and prints identical before and after measures",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "compare exits 0 and every before -> after pair is equal",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The report writer from a vitest JSON file (paths, projects, states, file times).",
+        "The `run` mode around it (tmpdir listing, spawn, wall time).",
+        "The `compare` mode and its exit code.",
+        "README.",
+        "Run `run` on the unchanged tree, then `compare` of the report with itself; commit."
+      ],
+      "excludedScope": [
+        "Any change to tests, fixtures, `src/`, `vitest.config.ts`, `phax.json` or `package.json`.",
+        "The after measures and their comparison (phase-05).",
+        "A pnpm script for the measures: the script is run with `node`, no package script is added."
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exact commands used and their exit codes. The before numbers read from `spikes/test-worlds/before.tsv`: test count by state, wall time, sum of file times by project, every integration file over 30 s with its time, the 300-record test's duration, the state of the two q-143 tests, and the commit and machine (cores, vitest version) recorded in its meta lines. The report format and the compare's flags and exit codes, as phase-05 will use them. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(spikes): measure the suite per file and per test, before test worlds are built once",
+        "body": "Add spikes/test-worlds/measure.mjs: it runs the whole suite through vitest's JSON\nreporter, times its wall clock and writes a compact tab-separated report of every file\nand test, with repository-relative paths and their projects; its compare mode prints the\nsuite's wall time, the sum of file times by tier and every integration file over 30 s,\nbefore and after, and checks test by test that nothing that passed is missing, failing\nor newly skipped.\n\nCommit the report of the unchanged tree as before.tsv, the base the spec\ntest-worlds-built-once measures its change against (§5.11, §5.12)."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "Bulk record write through git fast-import",
+      "objective": "Add a test-fixture writer that commits any number of seed records on a repository's records branch in one `git fast-import` process, producing exactly the commits `commitRecordTree` produces for the same key, origin, artifact, date, identity and parent.",
+      "detailedInstructions": [
+        "Create `tests/fixtures/records/bulkRecords.ts`. It must not import anything that changes phax (nothing under `src/` changes); it may import `RECORDS_BRANCH_NAME` from `src/app/writeRecord.js` and test helpers.",
+        "Export the seed record's content so the bulk writer and the fixture's `commitRecordTree` path share it by construction: `SEED_ARTIFACT_NAME = \"note.md\"`, `SEED_ARTIFACT_TEXT = \"A record's artifact.\\n\"`, `seedRecordManifest(key, origin)` returning `{ kind: \"seed\", key, origin }`, and `seedRecordMessage(key, origin)` returning exactly the message tests/fixtures/records/branchTipRepos.ts builds today in `commitOne`: `records(phase-01): committed`, a blank line, `Run-Id: <first path segment of key>`, `Phase-Id: phase-01`, `Origin: <origin>`, joined by `\\n`.",
+        "Export `writeRecordsInBulk(input)` with input `{ repo: string; parent: string | null; identity: { name: string; email: string }; records: readonly { key: string; origin: string; date: Date }[] }` answering `Promise<readonly string[]>` (the commit ids, oldest first). It writes the records branch `refs/heads/phax/records/v1` of `repo` (bare or not) through ONE `git fast-import` process (`--quiet`, `--date-format=raw`, `--done` with a final `done`, `--export-marks=<a file in a fresh temporary directory removed afterwards>` to read back the commit ids). With zero records it starts no git process and answers `[]`.",
+        "Reproduce `commitRecordTree`'s commits exactly (src/app/recordPlumbing.ts and `writeTreeCommitEffect` in src/infra/git.ts): each commit's tree holds only its own record, `<key>/note.md` (the artifact text) and `<key>/record.json` (`JSON.stringify(manifest, null, 2) + \"\\n\"`), both mode 100644 (use `deleteall` then two inline `M 100644` entries); author and committer are the identity at the record's date as `<epoch seconds> +0000`; the message is what `git commit-tree -m <message>` stores (check the trailing newline against the real plumbing; the equality test is the oracle); the first commit has `from <parent>` when `parent` is not null and no parent otherwise, each next commit parents on the previous one. Use byte lengths (`Buffer.byteLength`) in every `data` command.",
+        "Create `tests/integration/bulkRecords.test.ts` (integration tier: real git). Isolate git in every test with `isolateGit()` from tests/helpers/isolateGit.ts and disable auto-maintenance with `disableGitAutoMaintenance` on every repository it inits; remove temporary directories with `removeTempDir`.",
+        "Its criterion test, named for ac-bulk-equal: init two repositories with the same identity in local config and an `origin` remote never fetched; write the same records (several keys, origins `upstream` and `local`, increasing fixed dates) into one through `writeRecordsInBulk` and into the other through one `commitRecordTree` call each, run exactly as branchTipRepos.ts's `commitOne` runs it today (the real `NodeFileSystemLayer` and `NodeGitLayer`, `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` set to the record's ISO date for the call and put back, the identity variables set, artifact folder holding `note.md` with `SEED_ARTIFACT_TEXT`, manifest and message from the exported helpers); assert the two records branches have the same tip commit id and the same list of commit ids.",
+        "Also cover, in-phase: a non-null parent (one record first written through `commitRecordTree` in both repositories, then the rest in bulk on top of it in one and through `commitRecordTree` in the other: same tip); a single record; zero records (no process started, `[]`, no ref created); and that writing 300 records starts one git process, counted with `withGitTrace` from tests/fixtures/records/branchTipRepos.ts.",
+        "Do not change tests/fixtures/records/branchTipRepos.ts in this phase: `buildBranchTipWorld` switches to the bulk writer in phase-04."
+      ],
+      "planMarkdownAnchor": "#phase-02-bulk-record-write",
+      "plannedFilesToCreate": [
+        "tests/fixtures/records/bulkRecords.ts",
+        "tests/integration/bulkRecords.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer for phase-04: `tests/fixtures/records/bulkRecords.ts` exports `writeRecordsInBulk({ repo, parent, identity, records: [{ key, origin, date }] }) => Promise<readonly string[]>` (one git process, the commits `commitRecordTree` would write, oldest first) and the shared seed content `SEED_ARTIFACT_NAME`, `SEED_ARTIFACT_TEXT`, `seedRecordManifest(key, origin)`, `seedRecordMessage(key, origin)`. Consumer of phax's real plumbing (`commitRecordTree`) only as the oracle of its tests; it changes nothing under `src/`.",
+      "testStrategy": [
+        {
+          "guarantee": "the same records written in bulk and through one commitRecordTree call each give records branches with the same tip commit id",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "commitRecordTree's own commits in a twin repository",
+          "loop": "in-phase",
+          "criterion": "ac-bulk-equal"
+        },
+        {
+          "guarantee": "the bulk writer agrees with commitRecordTree at its edges: zero records, one record, a null parent and a given parent",
+          "size": "medium",
+          "technique": "boundary",
+          "oracle": "commitRecordTree's tip in a twin repository, and no ref and no git process for zero records",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "300 records are written by one git process",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the git processes withGitTrace records",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "Shared seed content (artifact, manifest, message).",
+        "The fast-import stream builder and the single-process writer with exported marks.",
+        "The equality test against commitRecordTree, then the edge cases and the process count."
+      ],
+      "excludedScope": [
+        "Switching `buildBranchTipWorld` to the bulk writer (phase-04).",
+        "Any change under `src/`, or to records written during a test (`writeRecords`, `pushRemoteRecords`, `writePhaseRecords`), which keep phax's real plumbing.",
+        "`recordsWriteParent` and `writeReviewRecord`, which test `commitRecordTree` itself and keep calling it."
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exact path `tests/fixtures/records/bulkRecords.ts` and the signatures of `writeRecordsInBulk`, `seedRecordManifest`, `seedRecordMessage`, `SEED_ARTIFACT_NAME` and `SEED_ARTIFACT_TEXT`. How the message's trailing newline and the dates are written so the commits match, and whether the writer requires the ref to be absent when `parent` is null. The number of git processes one call starts. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(fixtures): write seed records in bulk through one git fast-import",
+        "body": "Add writeRecordsInBulk to the records fixtures: it writes any number of seed records\non a repository's records branch through a single git fast-import process, each commit\nholding only its own record, at its own fixed date and identity, parented on the one\nbefore.\n\nA test writes the same records through it and through one commitRecordTree call each,\nand finds the same tip commit id (spec test-worlds-built-once §5.7), with zero, one and\nmany records and with or without a parent. 300 records cost one git process."
+      },
+      "assignmentReason": "A higher effort than the default: reproducing commitRecordTree's commits byte for byte through a git fast-import stream is a design no code in the repository shows yet.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-03",
+      "title": "Per-file world cache, directory copy and copy guard",
+      "objective": "Add a generic test-fixture cache that builds a world once per test file under git isolation, gives each caller a private directory copy of it, refuses a copy that still holds the cached world's path, and removes every cached world when the file ends.",
+      "detailedInstructions": [
+        "Create `tests/fixtures/worlds/worldCache.ts` with three exports. `cachedWorld(name: string, build: (buildPath: string) => Promise<void>): Promise<string>`: answers the build path of the world cached under `name` in this test file, calling `build` once, at the first request, with a path that does not exist yet; concurrent requests for the same name share one build; a failed build removes its directory, is forgotten (the next request builds again) and rejects with the build's error. `copyWorld(buildPath: string, copyPath: string): void`: a recursive directory copy (`fs.cpSync` with `recursive: true`, `errorOnExist: true`, `force: false`, and the copy-on-write mode `fs.constants.COPYFILE_FICLONE`, which falls back to a plain copy where the filesystem has none), preserving file modes; never hard links, never symlinks to the cache. `assertNoBuildPath(copyPath: string, buildPath: string): void`: reads the raw bytes of every regular file under `copyPath` (`.git` directories and bare repositories included) and throws when one holds `buildPath`, with the message `world copy <copyPath> still holds the build path\\n  <buildPath>\\n  in <file relative to copyPath>` (the §6 shape).",
+        "The cache's state is module-level (a `Map` from name to the pending build path), so with vitest's default per-file module isolation each test file has its own cache. The cache root is created lazily at the first request as `realpathSync(mkdtempSync(join(tmpdir(), \"phax-world-cache-\")))`, and a world's build path is `<root>/<name>` (keep `name` a safe single path segment: refuse anything else).",
+        "Register, at the module's top level, `afterAll` (imported from `vitest`) that removes the cache root with `removeTempDir` from tests/helpers/tempGit.ts and clears the map, as tests/setup/phaxHomeGuard.ts registers its top-level hooks: the module is imported while the test file is collected, so the hook lands on that file's suite.",
+        "Run every `build` under `isolateGit()` from tests/helpers/isolateGit.ts, released in a `finally`, so a cached world never sees the person's or the test's git configuration (spec §5.9). Do not change tests/helpers/isolateGit.ts.",
+        "Create `tests/integration/worldCacheCleanupProbe.test.ts`: one test that calls `cachedWorld(\"probe\", …)` with a build that inits a bare repository (`git init -q --bare -b main`, auto-maintenance disabled), asserts the build path exists, and, when the environment variable `PHAX_WORLD_CACHE_PROBE_REPORT` names a file, writes the build path to it. It also runs as an ordinary test in the suite, where the variable is unset.",
+        "Create `tests/integration/worldCache.test.ts`. In-phase tests: a second `cachedWorld` request with the same name calls `build` once and answers the same path; two names build two worlds; a failed build is retried at the next request; a copy holds the same bytes and modes (an executable script stays executable) and is a separate tree (a file written or a commit made in the copy is absent from the cached world and from a second copy); `assertNoBuildPath` passes on a clean copy and throws on a copy with a file holding the build path, naming that file relative to the copy and the build path; inside `build`, `GIT_CONFIG_GLOBAL` is not the value the test set before the request, and the test's value is back after it.",
+        "The criterion test for ac-cleanup (\"no cached world left behind\"), in `tests/integration/worldCache.test.ts`: create a private temporary directory, spawn a nested vitest with `process.execPath` on vitest's own CLI entry resolved from `node_modules`, as `run --project integration worldCacheCleanupProbe`, with the repository root as working directory, an environment copied from `process.env` without any variable whose name starts with `VITEST`, `TMPDIR` set to the private directory and `PHAX_WORLD_CACHE_PROBE_REPORT` set to a file in another temporary directory; assert the child exits 0, that the report names a build path inside the private directory (a cache was built there), and that after the child exits the private directory holds no entry whose name starts with `phax-world-cache-`. Give the test a timeout that fits a nested vitest start under load, within the project's 90 s default.",
+        "Isolate git in every test of both files with `isolateGit()`, disable auto-maintenance on every repository they init, and remove every temporary directory they create.",
+        "Do not touch tests/fixtures/records/branchTipRepos.ts in this phase."
+      ],
+      "planMarkdownAnchor": "#phase-03-world-cache",
+      "plannedFilesToCreate": [
+        "tests/fixtures/worlds/worldCache.ts",
+        "tests/integration/worldCache.test.ts",
+        "tests/integration/worldCacheCleanupProbe.test.ts"
+      ],
+      "plannedFilesToEdit": [],
+      "optionalFilesToEdit": [],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer for phase-04: `tests/fixtures/worlds/worldCache.ts` exports `cachedWorld(name, build) => Promise<buildPath>` (built once per test file, under `isolateGit()`, removed by an `afterAll` when the file ends), `copyWorld(buildPath, copyPath)` (a private directory copy, copy-on-write where available) and `assertNoBuildPath(copyPath, buildPath)` (throws naming the copy, the build path and the file). The branch-tip builder relies on: the build path not existing when `build` runs, the isolation being released before `cachedWorld` resolves, and a copy never sharing an inode with the cache.",
+      "testStrategy": [
+        {
+          "guarantee": "a test run leaves no cached world in the temporary directory once its file ends",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "the private TMPDIR of a nested vitest run listed after it exits",
+          "loop": "in-phase",
+          "criterion": "ac-cleanup"
+        },
+        {
+          "guarantee": "a world name is built once per file and every request answers the same build path; a failed build is retried",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the number of build calls and the answered paths",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a copy holds the cached world's bytes and modes, and what is written in it stays out of the cache and of other copies",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "file bytes, modes and refs read back from the cache and a second copy",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a copy holding the build path in any file is refused with the copy, the build path and that file named; a clean copy passes",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the thrown message",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a cached world is built with git isolated, and the caller's git environment is back afterwards",
+          "size": "small",
+          "technique": "example",
+          "oracle": "GIT_CONFIG_GLOBAL read inside and after the build",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The cache map, lazy root and isolated build.",
+        "The directory copy and the copy guard.",
+        "The top-level afterAll cleanup.",
+        "The probe test file, then worldCache.test.ts with the nested-vitest cleanup test last."
+      ],
+      "excludedScope": [
+        "Any branch-tip specific logic (phase-04).",
+        "A run-wide cache, a globalSetup or any change to `vitest.config.ts` (protected; q-build-scope decided per-file).",
+        "`git clone --local` or `cp -c` copies (q-copy decided dir-copy).",
+        "Changes to tests/helpers/isolateGit.ts or tests/helpers/tempGit.ts."
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The exact path `tests/fixtures/worlds/worldCache.ts` and the signatures of `cachedWorld`, `copyWorld` and `assertNoBuildPath`, with their guarantees (build path absent at build time, isolation released before resolving, refusal message format). How the afterAll cleanup is registered and the evidence that it fires per file (the nested-vitest test). How vitest's CLI entry is resolved and which environment the nested run receives. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(fixtures): cache test worlds per file, copy them, refuse a copy holding the cache's path",
+        "body": "Add tests/fixtures/worlds/worldCache.ts: cachedWorld builds a named world once per test\nfile, under isolateGit, at a path of its own in a phax-world-cache- directory that an\nafterAll removes when the file ends; copyWorld gives each test a private recursive copy,\ncopy-on-write where the filesystem offers it; assertNoBuildPath refuses a copy that still\nholds the cached world's path, naming the file.\n\nA nested vitest run on a probe file, with a private TMPDIR, shows that no cached world is\nleft behind (spec test-worlds-built-once §5.10)."
+      },
+      "assignmentReason": "A higher effort than the default: a per-file cache tied to vitest's collection hooks, a copy guard and a nested-vitest cleanup test are a design no code in the repository shows yet.",
+      "model": "claude-sonnet-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-04",
+      "title": "buildBranchTipWorld from a cached world and a per-test part",
+      "objective": "Rebuild `buildBranchTipWorld` on the bulk record write and the per-file world cache: the bare remote and its records are built once per file and copied, the path-bound part is built per test as today, the world's environment is set in the test's own process and restored at cleanup, and the spec's criterion tests prove a copy indistinguishable from a fresh build.",
+      "detailedInstructions": [
+        "Edit `tests/fixtures/records/branchTipRepos.ts`. Keep `buildBranchTipWorld(options?: BranchTipOptions): Promise<BranchTipWorld>`, `BranchTipWorld`, `BranchTipOptions` and every other export's signature and behaviour unchanged: the four callers (`recordsStatusBranch`, `recordsBranchSync.acceptance`, `recordsBranchSyncUnits`, `recordsSyncText`) must compile and pass without an edit. `recordsStatusBranch`'s `newWorld` needs no change: its default-parameter worlds are all copies of one cached world per file.",
+        "Add two exports for the fixture's own tests: `buildBranchTipWorldAt(base: string, options: BranchTipOptions & { readonly fresh: boolean }): Promise<BranchTipWorld>` (builds at `base`, which must not exist; `fresh: true` bypasses the cache and builds both parts at `base`, `fresh: false` copies the cached world) and `branchTipBuildPath(options?: BranchTipOptions): Promise<string>` (the cached world's build path for those parameters in this file, building it if absent). `buildBranchTipWorld(options)` becomes `buildBranchTipWorldAt(realpathSync(mkdtempSync(join(tmpdir(), \"phax-branch-tip-\")))` … with `fresh: false`; create the base with mkdtemp, then build into a not-yet-existing child or remove the empty directory first, as the copy requires (keep `world.base` the directory the world's paths sit in, as today).",
+        "The parameters are normalised (`remoteRecords` defaults to 4, as today) and name the cached world `branch-tip-<remoteRecords>` through `cachedWorld` from tests/fixtures/worlds/worldCache.ts.",
+        "The path-free part, built into a directory D (the cache's build path, or `base` for a fresh build): `git init -q --bare -b main D/remote.git`, `disableGitAutoMaintenance`; the remote's records branch written by `writeRecordsInBulk` from tests/fixtures/records/bulkRecords.ts straight into `remote.git`, parent null, identity Rita Recorder <rita@records.test>, records `run-seed-0001/phase-01` … `run-seed-<n>/phase-01` (the existing `recordKey(\"seed\", i)`), origin `upstream`, record i at `Date.UTC(2026, 0, 1, 0, 0, i)`; `artifacts/note.md` (`SEED_ARTIFACT_TEXT`), `phase-folder/prompt.md` (`# prompt\\n`) and an empty `state/`. Nothing written here may hold D's path.",
+        "The path-bound part, built at `base` for every world: the fake ssh script `base/fake-ssh.sh` (mode 0755, today's content) with `GIT_SSH_COMMAND` pointing at it; the upstream clone (`initRepo(upstream, { name: \"origin\", url: remoteUrl })`, then `git fetch -q origin`, then `git update-ref refs/heads/phax/records/v1 <the fetched refs/remotes/origin/phax/records/v1>`), so it holds the local branch and the tracking ref a push leaves today; the source repository (`initRepo(sourceRepo, { name: \"mirror\", url: remoteUrl })`, today's `phax.json` and `widget.txt`, `git add .`, and `git commit -q -m \"chore: initial commit\"` with `GIT_AUTHOR_DATE` and `GIT_COMMITTER_DATE` set to `2026-01-01T00:00:00Z` for that one call through `execFileSync`'s `env`, so the commit no longer takes the current time). The git processes of both parts must not depend on the number of records.",
+        "Order and environment (spec §5.8, §5.9): save the caller's `GIT_SSH_COMMAND` and the four identity variables first; take `isolateGit()`; get the cached world (or build the path-free part, for a fresh build), copy it to `base` with `copyWorld`, build the path-bound part; for a copy, call `assertNoBuildPath(base, buildPath)`; release the isolation; then set the identity variables to Rita Recorder / rita@records.test. On any failure: release the isolation, put back every saved variable, remove `base`, rethrow. `cleanup()` restores the saved variables and removes this copy only, never the cache.",
+        "Make the world's record counter continue after the build: `remoteKeys` holds the n seed keys, and the next record written by `pushRemoteRecords`, `writeRecords` or the branch-state helpers takes second n + 1, as a fresh build of today does. Switch `commitOne` to `SEED_ARTIFACT_NAME`, `seedRecordManifest` and `seedRecordMessage` from bulkRecords.ts so the per-record path and the bulk path share their content; records added during a test keep going through `commitRecordTree` (spec §10).",
+        "Create `tests/integration/branchTipWorldCache.test.ts` with one named test per criterion below. Isolate git with `isolateGit()` in each test except the git-isolation one, clean every world up, and use different `remoteRecords` values where a test needs a cache entry of its own in this file. A snapshot helper local to the test file lists, for every repository of a world (`remote.git`, `upstream`, `source`, and `state/records/branch-tip` when it exists): `git for-each-ref --format=%(refname) %(objectname)`, the `HEAD` symbolic ref, and the repository's `config` file content; plus the path and content of every file outside the `.git` directories and outside `remote.git`.",
+        "ac-built-once: two tests each call `buildBranchTipWorld({ remoteRecords: 300 })`; the second runs its call under `withGitTrace`; assert the trace holds no `init` with `--bare` and no `fast-import`, `commit-tree` or `hash-object`, and that its `remoteTip()` equals the first test's (keep it in a variable shared by the two tests).",
+        "ac-identical: a fresh build at a path P (`buildBranchTipWorldAt(P, { fresh: true })`), snapshotted, cleaned up; then a copy at the same P (`fresh: false`, same parameters), snapshotted; the snapshots are equal. A difference is a fixture bug to fix, never a reason to narrow the snapshot.",
+        "ac-deterministic: two fresh builds at the same path, one after the other, with the same parameters: equal ref lists with commit ids in every repository; every commit of every repository (`git log --all --format=%an %ae %cn %ce %aI %cI`) carries Rita Recorder <rita@records.test> as author and committer and a date in the fixed set (2026-01-01T00:00:00Z up to the last record's second). `buildBranchTipWorld` is the only covered builder.",
+        "ac-guard: take `branchTipBuildPath` for parameters of its own, plant `source/planted.txt` holding that build path under it, then assert `buildBranchTipWorld` with the same parameters rejects with a message naming `source/planted.txt` and the build path, leaves no copy behind and restores the environment; remove the planted file afterwards.",
+        "ac-isolated: two tests take copies of the same cached world; the first commits records on its records branch (`putBranchAhead`) and pushes them to its own remote (`git push origin phax/records/v1` from its clone); the second asserts its `remoteTip()` and the cached world's remote tip (read with `git rev-parse` in `<branchTipBuildPath>/remote.git`) are still the tip the build left.",
+        "ac-bulk-count: fresh builds with `remoteRecords: 4` and `remoteRecords: 300`, each under `withGitTrace`, start the same number of git processes (count the trace's commands the same way for both).",
+        "ac-env: the test sets `GIT_SSH_COMMAND` and `GIT_AUTHOR_NAME` to values of its own, takes a copy, prepares it with `putBranchAhead(world, { localOnly: 0 })`, spawns `phax records status --json` in the copy's source repository exactly as recordsStatusBranch.test.ts's `runStatus` does (`tsx` on src/cli/main.ts, `phaxHomeEnv()` from tests/helpers/isolatePhaxHome.ts); assert exit 0 and that the JSON's branch remote tip is the copy's `remoteTip()`; then `cleanup()` and assert both variables hold the test's values again; restore them after the test.",
+        "ac-git-isolation: without `isolateGit()`, the test writes a global git configuration in a temporary directory setting `user.name = Someone Else` and `init.defaultBranch = trunk`, points `GIT_CONFIG_GLOBAL` at it and sets `GIT_CONFIG_NOSYSTEM=1` (never the person's real configuration), takes a copy for parameters no earlier test of the file used (so the cached world is built under that configuration), and asserts every commit of every repository of the copy carries Rita Recorder as author and committer and every repository's `HEAD` names `refs/heads/main`; restore both variables after.",
+        "Run the four calling test files and the new one (`pnpm test:integration tests/integration/recordsStatusBranch.test.ts` and so on) and check that the 300-record test of `recordsStatusBranch` now takes seconds, not a minute; record its time in the handoff."
+      ],
+      "planMarkdownAnchor": "#phase-04-branch-tip-world",
+      "plannedFilesToCreate": [
+        "tests/integration/branchTipWorldCache.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "tests/fixtures/records/branchTipRepos.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/fixtures/worlds/worldCache.ts",
+        "tests/fixtures/records/bulkRecords.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer of `tests/fixtures/records/bulkRecords.ts` (`writeRecordsInBulk` and the seed content) and of `tests/fixtures/worlds/worldCache.ts` (`cachedWorld`, `copyWorld`, `assertNoBuildPath`). Producer, unchanged, for the four calling test files: `buildBranchTipWorld(options?)` answers the same `BranchTipWorld` shape (paths, `remoteKeys`, configs, `remoteTip`, `pushRemoteRecords`, `writeRecords`, `writePhaseRecords`, `cleanup`), sets `GIT_SSH_COMMAND` and the four identity variables in the test's process until `cleanup()`, and `cleanup()` removes only the test's copy. New producers for the fixture's own tests: `buildBranchTipWorldAt(base, { remoteRecords?, fresh })` and `branchTipBuildPath(options?)`.",
+      "testStrategy": [
+        {
+          "guarantee": "a second request for the same parameters in a file builds no remote and writes no record, and answers the same remote tip",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the git commands withGitTrace records, and the first world's remoteTip",
+          "loop": "in-phase",
+          "criterion": "ac-built-once"
+        },
+        {
+          "guarantee": "a copy at a path is the fresh build at that path: same refs and commit ids, configurations and files",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the snapshot of a fresh build at the same path",
+          "loop": "in-phase",
+          "criterion": "ac-identical"
+        },
+        {
+          "guarantee": "two builds with the same parameters at the same path hold the same commits, every one with the fixture's identity and a fixed date",
+          "size": "medium",
+          "technique": "metamorphic",
+          "oracle": "the ref lists of the two builds, and the fixed identity and date set",
+          "loop": "in-phase",
+          "criterion": "ac-deterministic"
+        },
+        {
+          "guarantee": "a cached world holding its build path in a file under source fails the test taking a copy, naming the file and the path",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the rejection message",
+          "loop": "in-phase",
+          "criterion": "ac-guard"
+        },
+        {
+          "guarantee": "records one test pushes to its copy's remote reach neither another test's copy nor the cached world",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the build's remote tip read in the second copy and in the cache",
+          "loop": "in-phase",
+          "criterion": "ac-isolated"
+        },
+        {
+          "guarantee": "building a world with 4 or with 300 records starts the same number of git processes",
+          "size": "medium",
+          "technique": "metamorphic",
+          "oracle": "the two builds' traced process counts",
+          "loop": "in-phase",
+          "criterion": "ac-bulk-count"
+        },
+        {
+          "guarantee": "a copy sets the ssh command and identity its world needs, phax records status works against the copy's own remote, and cleanup puts the test's values back",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "exit 0, the status JSON's remote tip, and the variables after cleanup",
+          "loop": "in-phase",
+          "criterion": "ac-env"
+        },
+        {
+          "guarantee": "a global configuration naming another identity and default branch reaches no commit and no branch of a copy",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "every commit's author and committer, and every HEAD",
+          "loop": "in-phase",
+          "criterion": "ac-git-isolation"
+        },
+        {
+          "guarantee": "the four files calling buildBranchTipWorld pass unchanged",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "their existing assertions",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "The path-free part built through `writeRecordsInBulk`, and the path-bound part with the fixed-date source commit.",
+        "`buildBranchTipWorldAt` with the fresh and cached paths, the copy guard and the environment order; `buildBranchTipWorld` on top of it; `branchTipBuildPath`.",
+        "The record counter and `commitOne` on the shared seed content.",
+        "branchTipWorldCache.test.ts, criterion by criterion.",
+        "The four calling files, run unchanged."
+      ],
+      "excludedScope": [
+        "Any edit to the four calling test files, or to any assertion anywhere.",
+        "`createHeldWorld` (tests/helpers/heldRunFixture.ts), `createWorld` (tests/helpers/stoppedRunFixture.ts) and the `tempGit` helpers: not covered (see Technical arbitrations).",
+        "Anything under `src/`, `vitest.config.ts`, `phax.json`, `package.json`, the timeouts and the gate profile.",
+        "The measures (phase-05)."
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The new structure of `tests/fixtures/records/branchTipRepos.ts`: which files and refs the cached part holds, what the per-test part builds, the order in which the environment is saved, isolated, set and restored, and the signatures of `buildBranchTipWorldAt` and `branchTipBuildPath`. The number of git processes a world costs per test, with 4 and 300 records. The time of `recordsStatusBranch`, `recordsBranchSync.acceptance`, `recordsBranchSyncUnits` and `recordsSyncText` run alone, and of the 300-record test. Any snapshot difference found and how the fixture was fixed. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(fixtures): build each branch-tip world once per file and give every test a copy",
+        "body": "buildBranchTipWorld now builds its path-free part, the bare records remote and its\nrecords written by one git fast-import, once per test file through the world cache, and\nhands every test a directory copy; the path-bound part (the upstream clone, the source\nrepository with phax.json, the fake ssh script) is built at the test's own path as\nbefore, and the source commit now takes a fixed date. The copy guard refuses a copy that\nstill points at the cached world. GIT_SSH_COMMAND and the identity are set in the test's\nprocess and restored at cleanup, which removes the copy only.\n\nCallers are unchanged. New tests show, for spec test-worlds-built-once §5.1 to §5.9, that\na second call builds nothing, a copy equals a fresh build at its path, builds are\ndeterministic, a stale path fails the test, copies are isolated, 4 or 300 records cost\nthe same git processes, the environment is the copy's then the test's again, and a\nglobal git configuration stays out."
+      },
+      "assignmentReason": "A stronger model than the default: the split between a cached and a per-test part, byte-identity with a fresh build and the save, isolate, set and restore order of the environment cross the fixture, the cache and phax's records plumbing, a design no code in the repository shows yet.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-05",
+      "title": "Measures after the change, test-by-test comparison and q-143",
+      "objective": "Measure the full suite after the change on the machine of the before, compare it test by test with the before, observe `phaseGuard`'s and `recordsJsonContracts`' exit 143 over three full runs, and record the measures in the change.",
+      "detailedInstructions": [
+        "Run nothing heavy alongside the measures. Run the full suite three times with `node spikes/test-worlds/measure.mjs run --out <a file outside the repository, one per run>` (for example under the system temporary directory), one after the other.",
+        "Compare each run with the before: `node spikes/test-worlds/measure.mjs compare spikes/test-worlds/before.tsv <after> --allow-new tests/integration/bulkRecords.test.ts --allow-new tests/integration/worldCache.test.ts --allow-new tests/integration/worldCacheCleanupProbe.test.ts --allow-new tests/integration/branchTipWorldCache.test.ts`. The first run is \"the after\" of the measures; all three serve q-143.",
+        "A compare that exits 1 (a test missing, failing, newly skipped, unexpected, or a cached world left behind) is a defect of the earlier phases' fixtures, unless the failure is one of the two q-143 tests killed with exit 143: fix the fixture in tests/fixtures/records/branchTipRepos.ts, tests/fixtures/worlds/worldCache.ts or tests/fixtures/records/bulkRecords.ts (never an assertion, a timeout or a skip), then measure again. If the 300-record test of `recordsStatusBranch` is not under 10 s in a full run, find out why (build or the test's own work) and fix the fixture; report it in the handoff if it cannot be brought under 10 s without changing the test.",
+        "Write `spikes/test-worlds/measures.md`: the machine (cores, vitest version, Node) and both commits from the reports' meta lines; the §6 block exactly as `compare` prints it for the first after run (suite wall time, sum of file times and its split by tier, every integration file over 30 s with both times, `recordsStatusBranch` among them); the 300-record test's before and after durations; the test-by-test result (tests compared, none missing, failing or newly skipped, the new tests and their files); the cached-world leftover check of every run; and, for q-143, the state of `phaseGuard`'s \"lets phax --json-schema print the runner's catalogue\" and of `tests/integration/recordsJsonContracts.test.ts`'s \"--json-schema prints its entry…\" in each of the three runs, with a one-line conclusion: gone, or still killed and owed a brief of its own (the operator opens it; this phase runs no phax lifecycle command).",
+        "Delete `spikes/test-worlds/before.tsv` (its numbers now live in measures.md); keep `spikes/test-worlds/measure.mjs` and update `spikes/test-worlds/README.md` to say where the before went and that measures.md holds the result.",
+        "Commit the after reports nowhere: only measures.md, the README update and the deletion are this phase's planned changes."
+      ],
+      "planMarkdownAnchor": "#phase-05-measures",
+      "plannedFilesToCreate": [
+        "spikes/test-worlds/measures.md"
+      ],
+      "plannedFilesToEdit": [
+        "spikes/test-worlds/before.tsv",
+        "spikes/test-worlds/README.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/fixtures/records/branchTipRepos.ts",
+        "tests/fixtures/worlds/worldCache.ts",
+        "tests/fixtures/records/bulkRecords.ts",
+        "spikes/test-worlds/measure.mjs"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer of phase-01's measuring contract: `measure.mjs run --out` and `measure.mjs compare <before> <after> --allow-new <file>...`, its §6-shaped output and its exit code; `spikes/test-worlds/before.tsv` is the before, taken on the run's base tree.",
+      "testStrategy": [
+        {
+          "guarantee": "every test that passed before passes after under the same file, full name and project, none is missing or newly skipped, and every new test is one of the fixture's own",
+          "size": "medium",
+          "technique": "metamorphic",
+          "oracle": "the before report compared test by test with the after report",
+          "loop": "in-phase",
+          "criterion": "ac-same-tests"
+        },
+        {
+          "guarantee": "the change records, from one machine, the suite's wall time, the sum of file times by tier and every integration file over 30 s, before and after, recordsStatusBranch included",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "measures.md against the before and after reports",
+          "loop": "in-phase",
+          "criterion": "ac-measures"
+        },
+        {
+          "guarantee": "the 300-record test of recordsStatusBranch takes under 10 s within a full run",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "its duration in the after report",
+          "loop": "in-phase",
+          "criterion": "ac-300"
+        },
+        {
+          "guarantee": "a full run leaves no cached world in the temporary directory",
+          "size": "medium",
+          "technique": "smoke",
+          "oracle": "the phax-world-cache- entries listed before and after each run",
+          "loop": "in-phase",
+          "criterion": "ac-cleanup"
+        }
+      ],
+      "implementationOrder": [
+        "Three full runs with `measure.mjs run`.",
+        "`measure.mjs compare` of each with the before; fix any fixture defect and measure again.",
+        "measures.md, README update, deletion of before.tsv."
+      ],
+      "excludedScope": [
+        "A fix of `phaseGuard`'s or `recordsJsonContracts`' exit 143 (q-143 decided observe).",
+        "Splitting `pnpm test` into tiers in the gate (q-gate-tiers decided keep), and any change to `phax.json`, `vitest.config.ts` or the timeouts.",
+        "Covering `createHeldWorld`, `createWorld` or the `tempGit` helpers.",
+        "Any edit to an assertion or a calling test file."
+      ],
+      "verification": "The project's configured `standard` gate profile in `phax.json`.",
+      "expectedHandoff": "The full text of `spikes/test-worlds/measures.md`'s §6 block, ready to be pasted into a commit or pull-request message; the 300-record test's before and after durations; the compare's verdict for each of the three runs; the q-143 states of both tests in each run and the conclusion (gone, or a brief owed, for the operator to open); any fixture fix this phase made and why. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "test(spikes): record the suite's measures before and after test worlds built once",
+        "body": "Measure the full suite three times on the change, on the machine of the before, and\ncompare each run with the before test by test: no test missing, failing or newly\nskipped, every new test one of the fixture's own, no cached world left in the temporary\ndirectory.\n\nspikes/test-worlds/measures.md holds the suite's wall time, the sum of file times by\ntier and every integration file over 30 s, before and after, recordsStatusBranch\nincluded, the 300-record test's time, and the state over three runs of the two tests\nkilled with exit 143 under load (spec test-worlds-built-once §5.11 to §5.13, q-143).\nThe before report is removed; the measuring script stays."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
