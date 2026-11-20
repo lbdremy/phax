@@ -64,7 +64,12 @@ const parseReport = (file) => {
     else if (p[0] === "F") {
       report.files.set(`${p[1]}\t${p[2]}`, { file: p[1], project: p[2], seconds: Number(p[3]) });
     } else if (p[0] === "T") {
-      report.tests.set(`${p[1]}\t${p[3]}`, {
+      // vitest allows two tests of one file to share a full name: number the repeats, in report
+      // order, so each is compared with its own counterpart instead of collapsing into one.
+      const base = `${p[1]}\t${p[3]}`;
+      let key = base;
+      for (let n = 2; report.tests.has(key); n += 1) key = `${base}\t#${n}`;
+      report.tests.set(key, {
         file: p[1],
         project: p[2],
         name: p[3],
