@@ -6,7 +6,7 @@
 // warning: phax refuses only where it cannot tell whether a plan of that repository's
 // docs/plans/ is linked to this one, or where the link names this repository and is unusable.
 import { dirname, relative, resolve, sep } from "node:path";
-import { Effect } from "effect";
+import { Effect, Predicate } from "effect";
 import { classifyArtifactPath } from "../domain/artifact/document.js";
 import { ConfigValidationError } from "../domain/errors.js";
 import type { FileSystem, FsError } from "../ports/fs.js";
@@ -79,10 +79,7 @@ export function resolvePlanLink(input: {
     if (read.kind === "unreadable") return yield* cannotTell(read.reason);
     if (!Object.hasOwn(read.raw, "code")) return LOOSE;
     const code = read.raw["code"];
-    const named =
-      typeof code === "object" && code !== null && !Array.isArray(code)
-        ? (code as Record<string, unknown>)["root"]
-        : undefined;
+    const named = Predicate.isObject(code) ? code["root"] : undefined;
     if (typeof named !== "string")
       return yield* cannotTell('declares "code" with no "root" string');
 

@@ -59,7 +59,8 @@ export function finalizeExtractedPlan(
 
   const phasesWithTitles = Arr.map(extracted.phases, (p) => ({
     ...p,
-    title: phaseTitles.get(p.id) as string,
+    // Every phase has a title here: one missing is refused above.
+    title: phaseTitles.get(p.id) ?? "",
   }));
 
   const shortName =

@@ -46,7 +46,8 @@ export function takeFlag(
   const kept: string[] = [];
   let reading: Reading = { tag: "Absent" };
   for (let index = 0; index < words.length; index += 1) {
-    const word = words[index] as string;
+    const word = words[index];
+    if (word === undefined) break;
     if (word === END_OF_OPTIONS) {
       kept.push(...words.slice(index));
       break;

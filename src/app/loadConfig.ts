@@ -36,8 +36,7 @@ import { architectureGlobProblem } from "../schemas/architecture.js";
 const MISSING_NAME_MESSAGE = `PHAX project name is missing in phax.json. Add a name field, for example: name: "louloupapers".`;
 
 function validateNameField(raw: unknown): ConfigValidationError | undefined {
-  const obj = raw as Record<string, unknown>;
-  const name = obj?.["name"];
+  const name = isRecord(raw) ? raw["name"] : undefined;
   if (typeof name !== "string" || name === "") {
     return new ConfigValidationError({ message: MISSING_NAME_MESSAGE, path: "name" });
   }
@@ -181,10 +180,10 @@ function protectedPathsError(
   configPath: string,
   gitRoot: string,
 ): ConfigValidationError | undefined {
-  if (typeof raw !== "object" || raw === null || !Object.hasOwn(raw, "protectedPaths")) {
+  if (!isRecord(raw) || !Object.hasOwn(raw, "protectedPaths")) {
     return undefined;
   }
-  const declared = (raw as Record<string, unknown>)["protectedPaths"];
+  const declared = raw["protectedPaths"];
   const refuse = (message: string) => new ConfigValidationError({ message, path: configPath });
   if (!Array.isArray(declared) || declared.length === 0) {
     return refuse("protectedPaths: a non-empty list of globs is required");

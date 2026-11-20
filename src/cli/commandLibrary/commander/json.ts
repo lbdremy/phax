@@ -28,7 +28,8 @@ export function takeReserved(words: ReadonlyArray<string>): {
   let json = false;
   let schema = false;
   for (let index = 0; index < words.length; index += 1) {
-    const word = words[index] as string;
+    const word = words[index];
+    if (word === undefined) break;
     if (word === END_OF_OPTIONS) {
       kept.push(...words.slice(index));
       break;
@@ -63,7 +64,8 @@ export function takeOut(words: ReadonlyArray<string>): {
   const kept: string[] = [];
   let out: Out = { tag: "Absent" };
   for (let index = 0; index < words.length; index += 1) {
-    const word = words[index] as string;
+    const word = words[index];
+    if (word === undefined) break;
     if (word === END_OF_OPTIONS) {
       kept.push(...words.slice(index));
       break;

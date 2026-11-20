@@ -1195,7 +1195,8 @@ function usageCall(usage: ProgramUsage, argv: Words): true | Refusal | undefined
   let asked = false;
   let chosen: string | undefined;
   for (let index = 0; index < argv.length; index += 1) {
-    const word = argv[index] as string;
+    const word = argv[index];
+    if (word === undefined) break;
     if (word === flag && !asked) {
       asked = true;
     } else if (format !== undefined && word === format && chosen === undefined) {

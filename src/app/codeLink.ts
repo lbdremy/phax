@@ -4,7 +4,7 @@
 // nearest one walking up from where it starts to the repository's top level (the rule
 // loadConfig follows), and a refusal names that file.
 import { join } from "node:path";
-import { Effect, Result } from "effect";
+import { Effect, Predicate, Result } from "effect";
 import { classifyArtifactPath } from "../domain/artifact/document.js";
 import type { ArtifactStatus } from "../domain/artifact/status.js";
 import {
@@ -108,10 +108,10 @@ export function readPhaxJsonObject(
         reason: `is not valid JSON (${e instanceof Error ? e.message : String(e)})`,
       } as const;
     }
-    if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    if (!Predicate.isObject(raw)) {
       return { kind: "unreadable", reason: "is not a JSON object" } as const;
     }
-    return { kind: "object", raw: raw as Record<string, unknown> } as const;
+    return { kind: "object", raw } as const;
   });
 }
 
