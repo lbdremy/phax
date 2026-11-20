@@ -173,7 +173,7 @@ export interface CloseStopInput {
 }
 
 /** The git identity of the checkout that closed a stop, as its configuration names it. */
-export interface Closer {
+interface Closer {
   readonly name: string;
   readonly email: string;
 }

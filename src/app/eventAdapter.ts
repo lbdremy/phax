@@ -6,7 +6,6 @@ import type {
   CommitCreated,
   GateFailed,
   GatePassed,
-  PhaxEvent,
   PhaxEventBase,
   RateLimitDetected,
   WorktreeCreated,
@@ -30,24 +29,6 @@ import { cleanupPhase, type CleanupPhaseOptions } from "./cleanup.js";
 import { commitPhase, type CommitPhaseOptions } from "./commit.js";
 import { runGates } from "./gates.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
-
-/**
- * Wraps an Effect so both the success and failure paths produce a PhaxEvent.
- * When `fail` returns null, the original error re-propagates unchanged.
- */
-export function eventify<A, E, R>(
-  eff: Effect.Effect<A, E, R>,
-  ok: (a: A) => PhaxEvent,
-  fail: (e: E) => PhaxEvent | null,
-): Effect.Effect<PhaxEvent, E, R> {
-  return eff.pipe(
-    Effect.map(ok),
-    Effect.catch((e) => {
-      const event = fail(e);
-      return event !== null ? Effect.succeed(event) : Effect.fail(e);
-    }),
-  );
-}
 
 export function adaptAgentRun(
   prompt: string,

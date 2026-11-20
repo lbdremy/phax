@@ -86,7 +86,7 @@ import { decisionFailureOf } from "./decideFailure.js";
 
 /** Where the verdicts file is read from: a repo-relative or absolute path, stdin, or the text the
  *  caller already read (the command runner reads `--verdicts` itself), kept as read. */
-export type VerdictsSource =
+type VerdictsSource =
   | { readonly kind: "file"; readonly path: string }
   | { readonly kind: "stdin" }
   | { readonly kind: "read"; readonly text: string };
@@ -266,7 +266,7 @@ function modelLine(model: VerdictsModel, effort: string): string {
 }
 
 /** The commit that lands a verdicts-mode decide: the decided ids, the writer, the operator and the decision. */
-export function verdictsCommitMessage(input: {
+function verdictsCommitMessage(input: {
   readonly kind: ArtifactKind;
   readonly slug: string;
   readonly path: string;

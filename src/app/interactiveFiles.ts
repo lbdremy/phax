@@ -32,9 +32,9 @@ import { encodeReviewStopFile, type ReviewStop } from "../schemas/reviewStop.js"
 /** The seed inside the phase worktree, relative to it. */
 export const SEED_WORKTREE_PATH = ".phax-context/interactive-review.md";
 /** The seed's copy in the phase's run folder. */
-export const SEED_RUN_FILE = "review-seed.md";
-export const INTERACTIVE_SESSION_FILE = "interactive-session.json";
-export const FIRST_READING_FILE = "first-reading.md";
+const SEED_RUN_FILE = "review-seed.md";
+const INTERACTIVE_SESSION_FILE = "interactive-session.json";
+const FIRST_READING_FILE = "first-reading.md";
 // The same names the effect runner writes, parks and discards.
 const REVIEW_STOP_FILE = "review-stop.json";
 const PARKED_REVIEW_STOP_FILE = "review-stop.closing.json";

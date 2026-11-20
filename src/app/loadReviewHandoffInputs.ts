@@ -118,7 +118,7 @@ function readCheckedReviewNotes(
 
 // The review notes gathered from each phase's last gate attempt, grouped by
 // owner; empty when no phase left a note.
-export function loadReviewNoteGroups(
+function loadReviewNoteGroups(
   info: RunReviewInfo,
 ): Effect.Effect<ReadonlyArray<ReviewNoteGroup>, never, FileSystem> {
   return Effect.gen(function* () {

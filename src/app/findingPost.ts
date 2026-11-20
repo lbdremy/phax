@@ -30,7 +30,7 @@ import {
 } from "./findingPullRequest.js";
 
 /** A refusal of the call, made before any push or comment. */
-export class FindingPostRefusedError extends Data.TaggedError("FindingPostRefusedError")<{
+class FindingPostRefusedError extends Data.TaggedError("FindingPostRefusedError")<{
   readonly message: string;
 }> {}
 

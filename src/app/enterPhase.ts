@@ -60,7 +60,7 @@ export interface EnterPhaseInput {
 }
 
 /** A line for the person: `warning` ones go through the output's warn. */
-export interface Notice {
+interface Notice {
   readonly kind: "info" | "warning";
   readonly text: string;
 }

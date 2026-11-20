@@ -280,7 +280,7 @@ export function pullRequestStateBeforeFix(input: {
 }
 
 /** Why a fate command left the run's pull request alone. */
-export type PullRequestNotPostedReason =
+type PullRequestNotPostedReason =
   | "publish-auto-off"
   | "no-pull-request"
   | "push-branch-off"

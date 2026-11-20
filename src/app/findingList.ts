@@ -62,7 +62,7 @@ export interface FindingListResult {
   readonly notes: readonly string[];
 }
 
-export const RECORDS_OFF_NOTE =
+const RECORDS_OFF_NOTE =
   "records are off for this project: only the reviews in the run folder are listed";
 
 /**

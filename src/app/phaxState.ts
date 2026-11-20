@@ -1,7 +1,7 @@
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import type { PhaseSubState, PhaxState, StopCause } from "../domain/state.js";
 
-export function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
+function phaseSubStateFromStatus(status: PhaseStatus): PhaseSubState {
   switch (status.state) {
     case "pending":
       return { state: "pending" };

@@ -37,7 +37,7 @@ import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
 /** A refusal of the call, made before anything is written. */
-export class FindingSettleRefusedError extends Data.TaggedError("FindingSettleRefusedError")<{
+class FindingSettleRefusedError extends Data.TaggedError("FindingSettleRefusedError")<{
   readonly message: string;
 }> {}
 

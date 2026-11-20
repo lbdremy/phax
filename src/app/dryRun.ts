@@ -9,7 +9,7 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { SecurityMode } from "../domain/security/types.js";
 import { resolveHold, type HoldFinding, type HoldRequest } from "../domain/hold.js";
 
-export interface DryRunPhase {
+interface DryRunPhase {
   readonly index: number;
   readonly id: string;
   readonly title: string;

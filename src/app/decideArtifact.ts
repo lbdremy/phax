@@ -124,7 +124,7 @@ export interface DecideArtifactInput {
 }
 
 /** The decision a session ran under, once it spawned: its id, folder and record. */
-export interface DecideSessionFacts {
+interface DecideSessionFacts {
   /** `<stamp>-<slug>/<NN>`: the `Decision-Id` trailer. */
   readonly decisionId: string;
   /** Absolute path of `<stateRoot>/decide/<stamp>-<slug>/<NN>/`. */
@@ -176,7 +176,7 @@ export type DecideArtifactError =
 
 // ── What decide reads ──────────────────────────────────────────────────────
 
-export type { Authored, ArtifactSnapshot } from "./headlessWriter.js";
+export type { ArtifactSnapshot } from "./headlessWriter.js";
 
 /** A refusal of decide, whichever mode: the reason and the operator-facing message. */
 export function refused(reason: DecideRefusedError["reason"], message: string): DecideRefusedError {

@@ -19,7 +19,7 @@ import { PHAX_CONTEXT_DIR } from "./worktree.js";
 export const PHASE_BRIEF_REQUEST_FILE = join(PHAX_CONTEXT_DIR, "brief-request.json");
 
 /** The pushed brief's record, in the phase folder. */
-export const PUSHED_BRIEF_RECORD = "brief-00.json";
+const PUSHED_BRIEF_RECORD = "brief-00.json";
 
 /** Writes the stamped phase request to `<worktree>/.phax-context/brief-request.json`. */
 export function writePhaseBriefRequest(
