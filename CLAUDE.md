@@ -29,7 +29,9 @@ phax gate profiles both invoke `pnpm`. Don't use `npm`/`yarn` or commit a
 - `pnpm audit:architecture` — enforces the layer boundaries below as a test.
 - `pnpm lint` / `lint:fix` — **oxlint** (not eslint).
 - `pnpm format` / `format:check` — **oxfmt** (not prettier).
-- `pnpm knip` — dead-code / unused-dependency check.
+- `pnpm knip` — dead-code / unused-dependency check: knip in default and `--production --strict`
+  mode, compared with `knip-baseline.json`. A finding is fixed in the code; the baseline is the
+  operator's (protected), and so are `pnpm knip --prune` and `pnpm knip --init`.
 
 ## Architecture
 
