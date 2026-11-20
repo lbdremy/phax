@@ -80,7 +80,7 @@ export function committedHandoffIsValid(
   });
 }
 
-export function reconciliationPath(runPath: string, phaseId: string): string {
+function reconciliationPath(runPath: string, phaseId: string): string {
   return join(runPath, phaseId, "file-reconciliation.md");
 }
 

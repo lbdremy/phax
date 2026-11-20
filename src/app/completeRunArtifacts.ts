@@ -23,7 +23,7 @@ import {
 import { readSourceSpec } from "../domain/artifact/lineage.js";
 import { resolveDeclaredSpec, transitionArtifact } from "./artifactStatus.js";
 
-export interface RunCompletionTransition {
+interface RunCompletionTransition {
   readonly kind: "plan" | "spec";
   readonly path: string;
   readonly commit?: { readonly hash: string; readonly subject: string };
@@ -33,7 +33,7 @@ export interface RunCompletionTransition {
 // Why the run left its source spec live: the chain gate found live dependent
 // plans (`blocked`), or the plan says it does not complete its spec
 // (`completes-spec: false` → `not-completing`).
-export type RunCompletionKeptSpec =
+type RunCompletionKeptSpec =
   | {
       readonly reason: "blocked";
       readonly path: string;

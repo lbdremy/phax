@@ -87,7 +87,7 @@ import {
 // body. The two interfaces are the contract: phase-06 does not change a field.
 
 /** Where the revision's model or effort came from: the flag, or phax.json's `authoring.<kind>`. */
-export type ReviseSource = "flag" | "authoring.spec" | "authoring.plan";
+type ReviseSource = "flag" | "authoring.spec" | "authoring.plan";
 
 export interface ReviseArtifactInput {
   /** Repo-relative POSIX path of the spec or plan. */

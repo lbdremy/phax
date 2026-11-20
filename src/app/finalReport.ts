@@ -141,7 +141,7 @@ phax archive ${info.shortName}
 `;
 }
 
-export function renderPublicationSection(record: PublicationRecord): string {
+function renderPublicationSection(record: PublicationRecord): string {
   const lines: string[] = ["## Pull request", ""];
 
   lines.push(`- **Provider**: ${record.provider}`);

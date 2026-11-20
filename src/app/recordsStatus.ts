@@ -5,7 +5,7 @@ import type { Registry } from "../schemas/registry.js";
 import type { RecordsBranchReading } from "../domain/records/branchState.js";
 import { readRecordsBranch, recordsBranchLocation } from "./recordsBranch.js";
 
-export interface PendingRecordEntry {
+interface PendingRecordEntry {
   readonly runId: string;
   readonly phaseId: string;
 }

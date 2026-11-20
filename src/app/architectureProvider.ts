@@ -17,7 +17,7 @@ import { runProviderQuery, type ProviderQueryFailure } from "./providerQuery.js"
  * for long. It has the brief's value but is its own constant, so the two
  * providers' limits can differ.
  */
-export const ARCHITECTURE_TIMEOUT_MS = 60_000;
+const ARCHITECTURE_TIMEOUT_MS = 60_000;
 
 /**
  * What one `phax architecture` call comes to. `reason` and `message` are one

@@ -23,7 +23,7 @@ export type RunReviewSource =
   | { readonly kind: "unavailable"; readonly reason: string };
 
 /** One review of a run, and where it was read from. */
-export interface ReadRunReview {
+interface ReadRunReview {
   readonly review: RunReview;
   readonly from: "records" | "run-folder";
   /** The records commit that holds it; null for a run folder file. */

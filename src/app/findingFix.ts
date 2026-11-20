@@ -42,7 +42,7 @@ import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
 /** A refusal of the call, made before anything is written. */
-export class FindingFixRefusedError extends Data.TaggedError("FindingFixRefusedError")<{
+class FindingFixRefusedError extends Data.TaggedError("FindingFixRefusedError")<{
   readonly message: string;
 }> {}
 

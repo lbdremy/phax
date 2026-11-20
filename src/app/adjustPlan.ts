@@ -53,7 +53,7 @@ export function landedRunRefusal(runKey: string, runState: string): string | nul
   );
 }
 
-export interface PrepareAdjustResultReady {
+interface PrepareAdjustResultReady {
   readonly kind: "ready";
   readonly invocation: {
     readonly executable: string;
@@ -63,12 +63,12 @@ export interface PrepareAdjustResultReady {
   readonly mode: "new" | "resume";
 }
 
-export interface PrepareAdjustResultUnsupported {
+interface PrepareAdjustResultUnsupported {
   readonly kind: "unsupported";
   readonly message: string;
 }
 
-export interface PrepareAdjustResultRefused {
+interface PrepareAdjustResultRefused {
   readonly kind: "refused";
   readonly message: string;
 }

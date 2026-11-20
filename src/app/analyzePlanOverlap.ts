@@ -31,7 +31,7 @@ export interface AnalyzePlanOverlapOptions {
   readonly nowIso: string;
 }
 
-export function loadAndMapPlanInput(
+function loadAndMapPlanInput(
   planMdPath: string,
   opts: AnalyzePlanOverlapOptions,
 ): Effect.Effect<PlanInput, AnalyzePlanOverlapError, Backend | FileSystem> {
@@ -105,7 +105,7 @@ export function analyzePlanOverlap(
   });
 }
 
-export function analyzeReadjustmentImpact(
+function analyzeReadjustmentImpact(
   runPath: string,
   planMdPaths: readonly string[],
   opts: AnalyzePlanOverlapOptions,

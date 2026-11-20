@@ -21,7 +21,7 @@ import type { ArtifactKind } from "../domain/artifact/status.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import type { RecordedSurface } from "../schemas/surface.js";
 
-export type RecordListEntry =
+type RecordListEntry =
   | {
       readonly kind: "phase";
       readonly runId: string;

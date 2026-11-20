@@ -1,6 +1,3 @@
-import { Effect } from "effect";
-import { join } from "node:path";
-import { FileSystem, type FsError } from "../ports/fs.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../schemas/phaxPlan.js";
 import type { GateStep } from "../schemas/phaxConfig.js";
 import { renderGateSection } from "../domain/gate/gateSection.js";
@@ -215,31 +212,4 @@ export function buildPhasePrompt(opts: BuildPhasePromptOptions): string {
     "- its phase definition;",
     "- this `phase-handoff.md`.",
   ].join("\n");
-}
-
-export interface GeneratePhasePromptOptions {
-  readonly phaseFolderPath: string;
-  readonly planPreamble: string;
-  readonly phaseSection: string;
-  readonly plan: PhaxPlan;
-  readonly currentPhase: PhaxPlanPhase;
-  readonly previousHandoff: PreviousHandoff;
-  readonly previousReconciliation?: string | undefined;
-  readonly reviewCorrections?: readonly ReviewCorrectionStop[] | undefined;
-  /** The phase gate list: the steps the gate runs for this phase, already selected. */
-  readonly gateSteps: readonly GateStep[];
-  readonly briefSection?: string | undefined;
-  readonly acceptanceRole: AcceptanceRole | null;
-}
-
-export function generatePhasePrompt(
-  opts: GeneratePhasePromptOptions,
-): Effect.Effect<string, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const prompt = buildPhasePrompt(opts);
-    const promptPath = join(opts.phaseFolderPath, "prompt.md");
-    yield* fs.writeAtomic(promptPath, prompt);
-    return promptPath;
-  });
 }

@@ -67,7 +67,7 @@ export interface ArtifactSnapshot {
 }
 
 /** The reasons the shared reading refuses with, each built into the caller's error. */
-export type DraftRefusalReason = "not-draft" | "dirty" | "sidecar" | "hand-format";
+type DraftRefusalReason = "not-draft" | "dirty" | "sidecar" | "hand-format";
 
 export interface ReadDraftArtifactInput<E> {
   readonly path: string;

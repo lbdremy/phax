@@ -22,7 +22,7 @@ import type { RegistryEntry } from "../schemas/registry.js";
 import { COST_LEDGER_FILE } from "./costLedger.js";
 import { readRegistry } from "./registry.js";
 
-export interface BackfilledLedger {
+interface BackfilledLedger {
   readonly qualifiedName: string;
   /** The number of entries written. */
   readonly invocations: number;

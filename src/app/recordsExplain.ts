@@ -37,7 +37,7 @@ import { parseReportName } from "../domain/gate/reportPath.js";
  * receive the write directly, never only through a remote-tracking ref. */
 export const RECORDS_REF = `refs/heads/${RECORDS_BRANCH_NAME}`;
 
-export interface RecordDiffStat {
+interface RecordDiffStat {
   readonly files: number;
   readonly insertions: number;
   readonly deletions: number;

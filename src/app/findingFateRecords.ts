@@ -150,7 +150,7 @@ export function writeFateRecord(input: {
 }
 
 /** One fate record of a run, as read. */
-export interface ReadFateRecord {
+interface ReadFateRecord {
   readonly finding: string;
   readonly key: string;
   readonly recordCommit: string;
@@ -165,7 +165,7 @@ export interface RunFateRecordsRead {
   readonly notes: readonly string[];
 }
 
-export interface UnreadableFateRecord {
+interface UnreadableFateRecord {
   /** `<sha8>:<path>`, as the reader's message names it. */
   readonly where: string;
   readonly message: string;

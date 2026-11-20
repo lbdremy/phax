@@ -15,7 +15,7 @@ import { runProviderQuery, type ProviderQueryFailure } from "./providerQuery.js"
  * not a config key (spec Q9): a brief informs, so it must never hold a phase
  * or a `phax brief` call for long.
  */
-export const BRIEF_TIMEOUT_MS = 60_000;
+const BRIEF_TIMEOUT_MS = 60_000;
 
 /**
  * One brief call's outcome. `answer` is the provider's stdout parsed as JSON

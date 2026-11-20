@@ -22,7 +22,7 @@ export interface SecurityStatusReport {
  * Build a security status report from live provider probes and the
  * known provider security capabilities.
  */
-export function buildSecurityStatusReport(
+function buildSecurityStatusReport(
   _providerConfig: ProviderConfig,
   probeResults: readonly ProviderProbeResult[],
 ): SecurityStatusReport {
