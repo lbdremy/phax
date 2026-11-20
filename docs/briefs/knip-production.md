@@ -67,7 +67,10 @@ Each run used a temporary config next to `knip.json`, removed afterwards. Only t
    fixed one). phax keeps one: knip's JSON report (`--reporter json`) goes through a small script that compares it
    with a committed baseline file and fails on any finding the file does not hold. Each entry says why it is
    accepted. The baseline only shrinks: an entry that knip no longer reports fails the gate too, until it is removed,
-   so a fixed finding cannot come back unseen. The baseline file is a protected path, or the agent adds its own line.
+   so a fixed finding cannot come back unseen. The baseline file is a protected path, or the agent adds its own line;
+   a phase that fixes a finding leaves a stale entry it may not remove itself, which is what `gate-tolerances`
+   (`docs/briefs/gate-tolerances.md`) is for. oxlint's suppressions get a baseline of the same shape
+   (`docs/briefs/lint-baseline.md`).
 
 ## What the spec must cover
 

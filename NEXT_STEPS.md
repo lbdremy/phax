@@ -187,8 +187,13 @@ A batch from *Small follow-ups*, the security items that sleep there:
 
 ### 10. Clean-up and tolerances
 
-- [ ] **`suppression-directives`** — `docs/briefs/suppression-directives.md`, spec to author.
-      phax's own lint suppressions each name their rule and say why; the unused ones go.
+- [ ] **`lint-baseline`** — `docs/briefs/lint-baseline.md` (2026-11-20, takes over the archived
+      `suppression-directives`), spec to author. phax's own lint suppressions each name their rule
+      and say why, the unused ones go, and each one kept is listed with its reason in a protected
+      baseline that only shrinks; a directive outside it fails the gate.
+- [ ] **`knip-production`** — `docs/briefs/knip-production.md` (2026-11-20), spec to author. knip
+      starts from what phax runs and also runs `--production --strict`: about 460 exports and types
+      that nothing, or only tests, use; the accepted ones in a protected baseline that only shrinks.
 - [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
       that tightens the protected tolerance files inside a run, and loosens them only by what the
       approved plan declared.
