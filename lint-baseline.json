@@ -185,27 +185,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/app/approvalRecordStore.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/archive.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/archive.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/app/archive.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
@@ -256,20 +235,6 @@
     {
       "kind": "diagnostic",
       "file": "src/app/cleanup.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/cleanup.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/cleanup.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
       "reason": "debt"
@@ -293,13 +258,6 @@
       "file": "src/app/closeStop.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 6,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/codeLink.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -340,13 +298,6 @@
     {
       "kind": "diagnostic",
       "file": "src/app/effectRunner.ts",
-      "rule": "typescript/consistent-return",
-      "count": 3,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/effectRunner.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
@@ -382,22 +333,8 @@
     {
       "kind": "diagnostic",
       "file": "src/app/executePlan.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/executePlan.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 55,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/executePlan.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 14,
+      "count": 11,
       "reason": "debt"
     },
     {
@@ -424,29 +361,8 @@
     {
       "kind": "diagnostic",
       "file": "src/app/fixLoop.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/fixLoop.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 7,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/gateAttribution.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/gates.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -454,13 +370,6 @@
       "file": "src/app/generateGlobalReconciliation.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/handoffGeneration.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -486,37 +395,9 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/app/loadConfig.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/phaseStatusUpdates.ts",
-      "rule": "typescript/restrict-template-expressions",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/app/phaxState.ts",
       "rule": "typescript/consistent-return",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/planLink.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/planOverview.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -559,13 +440,6 @@
       "file": "src/app/recordPlumbing.ts",
       "rule": "typescript/no-misused-spread",
       "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/recordPlumbing.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 2,
       "reason": "debt"
     },
     {
@@ -661,86 +535,9 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/app/setup.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/setup.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/skills/installSkill.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 3,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/app/telemetry/stopTelemetry.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 6,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/unmigratedDocuments.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/worktree.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/writeDecisionRecord.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/writeRecord.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/writeRecord.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/writeReviewRecord.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/app/writeRevisionRecord.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/json.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
       "reason": "debt"
     },
     {
@@ -752,44 +549,9 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/processIo.ts",
-      "rule": "typescript/no-unnecessary-boolean-literal-compare",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/cli/commandLibrary/commander/run.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 6,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/stdin.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/stdin.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/suggest.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
       "count": 5,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/commander/undeclared.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
       "reason": "debt"
     },
     {
@@ -797,13 +559,6 @@
       "file": "src/cli/commandLibrary/contract/command.ts",
       "rule": "typescript/no-explicit-any",
       "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/commandLibrary/contract/conformance/cases.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 15,
       "reason": "debt"
     },
     {
@@ -893,13 +648,6 @@
     {
       "kind": "diagnostic",
       "file": "src/cli/definitions/artifactNew.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/definitions/artifactNew.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
@@ -913,29 +661,8 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/cli/definitions/init.ts",
-      "rule": "typescript/no-unnecessary-type-conversion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/cli/definitions/plansEstimate.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/definitions/prune.ts",
-      "rule": "typescript/consistent-return",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/definitions/prune.ts",
-      "rule": "typescript/no-unnecessary-type-conversion",
       "count": 1,
       "reason": "debt"
     },
@@ -958,13 +685,6 @@
       "file": "src/cli/definitions/records.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/definitions/recordsExplain.ts",
-      "rule": "typescript/consistent-return",
-      "count": 2,
       "reason": "debt"
     },
     {
@@ -991,13 +711,6 @@
     {
       "kind": "diagnostic",
       "file": "src/cli/definitions/runOutcome.ts",
-      "rule": "typescript/consistent-return",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/cli/definitions/runOutcome.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
@@ -1018,44 +731,9 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/cli/definitions/unlock.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/cli/interruptHandler.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/architecture/glob.ts",
-      "rule": "typescript/no-misused-spread",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/artifact/arbiter.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/artifact/document.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/artifact/documentMigration.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -1081,29 +759,8 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/domain/cost/estimateRender.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/domain/decide/verdicts.ts",
       "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/gate/partialCommand.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/plan/finalize.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
     },
@@ -1123,13 +780,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/domain/plan/overviewRender.ts",
-      "rule": "typescript/consistent-return",
-      "count": 4,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/domain/plan/phaseHeader.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
@@ -1138,13 +788,6 @@
     {
       "kind": "diagnostic",
       "file": "src/domain/plan/planPath.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/providerAdapter.ts",
       "rule": "typescript/consistent-return",
       "count": 1,
       "reason": "debt"
@@ -1168,20 +811,6 @@
       "file": "src/domain/reconciliation/global.ts",
       "rule": "typescript/no-unnecessary-type-assertion",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/records/branchState.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/records/userConfig.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -1221,20 +850,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/domain/routing/priorityOverride.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/routing/resolve.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/domain/routing/resolve.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
@@ -1256,56 +871,7 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/domain/session/index.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/session/structuredCalls.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/session/structuredCalls.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 3,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/domain/session/vibeFlags.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/session/vibeFlags.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 3,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/skills/types.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/telemetry/snapshot.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/domain/treePaths.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
@@ -1315,20 +881,6 @@
       "file": "src/domain/whatsNext.ts",
       "rule": "typescript/consistent-return",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/fakes/backend.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/fakes/git.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
-      "count": 6,
       "reason": "debt"
     },
     {
@@ -1362,70 +914,14 @@
     {
       "kind": "diagnostic",
       "file": "src/infra/git.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/git.ts",
-      "rule": "typescript/no-misused-spread",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/git.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/git.ts",
-      "rule": "typescript/no-unnecessary-type-conversion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/git.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 6,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/github.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/github.ts",
-      "rule": "typescript/no-unnecessary-type-conversion",
-      "count": 5,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/github.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
     },
     {
       "kind": "diagnostic",
-      "file": "src/infra/lock.ts",
+      "file": "src/infra/github.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/prompt.ts",
-      "rule": "typescript/no-unnecessary-type-assertion",
       "count": 1,
       "reason": "debt"
     },
@@ -1433,53 +929,39 @@
       "kind": "diagnostic",
       "file": "src/infra/prompt.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 4,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/claudeCode.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/claudeCode.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/codexCli.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/codexCli.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/dispatcher.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/dispatcher.ts",
-      "rule": "typescript/restrict-template-expressions",
       "count": 3,
       "reason": "debt"
     },
     {
       "kind": "diagnostic",
+      "file": "src/infra/providers/claudeCode.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/claudeCode.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/codexCli.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/codexCli.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
       "file": "src/infra/providers/mistralVibe.ts",
       "rule": "typescript/no-unnecessary-type-arguments",
       "count": 1,
@@ -1490,20 +972,6 @@
       "file": "src/infra/providers/mistralVibe.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 2,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/transcriptStore.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/providers/transcriptStore.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 1,
       "reason": "debt"
     },
     {
@@ -1536,34 +1004,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/infra/telemetry/layer.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/infra/telemetry/layer.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 5,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/ports/backend.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/ports/systemTelemetry.ts",
-      "rule": "typescript/no-unnecessary-type-arguments",
-      "count": 5,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/schemas/acceptanceLift.ts",
       "rule": "typescript/no-unnecessary-type-assertion",
       "count": 1,
@@ -1578,13 +1018,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/schemas/architecture.ts",
-      "rule": "typescript/no-misused-spread",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/schemas/codexOutput.ts",
       "rule": "typescript/no-redundant-type-constituents",
       "count": 1,
@@ -1595,13 +1028,6 @@
       "file": "src/schemas/decisionRecord.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/schemas/formatError.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
-      "count": 6,
       "reason": "debt"
     },
     {
@@ -1755,13 +1181,6 @@
       "kind": "line",
       "file": "src/schemas/specDocument.ts",
       "rule": "unicorn/no-thenable",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
-      "file": "src/schemas/specDocument.ts",
-      "rule": "typescript/no-unsafe-type-assertion",
       "count": 1,
       "reason": "debt"
     },
