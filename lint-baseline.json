@@ -1,0 +1,6851 @@
+{
+  "$comment": "The lint's exceptions the operator accepted, each with its reason; `debt` is paid by a clean-up. `line` and `file` count the disable directives the code keeps for a rule in a file, `diagnostic` what oxlint reports there. scripts/lint-baseline.ts fails on anything above these counts and on an entry above what the code has; `pnpm lint --prune` lowers the latter. A protected path: a run never adds to it.",
+  "entries": [
+    {
+      "kind": "diagnostic",
+      "file": "examples/vitest-acceptance/syntax.mjs",
+      "rule": "typescript/no-unsafe-enum-comparison",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/build/equivalence.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/src/document.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/src/formats/acceptanceRequest.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/src/formats/recordManifests.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/src/shapes.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "packages/schemas/src/shapes.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/npmReadme.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/prepare-npm.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/release-cut.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/schemas-check.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/schemas-smoke.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "scripts/schemas-smoke.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/links.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/markdown.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/og.ts",
+      "rule": "typescript/no-unnecessary-template-expression",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/preview-check.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/schemas.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/build/site.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/rspress.config.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/theme/contrast.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/theme/LiveRun.tsx",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/theme/playback.tsx",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/theme/playback.tsx",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "site/theme/WatchVideo.tsx",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/adjustPlan.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/approvalRecordStore.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/archive.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/archive.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/archive.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/artifactStatus.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/artifactStatus.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/artifactStatus.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/assignmentBounds.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/authorArtifact.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/briefProvider.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/cleanup.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/cleanup.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/cleanup.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/closeStop.ts",
+      "rule": "typescript/consistent-return",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/closeStop.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/closeStop.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/codeLink.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/commit.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/commit.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/configureRecords.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/decideArtifact.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/dispatcher.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/effectRunner.ts",
+      "rule": "typescript/consistent-return",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/effectRunner.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/enterPhase.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/enterPhase.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/eventAdapter.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/eventAdapter.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/executePlan.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/executePlan.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 55,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/executePlan.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/finalReview.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/findingFateRecords.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/findingFix.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/fixLoop.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/fixLoop.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/gateAttribution.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/gates.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/generateGlobalReconciliation.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/handoffGeneration.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/handoffGeneration.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/interactiveStop.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/interactiveStop.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/loadConfig.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/phaseStatusUpdates.ts",
+      "rule": "typescript/restrict-template-expressions",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/phaxState.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/planLink.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/planOverview.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/promptGeneration.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/prune.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/publishRun.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/publishRun.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/reconcilePhaseFiles.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/recordPlumbing.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/recordPlumbing.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/recordsBranchSync.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/recordsExplain.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/resetPhase.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/resolveRunRef.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/resume.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/resume.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/resumeInstructions.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/reviewCode.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/reviewCompliance.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/reviewCompliance.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/reviseArtifact.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/runFolder.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/runPreflight.ts",
+      "rule": "typescript/consistent-return",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/setup.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/setup.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/skills/installSkill.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/telemetry/stopTelemetry.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/unmigratedDocuments.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/worktree.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/writeDecisionRecord.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/writeRecord.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/writeRecord.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/writeReviewRecord.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/app/writeRevisionRecord.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/json.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/outcome.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/processIo.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/run.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/stdin.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/stdin.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/suggest.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/commander/undeclared.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "src/cli/commandLibrary/contract/command.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/contract/conformance/cases.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 15,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/contract/conformance/cases.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "src/cli/commandLibrary/contract/define.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/contract/define.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commandLibrary/contract/written.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commands/runLayers.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/commands/stopOutput.ts",
+      "rule": "typescript/consistent-return",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/agent.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/agent.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactDecide.ts",
+      "rule": "typescript/consistent-return",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactDecide.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactDecide.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactMigrations.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactNew.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactNew.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/artifactRevise.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/init.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/plansEstimate.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/prune.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/prune.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/prune.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/records.ts",
+      "rule": "typescript/consistent-return",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/records.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/recordsExplain.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/resume.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/review.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/run.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/runOutcome.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/runOutcome.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/sessionInfo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/sessions.ts",
+      "rule": "typescript/no-duplicate-type-constituents",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/definitions/unlock.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/cli/interruptHandler.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/architecture/glob.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/arbiter.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/document.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/documentMigration.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/lineage.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/status.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/artifact/status.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/cost/estimateRender.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/decide/verdicts.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/gate/partialCommand.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/plan/finalize.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "src/domain/plan/lint.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/plan/lint.ts",
+      "rule": "typescript/no-redundant-type-constituents",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/plan/overviewRender.ts",
+      "rule": "typescript/consistent-return",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/plan/phaseHeader.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/plan/planPath.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/providerAdapter.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/prune.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/reconciliation/global.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/reconciliation/global.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/records/branchState.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/records/userConfig.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/reducer.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/reducer.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/reportText.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/routing/catalog.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/routing/preflight.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/routing/priorityOverride.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/routing/resolve.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/routing/resolve.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/runRef.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/security/stopPosture.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/session/index.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/session/structuredCalls.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/session/structuredCalls.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/session/vibeFlags.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/session/vibeFlags.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/skills/types.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/telemetry/snapshot.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/treePaths.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/domain/whatsNext.ts",
+      "rule": "typescript/consistent-return",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fakes/backend.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fakes/git.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fakes/git.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fakes/github.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fakes/prompt.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/fs.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/git.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/git.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/git.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/git.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/git.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/github.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/github.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/github.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/lock.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/prompt.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/prompt.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/claudeCode.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/claudeCode.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/codexCli.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/codexCli.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/dispatcher.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/dispatcher.ts",
+      "rule": "typescript/restrict-template-expressions",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/mistralVibe.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/mistralVibe.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/transcriptStore.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/providers/transcriptStore.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/composite.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/inMemory.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/jsonFile.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/jsonFile.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/layer.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/infra/telemetry/layer.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/ports/backend.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/ports/systemTelemetry.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/acceptanceLift.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/acceptanceLift.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/architecture.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/codexOutput.ts",
+      "rule": "typescript/no-redundant-type-constituents",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/decisionRecord.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/formatError.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/phax-plan-extraction/0.32.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/phax-plan-extraction/0.32.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/phax-plan-extraction/0.33.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/phax-plan-extraction/0.33.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/phax-plan/0.28.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/phax-plan/0.32.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/phax-plan/0.32.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/phax-plan/0.33.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/phax-plan/0.33.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/plan-document/0.28.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/plan-document/0.32.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/plan-document/0.32.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/plan-document/0.33.0.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/history/plan-document/0.33.0.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/spec-document/0.17.0.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/spec-document/0.25.0.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/spec-document/0.27.0.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/history/spec-document/pre-schema.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "frozen: packages/schemas/history.lock.json pins this module's bytes, so its directives stay as they are and their reason is written here"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/refusal/render.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/refusal/render.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/runRecord.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/specDocument.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/specDocument.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "src/schemas/testLine.ts",
+      "rule": "no-control-regex",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "src/schemas/testLine.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudeJsonSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudeJsonSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudeJsonSchema.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudePartialCommands.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudePartialCommands.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudeProtectedPaths.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/claudeSkillEditGrant.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/codexOutputSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/codexOutputSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/gateExhaustionResume.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/headlessAuthoring.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/headlessAuthoring.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/helpers/artifacts.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/helpers/tempEnv.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/projectOnlySession.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/realFlow.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/realFlow.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/resetPhase.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.declaredStop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.declaredStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.heldStop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.heldStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.providers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/semanticTrace.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/vibeSecure.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/vibeSecure.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/e2e/vibeSecure.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/fixtures/artifact/stdinDocumentsRepo.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/fixtures/artifact/stdinDocumentsRepo.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/artifact/stdinDocumentsRepo.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/artifact/stdinDocumentsRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/codeLink/linkedProject.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/codeLink/linkedRun.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/findings/fateRunRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/findings/findingRunRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/findings/prRunRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/fixtures/run/runCommandsRepo.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/fixtures/run/runCommandsRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/costHistory.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/costHistory.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/decideVerdictsHarness.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/fakeProviderCli.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/heldRunFixture.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/heldRunFixture.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/isolatePhaxHome.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/phaseStatusFixture.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/projectOnlyHarness.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/projectOnlyHarness.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/argvInputs.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/argvProgram.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/formatRegistry.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 16,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/fromEffect.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/harness.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/jsonInputs.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/planDocuments.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/planText.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/planText.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/reducerInputs.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/reducerInputs.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/property/reducerInputs.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/reviseHarness.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/reviseHarness.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/helpers/runnerCall.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 1,
+      "reason": "a program of commands whatever services they ask for"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/runnerCall.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/runnerCall.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/stoppedRunFixture.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/stoppedRunFixture.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/usageKdl.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/vibe3Fixtures.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/vitestSelection.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/helpers/vitestSelection.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptanceLint.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptancePairReview.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptancePairReview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptancePhases.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptancePhases.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/acceptancePreflight.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/adjustPlanCommand.test.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/adjustPlanCommand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/adjustPlanCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/agentCommandGrants.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/agentGroupJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/agentGroupJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/agentSetupProviders.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/agentSetupProviders.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalAttribution.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalLedgerRefusal.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalLedgerRefusal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/approvalLock.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalLock.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalRecordCode.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/approvalRecordMerge.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/architectureCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/architectureProvider.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/archive.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 17,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactDecideVerdictsCommand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactDecideVerdictsCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/artifactNewHeadlessCommand.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactNewHeadlessCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/artifactQuestionsStatus.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactQuestionsStatus.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactQuestionsStatus.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactReviseCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/artifactStatus.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactStatus.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactStatus.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/artifactStatusJson.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactStatusJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactStdinDocuments.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/artifactTransitionsJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/assignmentBounds.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/assignmentBounds.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/authorArtifact.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/authorArtifact.test.ts",
+      "rule": "typescript/no-unnecessary-template-expression",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/authorArtifact.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/authorArtifactRetry.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/authorArtifactRetry.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/briefCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/briefProvider.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/briefRecords.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/canonicalPlansUnchanged.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/claudeAuthFailure.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/cliProgram.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/cliRefusedCodes.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/closeStopNetwork.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/closeStopNetwork.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/codeLinkApproval.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/codeReviewRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/completeRunArtifacts.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/completeRunArtifacts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/complianceReviewRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 15,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/costBackfill.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/costBackfill.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/costLedger.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/costLedger.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/createArtifact.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/decideArtifact.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideArtifact.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideArtifact.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideArtifact.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideFailureOrder.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideHandAuthored.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/decideLifecycle.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideLifecycle.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/decideVerdicts.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideVerdicts.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideVerdicts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideVerdictsPlanHand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/decideVerdictsPlanHand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredCloseInFlight.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredCloseInFlight.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopClose.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopClose.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopClose.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopProviderArgv.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopProviderArgv.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopRun.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/declaredStopRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/dispatcher.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/dispatcher.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/documentMigrationRefusal.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/enterPhase.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/enterPhase.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/enterPhaseStop.test.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/enterPhaseStop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/enterPhaseStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/estimateHistory.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/estimateHistory.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/estimatePlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/estimatePlan.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/eventAdapter.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/eventAdapter.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/everyCommandJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/everyCommandJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/exampleProviders.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/exampleProviders.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/executePlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/executePlan.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 58,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/extractPlanSealed.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/extractPlanTitles.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/finalReport.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/finalReview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingFateRecords.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingFix.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingFixPaths.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingList.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingListFates.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingListSources.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingPost.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingPullRequest.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingPullRequestLocal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingSettle.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/findingSettleRuns.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/fixLoop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 19,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/fixLoop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gateLogTrailer.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gateRefusal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gateRequest.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gates.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gates.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 18,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/generateGlobalReconciliation.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/generateGlobalReconciliation.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/generateGlobalReconciliation.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gitCommitTree.test.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gitCommitTree.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gitDiffNameStatus.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/githubCommentContract.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/githubPullRequestStateContract.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/githubRepoWebUrl.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gitPruneQueries.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/gitRecordsBranchContract.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/globalTelemetryJournal.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/globalTelemetryJournal.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/globalTelemetryJournal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/groupCommandsJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/groupCommandsJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/headlessCodeReviewRunEnd.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/headlessWriter.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopClose.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopClose.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopCommands.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopCommands.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopReentry.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopRun.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/heldStopRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/helpers/pruneRepo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/holdCli.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/holdCli.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/holdCli.test.ts",
+      "rule": "typescript/unbound-method",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/holdPreflight.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/holdPreflight.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/initCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/inspectionCommandsJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/legacyRunFiles.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lifecycleCommandsJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/linkedRunInPhase.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lintPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lintPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lintPlan.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/lintTestLines.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lintTestLines.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/loadOrExtractPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/loadOrExtractPlan.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/loadReviewHandoffInputs.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/loadReviewHandoffInputs.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/lsJsonContracts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/migrateApprovals.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/migrateApprovals.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/migrateDocuments.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/migrateDocuments.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 18,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/modelPreflight.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/networkPause.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/networkPause.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/noStopUnchanged.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/noStopUnchanged.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/noStopUnchanged.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/partialCommandsConfig.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/partialCommandsNeverRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/partialCommandsRun.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/partialCommandsRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/perPhaseBranch.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/perPhaseBranch.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/persistedProducer.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/persistedProducer.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/phaseGuard.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/phasePromptGate.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/phasePromptGate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planCacheStore.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planCacheStore.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planLink.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/planOverview.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planOverview.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planOverview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planPathCanonical.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planPathCanonical.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planPathPersisted.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansAnswersJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansEstimateCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansInspectionJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansInspectionJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansOverlapCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansOverviewCommand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/plansOverviewCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planStaleness.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/planStaleness.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 25,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/prFindingsPublish.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/prFindingsSection.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/projectOnlyBoundaries.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/projectOnlyBoundaries.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/projectOnlyLaunch.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/projectOnlyLaunch.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsAdditive.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsAdditive.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsCheck.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsGate.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsGate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsHandoff.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsNativeRules.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/protectedPathsNativeRules.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/providerSessionFailures.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/providerTranscriptStores.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/prune.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/pruneCommand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/pruneCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/pruneCostLedger.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/publishRun.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/publishRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/pushedBrief.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/rateLimit.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 16,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reconciliation.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsBranchSync.acceptance.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsExplain.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsExplain.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsExplainStop.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsExplainStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsJsonContracts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsPush.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsStatusBranch.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsWriteParent.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/recordsWriteParent.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/registry.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/registry.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/report.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resetPhase.test.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resetPhase.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resume.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resumeFromCleanup.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resumeFromCommit.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resumeFromCompletion.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resumeHandoff.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/resumePreflightRechecks.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCode.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/reviewCodeCommand.test.ts",
+      "rule": "@typescript-eslint/no-explicit-any",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCodeCommand.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCodeCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCodeHeadless.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCommandsJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCommandsJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCompliance.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCompliance.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewComplianceCommand.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCorrectionsPrompt.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewCorrectionsPrompt.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewedPhasesSurfaces.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewedPhasesSurfaces.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewHandoff.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviewHandoff.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/reviseArtifact.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/routing.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/routing.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runCarriesCompletion.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runCommandsAnswers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runFailureOrder.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runFolder.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runFolder.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runList.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runList.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runPreflightBeforeNaming.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runPreflightBeforeNaming.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/runPreflightBeforeNaming.test.ts",
+      "rule": "typescript/unbound-method",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/sessionFailureReport.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/sessionHandoversJson.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/sessionHandoversJson.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/sessionInfo.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/setupFailure.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/skillEditConsent.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/skillEditGrants.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/skillEditGrants.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/specSurfaceSummary.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/specSurfaceSummary.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/specSurfaceSummary.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stateMachineContract.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopClosedBy.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopClosedBy.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stoppedRunCommands.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stoppedRunCommands.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopRecords.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopRecords.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopSecurityRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopTranscripts.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopTranscripts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 20,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopTurnCosts.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/stopTurnCosts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/structuredAnswerFlags.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/structuredAnswerFlags.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/structuredAnswerFlags.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/integration/structuredOutputRead.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/structuredOutputRead.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/structuredOutputRead.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/structuredRetriesExhausted.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/integration/summaryPlaceholderRefusal.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/telemetry/adapterFailures.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/telemetry/adapterFailures.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/telemetry/end-to-end.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/telemetry/jsonFile.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/usageOutput.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/usageParity.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/usageParity.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/userConfigRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeFreshStartNote.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeFreshStartNote.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeHomeUntouched.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeHomeUntouched.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeModelRecords.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeModelRecords.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vibeProviderUpgrade.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/vitestAcceptanceExample.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/writeAuthoringRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/writeDecisionRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/writeRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/writeReviewRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/integration/writeRevisionRecord.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/setup/phaxHomeGuard.ts",
+      "rule": "typescript/consistent-return",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/setup/phaxHomeGuard.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/commandLibraryRefused.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/decisionFailure.ts",
+      "rule": "typescript/no-unnecessary-type-parameters",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/planOverview.ts",
+      "rule": "typescript/no-unnecessary-type-parameters",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/schemasPackage.ts",
+      "rule": "typescript/no-duplicate-type-constituents",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/schemasPackage.ts",
+      "rule": "typescript/no-unnecessary-type-parameters",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/systemTelemetry.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/terminal.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/type/terminal.ts",
+      "rule": "typescript/no-unnecessary-type-parameters",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/acceptanceCheck.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/acceptanceWords.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/agentBinding.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/architecture/render.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/archivedPlanSidecars.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/archivedSpecSidecars.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/approvalRecordFile.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/artifact/documentMigration.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/documentMigration.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/lineage.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/questions.test.ts",
+      "rule": "typescript/no-unnecessary-template-expression",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/artifact/sidecar.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/status.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifact/surfaceSummaries.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/artifactNamesGuard.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/assignmentCheck.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/assignmentCheck.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/branded.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/ciWorkflow.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/ciWorkflow.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/agent.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/agent.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/artifact.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/artifactDecideVerdicts.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/artifactDecideVerdicts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/definitionsRender.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/enterPhase.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/findingFate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/ls.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/phaxProgram.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/plans.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/plansInspectionContracts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/publishPr.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/resume.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/reviewCode.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/reviewCompliance.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/run.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/run.test.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/run.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/runnerCommandContracts.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/runnerCommandContracts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/sessionFailureOutput.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/sessionFailureOutput.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cli/validate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/catalogue.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/groups.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/groups.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/help.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/json.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/json.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/lifecycleGains.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/neverExits.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/neverExits.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/outcomes.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/outcomes.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/outcomes.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/policies.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/processIo.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/runSessionGains.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/stdinFlag.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/support/memoryIo.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/support/todos.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/commander/usage.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/commandLibrary/contract/define.test.ts",
+      "rule": "typescript/no-explicit-any",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/contract/define.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/contract/written.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commandLibrary/contract/written.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/commitTrailers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/completedPhases.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/backfill.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/backtest.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/estimate.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 26,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/estimateRender.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/fit.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/history.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/cost/ledger.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/costLedgerCodeReviewRole.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/handAuthored.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/handAuthored.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/decide/interactivePin.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/model.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/decide/prompt.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/prompt.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/decide/revision.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/revision.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/verdicts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/verdictsCore.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/verdictsCore.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/decide/verdictsFixtures.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 4,
+      "reason": "given/when/then data, never awaited"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/verdictsFixtures.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/decide/verdictsFixtures.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/dryRun.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/dryRun.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/events.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/extractPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/extractPlanFinalize.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/fakePrompt.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/findings/pathClass.property.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/findings/pullRequestAfterFates.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/findingsDocs.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/generateModelCatalog.test.ts",
+      "rule": "typescript/no-unnecessary-template-expression",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/initProject.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/interactiveCheck.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/interruptDuringClose.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/interruptHandler.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/loadOrExtractPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/loadOrExtractPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/mergeLayers.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/mergeLayers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/npmReadme.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/npmReadme.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/parsePlanMarkdown.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 21,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/persisted.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/persisted.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 26,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaseHeader.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaseStatusUpdates.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxConfigJsonSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxConfigJsonSchema.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 42,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxConfigJsonSchema.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxHomeGuard.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxHomeGuard.test.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxHomeGuard.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/phaxUserOverlaySchema.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 14,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planDocument.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planDocument.test.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planDocument.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planLint.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planOverlap/compute.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planOverview.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planOverview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planPathFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 12,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planPathReaders.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planProjection.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/planSections.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/projectContext.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/promptGeneration.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/promptGeneration.test.ts",
+      "rule": "typescript/restrict-template-expressions",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/cliArguments.property.test.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/fromEffect.property.test.ts",
+      "rule": "typescript/no-unnecessary-type-parameters",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/fromEffect.property.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/harnessConfig.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/harnessConfig.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/jsonInputs.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/property/persistedFormats.property.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/persistedFormats.property.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/planParser.property.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/planParser.property.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/property/reducerInputs.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providerDispatcher.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/claudeCode.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/codexCli.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/mistralVibe.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/mistralVibe.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/vibeModelFlags.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/providers/vibeModelFlags.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/prune.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/prune.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/publish/githubFake.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/publish/prBody.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/readmePersistedFormats.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reconciliation/parseNameStatus.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducer.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducerArtifactCompletionPause.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducerCleanupPause.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducerCommitPause.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducerGateRefusal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reducerHeldStop.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseCut.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseNotes.test.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseNotes/inputs.ts",
+      "rule": "typescript/no-misused-spread",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseOpen.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseWorkflow.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 31,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseWorkflow.test.ts",
+      "rule": "typescript/no-unnecessary-type-conversion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/releaseWorkflow.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/renderPlan.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/renderPlanV0_32_0.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/renderPlanV0_32_0.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/renderSpec.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/renderSpec.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/renderSpecV0_17_0.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/renderSpecV0_25_0.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resetPhaseRefusal.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resetPhaseRefusal.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resolveRunInfo.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resolveRunRef.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resume.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/resumeArgv.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/reviewHandoffContent.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/revise/reviseFixtures.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/revise/reviseFixtures.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/revise/revision.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/revise/revision.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/catalog.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/loadRouting.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/loadRouting.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/preflight.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 10,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/providerSetup.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 15,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/resolve.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/sameFamilyPreservation.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/securityFallback.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/routing/vibeModelCatalog.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/rulesets.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/runArgv.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/runList.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/runPreflight.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/runPreflight.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/runRef.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/acceptanceRequest.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/acceptanceTestLine.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/answerRulesKept.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/answerRulesKept.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/answerRulesKept.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/answerSchemas.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/approvalRecordFile.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/assignments.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/briefReport.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/codeReview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/commandAnswers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/complianceReview.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/complianceReviewConfig.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/decideVerdicts.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/decideVerdicts.test.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/findingList.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/handDecisionAnswer.test.ts",
+      "rule": "typescript/no-base-to-string",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/handDecisionAnswer.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/handDecisionAnswer.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/questions.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/refusal/adapterOrder.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/refusal/formatters.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemas/strictAnswers.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/acceptanceRecordLifts.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/acceptanceRequestFormat.test.ts",
+      "rule": "typescript/no-unnecessary-boolean-literal-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/acceptanceRequestFormat.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/architectureFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/briefFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/commandAnswersFormat.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/commandAnswersFormat.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/currentShapes.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 15,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/documents.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/schemasPackage/documents.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/documents.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/documents.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 19,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/exports.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/frozenHistory.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/jsonSchemas.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 9,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/manifest.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parity.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parity.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parse.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parse.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parse.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/parseDocument.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/recordTimeline.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/reportFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 11,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/repositoryFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 22,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/runDirectoryFormats.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 17,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/snapshots.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 3,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemasPackage/strictCheck.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/schemaUrl.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/security/posture.test.ts",
+      "rule": "no-unused-vars",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/security/posture.test.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/session/failureError.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/session/structuredCalls.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/session/structuredCalls.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/session/vibeFlags.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/gate.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/gate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/generate.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/generate.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 4,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/links.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/releaseNotesLinks.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/schemas.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/theme.test.ts",
+      "rule": "typescript/no-implied-eval",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/site/theme.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/skills/bundled.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/skills/installSkill.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/sourceSpecCriteria.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/sourceSpecCriteria.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "file",
+      "file": "tests/unit/specDocument.test.ts",
+      "rule": "unicorn/no-thenable",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/specDocument.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 13,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/specDocument.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 6,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/state.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 8,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/structuredAnswersDocs.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/structuredAnswersDocs.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "line",
+      "file": "tests/unit/telemetry/composite.test.ts",
+      "rule": "@typescript-eslint/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/composite.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/composite.test.ts",
+      "rule": "unused-disable-directive",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/events.test.ts",
+      "rule": "typescript/require-array-sort-compare",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/factory.test.ts",
+      "rule": "typescript/no-unnecessary-type-arguments",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/inMemory.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/jsonFile.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 7,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/telemetry/reportBuilders.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/testLineGrammar.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 5,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/upgradeConfigSchema.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/upgradeConfigSchema.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 2,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/vibeUsageLift.test.ts",
+      "rule": "typescript/no-unnecessary-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    },
+    {
+      "kind": "diagnostic",
+      "file": "tests/unit/vibeUsageLift.test.ts",
+      "rule": "typescript/no-unsafe-type-assertion",
+      "count": 1,
+      "reason": "debt"
+    }
+  ]
+}
