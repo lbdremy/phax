@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611201446-bounded-test-spawns.md
 completes-spec: true
+approved:
+  date: 2026-11-20
+  baseline: a9e91a1
 ---
 # Bounded test spawns
 
