@@ -1,0 +1,434 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+  "kind": "spec",
+  "title": "Bounded test spawns",
+  "ground": [
+    {
+      "path": "docs/briefs/bounded-test-spawns.md",
+      "note": "The brief: the four exit-143 kills of 2026-11-20 and 2026-11-19, the 13 h and 3 h hangs, and three settled points: no assertion removed, no timeout raised in vitest.config.ts, the fix goes where the cause is."
+    },
+    {
+      "path": "vitest.config.ts",
+      "note": "testTimeout is 30 s for unit and 90 s for integration, with a 120 s hookTimeout. A spawnSync blocks the worker, so neither timeout can fire while it waits."
+    },
+    {
+      "path": "tests/integration/recordsJsonContracts.test.ts",
+      "note": "A typical CLI spawn: a local runCli calls spawnSync(\"tsx\", [main.ts, ...args]) with no timeout and gives the caller its status and output."
+    },
+    {
+      "path": "tests/e2e/helpers/runCli.ts",
+      "note": "The one CLI helper that has a bound (300 s by default, killed with SIGTERM). It reads any SIGTERM ending as its own timeout, so a SIGTERM from elsewhere looks like a timeout."
+    },
+    {
+      "path": "tests/unit/phaxHomeGuard.test.ts",
+      "note": "A static scan of the test files (unguardedCliSpawns) that refuses a CLI spawn without phaxHomeEnv. It shows a guard over tests/ already exists."
+    },
+    {
+      "path": "tests/helpers/processOutput.ts",
+      "note": "A shared helper for an OutputPort, not for spawning. No shared spawn helper exists."
+    },
+    {
+      "path": "tests/helpers/runnerCall.ts",
+      "note": "Runs phax's program in memory with no child process. It is the existing alternative to spawning the CLI."
+    },
+    {
+      "path": "src/cli/main.ts",
+      "note": "Installs the interrupt handlers at the top of the module body, which runs only after every static import has loaded."
+    },
+    {
+      "path": "src/cli/interruptHandler.ts",
+      "note": "Once installed, both SIGINT and SIGTERM make phax exit 130, not 143."
+    },
+    {
+      "path": "src/cli/commands/runLayers.ts",
+      "note": "phax's own exit codes. 130 is the only one above 128, so phax never exits 143 by itself."
+    },
+    {
+      "path": "src/infra/shell.ts",
+      "note": "Sends SIGTERM when a timeout is reached, then SIGKILL after a 5 s grace and from a process 'exit' hook (#247). The same pattern is in the claudeCode and mistralVibe adapters."
+    },
+    {
+      "path": "src/app/gates.ts",
+      "note": "A configured gate step runs through the shell adapter with no timeoutMs (lines 340 and 342). Only the acceptance step has a time cap."
+    },
+    {
+      "path": "tests/helpers/fakeProviderCli.ts",
+      "note": "Line 167: the fake provider ends itself with process.kill(process.pid, signal), so its signal reaches only itself."
+    },
+    {
+      "path": "tests/integration/nodeShell.test.ts",
+      "note": "Starts children that ignore SIGTERM and kills them by a pid it reads from a file."
+    },
+    {
+      "path": "NEXT_STEPS.md",
+      "note": "Section 6, 'Gates red without a defect', ranks this brief first and has it take over the two Small follow-ups about spawns with no timeout."
+    }
+  ],
+  "context": "About 170 test files start a child process through spawnSync, execFileSync or execSync. 29 of them start the CLI by running tsx on src/cli/main.ts. Most do it through a local runCli with no timeout, for example tests/integration/recordsJsonContracts.test.ts:30 and plansAnswersJson.test.ts:66. There is no shared spawn helper. The only bounded CLI helper is the e2e tier's runCli, which defaults to 300 s, kills with SIGTERM, and reads every SIGTERM ending as its own timeout. tests/unit/phaxHomeGuard.test.ts already scans the test files and refuses a CLI spawn that does not isolate HOME.\n\nvitest gives each test a timeout: 30 s in the unit project and 90 s in the integration project. A synchronous spawn blocks the worker's event loop, so that timeout cannot fire while the spawn waits. When spawnSync is given a timeout, Node sends the kill signal (SIGTERM by default) and then waits for the child to exit. A child that ignores SIGTERM therefore still blocks the worker. tsx is itself a launcher: it starts a node process and relays signals to it.\n\nOn the CLI side, main.ts installs the SIGINT and SIGTERM handlers in its module body. That code runs only after every static import has loaded, and loading the imports is most of a 0.7 s `phax --json-schema`. Once the handlers are installed, a SIGTERM makes phax exit 130. phax never exits 143 by itself. A status of 143 with empty stderr therefore points to a SIGTERM that reached tsx, or reached the node process before its handlers were installed. Which of the two is not known.\n\nphax's own children run through the shell adapter. On timeout it sends SIGTERM, then SIGKILL after a 5 s grace, and SIGKILL again from a process 'exit' hook. A configured gate step (format, typecheck, test, and so on) runs with no time cap. Only the acceptance step has one.",
+  "problem": "A gate step can turn red with no defect behind it. Each time, that costs a fix attempt and a relaunch, and once it cost a release. Two failures share one root: tests start child processes with no stated bound and no account of how those children end.\n\nKilled with exit 143. A test spawns `tsx src/cli/main.ts … --json-schema` and gets status 143 with empty stderr instead of 0. This happened four times on 2026-11-20 alone:\n- recordsJsonContracts, in the 0.41.0 release gate.\n- plansAnswersJson, in a test-worlds-built-once gate.\n- In PR #255's CI.\n- In main's CI on c15c768e.\n\nphaseGuard had the same kill on 2026-11-19. Each test passed on retry and passes alone, and the command answers alone in 0.7 s. The failure says nothing about who sent the signal, so nobody can fix it. test-worlds-built-once only observed the kill, betting that a lighter suite would remove it. The suite did not get lighter (210 s before and after), and the kill came back the same day.\n\nHung for hours. usageSpecCompleters held a gate for 13 h on 2026-11-07: `phax ls --complete` never returned and the child ignored SIGTERM. groupCommandsJson held one for 3 h on 2026-11-18, with `cost backfill --json` sitting idle. vitest's timeout could not fire because the spawn was synchronous, and nothing else bounded it.",
+  "productGoal": {
+    "statement": "Every child process a test starts ends within a bound the test states, together with every process it started. A child that ends any other way than by itself fails its test with a message saying what ended it: the bound, or a signal from somewhere else. Whoever is sending the stray SIGTERM under the full suite is found and stopped at the source, so the full suite runs again and again with no exit 143. This changes the tests, and changes phax only where the cause lies in phax. phax gains no feature.",
+    "guidingRule": "No test waits on a child longer than the test says, and no child ends without the test saying who ended it."
+  },
+  "terminology": [
+    {
+      "term": "bounded spawn",
+      "definition": "The one shared way a test under tests/ starts a child process. It takes the command, its arguments, the options the test needs (cwd, env, stdin) and a bound, and returns the child's ending and output."
+    },
+    {
+      "term": "bound",
+      "definition": "The wall-clock time, stated by the test at each call, after which the bounded spawn ends the child itself."
+    },
+    {
+      "term": "grace",
+      "definition": "The time between the bounded spawn asking a child to stop at its bound and forcing it, together with every process the child started, to end."
+    },
+    {
+      "term": "descendant",
+      "definition": "Any process the child started, directly or through another process. For a CLI spawn through tsx, the node process tsx starts is a descendant."
+    },
+    {
+      "term": "CLI spawn",
+      "definition": "A child process running phax from source (tsx on src/cli/main.ts) or from dist (dist/cli/main.js)."
+    },
+    {
+      "term": "normal exit",
+      "definition": "A child that ended by itself with an exit status, whatever that status is, and was not ended by a signal."
+    },
+    {
+      "term": "signal ending",
+      "definition": "A child that ended on a signal. This includes a launcher reporting that the process it started ended on a signal, as an exit status of 128 plus the signal number that the child never uses itself (143 for SIGTERM on a CLI spawn)."
+    },
+    {
+      "term": "foreign signal",
+      "definition": "A signal ending that the bounded spawn did not cause by reaching the bound."
+    },
+    {
+      "term": "the sender",
+      "definition": "The process that sent the SIGTERM ending the CLI spawns in the four 2026-11-20 failures."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-cause-named",
+      "title": "The sender is named",
+      "pattern": "ubiquitous",
+      "statement": "The change SHALL name the sender. It does so from a reproduction under the full suite, on macOS and on a CI runner, that logs for each killed CLI spawn its signal, its parent process, the process that sent the signal where the platform reports it, and the moment it happened."
+    },
+    {
+      "id": "r-cause-fixed",
+      "title": "The cause is fixed where it lies",
+      "pattern": "unwanted",
+      "statement": "IF the sender is phax code or test code THEN that code SHALL be changed so that it never sends a signal to a process it did not start."
+    },
+    {
+      "id": "r-cause-upstream",
+      "title": "An upstream cause is worked around and reported",
+      "pattern": "unwanted",
+      "statement": "IF the sender is vitest or tsx THEN the suite SHALL stop taking the path that makes it send the signal, and the change SHALL name the upstream issue reporting it."
+    },
+    {
+      "id": "r-bound-required",
+      "title": "A bound with every call",
+      "pattern": "ubiquitous",
+      "statement": "The bounded spawn SHALL refuse a call that states no bound, both when the test suite is type-checked and when the call runs."
+    },
+    {
+      "id": "r-bound-ends",
+      "title": "The bound ends the child and its descendants",
+      "pattern": "event",
+      "statement": "WHEN a child outlives its bound THE bounded spawn SHALL end the child and every descendant by the end of the grace, even if they ignore SIGTERM."
+    },
+    {
+      "id": "r-bound-error",
+      "title": "A bound reached fails naming it",
+      "pattern": "event",
+      "statement": "WHEN the bounded spawn ends a child at its bound THE bounded spawn SHALL fail the test with an error naming the command, the bound, the fact that the bound ended it, and everything the child wrote on stdout and stderr up to then."
+    },
+    {
+      "id": "r-signal-error",
+      "title": "A foreign signal fails naming it",
+      "pattern": "unwanted",
+      "statement": "IF a child has a foreign signal ending THEN the bounded spawn SHALL fail the test with an error naming the command, the signal, the fact that the bound did not end it, and everything the child wrote on stdout and stderr."
+    },
+    {
+      "id": "r-expected-signal",
+      "title": "A test may expect a signal",
+      "pattern": "optional",
+      "statement": "WHERE a test states that it expects a child to end on a given signal THE bounded spawn SHALL return that signal ending as the result instead of failing."
+    },
+    {
+      "id": "r-normal-exit",
+      "title": "A normal exit is returned as it is",
+      "pattern": "event",
+      "statement": "WHEN a child has a normal exit within its bound THE bounded spawn SHALL return its exit status, stdout and stderr unchanged, whatever the status."
+    },
+    {
+      "id": "r-all-spawns",
+      "title": "Every test spawn is bounded",
+      "pattern": "ubiquitous",
+      "statement": "Every child process started by a file under tests/ SHALL be started through the bounded spawn."
+    },
+    {
+      "id": "r-guard",
+      "title": "A new unbounded spawn is refused",
+      "pattern": "unwanted",
+      "statement": "IF a file under tests/ starts a child process other than through the bounded spawn THEN `pnpm check:full` SHALL fail, naming the file and the line."
+    },
+    {
+      "id": "r-suite-clean",
+      "title": "The full suite ends no CLI spawn on a foreign signal",
+      "pattern": "ubiquitous",
+      "statement": "The full suite SHALL complete repeated runs, on macOS and on a CI runner, without a single CLI spawn having a foreign signal ending."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "internal: the bounded spawn (tests/helpers)",
+      "summary": "A test starts any child through one helper that takes a required bound and returns the child's ending and output.",
+      "binding": "indicative",
+      "before": "function runCli(args: readonly string[]): SpawnSyncReturns<string> {\n  return spawnSync(\"tsx\", [mainTs, ...args], {\n    cwd: fixture.repo,\n    encoding: \"utf8\",\n    env: phaxHomeEnv(),\n    stdio: [\"ignore\", \"pipe\", \"pipe\"],\n  });\n}",
+      "after": "const result = boundedSpawn(\"tsx\", [mainTs, \"--json-schema\"], {\n  boundMs: 20_000,          // required: a call without it does not type-check\n  cwd: fixture.repo,\n  env: phaxHomeEnv(),\n  stdin: \"ignore\",\n});\n// result: { status: 0, stdout: \"…\", stderr: \"\" }\n\n// a test that sends the child SIGINT on purpose:\nboundedSpawn(cmd, args, { boundMs: 10_000, expectSignal: \"SIGINT\" });\n// result: { signal: \"SIGINT\", stdout: \"…\", stderr: \"…\" }"
+    },
+    {
+      "surface": "internal: the bounded spawn's failure messages",
+      "summary": "A test whose child is ended by its bound or by a signal from elsewhere fails with the command, the bound, the signal, who ended it, and the child's output.",
+      "binding": "indicative",
+      "before": "AssertionError: expected 143 to be +0 // Object.is equality\n\n- Expected\n+ Received\n\n- 0\n+ 143",
+      "after": "bounded spawn: `tsx src/cli/main.ts --json-schema` ended by SIGTERM, not by its bound (20000 ms)\n  sent through tsx: exit status 143\n  stdout (0 bytes):\n  stderr (0 bytes):\n\nbounded spawn: `tsx src/cli/main.ts ls --complete` reached its bound (20000 ms) and was ended by it\n  SIGTERM, then SIGKILL to it and 1 descendant after 2000 ms\n  stdout (12 bytes): alpha:running\n  stderr (0 bytes):"
+    },
+    {
+      "surface": "internal: the guard against an unbounded spawn",
+      "summary": "`pnpm check:full` refuses a test file that starts a child process without going through the bounded spawn, and names the file and line.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ pnpm check:full\n…\nFAIL  unbounded test spawns\n  tests/integration/newThing.test.ts:41  spawnSync from node:child_process\n  A test starts a child only through boundedSpawn (tests/helpers/boundedSpawn.ts), with a bound.\n$? = 1"
+    }
+  ],
+  "nonGoals": [
+    "Raising any timeout in vitest.config.ts. The file is protected, and raising a timeout hides the cause.",
+    "Removing an assertion, skipping a test, or adding a retry to hide a failure.",
+    "Any new phax command, flag or config key. Whether a gate step gets a wall-clock limit is question q-gate-bound, and the recommended answer is a separate spec.",
+    "Changing phax's exit codes or the interrupt handler's behavior, unless the reproduction shows the cause lies there.",
+    "Making the suite faster. The bound is a ceiling on a hang, not a performance target.",
+    "Bounding the children phax starts in production. The shell adapter and the provider adapters already have their own timeouts and kills.",
+    "Windows. The suite and the signals in question are POSIX ones (macOS and Linux CI runners)."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-sender-named",
+      "name": "The sender is named with evidence",
+      "given": "the reproduction run under the full suite, on macOS and on a CI runner",
+      "when": "a CLI spawn is ended by SIGTERM",
+      "then": "the handoff names the sender and quotes the logged lines (signal, parent, sending process where the platform reports it, moment) from both platforms",
+      "refs": [
+        "r-cause-named"
+      ]
+    },
+    {
+      "id": "ac-sender-stopped",
+      "name": "The sender no longer reaches a child it did not start",
+      "given": "the path through which the sender reached the CLI spawn, driven by a regression test",
+      "when": "that test runs",
+      "then": "no signal reaches a process the sender did not start, and the regression test fails on the code from before the fix",
+      "refs": [
+        "r-cause-fixed"
+      ]
+    },
+    {
+      "id": "ac-upstream-avoided",
+      "name": "An upstream sender is avoided and reported",
+      "given": "a sender that the reproduction shows to be vitest or tsx",
+      "when": "the change is reviewed",
+      "then": "the suite no longer takes the path that makes it send the signal, the handoff links the upstream issue, and ac-suite-clean holds",
+      "refs": [
+        "r-cause-upstream"
+      ]
+    },
+    {
+      "id": "ac-bound-missing",
+      "name": "No bound, no spawn",
+      "given": "a call to the bounded spawn that states no bound",
+      "when": "`pnpm test:type` runs, or the call runs with the type check bypassed",
+      "then": "the type check fails on that call, and when it runs the call is refused without starting a child",
+      "refs": [
+        "r-bound-required"
+      ]
+    },
+    {
+      "id": "ac-ignores-sigterm",
+      "name": "A child ignoring SIGTERM ends at its bound",
+      "given": "a bounded spawn with a 2 s bound of a child that ignores SIGTERM and has started a grandchild that also ignores SIGTERM",
+      "when": "the bound passes",
+      "then": "the call fails within the bound plus the grace, with an error naming the command, the 2000 ms bound and that the bound ended it, plus the child's output so far, and neither the child nor the grandchild is alive afterwards",
+      "refs": [
+        "r-bound-ends",
+        "r-bound-error"
+      ]
+    },
+    {
+      "id": "ac-cli-hang",
+      "name": "A hung CLI spawn ends at its bound",
+      "given": "a CLI spawn through tsx of a command made to wait forever, with its bound set",
+      "when": "the bound passes",
+      "then": "the test fails naming the command and the bound within the bound plus the grace, and no tsx or node process from that spawn is left running",
+      "refs": [
+        "r-bound-ends",
+        "r-bound-error"
+      ]
+    },
+    {
+      "id": "ac-foreign-signal",
+      "name": "A child killed by a signal fails naming it",
+      "given": "a bounded spawn of a child that writes a line to stderr and then sends itself SIGTERM, well within its bound",
+      "when": "the child ends",
+      "then": "the call fails with an error naming the command, SIGTERM, that the bound did not end it, and the line the child wrote",
+      "refs": [
+        "r-signal-error"
+      ]
+    },
+    {
+      "id": "ac-relayed-143",
+      "name": "A SIGTERM relayed as exit 143 is named",
+      "given": "a CLI spawn through tsx whose node process is ended by SIGTERM, so that the launcher reports exit status 143",
+      "when": "the spawn ends",
+      "then": "the call fails naming SIGTERM, saying it was not ended by its bound, and quoting stdout and stderr",
+      "refs": [
+        "r-signal-error"
+      ]
+    },
+    {
+      "id": "ac-expected-signal",
+      "name": "An expected signal is a result",
+      "given": "a bounded spawn stating that it expects SIGINT, of a child that ends on SIGINT",
+      "when": "the child ends",
+      "then": "the call returns the SIGINT ending and the child's output without failing",
+      "refs": [
+        "r-expected-signal"
+      ]
+    },
+    {
+      "id": "ac-normal-exit",
+      "name": "A non-zero exit is returned unchanged",
+      "given": "a bounded spawn of a CLI command that is refused with exit 64 and a message on stderr",
+      "when": "it ends within its bound",
+      "then": "the call returns status 64 with stdout and stderr exactly as written, and the test's own assertions decide what happens next",
+      "refs": [
+        "r-normal-exit"
+      ]
+    },
+    {
+      "id": "ac-all-moved",
+      "name": "No exemptions left",
+      "given": "the tree after the change",
+      "when": "the guard runs",
+      "then": "it passes with no exemption list, and every file under tests/ (unit, integration, type, e2e, helpers, fixtures) that starts a child does so through the bounded spawn",
+      "refs": [
+        "r-all-spawns"
+      ]
+    },
+    {
+      "id": "ac-guard-refuses",
+      "name": "The guard refuses a new unbounded spawn",
+      "given": "a test file under tests/ that calls spawnSync, execFileSync, execSync, spawn, exec or execFile from node:child_process directly, including one that passes its own timeout",
+      "when": "`pnpm check:full` runs",
+      "then": "it fails, naming the file and the line of the call and pointing to the bounded spawn",
+      "refs": [
+        "r-guard"
+      ]
+    },
+    {
+      "id": "ac-suite-clean",
+      "name": "Repeated full suites with no foreign signal",
+      "given": "the change merged",
+      "when": "`pnpm test` runs 20 times in a row on a macOS laptop under the gate's own load (the standard profile's steps), and the CI test job runs 10 times on a runner",
+      "then": "every run passes, and no CLI spawn ends on a signal or with exit status 143",
+      "refs": [
+        "r-suite-clean",
+        "r-cause-fixed"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-gate-bound",
+      "question": "Should phax give a configured gate step a wall-clock limit, so that a hung step fails its attempt instead of holding a run for hours, in this change or in a separate one?",
+      "options": [
+        {
+          "id": "separate",
+          "label": "A separate spec. This change bounds the tests' own children and adds no phax feature.",
+          "abandons": "Protection against a hang from a cause other than a test spawn (a hung pnpm install, or a deadlocked tool in a gate step) until that spec ships."
+        },
+        {
+          "id": "here",
+          "label": "Here. Every gate step gets a time cap, configured in gateProfiles, and a step that reaches it fails its attempt.",
+          "abandons": "The brief's 'phax gains no feature', and a bounded change. It is a new required config field that every phax.json must declare, since persisted shapes take no optional shims."
+        }
+      ],
+      "recommendation": "separate",
+      "rationale": "Both recorded hangs (13 h and 3 h) were test spawns, and r-bound-ends closes them. A gate-step cap is a config surface with its own questions (a default value, a value per step, how it is recorded), and a spec of its own can answer them. Add it to NEXT_STEPS.md under section 6."
+    },
+    {
+      "id": "q-scope",
+      "question": "Should every existing spawn under tests/ move to the bounded spawn now, or only the CLI spawns, with the others listed as exemptions?",
+      "options": [
+        {
+          "id": "all",
+          "label": "All of them (about 170 files: CLI, git, and every other child), and the guard has no exemption list.",
+          "abandons": "A small diff. The change touches most test files at once, and its review is long and mechanical."
+        },
+        {
+          "id": "cli-first",
+          "label": "The 29 CLI spawns now. The guard carries an explicit list of the other files, to be emptied later.",
+          "abandons": "The guarantee that every child ends within a bound. A git or helper child that hangs still blocks a worker with no bound, and the exemption list can be left behind and forgotten."
+        }
+      ],
+      "recommendation": "all",
+      "rationale": "The goal is 'every child a test starts', and an exemption list is the permissive superset the conventions argue against. Most non-CLI spawns are fast git calls, so moving them is mechanical, and a git waiting on an editor or credentials hangs the same way."
+    },
+    {
+      "id": "q-bound-form",
+      "question": "Should each call state its own bound, or should a CLI spawn take one shared default that a test can raise?",
+      "options": [
+        {
+          "id": "per-call",
+          "label": "Required at every call, with no default.",
+          "abandons": "Brevity. Every call states a number, and the numbers can drift from one file to the next."
+        },
+        {
+          "id": "default",
+          "label": "A shared default bound for each kind of spawn (CLI, git), which a test can raise.",
+          "abandons": "The bound being visible where the test is read, and the brief's 'a bound the test states'. A default also tempts every caller to accept it without thinking."
+        }
+      ],
+      "recommendation": "per-call",
+      "rationale": "The bound is a statement about this one call, for example a 0.7 s command under a full-suite load. Named constants in the helpers can keep the numbers consistent, while the call still states which one it uses."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "The brief's three settled points: no assertion removed, no test skipped, no retry added; no timeout raised in vitest.config.ts; the fix goes where the cause is, and if the cause is upstream the suite avoids it and the issue is reported (r-cause-upstream).",
+      "Finding the sender comes first, before the helper hides the symptom. The bounded spawn's errors are a diagnosis, not the fix.",
+      "What is known before the reproduction: phax never exits 143 by itself; it exits 130 on SIGTERM once its handlers are installed, and they are installed only after main.ts's static imports load. Status 143 points to a SIGTERM that reached tsx, or reached node during module load. The candidates to rule in or out: vitest tearing a worker down, tsx relaying a signal, phax's interrupt handler, an exit hook or grace timer of the shell adapter or a provider adapter reaching a process that is not its own (for example a reused pid), and a test's cleanup killing by a pid read from a file."
+    ],
+    "open": [
+      "Whether the bounded spawn is synchronous (smaller change at each call, but vitest's timeout stays inert) or asynchronous (vitest's timeout fires again, but every call becomes an await).",
+      "How to end every descendant. For example, start the child in its own process group and signal the group, or run the CLI as node with tsx's loader so there is no relaying launcher. Either way, ac-ignores-sigterm and ac-cli-hang must hold.",
+      "The grace value, and the bound constants for each kind of spawn (see q-bound-form).",
+      "How the guard is built: a static scan test like phaxHomeGuard's, an architecture-audit rule, or an oxlint restricted-import rule. The guard must run inside `pnpm check:full`.",
+      "Whether the e2e runCli becomes a thin wrapper over the bounded spawn. Its 'SIGTERM means it timed out' reading must go either way."
+    ],
+    "constraints": [
+      "vitest.config.ts, lint-baseline.json and knip-baseline.json are protected. Neither the guard nor the move may edit them.",
+      "A synchronous spawn caps its test only through its own bound. Choose bounds so that a hang fails in minutes, not hours, and so that the helper's error, not a later generic timeout, is what reports it.",
+      "The bounded spawn's tests (ac-ignores-sigterm, ac-cli-hang, ac-foreign-signal, ac-relayed-143) must leave no process running after the test file ends, including when an assertion fails.",
+      "Take the 'Small follow-ups' on spawns with no timeout out of NEXT_STEPS.md, since this spec takes them over, and record the q-gate-bound outcome there.",
+      "phax production code changes only where r-cause-fixed puts the cause."
+    ]
+  },
+  "docsPage": {
+    "kind": "none",
+    "why": "Nothing a phax user can see changes: this is about how the test suite starts children. The helper's doc comment and the guard's failure message tell a contributor how to spawn in a test."
+  }
+}
