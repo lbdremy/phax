@@ -92,6 +92,11 @@ const run = (args) => {
   const started = Date.now();
   const result = spawnSync(vitestBin, ["run", "--reporter=json", `--outputFile=${jsonPath}`], {
     cwd: root,
+    // pnpm puts node_modules/.bin on PATH; tests spawn `tsx` by name and need it too.
+    env: {
+      ...process.env,
+      PATH: `${path.join(root, "node_modules", ".bin")}${path.delimiter}${process.env.PATH ?? ""}`,
+    },
     stdio: ["ignore", "ignore", "inherit"],
   });
   const wall = (Date.now() - started) / 1000;
@@ -203,6 +208,8 @@ const compare = (args) => {
   for (const [key, a] of after.tests) {
     if (!before.tests.has(key) && !allowNew.has(a.file)) {
       problems.push(`unexpected new test: ${a.file} :: ${a.name}`);
+    } else if (!before.tests.has(key) && a.state === "failed") {
+      problems.push(`new test failing: ${a.file} :: ${a.name}`);
     }
   }
   if (left !== "") problems.push(`cached worlds left behind: ${left}`);
