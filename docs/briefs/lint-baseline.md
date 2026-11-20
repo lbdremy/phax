@@ -2,7 +2,8 @@ Write the phax spec `lint-baseline`: phax's own lint suppressions each name thei
 and every one that stays is listed with its reason in a committed, protected baseline; a directive the baseline does
 not hold fails the gate, and so does an entry no directive matches any more. A change to phax's own code and gate only;
 phax gains no feature. It takes over the brief `suppression-directives` (2026-11-18, archived), whose clean-up is its
-first part.
+first part. It also makes the rules the config switches on run: 26 of them, `no-floating-promises` among them, need
+oxlint's type-aware mode, which phax's lint never turns on, and none of them has ever run.
 
 ## Why
 
@@ -42,6 +43,15 @@ new exception to the lint is the operator's decision, made in a file a phase can
 - **What oxlint offers:** `--format json` gives `{"diagnostics": [{"code": "eslint(no-debugger)", "severity": …,
   "filename": …, "labels": [{"span": {"line": …, "column": …}}], …}], …}`. oxlint has no baseline or bulk-suppression
   file of its own, and no option to lint as if the directives were absent.
+- **Rules that never run.** `.oxlintrc.json` sets `no-floating-promises` to `error`, and the `correctness` and
+  `suspicious` categories switch on 25 more rules that need type information (`oxlint --rules --format json`, field
+  `type_aware`): `await-thenable`, `no-misused-spread`, `no-unsafe-type-assertion`, `restrict-template-expressions`,
+  `unbound-method` and the others of the `typescript/` scope. They run only with `--type-aware`, which needs the
+  `oxlint-tsgolint` package; phax's lint is `oxlint .` and the package is not installed. Without the mode oxlint skips
+  them and says nothing: a floating promise in a file linted with phax's config gives no diagnostic and exit 0, and
+  `--type-aware` stops on "Failed to find type-aware linter executable". The disable comment of
+  `@typescript-eslint/no-unsafe-type-assertion` in `tests/unit/telemetry/composite.test.ts` is unused for that reason:
+  its rule never runs.
 
 ## Settled (do not reopen)
 
@@ -85,11 +95,18 @@ new exception to the lint is the operator's decision, made in a file a phase can
 - **Protected paths and order:** `.oxlintrc.json`, the baseline and the workflows are protected, so a phase cannot
   change them. Say which changes the operator makes by hand outside the run, and in what order against the phases,
   until `gate-tolerances` gives a run its own route.
+- **The type-aware rules:** the lint runs with `--type-aware` and `oxlint-tsgolint` as a dev dependency, at a version
+  that matches the TypeScript the project pins (7.x); what the 26 rules find on today's code, counted by rule, and
+  whether it is fixed in the plan or held by the baseline like any accepted exception; the time the mode adds to a
+  gate step that fires at every phase.
+- **Every rule switched on runs:** a check, in the lint step or beside it, that fails when a rule the config enables
+  cannot run (a type-aware rule without the mode, a plugin not loaded), so a rule set to `error` is never silently
+  skipped again. For instance, one sample per enabled rule that breaks it, linted in a test that expects the error.
 - **The gate step:** the lint and the baseline check, one step or two; read as a log or as a `gate-report`, so each new
   directive lands in the fix loop with its file.
 - **Acceptance:** the step red on a directive added outside the baseline, on a directive without a reason, on an
-  unused directive and on a stale entry, each shown in a test; green on the code after the clean-up; the count of
-  entries by rule, with their reasons, in the plan's last phase.
+  unused directive, on a stale entry and on a floating promise, each shown in a test; green on the code after the
+  clean-up; the count of entries by rule, with their reasons, in the plan's last phase.
 
 ## Open questions
 
