@@ -16,7 +16,7 @@ Compare two reports. Prints the §6-shaped measures and exits 1 on a missing, fa
 skipped or unexpected new test, or on a cached world left behind:
 
 ```
-node spikes/test-worlds/measure.mjs compare spikes/test-worlds/before.tsv spikes/test-worlds/after.tsv \
+node spikes/test-worlds/measure.mjs compare before.tsv after.tsv \
   --allow-new tests/integration/worldCache.test.ts
 ```
 
@@ -32,6 +32,19 @@ Tab-separated, one record per line, sorted, paths relative to the repository roo
 
 ## Result
 
-The before report has been removed; its numbers, the three after runs and the comparison
-are in `measures.md`. The script stays. `run` puts `node_modules/.bin` on `PATH` as `pnpm`
-does, and `compare` also reports a new test that fails.
+The reports the review re-took are kept, compressed, in `reports/`: `before.tsv.gz` (the
+base commit 8601df67, run from a worktree of it with this script) and `after.tsv.gz` (this
+change, c2df34cf), with `compare.txt`, the comparison as `compare` printed it. To check
+them again:
+
+```
+gunzip -k spikes/test-worlds/reports/before.tsv.gz spikes/test-worlds/reports/after.tsv.gz
+node spikes/test-worlds/measure.mjs compare spikes/test-worlds/reports/before.tsv \
+  spikes/test-worlds/reports/after.tsv --allow-new tests/integration/worldCache.test.ts \
+  --allow-new tests/integration/bulkRecords.test.ts \
+  --allow-new tests/integration/worldCacheCleanupProbe.test.ts \
+  --allow-new tests/integration/branchTipWorldCache.test.ts
+```
+
+Their numbers, and those of the run's own three after runs, are in `measures.md`. `run` puts
+`node_modules/.bin` on `PATH` as `pnpm` does, and `compare` also reports a new test that fails.

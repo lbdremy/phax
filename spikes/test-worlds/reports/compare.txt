@@ -1,0 +1,42 @@
+Measures (14 cores, vitest 5.1.0), before -> after:
+  suite wall time: 209.9 s -> 210.3 s
+  sum of file times: 2378.5 s -> 2391.5 s
+    integration: 2214.8 s -> 2226.3 s
+    unit: 163.7 s -> 165.2 s
+
+Integration files over 30 s, before -> after:
+  heldStopRun: 87.1 s -> 90.4 s
+  stopRecords: 75.1 s -> 85.9 s
+  acceptancePairReview: 72.6 s -> 66.3 s
+  decideVerdicts: 71.5 s -> 61.8 s
+  heldStopClose: 70.9 s -> 64.1 s
+  recordsStatusBranch: 63.6 s -> 32.6 s
+  recordsBranchSync.acceptance: 55.8 s -> 54.2 s
+  declaredStopClose: 53.3 s -> 49.3 s
+  declaredStopRun: 50.1 s -> 45.2 s
+  decideArtifact: 49.4 s -> 45.4 s
+  stopTranscripts: 47.6 s -> 45.2 s
+  heldStopCommands: 41.5 s -> 48.3 s
+  structuredAnswerFlags: 41.1 s -> 34.3 s
+  recordsExplain: 40.6 s -> 33.4 s
+  protectedPathsGate: 35.4 s -> 32.4 s
+  migrateDocuments: 34.7 s -> 29.8 s
+  findingPullRequestLocal: 30.3 s -> 45.8 s
+  networkPause: 30.2 s -> 25.0 s
+  recordsExplainStop: 25.3 s -> 33.0 s
+  runList: 25.0 s -> 32.8 s
+  stopSecurityRecord: 24.8 s -> 37.2 s
+  branchTipWorldCache: 0.0 s -> 32.8 s
+
+counts only the local-only records of a diverged branch sharing 300 with the remote:
+  36893 ms -> 3599 ms; after under 10 s: yes
+
+q-143 tests, state in the after report:
+  phaseGuard "lets phax --json-schema print the runner's catalogue": passed
+  recordsJsonContracts "--json-schema prints its entry…": passed
+
+world-cache-left after the run: (none)
+
+test-by-test check: 2 problem(s)
+  unexpected new test: tests/unit/archivedPlanSidecars.test.ts :: archived plan sidecars 2611201059-test-worlds-built-once-plan.json reads
+  unexpected new test: tests/unit/archivedSpecSidecars.test.ts :: archived spec sidecars docs/specs/archive/2611191142-test-worlds-built-once.json reads
