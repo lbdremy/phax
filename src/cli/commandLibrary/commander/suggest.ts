@@ -11,19 +11,21 @@ function editDistance(a: string, b: string): number {
   if (Math.abs(a.length - b.length) > MAX_DISTANCE) return Math.max(a.length, b.length);
   const d: number[][] = [];
   for (let i = 0; i <= a.length; i += 1) d[i] = [i];
-  for (let j = 0; j <= b.length; j += 1) (d[0] as number[])[j] = j;
+  // Every row from 0 to a.length is set above.
+  const rowAt = (i: number): number[] => d[i] ?? [];
+  for (let j = 0; j <= b.length; j += 1) rowAt(0)[j] = j;
   for (let j = 1; j <= b.length; j += 1) {
     for (let i = 1; i <= a.length; i += 1) {
-      const row = d[i] as number[];
-      const above = d[i - 1] as number[];
+      const row = rowAt(i);
+      const above = rowAt(i - 1);
       const cost = a[i - 1] === b[j - 1] ? 0 : 1;
       row[j] = Math.min((above[j] ?? 0) + 1, (row[j - 1] ?? 0) + 1, (above[j - 1] ?? 0) + cost);
       if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
-        row[j] = Math.min(row[j] ?? 0, ((d[i - 2] as number[])[j - 2] ?? 0) + 1);
+        row[j] = Math.min(row[j] ?? 0, (rowAt(i - 2)[j - 2] ?? 0) + 1);
       }
     }
   }
-  return (d[a.length] as number[])[b.length] ?? 0;
+  return rowAt(a.length)[b.length] ?? 0;
 }
 
 /** The line that follows a refusal of `word`: `\n(Did you mean <name>?)`, or

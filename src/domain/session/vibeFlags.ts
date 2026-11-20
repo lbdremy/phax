@@ -259,7 +259,8 @@ export function vibeConfigMismatch(
   if (typeof config !== "object" || config === null) {
     return `config is ${shown(config)}, phax needs the config the turn ran with`;
   }
-  const actual = config as Record<string, unknown>;
+  // The config as parsed JSON: its own fields are all there is to read.
+  const actual: { readonly [key: string]: unknown } = { ...config };
   const flags = buildVibeFlags(input);
   const expected: [string, unknown, unknown][] = [
     ["bypass_tool_permissions", actual["bypass_tool_permissions"], false],
@@ -273,13 +274,12 @@ export function vibeConfigMismatch(
     string,
     Record<string, unknown>
   >;
-  const actualTools = (actual["tools"] ?? {}) as Record<
-    string,
-    Record<string, unknown> | undefined
-  >;
+  const actualTools = actual["tools"];
   for (const [tool, settings] of Object.entries(tools)) {
+    const actualTool = isPlainObject(actualTools) ? actualTools[tool] : undefined;
     for (const [key, value] of Object.entries(settings)) {
-      expected.push([`tools.${tool}.${key}`, actualTools[tool]?.[key], value]);
+      const got = isPlainObject(actualTool) ? actualTool[key] : undefined;
+      expected.push([`tools.${tool}.${key}`, got, value]);
     }
   }
   if (input.readOnly === true) {

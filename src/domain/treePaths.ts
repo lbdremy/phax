@@ -25,5 +25,6 @@ export function resolveTreePaths(input: {
   }
   const [first, ...rest] = resolved;
   // The loop pushes at least once: `paths` is non-empty and every refusal returns.
-  return Result.succeed([first as string, ...rest]);
+  if (first === undefined) return Result.fail({ refused: "no path given" });
+  return Result.succeed([first, ...rest]);
 }

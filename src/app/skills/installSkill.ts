@@ -52,7 +52,7 @@ export function installSkill(
     });
 
     // Validate bundle: every manifest file must exist in the bundle
-    const bundledContents: string[] = [];
+    const bundled: { readonly file: string; readonly content: string }[] = [];
     for (const file of skill.files) {
       const bundlePath = join(bundleRoot, skill.sourceDir, file);
       const content = yield* Effect.mapError(
@@ -62,7 +62,7 @@ export function installSkill(
             message: `Bundled skill file missing at "${bundlePath}": ${e.message}`,
           }),
       );
-      bundledContents.push(content);
+      bundled.push({ file, content });
     }
 
     // Compute status by comparing destination to bundle
@@ -76,8 +76,7 @@ export function installSkill(
       status = "created";
     } else {
       let allIdentical = true;
-      for (let i = 0; i < skill.files.length; i++) {
-        const file = skill.files[i] as string;
+      for (const { file, content } of bundled) {
         const destPath = join(skillDir, file);
         const destExists = yield* Effect.mapError(
           fs.exists(destPath),
@@ -91,7 +90,7 @@ export function installSkill(
           fs.readText(destPath),
           mapFsError(`Failed to read "${destPath}"`),
         );
-        if (destContent !== bundledContents[i]) {
+        if (destContent !== content) {
           allIdentical = false;
           break;
         }
@@ -101,11 +100,10 @@ export function installSkill(
 
     // Write files unless already-present
     if (status !== "already-present") {
-      for (let i = 0; i < skill.files.length; i++) {
-        const file = skill.files[i] as string;
+      for (const { file, content } of bundled) {
         const destPath = join(skillDir, file);
         yield* Effect.mapError(
-          fs.writeAtomic(destPath, bundledContents[i] as string),
+          fs.writeAtomic(destPath, content),
           mapFsError(`Failed to write "${destPath}"`),
         );
       }

@@ -89,7 +89,8 @@ export function claudeAnswerSchema(schema: object): Record<string, unknown> {
   const result: Record<string, unknown> = { ...schema };
   const properties = result["properties"];
   if (typeof properties === "object" && properties !== null) {
-    const { $schema: _stamp, ...kept } = properties as Record<string, unknown>;
+    const kept: Record<string, unknown> = { ...properties };
+    delete kept["$schema"];
     result["properties"] = kept;
   }
   const required = result["required"];
@@ -106,14 +107,15 @@ export function stampStructuredValue(value: unknown, schema: object): unknown {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return value;
   const stamp = stampOf(schema);
   if (stamp === undefined) return value;
-  const { $schema: _provided, ...rest } = value as Record<string, unknown>;
+  const rest: Record<string, unknown> = { ...value };
+  delete rest["$schema"];
   return { $schema: stamp, ...rest };
 }
 
 function stampOf(schema: object): unknown {
   const properties = (schema as { readonly properties?: unknown }).properties;
   if (typeof properties !== "object" || properties === null) return undefined;
-  const stamp = (properties as Record<string, unknown>)["$schema"];
+  const stamp = "$schema" in properties ? properties.$schema : undefined;
   if (typeof stamp !== "object" || stamp === null) return undefined;
   return (stamp as { readonly const?: unknown }).const;
 }

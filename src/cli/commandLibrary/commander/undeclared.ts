@@ -58,7 +58,8 @@ export function readWords(
   let version = false;
   let valueMissing: string | undefined;
   for (let index = 0; index < words.length; index += 1) {
-    const word = words[index] as string;
+    const word = words[index];
+    if (word === undefined) break;
     if (word === END_OF_OPTIONS) {
       const after = words.slice(index + 1);
       kept.push(word, ...after);
@@ -125,7 +126,8 @@ export function takeProgramOptions(
   const options: Record<string, string | boolean> = {};
   let valueMissing: string | undefined;
   for (let index = 0; index < words.length; index += 1) {
-    const word = words[index] as string;
+    const word = words[index];
+    if (word === undefined) break;
     if (word === END_OF_OPTIONS) {
       kept.push(...words.slice(index));
       break;

@@ -23,21 +23,25 @@ export function parseProviderPriority(raw: string): ParseResult<NonEmptyArray<Pr
   const result: ProviderId[] = [];
 
   for (const token of tokens) {
-    const isValid = (VALID_PROVIDER_IDS as readonly string[]).includes(token);
-    if (!isValid) {
+    const id = VALID_PROVIDER_IDS.find((valid) => valid === token);
+    if (id === undefined) {
       return {
         ok: false,
         error: `Invalid provider id "${token}" in --provider-priority. Valid ids: ${VALID_PROVIDER_IDS.join(", ")}`,
       };
     }
-    const id = token as ProviderId;
     if (!seen.has(id)) {
       seen.add(id);
       result.push(id);
     }
   }
 
-  return { ok: true, value: result as unknown as NonEmptyArray<ProviderId> };
+  // Every token is a valid id, so the first one is kept.
+  const [first, ...rest] = result;
+  if (first === undefined) {
+    return { ok: false, error: "--provider-priority must list at least one provider id" };
+  }
+  return { ok: true, value: [first, ...rest] };
 }
 
 export function applyProviderPriorityOverride(

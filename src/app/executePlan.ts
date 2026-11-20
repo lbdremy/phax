@@ -500,8 +500,8 @@ export function executePlan(
   // fully-populated WriteResumeInstructions command.
   let currentPhaseId: string | undefined;
   let currentPhaseFolderPath: string | undefined;
-  let currentWorktreePath: string | undefined;
-  let currentSessionId: string | undefined;
+  let currentWorktreePath: WorktreePath | undefined;
+  let currentSessionId: ClaudeSessionId | undefined;
   // The resolved provider/model/effort in flight, captured once agentOptions is
   // known, so a record can be written for a phase that fails after the agent ran.
   let currentProvider: ProviderId | undefined;
@@ -3084,8 +3084,8 @@ export function executePlan(
           kind,
           resetAt: e.resetAt,
           cause: e,
-          worktreePath: currentWorktreePath as WorktreePath | undefined,
-          sessionId: currentSessionId as never,
+          worktreePath: currentWorktreePath,
+          sessionId: currentSessionId,
         };
         yield* dispatch(rateLimitEvent, dispatchCtx(currentPhaseFolderPath, currentPhaseId));
         return yield* Effect.fail(e);
@@ -3103,7 +3103,7 @@ export function executePlan(
             ...eventBase(currentPhaseId),
             type: "NetworkFailureDetected",
             cause: e,
-            worktreePath: currentWorktreePath as WorktreePath | undefined,
+            worktreePath: currentWorktreePath,
             sessionId: sessionId as ClaudeSessionId | undefined,
           },
           dispatchCtx(currentPhaseFolderPath, currentPhaseId),
