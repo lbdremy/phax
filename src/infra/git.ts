@@ -1,4 +1,4 @@
-import { Effect, Layer, absurd } from "effect";
+import { Effect, Layer, Predicate, absurd } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
@@ -53,6 +53,19 @@ function toGitError(err: unknown, command: string, args: readonly string[]): Git
   });
 }
 
+// The output's type follows the encoding asked for.
+function runGitProcess(
+  args: readonly string[],
+  cwd: string,
+  encoding: "utf8",
+  opts: GitRunOptions,
+): Promise<{ stdout: string; stderr: string }>;
+function runGitProcess(
+  args: readonly string[],
+  cwd: string,
+  encoding: "buffer",
+  opts: GitRunOptions,
+): Promise<{ stdout: Buffer; stderr: string }>;
 function runGitProcess(
   args: readonly string[],
   cwd: string,
@@ -88,8 +101,7 @@ function gitRun(
 ): Effect.Effect<{ stdout: string; stderr: string }, GitError> {
   const command = `git ${args.join(" ")}`;
   return Effect.tryPromise({
-    try: () =>
-      runGitProcess(args, cwd, "utf8", opts) as Promise<{ stdout: string; stderr: string }>,
+    try: () => runGitProcess(args, cwd, "utf8", opts),
     catch: (err) => toGitError(err, command, args),
   });
 }
@@ -101,8 +113,7 @@ function gitRunBuffer(
 ): Effect.Effect<{ stdout: Buffer; stderr: string }, GitError> {
   const command = `git ${args.join(" ")}`;
   return Effect.tryPromise({
-    try: () =>
-      runGitProcess(args, cwd, "buffer", opts) as Promise<{ stdout: Buffer; stderr: string }>,
+    try: () => runGitProcess(args, cwd, "buffer", opts),
     catch: (err) => toGitError(err, command, args),
   });
 }
@@ -560,7 +571,7 @@ async function lstatOrNull(path: string): Promise<Stats | null> {
   try {
     return await lstat(path);
   } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
+    const code = Predicate.hasProperty(err, "code") ? err.code : undefined;
     if (code === "ENOENT" || code === "ENOTDIR") return null;
     throw err;
   }
@@ -969,11 +980,16 @@ export const NodeGitLayer = Layer.succeed(Git, {
     return Effect.tryPromise({
       try: () =>
         runGitProcess(args, repo, "utf8", {}).then(
-          ({ stdout }) => relabelDiffHeader(String(stdout), label),
+          ({ stdout }) => relabelDiffHeader(stdout, label),
           (err: unknown) => {
-            const e = err as { code?: unknown; stdout?: unknown };
-            if (e.code === 1 && typeof e.stdout === "string" && e.stdout.length > 0) {
-              return relabelDiffHeader(e.stdout, label);
+            if (
+              Predicate.hasProperty(err, "code") &&
+              err.code === 1 &&
+              Predicate.hasProperty(err, "stdout") &&
+              typeof err.stdout === "string" &&
+              err.stdout.length > 0
+            ) {
+              return relabelDiffHeader(err.stdout, label);
             }
             throw err;
           },
