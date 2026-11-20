@@ -27,7 +27,7 @@
     "test:property:deep": "PHAX_PROPERTY_RUNS=2000 PHAX_PROPERTY_SEED=random vitest run --project unit",
     "test:integration": "vitest run tests/integration",
     "test:type": "tsc --noEmit -p tsconfig.test.json",
-    "lint": "oxlint .",
+    "lint": "tsx scripts/lint-baseline.ts",
     "lint:fix": "oxlint --fix .",
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
