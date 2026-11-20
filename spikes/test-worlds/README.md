@@ -30,7 +30,8 @@ Tab-separated, one record per line, sorted, paths relative to the repository roo
 - `F<TAB>file<TAB>project<TAB>seconds` — one per test file; project is `unit` or `integration`.
 - `T<TAB>file<TAB>project<TAB>full name<TAB>state<TAB>duration ms` — one per test.
 
-## before.tsv
+## Result
 
-`before.tsv` is the report of the unchanged tree, the base of this change. The change's last
-phase deletes it and keeps the script.
+The before report has been removed; its numbers, the three after runs and the comparison
+are in `measures.md`. The script stays. `run` puts `node_modules/.bin` on `PATH` as `pnpm`
+does, and `compare` also reports a new test that fails.
