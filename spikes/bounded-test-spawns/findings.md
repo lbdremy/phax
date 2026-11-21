@@ -376,6 +376,25 @@ Each suite ran 22,562 tests, the 2 of `strayTermRegression.test.ts` included, wi
 vitest worker losses. Every logged ending came from `boundedSpawn.test.ts`, which causes each kind
 of ending on purpose. No CLI spawn ended on a foreign signal.
 
+## Outcome
+
+- **Sender: named.** The test's own `spawnSync`, through Node's default 1 MiB `maxBuffer`: the root
+  `--json-schema` passed it on 2026-11-19, Node sent tsx SIGTERM, and tsx turned that into 143
+  under load (Sender). The evidence is from macOS and code reading; macOS reports no signal sender.
+  The CI half is open until review.
+- **Fix: test code, no change under `src/`.** Every CLI spawn goes through `boundedSpawn`, which
+  reads output with no cap; `strayTermRegression.test.ts` guards the path; phase-11's guard keeps a
+  raw spawn out of `tests/`. No upstream issue was drafted (Fix direction).
+- **Run totals:** 20 full suites in a row on macOS under `--load gate`: 20 passed, 0 failed
+  tests, 0 worker losses, 0 foreign endings, 189 to 206 s (mean 193 s against 210 s before). The
+  120 logged endings all come from `boundedSpawn.test.ts`. See `suite-runs.md`.
+- **For the operator at review:**
+  1. Read the 10 CI runs of the test job on the pull request and fill the table in
+     `suite-runs.md`.
+  2. Paste any CI `diagnosis:` block in the CI section below.
+  3. Upstream issue: none is needed. File one only if you want tsx's 30 ms relay windows
+     changed.
+
 ## CI (to fill at review)
 
 The pull request's CI runs the suite with every CLI spawn bounded. A foreign-signal ending there

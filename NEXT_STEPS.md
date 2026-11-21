@@ -128,13 +128,12 @@ briefs of live or unspecced work.
 Placed first by the operator on 2026-11-20: a gate or a CI run that turns red with nothing to fix costs a fix
 attempt, a relaunch, and once a release.
 
-- [ ] **`bounded-test-spawns`** — `docs/briefs/bounded-test-spawns.md` (2026-11-20), spec to author.
-      One brief for two failures with one root, children that tests spawn with no bound: under the full
-      suite a spawned `phax --json-schema` exits 143 (SIGTERM, empty stderr), four times on 2026-11-20
-      (0.41.0's release gate, #253's gate, #255's CI, main's CI on c15c768e); and a `spawnSync` that never
-      returns holds a gate for hours (13 h, 3 h). Find who sends the signal and fix it there; one bounded
-      spawn helper for tests, and a guard against a new unbounded one. Takes over the two *Small
-      follow-ups* on spawns with no timeout.
+- [x] **`bounded-test-spawns`** — shipped 2026-11-21. Every test child ends within a stated bound
+      (`tests/helpers/boundedSpawn.ts`), a guard refuses a new unbounded spawn, and the stray 143 was
+      the test's own `spawnSync` hitting Node's 1 MiB `maxBuffer` on the root `--json-schema`; 20 full
+      suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/bounded-test-spawns.md`,
+      findings `spikes/bounded-test-spawns/findings.md`, runs `spikes/bounded-test-spawns/suite-runs.md`.
+      Open at review: the 10 CI runs.
 - [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
       2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
       deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
