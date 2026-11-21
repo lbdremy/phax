@@ -1,5 +1,6 @@
 // The one way a test starts a child process: `boundedSpawn` (or `boundedOutput`), with a bound
-// stated at the call. A test never imports node:child_process itself.
+// stated at the call. A test never imports node:child_process itself: the "unbounded test spawns"
+// guard in tests/unit/architecturalGuards.test.ts fails any other file under tests/ that does.
 //
 //   const result = boundedSpawn(CLI_LAUNCHER, cliArgs("ls"), {
 //     boundMs: CLI_BOUND_MS,

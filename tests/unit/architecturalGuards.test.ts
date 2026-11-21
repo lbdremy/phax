@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync } from "node:fs";
-import { dirname, join, relative, resolve } from "node:path";
+import { dirname, extname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseSync } from "oxc-parser";
 import { describe, expect, it } from "vitest";
 import { FORMAT_IDS, type FormatId } from "../../src/schemas/schemaUrl.js";
 
@@ -1103,5 +1104,463 @@ describe("architectural guard: a frozen module imports only effect", () => {
         .map((specifier) => `${rel}: imports ${specifier}`),
     );
     expect(violations).toEqual([]);
+  });
+});
+
+// ── Unbounded test spawns ────────────────────────────────────────────────────
+// A test starts a child only through boundedSpawn, with a bound. The scanner parses a script
+// file and reports every way it reaches node:child_process: a call of an imported binding (named,
+// default, namespace, required, createRequire, dynamic import) at the call's line, or the line of
+// the import itself when no call is found (a re-export, a binding passed on). Text inside a string
+// or template literal is never code, so a script a test writes to disk is not scanned.
+
+// The implementation of the bounded spawn, not an exemption: the one file that starts children.
+const BOUNDED_SPAWN_FILE = "tests/helpers/boundedSpawn.ts";
+
+const CHILD_PROCESS_SPECIFIERS: ReadonlySet<string> = new Set([
+  "node:child_process",
+  "child_process",
+]);
+const SPAWN_GUARD_EXTENSIONS: ReadonlySet<string> = new Set([
+  ".ts",
+  ".mts",
+  ".cts",
+  ".js",
+  ".mjs",
+  ".cjs",
+]);
+const SPAWN_POINTER =
+  "A test starts a child only through boundedSpawn (tests/helpers/boundedSpawn.ts), with a bound.";
+
+interface SpawnFinding {
+  readonly file: string;
+  readonly line: number;
+  readonly call: string;
+}
+
+type AstNode = { readonly type: string; readonly start: number } & Record<string, unknown>;
+
+function isAstNode(value: unknown): value is AstNode {
+  return (
+    typeof value === "object" && value !== null && "type" in value && typeof value.type === "string"
+  );
+}
+
+function subNode(node: AstNode | undefined, key: string): AstNode | undefined {
+  const value = node?.[key];
+  return isAstNode(value) ? value : undefined;
+}
+
+function nodeList(node: AstNode | undefined, key: string): AstNode[] {
+  const value = node?.[key];
+  return Array.isArray(value) ? value.filter(isAstNode) : [];
+}
+
+function nodeName(node: AstNode | undefined): string | undefined {
+  if (node === undefined) return undefined;
+  if (node.type === "Identifier" && typeof node["name"] === "string") return node["name"];
+  if (node.type === "Literal" && typeof node["value"] === "string") return node["value"];
+  return undefined;
+}
+
+function walkAst(
+  node: AstNode,
+  visit: (node: AstNode, ancestors: readonly AstNode[]) => void,
+  ancestors: AstNode[] = [],
+): void {
+  visit(node, ancestors);
+  ancestors.push(node);
+  for (const [key, value] of Object.entries(node)) {
+    if (key === "type") continue;
+    if (Array.isArray(value)) {
+      for (const item of value) if (isAstNode(item)) walkAst(item, visit, ancestors);
+    } else if (isAstNode(value)) {
+      walkAst(value, visit, ancestors);
+    }
+  }
+  ancestors.pop();
+}
+
+function childProcessSpecifier(node: AstNode | undefined): string | undefined {
+  if (node === undefined || node.type !== "Literal") return undefined;
+  const value = node["value"];
+  return typeof value === "string" && CHILD_PROCESS_SPECIFIERS.has(value) ? value : undefined;
+}
+
+// A call that hands back a module's object: require(...), a createRequire result,
+// process.getBuiltinModule(...), vi.importActual(...). Its first argument is the specifier.
+function moduleCallSpecifier(call: AstNode, requireNames: ReadonlySet<string>): string | undefined {
+  const callee = subNode(call, "callee");
+  const first = nodeList(call, "arguments")[0];
+  if (callee?.type === "Identifier") {
+    return requireNames.has(nodeName(callee) ?? "") ? childProcessSpecifier(first) : undefined;
+  }
+  if (callee?.type === "MemberExpression") {
+    const property = nodeName(subNode(callee, "property"));
+    return property === "getBuiltinModule" || property === "importActual"
+      ? childProcessSpecifier(first)
+      : undefined;
+  }
+  return undefined;
+}
+
+// A command line split on spaces (`command.split(" ").slice(1)`) breaks any argument holding a
+// space, so it is never the argument array of a bounded spawn.
+function splitsAString(node: AstNode | undefined): boolean {
+  if (node === undefined) return false;
+  if (
+    node.type === "ParenthesizedExpression" ||
+    node.type === "TSAsExpression" ||
+    node.type === "TSNonNullExpression" ||
+    node.type === "TSSatisfiesExpression"
+  ) {
+    return splitsAString(subNode(node, "expression"));
+  }
+  if (node.type !== "CallExpression") return false;
+  const callee = subNode(node, "callee");
+  if (callee?.type !== "MemberExpression") return false;
+  return (
+    nodeName(subNode(callee, "property")) === "split" || splitsAString(subNode(callee, "object"))
+  );
+}
+
+const TRANSPARENT_WRAPPERS: ReadonlySet<string> = new Set([
+  "AwaitExpression",
+  "ParenthesizedExpression",
+  "TSAsExpression",
+  "TSNonNullExpression",
+  "TSSatisfiesExpression",
+  "TSTypeAssertion",
+]);
+
+interface ImportSite {
+  readonly line: number;
+  readonly label: string;
+  readonly specifier: string;
+  called: boolean;
+}
+
+/** Pure: the unbounded spawns of one script file, from its path and text. */
+function scanUnboundedSpawns(file: string, text: string): SpawnFinding[] {
+  const { program, errors } = parseSync(file, text);
+  if (errors.length > 0) {
+    throw new Error(`${file}: the spawn guard cannot parse it: ${errors[0]?.message ?? "?"}`);
+  }
+  const root: unknown = program;
+  if (!isAstNode(root)) throw new Error(`${file}: the spawn guard got no syntax tree`);
+  const lineOf = (offset: number): number => text.slice(0, offset).split("\n").length;
+
+  const requireNames = new Set<string>(["require"]);
+  walkAst(root, (node) => {
+    if (node.type !== "VariableDeclarator") return;
+    const init = subNode(node, "init");
+    const callee = subNode(init, "callee");
+    const factory = nodeName(callee) ?? nodeName(subNode(callee, "property"));
+    const name = nodeName(subNode(node, "id"));
+    if (init?.type === "CallExpression" && factory === "createRequire" && name !== undefined) {
+      requireNames.add(name);
+    }
+  });
+
+  const findings: SpawnFinding[] = [];
+  const sites: ImportSite[] = [];
+  const named = new Map<string, { site: ImportSite; name: string }>();
+  const objects = new Map<string, ImportSite>();
+  const report = (offset: number, call: string): void => {
+    findings.push({ file, line: lineOf(offset), call });
+  };
+  const newSite = (node: AstNode, label: string, specifier: string): ImportSite => {
+    const site: ImportSite = { line: lineOf(node.start), label, specifier, called: false };
+    sites.push(site);
+    return site;
+  };
+
+  const bindSource = (site: ImportSite, node: AstNode, ancestors: readonly AstNode[]): void => {
+    let current = node;
+    let index = ancestors.length - 1;
+    for (let wrapper = ancestors[index]; wrapper !== undefined; wrapper = ancestors[index]) {
+      if (!TRANSPARENT_WRAPPERS.has(wrapper.type)) break;
+      current = wrapper;
+      index -= 1;
+    }
+    const parent = ancestors[index];
+    if (parent?.type === "VariableDeclarator" && subNode(parent, "init") === current) {
+      const id = subNode(parent, "id");
+      const whole = nodeName(id);
+      if (whole !== undefined) objects.set(whole, site);
+      for (const property of nodeList(id, "properties")) {
+        if (property.type === "RestElement") {
+          const rest = nodeName(subNode(property, "argument"));
+          if (rest !== undefined) objects.set(rest, site);
+          continue;
+        }
+        const value = subNode(property, "value");
+        const local = nodeName(
+          value?.type === "AssignmentPattern" ? subNode(value, "left") : value,
+        );
+        const key = nodeName(subNode(property, "key"));
+        if (local !== undefined && key !== undefined) named.set(local, { site, name: key });
+      }
+    } else if (parent?.type === "MemberExpression" && subNode(parent, "object") === current) {
+      const call = ancestors[index - 1];
+      if (call?.type === "CallExpression" && subNode(call, "callee") === parent) {
+        site.called = true;
+        report(
+          call.start,
+          `${nodeName(subNode(parent, "property")) ?? "?"} from ${site.specifier}`,
+        );
+      }
+    }
+  };
+
+  walkAst(root, (node, ancestors) => {
+    if (node.type === "ImportDeclaration") {
+      const specifier = childProcessSpecifier(subNode(node, "source"));
+      if (specifier === undefined || node["importKind"] === "type") return;
+      const specifiers = nodeList(node, "specifiers");
+      const values = specifiers.filter(
+        (item) => !(item.type === "ImportSpecifier" && item["importKind"] === "type"),
+      );
+      if (specifiers.length > 0 && values.length === 0) return;
+      const site = newSite(node, `import of ${specifier}`, specifier);
+      for (const item of values) {
+        const local = nodeName(subNode(item, "local"));
+        if (local === undefined) continue;
+        if (item.type === "ImportSpecifier") {
+          named.set(local, { site, name: nodeName(subNode(item, "imported")) ?? local });
+        } else {
+          objects.set(local, site);
+        }
+      }
+    } else if (node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") {
+      const specifier = childProcessSpecifier(subNode(node, "source"));
+      if (specifier === undefined || node["exportKind"] === "type") return;
+      const specifiers = nodeList(node, "specifiers");
+      if (specifiers.length > 0 && specifiers.every((item) => item["exportKind"] === "type")) {
+        return;
+      }
+      report(node.start, `re-export from ${specifier}`);
+    } else if (node.type === "TSImportEqualsDeclaration") {
+      const reference = subNode(node, "moduleReference");
+      const specifier = childProcessSpecifier(subNode(reference, "expression"));
+      if (specifier === undefined || node["importKind"] === "type") return;
+      const site = newSite(node, `require of ${specifier}`, specifier);
+      const local = nodeName(subNode(node, "id"));
+      if (local !== undefined) objects.set(local, site);
+    } else if (node.type === "ImportExpression") {
+      const specifier = childProcessSpecifier(subNode(node, "source"));
+      if (specifier === undefined) return;
+      bindSource(newSite(node, `dynamic import of ${specifier}`, specifier), node, ancestors);
+    } else if (node.type === "CallExpression") {
+      const specifier = moduleCallSpecifier(node, requireNames);
+      if (specifier === undefined) return;
+      bindSource(newSite(node, `require of ${specifier}`, specifier), node, ancestors);
+    }
+  });
+
+  walkAst(root, (node) => {
+    if (node.type !== "CallExpression") return;
+    const callee = subNode(node, "callee");
+    const calleeName = nodeName(callee);
+    if (callee?.type === "Identifier" && calleeName !== undefined) {
+      const binding = named.get(calleeName);
+      const whole = objects.get(calleeName);
+      if (binding !== undefined) {
+        binding.site.called = true;
+        report(node.start, `${binding.name} from ${binding.site.specifier}`);
+      } else if (whole !== undefined) {
+        whole.called = true;
+        report(node.start, `${calleeName} from ${whole.specifier}`);
+      }
+      if (calleeName === "boundedSpawn" || calleeName === "boundedOutput") {
+        const args = nodeList(node, "arguments")[1];
+        if (args !== undefined && splitsAString(args)) {
+          report(args.start, `a command line split on spaces, passed to ${calleeName}`);
+        }
+      }
+    } else if (callee?.type === "MemberExpression") {
+      const site = objects.get(nodeName(subNode(callee, "object")) ?? "");
+      if (site !== undefined) {
+        site.called = true;
+        report(
+          node.start,
+          `${nodeName(subNode(callee, "property")) ?? "?"} from ${site.specifier}`,
+        );
+      }
+    }
+  });
+
+  for (const site of sites) {
+    if (!site.called) findings.push({ file, line: site.line, call: site.label });
+  }
+  const seen = new Set<string>();
+  return findings
+    .toSorted((a, b) => a.line - b.line)
+    .filter((finding) => {
+      const key = `${finding.line}:${finding.call}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function unboundedSpawnMessage(findings: readonly SpawnFinding[]): string {
+  return [...findings.map((f) => `${f.file}:${f.line}  ${f.call}`), SPAWN_POINTER].join("\n");
+}
+
+function testScriptFiles(): string[] {
+  const root = join(repoRoot, "tests");
+  const entries = readdirSync(root, { recursive: true, withFileTypes: true }) as Array<{
+    parentPath?: string;
+    path?: string;
+    name: string;
+    isFile: () => boolean;
+  }>;
+  return entries
+    .filter((entry) => entry.isFile() && SPAWN_GUARD_EXTENSIONS.has(extname(entry.name)))
+    .map((entry) => relative(repoRoot, join(entry.parentPath ?? entry.path ?? root, entry.name)))
+    .map((rel) => rel.split("\\").join("/"))
+    .filter((rel) => rel !== BOUNDED_SPAWN_FILE)
+    .toSorted();
+}
+
+describe("unbounded test spawns", () => {
+  const scan = (text: string): SpawnFinding[] => scanUnboundedSpawns("tests/fixture.test.ts", text);
+  const findingsOf = (text: string): Array<[number, string]> =>
+    scan(text).map((f) => [f.line, f.call]);
+
+  it.each(["spawnSync", "execFileSync", "execSync", "spawn", "exec", "execFile"])(
+    "reports %s called from a named import, at the call's line",
+    (name) => {
+      const text = `import { ${name} } from "node:child_process";\n\nconst x = 1;\n${name}("git", ["status"]);\n`;
+      expect(findingsOf(text)).toEqual([[4, `${name} from node:child_process`]]);
+    },
+  );
+
+  it("reports fork, and an alias under its imported name", () => {
+    const text = `import { fork, spawnSync as run } from "node:child_process";\nfork("a.js");\nrun("git");\n`;
+    expect(findingsOf(text)).toEqual([
+      [2, "fork from node:child_process"],
+      [3, "spawnSync from node:child_process"],
+    ]);
+  });
+
+  it("still reports a spawnSync call that passes its own timeout", () => {
+    const text = `import { spawnSync } from "node:child_process";\nspawnSync("git", ["log"], {\n  timeout: 5_000,\n  killSignal: "SIGKILL",\n});\n`;
+    expect(findingsOf(text)).toEqual([[2, "spawnSync from node:child_process"]]);
+  });
+
+  it("reports a namespace import, a default import and a require, each at its call", () => {
+    expect(findingsOf(`import * as cp from "node:child_process";\ncp.spawnSync("a");\n`)).toEqual([
+      [2, "spawnSync from node:child_process"],
+    ]);
+    expect(findingsOf(`import cp from "node:child_process";\ncp.execSync("a");\n`)).toEqual([
+      [2, "execSync from node:child_process"],
+    ]);
+    expect(findingsOf(`const cp = require("node:child_process");\n\ncp.spawn("a");\n`)).toEqual([
+      [3, "spawn from node:child_process"],
+    ]);
+    expect(
+      findingsOf(`const { execFile } = require("node:child_process");\nexecFile("a");\n`),
+    ).toEqual([[2, "execFile from node:child_process"]]);
+    expect(findingsOf(`require("node:child_process").spawnSync("a");\n`)).toEqual([
+      [1, "spawnSync from node:child_process"],
+    ]);
+  });
+
+  it("reports a require made through createRequire", () => {
+    const text = `import { createRequire } from "node:module";\nconst req = createRequire(import.meta.url);\nconst { spawnSync } = req("node:child_process");\nspawnSync("a");\n`;
+    expect(findingsOf(text)).toEqual([[4, "spawnSync from node:child_process"]]);
+  });
+
+  it("reports a dynamic import", () => {
+    const text = `async function go() {\n  const { spawn } = await import("node:child_process");\n  spawn("a");\n}\n`;
+    expect(findingsOf(text)).toEqual([[3, "spawn from node:child_process"]]);
+    expect(findingsOf(`(await import("node:child_process")).exec("a");\n`)).toEqual([
+      [1, "exec from node:child_process"],
+    ]);
+  });
+
+  it("reports the bare child_process specifier like node:child_process", () => {
+    expect(findingsOf(`import { spawnSync } from "child_process";\nspawnSync("a");\n`)).toEqual([
+      [2, "spawnSync from child_process"],
+    ]);
+    expect(findingsOf(`const cp = require("child_process");\ncp.exec("a");\n`)).toEqual([
+      [2, "exec from child_process"],
+    ]);
+  });
+
+  it("reports the import's own line when no call is found", () => {
+    expect(
+      findingsOf(
+        `\nimport { spawnSync } from "node:child_process";\nexport const run = spawnSync;\n`,
+      ),
+    ).toEqual([[2, "import of node:child_process"]]);
+    expect(findingsOf(`export { spawn } from "node:child_process";\n`)).toEqual([
+      [1, "re-export from node:child_process"],
+    ]);
+    expect(findingsOf(`import "node:child_process";\n`)).toEqual([
+      [1, "import of node:child_process"],
+    ]);
+    expect(findingsOf(`const cp = await import("node:child_process");\nuse(cp);\n`)).toEqual([
+      [1, "dynamic import of node:child_process"],
+    ]);
+  });
+
+  it("reports a module obtained through process.getBuiltinModule or vi.importActual", () => {
+    expect(
+      findingsOf(
+        `const cp = process.getBuiltinModule("node:child_process");\ncp.spawnSync("a");\n`,
+      ),
+    ).toEqual([[2, "spawnSync from node:child_process"]]);
+    expect(
+      findingsOf(
+        `const cp = await vi.importActual<typeof import("node:child_process")>("node:child_process");\ncp.spawn("a");\n`,
+      ),
+    ).toEqual([[2, "spawn from node:child_process"]]);
+  });
+
+  it("reports a command line split on spaces passed to a bounded spawn", () => {
+    const text = `boundedSpawn("git", args.split(" "), { boundMs: GIT_BOUND_MS });\nboundedOutput("git", command.split(" ").slice(1), { boundMs: GIT_BOUND_MS });\nboundedOutput("git", ["status"], { boundMs: GIT_BOUND_MS });\n`;
+    expect(findingsOf(text)).toEqual([
+      [1, "a command line split on spaces, passed to boundedSpawn"],
+      [2, "a command line split on spaces, passed to boundedOutput"],
+    ]);
+  });
+
+  it("does not report a type import, a string or a template holding a require, or a boundedSpawn call", () => {
+    const fixtures = [
+      `import type { ChildProcess } from "node:child_process";\nlet child: ChildProcess | undefined;\n`,
+      `import { type SpawnSyncReturns } from "node:child_process";\nlet r: SpawnSyncReturns<string> | undefined;\n`,
+      `type Spawn = typeof import("node:child_process").spawnSync;\n`,
+      `const script = 'const cp = require("node:child_process"); cp.spawnSync("a");';\n`,
+      'const script = `import { spawnSync } from "node:child_process";\\nspawnSync("a");`;\n',
+      `vi.mock("node:child_process", () => ({ spawnSync: vi.fn() }));\n`,
+      `import { boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";\nboundedSpawn("git", ["status"], { boundMs: GIT_BOUND_MS });\n`,
+      `function spawnSync() {}\nspawnSync();\n`,
+    ];
+    for (const text of fixtures) expect(scan(text)).toEqual([]);
+  });
+
+  it("fails with the file, the line, the call and the pointer to the bounded spawn", () => {
+    const findings = scanUnboundedSpawns(
+      "tests/integration/newThing.test.ts",
+      `import { it } from "vitest";\nimport { spawnSync } from "node:child_process";\n\nit("x", () => {\n  spawnSync("git", ["status"]);\n});\n`,
+    );
+    expect(unboundedSpawnMessage(findings)).toBe(
+      [
+        "tests/integration/newThing.test.ts:5  spawnSync from node:child_process",
+        "A test starts a child only through boundedSpawn (tests/helpers/boundedSpawn.ts), with a bound.",
+      ].join("\n"),
+    );
+  });
+
+  it("every script file under tests/ starts a child only through the bounded spawn", () => {
+    const files = testScriptFiles();
+    expect(files.length).toBeGreaterThan(300);
+    const findings = files.flatMap((rel) =>
+      scanUnboundedSpawns(rel, readFileSync(join(repoRoot, rel), "utf8")),
+    );
+    expect(findings, unboundedSpawnMessage(findings)).toEqual([]);
   });
 });
