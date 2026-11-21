@@ -290,6 +290,10 @@ if ((process.argv[1] ?? "").endsWith("src/cli/main.ts")) {
       `\`tsx src/cli/main.ts --version\` ended by SIGTERM, not by its bound (${CLI_BOUND_MS} ms)`,
     );
     expect(error.message).toContain("sent through tsx: exit status 143");
+    // The diagnosis of a relayed 143 holds the ps snapshot, as a signal ending's does.
+    expect(error.message).toMatch(
+      new RegExp(`worker: pid ${process.pid}, parent \\d+, group \\d+`),
+    );
     expect(error.message).toContain("stdout (16 bytes): preload: loaded");
     expect(error.message).toContain("stderr (25 bytes): preload: sending SIGTERM");
   });
