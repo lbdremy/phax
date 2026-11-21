@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -22,7 +22,7 @@ const withGit = <A>(f: (ops: GitOps) => Effect.Effect<A, unknown>): Promise<A> =
 let repo: string;
 
 const git = (...args: string[]): string =>
-  execFileSync("git", args, { cwd: repo, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 
 // The real index, as `git ls-files --stage` lists it, and what `git diff
 // --cached` stages: both must be the same after a snapshot or a restore.

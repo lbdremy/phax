@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Effect, Result, Layer } from "effect";
@@ -268,7 +268,8 @@ async function driveFirstTurn(): Promise<void> {
   const phaseFolder = join(fake.root, "runs", "invoice-export", "phase-03");
   mkdirSync(worktree, { recursive: true });
   mkdirSync(phaseFolder, { recursive: true });
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: worktree, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: worktree });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(worktree);
   git("config", "--local", "user.email", "ada@example.test");

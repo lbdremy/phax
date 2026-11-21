@@ -9,7 +9,6 @@
  */
 
 import { Effect, Result, Layer } from "effect";
-import { execSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -33,6 +32,7 @@ import type { Git } from "../../src/ports/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 import {
   resolveAuthoringConfig,
@@ -191,17 +191,17 @@ describe("the noted base — real git", () => {
   const phase02Id = Result.getOrThrow(decodePhaseId("phase-02"));
   const layers = Layer.mergeAll(NodeGitLayer, NodeFileSystemLayer);
 
-  function git(args: string): string {
-    return execSync(`git ${args}`, { cwd: repoDir, stdio: "pipe" }).toString().trim();
+  function git(...args: string[]): string {
+    return boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoDir }).trim();
   }
 
   function commitOn(branch: string, file: string): string {
-    git(`checkout -q ${branch}`);
+    git("checkout", "-q", branch);
     writeFileSync(join(repoDir, file), `${file}\n`);
-    git(`add ${file}`);
-    git(`commit -q -m "chore: ${file}"`);
-    git("checkout -q main");
-    return git(`rev-parse ${branch}`);
+    git("add", file);
+    git("commit", "-q", "-m", `chore: ${file}`);
+    git("checkout", "-q", "main");
+    return git("rev-parse", branch);
   }
 
   function prepare(phaseId: PhaseId, from: BranchName) {
@@ -224,14 +224,14 @@ describe("the noted base — real git", () => {
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-noted-base-"));
     runPath = await mkdtemp(join(tmpdir(), "phax-noted-base-run-"));
-    git("init -q -b main");
+    git("init", "-q", "-b", "main");
     disableGitAutoMaintenance(repoDir);
-    git("config --local user.email test@phax.test");
-    git("config --local user.name 'phax test'");
+    git("config", "--local", "user.email", "test@phax.test");
+    git("config", "--local", "user.name", "phax test");
     writeFileSync(join(repoDir, "README.md"), "# example\n");
-    git("add README.md");
-    git('commit -q -m "chore: initial commit"');
-    git("branch ai/my-run");
+    git("add", "README.md");
+    git("commit", "-q", "-m", "chore: initial commit");
+    git("branch", "ai/my-run");
     commitOn("ai/my-run", "run.txt");
   });
 
@@ -241,7 +241,7 @@ describe("the noted base — real git", () => {
   });
 
   it("notes the full sha of the source branch's tip when phax creates the branch", async () => {
-    const runTip = git("rev-parse ai/my-run");
+    const runTip = git("rev-parse", "ai/my-run");
 
     const prepared = await run(prepare(phase01Id, runBranch));
     expect(prepared).toEqual({ kind: "created", branch: "ai/my-run--phase-01", base: runTip });
@@ -261,7 +261,7 @@ describe("the noted base — real git", () => {
   });
 
   it("keeps the noted base after commits on the phase branch and a moved source branch", async () => {
-    const runTip = git("rev-parse ai/my-run");
+    const runTip = git("rev-parse", "ai/my-run");
     const prepared = await run(prepare(phase01Id, runBranch));
     await run(noteBase(phase01, 0, prepared));
 
@@ -278,7 +278,7 @@ describe("the noted base — real git", () => {
     const prepared = await run(prepare(phase01Id, runBranch));
     await run(noteBase(phase01, 0, prepared));
 
-    git("branch -D ai/my-run--phase-01");
+    git("branch", "-D", "ai/my-run--phase-01");
     renameSync(join(runPath, "phase-01"), join(runPath, "phase-01.archived"));
     const newTip = commitOn("ai/my-run", "moved.txt");
 
@@ -293,7 +293,7 @@ describe("the noted base — real git", () => {
     await run(noteBase(phase01, 0, prepared));
     const before = readStatus("phase-01");
 
-    git("branch -D ai/my-run--phase-01");
+    git("branch", "-D", "ai/my-run--phase-01");
     const newTip = commitOn("ai/my-run", "moved.txt");
 
     const recreated = await run(prepare(phase01Id, runBranch));
@@ -304,7 +304,7 @@ describe("the noted base — real git", () => {
   });
 
   it("refuses a phase branch that exists without a phase status, naming the branch", async () => {
-    git("branch ai/my-run--phase-01 ai/my-run");
+    git("branch", "ai/my-run--phase-01", "ai/my-run");
 
     const prepared = await run(prepare(phase01Id, runBranch));
     expect(prepared.kind).toBe("existing");

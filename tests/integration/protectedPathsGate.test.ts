@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -160,7 +160,8 @@ beforeEach(() => {
   mkdirSync(repoRoot, { recursive: true });
   mkdirSync(realStateRoot, { recursive: true });
   symlinkSync(realStateRoot, stateRoot);
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoRoot });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");
@@ -413,7 +414,7 @@ function exhaustedOf(observed: Observed): GateAttemptsExhaustedError {
 }
 
 function commitSubjects(worktree: string): string[] {
-  return execFileSync("git", ["log", "--format=%s"], { cwd: worktree, encoding: "utf8" })
+  return boundedOutput("git", ["log", "--format=%s"], { boundMs: GIT_BOUND_MS, cwd: worktree })
     .split("\n")
     .filter((line) => line.length > 0);
 }
@@ -514,7 +515,7 @@ describe("a phase base rewritten in status.json during the agent's turn", () => 
         const status = readJson(statusPath) as { base: string; worktreePath: string };
         original ??= status.base;
         const git = (...args: string[]): string =>
-          execFileSync("git", args, { cwd: status.worktreePath, encoding: "utf8" }).trim();
+          boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: status.worktreePath }).trim();
         git("add", "-A");
         const tree = git("write-tree");
         git("reset", "-q");

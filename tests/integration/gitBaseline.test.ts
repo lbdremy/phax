@@ -2,19 +2,19 @@ import { writeFile, appendFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
-function runGit(args: string, cwd: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "pipe" });
+function runGit(args: readonly string[], cwd: string): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function headSha(cwd: string): string {
-  return execSync("git rev-parse HEAD", { cwd, stdio: "pipe" }).toString().trim();
+  return boundedOutput("git", ["rev-parse", "HEAD"], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 describe("NodeGitLayer baseline operations", () => {
@@ -22,14 +22,14 @@ describe("NodeGitLayer baseline operations", () => {
 
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-baseline-test-"));
-    runGit("init", repoDir);
+    runGit(["init"], repoDir);
     disableGitAutoMaintenance(repoDir);
-    runGit("config --local user.email test@phax.test", repoDir);
-    runGit("config --local user.name 'phax test'", repoDir);
+    runGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
+    runGit(["config", "--local", "user.name", "phax test"], repoDir);
 
     await writeFile(join(repoDir, "README.md"), "# test\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: initial commit'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: initial commit"], repoDir);
   });
 
   afterEach(() => {
@@ -74,8 +74,8 @@ describe("NodeGitLayer baseline operations", () => {
     const baseline = headSha(repoDir);
 
     await writeFile(join(repoDir, "new.ts"), "export const y = 2;\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'feat: add new.ts'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "feat: add new.ts"], repoDir);
 
     const files = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.changedFilesSince(baseline, repoDir)).pipe(
@@ -91,13 +91,13 @@ describe("NodeGitLayer baseline operations", () => {
   // file deleted at completion, a plan moved into archive/) saw no change.
   it("changedFilesSince lists both paths of a rename, committed or not", async () => {
     await writeFile(join(repoDir, "old.md"), "# same content\n".repeat(20));
-    runGit("add .", repoDir);
-    runGit("commit -m 'docs: add old.md'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "docs: add old.md"], repoDir);
     const baseline = headSha(repoDir);
 
-    runGit("mv old.md archive.md", repoDir);
-    runGit("commit -m 'docs: move old.md'", repoDir);
-    runGit("mv README.md MOVED.md", repoDir);
+    runGit(["mv", "old.md", "archive.md"], repoDir);
+    runGit(["commit", "-m", "docs: move old.md"], repoDir);
+    runGit(["mv", "README.md", "MOVED.md"], repoDir);
 
     const files = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.changedFilesSince(baseline, repoDir)).pipe(

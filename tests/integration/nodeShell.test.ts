@@ -1,5 +1,4 @@
 import { Effect, Result } from "effect";
-import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -7,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { NodeShellLayer } from "../../src/infra/shell.js";
 import { Shell } from "../../src/ports/shell.js";
+import { SCRIPT_BOUND_MS, boundedSpawn } from "../helpers/boundedSpawn.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 
@@ -104,7 +104,10 @@ describe("NodeShellLayer timeout", () => {
           ").then(() => process.exit(0));",
         ].join("\n");
 
-        const result = spawnSync("tsx", ["-e", cli], { cwd: repoRoot, encoding: "utf8" });
+        const result = boundedSpawn("tsx", ["-e", cli], {
+          boundMs: SCRIPT_BOUND_MS,
+          cwd: repoRoot,
+        });
         expect(result.status, result.stderr).toBe(0);
 
         expect(await exitsWithin(pid(), 2_000)).toBe(true);

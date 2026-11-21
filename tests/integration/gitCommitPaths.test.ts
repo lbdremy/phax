@@ -1,16 +1,16 @@
 import { writeFile } from "node:fs/promises";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import { Git } from "../../src/ports/git.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
-function runGit(args: string, cwd: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "pipe" });
+function runGit(args: readonly string[], cwd: string): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 describe("NodeGitLayer.commitPaths", () => {
@@ -18,14 +18,14 @@ describe("NodeGitLayer.commitPaths", () => {
 
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-commit-paths-test-"));
-    runGit("init", repoDir);
+    runGit(["init"], repoDir);
     disableGitAutoMaintenance(repoDir);
-    runGit("config --local user.email test@phax.test", repoDir);
-    runGit("config --local user.name 'phax test'", repoDir);
+    runGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
+    runGit(["config", "--local", "user.name", "phax test"], repoDir);
 
     await writeFile(join(repoDir, "README.md"), "# test\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: initial commit'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: initial commit"], repoDir);
   });
 
   afterEach(() => {
@@ -35,7 +35,7 @@ describe("NodeGitLayer.commitPaths", () => {
   it("commits only the given paths, leaving an unrelated dirty file untouched", async () => {
     await writeFile(join(repoDir, "target.txt"), "committed\n");
     await writeFile(join(repoDir, "unrelated.txt"), "left dirty\n");
-    runGit("add target.txt unrelated.txt", repoDir);
+    runGit(["add", "target.txt", "unrelated.txt"], repoDir);
 
     await Effect.runPromise(
       Effect.flatMap(Git, (git) =>
@@ -43,23 +43,26 @@ describe("NodeGitLayer.commitPaths", () => {
       ).pipe(Effect.provide(NodeGitLayer)),
     );
 
-    const committed = execSync("git show --name-status HEAD", {
+    const committed = boundedOutput("git", ["show", "--name-status", "HEAD"], {
+      boundMs: GIT_BOUND_MS,
       cwd: repoDir,
-      stdio: "pipe",
-    }).toString();
+    });
     expect(committed).toContain("target.txt");
     expect(committed).not.toContain("unrelated.txt");
 
-    const status = execSync("git status --porcelain", { cwd: repoDir, stdio: "pipe" }).toString();
+    const status = boundedOutput("git", ["status", "--porcelain"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoDir,
+    });
     expect(status).toContain("unrelated.txt");
   });
 
   it("commits a delete+create pair (archive-move shape) in one commit", async () => {
     await writeFile(join(repoDir, "source.txt"), "moving\n");
-    runGit("add source.txt", repoDir);
-    runGit("commit -m 'chore: add source'", repoDir);
+    runGit(["add", "source.txt"], repoDir);
+    runGit(["commit", "-m", "chore: add source"], repoDir);
 
-    execSync("mv source.txt dest.txt", { cwd: repoDir, stdio: "pipe" });
+    renameSync(join(repoDir, "source.txt"), join(repoDir, "dest.txt"));
 
     await Effect.runPromise(
       Effect.flatMap(Git, (git) =>
@@ -67,13 +70,16 @@ describe("NodeGitLayer.commitPaths", () => {
       ).pipe(Effect.provide(NodeGitLayer)),
     );
 
-    const committed = execSync("git show --name-status HEAD", {
+    const committed = boundedOutput("git", ["show", "--name-status", "HEAD"], {
+      boundMs: GIT_BOUND_MS,
       cwd: repoDir,
-      stdio: "pipe",
-    }).toString();
+    });
     expect(committed).toMatch(/D\s+source\.txt[\s\S]*A\s+dest\.txt|R\d*\s+source\.txt\s+dest\.txt/);
 
-    const status = execSync("git status --porcelain", { cwd: repoDir, stdio: "pipe" }).toString();
+    const status = boundedOutput("git", ["status", "--porcelain"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoDir,
+    });
     expect(status.trim()).toBe("");
   });
 
@@ -86,10 +92,10 @@ describe("NodeGitLayer.commitPaths", () => {
       ).pipe(Effect.provide(NodeGitLayer)),
     );
 
-    const committed = execSync("git show --name-status HEAD", {
+    const committed = boundedOutput("git", ["show", "--name-status", "HEAD"], {
+      boundMs: GIT_BOUND_MS,
       cwd: repoDir,
-      stdio: "pipe",
-    }).toString();
+    });
     expect(committed).toMatch(/A\s+new-file\.txt/);
   });
 });
@@ -99,16 +105,16 @@ describe("NodeGitLayer.dirtyPaths", () => {
 
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-dirty-paths-test-"));
-    runGit("init", repoDir);
+    runGit(["init"], repoDir);
     disableGitAutoMaintenance(repoDir);
-    runGit("config --local user.email test@phax.test", repoDir);
-    runGit("config --local user.name 'phax test'", repoDir);
+    runGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
+    runGit(["config", "--local", "user.name", "phax test"], repoDir);
 
     await writeFile(join(repoDir, "clean.txt"), "clean\n");
     await writeFile(join(repoDir, "modified.txt"), "original\n");
     await writeFile(join(repoDir, "staged.txt"), "original\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: initial commit'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: initial commit"], repoDir);
   });
 
   afterEach(() => {
@@ -118,7 +124,7 @@ describe("NodeGitLayer.dirtyPaths", () => {
   it("reports exactly the dirty subset for modified, staged, untracked, and clean paths", async () => {
     await writeFile(join(repoDir, "modified.txt"), "changed\n");
     await writeFile(join(repoDir, "staged.txt"), "changed\n");
-    runGit("add staged.txt", repoDir);
+    runGit(["add", "staged.txt"], repoDir);
     await writeFile(join(repoDir, "untracked.txt"), "brand new\n");
 
     const result = await Effect.runPromise(

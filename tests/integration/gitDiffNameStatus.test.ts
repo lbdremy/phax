@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -10,8 +10,8 @@ import { Git, GitError } from "../../src/ports/git.js";
 import type { BranchName, WorktreePath } from "../../src/domain/branded.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
-function runGit(args: string, cwd: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "pipe" });
+function runGit(args: readonly string[], cwd: string): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 describe("NodeGitLayer.diffNameStatus", () => {
@@ -19,15 +19,15 @@ describe("NodeGitLayer.diffNameStatus", () => {
 
   beforeEach(async () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-diff-test-"));
-    runGit("init", repoDir);
+    runGit(["init"], repoDir);
     disableGitAutoMaintenance(repoDir);
-    runGit("config --local user.email test@phax.test", repoDir);
-    runGit("config --local user.name 'phax test'", repoDir);
+    runGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
+    runGit(["config", "--local", "user.name", "phax test"], repoDir);
 
     // Initial commit so HEAD^ is valid on the next commit
     await writeFile(join(repoDir, "README.md"), "# test\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: initial commit'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: initial commit"], repoDir);
   });
 
   afterEach(async () => {
@@ -38,15 +38,15 @@ describe("NodeGitLayer.diffNameStatus", () => {
     // Second commit: add files we'll modify/delete later
     await writeFile(join(repoDir, "to-delete.txt"), "bye\n");
     await writeFile(join(repoDir, "to-modify.ts"), "export const x = 1;\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: setup'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: setup"], repoDir);
 
     // Third commit: the one we're diffing (HEAD^..HEAD)
     await writeFile(join(repoDir, "new.ts"), "export const y = 2;\n");
     await writeFile(join(repoDir, "to-modify.ts"), "export const x = 99;\n");
-    runGit("rm to-delete.txt", repoDir);
-    runGit("add .", repoDir);
-    runGit("commit -m 'feat: changes'", repoDir);
+    runGit(["rm", "to-delete.txt"], repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "feat: changes"], repoDir);
 
     const entries = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
@@ -64,8 +64,8 @@ describe("NodeGitLayer.diffNameStatus", () => {
 
   it("returns only the modified file when a single file is changed", async () => {
     await writeFile(join(repoDir, "README.md"), "# updated\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'update readme'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "update readme"], repoDir);
 
     const entries = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
@@ -80,11 +80,11 @@ describe("NodeGitLayer.diffNameStatus", () => {
 
   it("returns a renamed entry for a renamed file", async () => {
     await writeFile(join(repoDir, "old-name.ts"), "export const z = 3;\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'add old-name.ts'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "add old-name.ts"], repoDir);
 
-    runGit("mv old-name.ts new-name.ts", repoDir);
-    runGit("commit -m 'rename file'", repoDir);
+    runGit(["mv", "old-name.ts", "new-name.ts"], repoDir);
+    runGit(["commit", "-m", "rename file"], repoDir);
 
     const entries = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.diffNameStatus(repoDir as WorktreePath)).pipe(
@@ -99,7 +99,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
   });
 
   it("deletes a branch when forced", async () => {
-    runGit("branch phase-test", repoDir);
+    runGit(["branch", "phase-test"], repoDir);
 
     await Effect.runPromise(
       Effect.flatMap(Git, (git) =>
@@ -107,7 +107,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
       ).pipe(Effect.provide(NodeGitLayer)),
     );
 
-    expect(() => runGit("rev-parse --verify --quiet phase-test", repoDir)).toThrow();
+    expect(() => runGit(["rev-parse", "--verify", "--quiet", "phase-test"], repoDir)).toThrow();
   });
 
   it("returns GitError when deleting a missing branch without force", async () => {
@@ -129,7 +129,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
   // Regression: `git rev-parse` treats args after `--` as pathspecs, not revs,
   // so passing `--` here made branchExists always report false for a real branch.
   it("branchExists returns true for an existing branch", async () => {
-    runGit("branch phase-test", repoDir);
+    runGit(["branch", "phase-test"], repoDir);
 
     const result = await Effect.runPromise(
       Effect.flatMap(Git, (git) => git.branchExists("phase-test" as BranchName, repoDir)).pipe(
@@ -141,7 +141,7 @@ describe("NodeGitLayer.diffNameStatus", () => {
   });
 
   it("branchExists returns true for a branch name containing slashes and dashes", async () => {
-    runGit("branch phax/plan-43--phase-03", repoDir);
+    runGit(["branch", "phax/plan-43--phase-03"], repoDir);
 
     const result = await Effect.runPromise(
       Effect.flatMap(Git, (git) =>
@@ -171,17 +171,20 @@ describe("NodeGitLayer.remoteExists and pushBranch", () => {
     repoDir = mkdtempSync(join(tmpdir(), "phax-git-push-test-"));
     bareRemoteDir = mkdtempSync(join(tmpdir(), "phax-git-push-remote-"));
 
-    execSync("git init --bare -b main", { cwd: bareRemoteDir, stdio: "pipe" });
+    boundedOutput("git", ["init", "--bare", "-b", "main"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: bareRemoteDir,
+    });
     disableGitAutoMaintenance(bareRemoteDir);
 
-    runGit("init -b main", repoDir);
-    runGit("config --local user.email test@phax.test", repoDir);
-    runGit("config --local user.name 'phax test'", repoDir);
-    runGit(`remote add origin ${bareRemoteDir}`, repoDir);
+    runGit(["init", "-b", "main"], repoDir);
+    runGit(["config", "--local", "user.email", "test@phax.test"], repoDir);
+    runGit(["config", "--local", "user.name", "phax test"], repoDir);
+    runGit(["remote", "add", "origin", bareRemoteDir], repoDir);
 
     await writeFile(join(repoDir, "README.md"), "# test\n");
-    runGit("add .", repoDir);
-    runGit("commit -m 'chore: initial'", repoDir);
+    runGit(["add", "."], repoDir);
+    runGit(["commit", "-m", "chore: initial"], repoDir);
   });
 
   afterEach(async () => {
@@ -214,7 +217,7 @@ describe("NodeGitLayer.remoteExists and pushBranch", () => {
       ),
     );
 
-    const refs = execSync("git branch", { cwd: bareRemoteDir, stdio: "pipe" }).toString();
+    const refs = boundedOutput("git", ["branch"], { boundMs: GIT_BOUND_MS, cwd: bareRemoteDir });
     expect(refs).toContain("main");
   });
 

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -31,10 +31,9 @@ function sh(
   cwd: string,
   opts: { env?: NodeJS.ProcessEnv; input?: string } = {},
 ) {
-  return execFileSync("git", [...args], {
+  return boundedOutput("git", [...args], {
+    boundMs: GIT_BOUND_MS,
     cwd,
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
     ...(opts.env !== undefined ? { env: { ...process.env, ...opts.env } } : {}),
     ...(opts.input !== undefined ? { input: opts.input } : {}),
   });

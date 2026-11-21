@@ -1,10 +1,7 @@
-import { spawnSync } from "node:child_process";
 import {
-  closeSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
-  openSync,
   readdirSync,
   readFileSync,
   realpathSync,
@@ -36,6 +33,7 @@ import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
 import { currentSchemaUrl, readGateAttributionFile } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { SCRIPT_BOUND_MS, boundedSpawn } from "../helpers/boundedSpawn.js";
 
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
@@ -925,13 +923,11 @@ describe("runGates with a declaring step (Node shell)", () => {
     const gateTime = lineAfter(readLogLines(ws), "stdin: checks-attempt-01.request.json");
 
     // node echo.mjs < phase-01/checks-attempt-01.request.json
-    const fd = openSync(ws.requestPath, "r");
-    const replay = spawnSync(process.execPath, ["echo.mjs", "replay.json"], {
+    const replay = boundedSpawn(process.execPath, ["echo.mjs", "replay.json"], {
+      boundMs: SCRIPT_BOUND_MS,
       cwd: ws.dir,
-      stdio: [fd, "pipe", "pipe"],
-      encoding: "utf8",
+      input: readFileSync(ws.requestPath),
     });
-    closeSync(fd);
 
     expect(replay.status).toBe(0);
     expect(gateTime).toMatch(/^phase=phase-01 base=[0-9a-f]{40} terminal=false bytes=\d+$/);

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,7 +26,7 @@ interface World {
 }
 
 function sh(args: readonly string[], cwd: string): void {
-  execFileSync("git", [...args], { cwd, stdio: "pipe" });
+  boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 /** What the repository's index holds besides nothing: a gitlink at `code`, a file in `visible`. */
