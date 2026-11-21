@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { fileURLToPath } from "node:url";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { cliThrewIn } from "./runCli.js";
 
 const FIXTURE_DIR = fileURLToPath(new URL("../fixtures/minimal-repo", import.meta.url));
 
@@ -45,6 +46,8 @@ export function createTempEnv(): TempEnv {
     repoDir,
     phaxHome,
     cleanup() {
+      // A CLI call that threw printed these paths: keep them for reading.
+      if (cliThrewIn(repoDir)) return;
       removeTempDir(repoDir);
       removeTempDir(phaxHome);
     },
