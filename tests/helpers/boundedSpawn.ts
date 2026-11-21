@@ -115,7 +115,10 @@ interface EndingReport {
   /** Descendants SIGKILL ended: at the grace's end, or left over after a normal exit. */
   readonly descendantsKilled: number | null;
   readonly error: string | null;
-  /** `ps -A -o pid,ppid,pgid,stat,lstart,command` at the moment of a non-normal ending. */
+  /**
+   * `ps -A -o pid,ppid,pgid,stat,lstart,command` at the moment of a non-normal ending or of an
+   * exit status above 128; null otherwise.
+   */
   readonly snapshot: string | null;
   /** ISO moment the thread saw the ending. */
   readonly seenAt: string | null;
@@ -228,8 +231,10 @@ function runCall({ call, flag, port }: ThreadRequest): void {
       childKilled,
       descendantsKilled,
       error: spawnError,
-      snapshot: kind === "exit" ? null : snapshot,
-      seenAt: kind === "exit" ? null : seenAt,
+      // Taken only for an ending other than a normal exit, or for a status a launcher may have
+      // relayed from a signal (above 128): the caller decides which of those it reports.
+      snapshot,
+      seenAt,
       stdout: Buffer.concat(stdout).toString("utf8"),
       stderr: Buffer.concat(stderr).toString("utf8"),
     };
@@ -324,7 +329,9 @@ function runCall({ call, flag, port }: ThreadRequest): void {
   timers.push(bound);
   child.on("exit", (status, signal) => {
     childExit = { status, signal };
-    if (signal !== null && !ending) takeSnapshot();
+    // A status above 128 may be a launcher relaying a signal (tsx exits 143 on SIGTERM): the
+    // relayed-signal error needs the same ps snapshot as a signal ending.
+    if ((signal !== null || (status ?? 0) > 128) && !ending) takeSnapshot();
     // A process outside the group (one that called setsid) may hold the pipes: stop waiting.
     timers.push(
       setTimeout(() => {
