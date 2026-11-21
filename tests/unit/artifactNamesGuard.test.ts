@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..", "..");
 
 function trackedFiles(): string[] {
-  return execFileSync("git", ["ls-files"], { cwd: repoRoot, encoding: "utf8" })
+  return boundedOutput("git", ["ls-files"], { cwd: repoRoot, boundMs: GIT_BOUND_MS })
     .split("\n")
     .filter((f) => f.length > 0);
 }

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { Paragraph } from "mdast";
@@ -367,9 +367,9 @@ describe("the committed site", () => {
     expect(paragraphs.length).toBeGreaterThan(0);
     // The files git tracks under site/, so local renders and the ignored
     // generated directories are never read.
-    const tracked = execFileSync("git", ["ls-files", "-z", "--", "site"], {
+    const tracked = boundedOutput("git", ["ls-files", "-z", "--", "site"], {
       cwd: ROOT,
-      encoding: "utf8",
+      boundMs: GIT_BOUND_MS,
     })
       .split("\0")
       .filter((name) => name !== "");

@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
-import { runCli } from "./helpers/runCli.js";
+import { E2E_CLI_BOUND_MS, runCli } from "./helpers/runCli.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { E2E_PROVIDERS, expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
 
@@ -50,7 +50,7 @@ for (const provider of E2E_PROVIDERS) {
             "--trace",
           ],
           env.repoDir,
-          { timeout: 590_000 },
+          { boundMs: 590_000 }, // a real provider call: its old timeout
         );
 
         if (result.exitCode !== 0) {
@@ -139,7 +139,9 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("session-info reports review_open state and a session ID", () => {
-      const result = runCli(["session-info", shortName], env.repoDir);
+      const result = runCli(["session-info", shortName], env.repoDir, {
+        boundMs: E2E_CLI_BOUND_MS,
+      });
 
       if (result.exitCode !== 0) {
         failed = true;
@@ -150,7 +152,7 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("ls lists the run", () => {
-      const result = runCli(["ls"], env.repoDir);
+      const result = runCli(["ls"], env.repoDir, { boundMs: E2E_CLI_BOUND_MS });
 
       if (result.exitCode !== 0) {
         failed = true;
@@ -161,7 +163,7 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("archive transitions run state to archived", () => {
-      const result = runCli(["archive", shortName], env.repoDir);
+      const result = runCli(["archive", shortName], env.repoDir, { boundMs: E2E_CLI_BOUND_MS });
 
       if (result.exitCode !== 0) {
         failed = true;

@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -24,10 +24,9 @@ function repositoryFiles(): ReadonlyArray<string> {
   // otherwise decide which untracked files a link may name.
   const restoreGit = isolateGit();
   try {
-    return execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
+    return boundedOutput("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], {
       cwd: ROOT,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
+      boundMs: GIT_BOUND_MS,
     })
       .split("\0")
       .filter((path) => path !== "");

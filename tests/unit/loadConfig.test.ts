@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, writeFileSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync, execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig, describeConfigSources } from "../../src/app/loadConfig.js";
@@ -36,7 +36,7 @@ let home: ReturnType<typeof isolatePhaxHome>;
 beforeEach(() => {
   home = isolatePhaxHome();
   repoDir = mkdtempSync(join(tmpdir(), "phax-loadconfig-test-"));
-  execSync("git init", { cwd: repoDir, stdio: "ignore" });
+  boundedOutput("git", ["init"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
 });
 
 afterEach(() => {
@@ -653,7 +653,7 @@ describe("loadConfig protectedPaths", () => {
       mkdirSync(join(repoDir, "vendor", "rules"), { recursive: true });
       writeFileSync(join(repoDir, "vendor", "rules", "a.json"), "{}\n");
       const git = (...args: string[]): void => {
-        execFileSync("git", args, { cwd: repoDir, stdio: "ignore" });
+        boundedOutput("git", args, { cwd: repoDir, boundMs: GIT_BOUND_MS });
       };
       git("add", "-A");
       git("-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-qm", "rules");

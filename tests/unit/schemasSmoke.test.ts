@@ -1,6 +1,6 @@
 // The pure pieces of scripts/schemas-smoke.ts. The smoke itself packs and
 // installs from the registry, so it runs only in CI and the release workflow.
-import { execFileSync, spawnSync } from "node:child_process";
+import { boundedOutput, boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { devNull, tmpdir } from "node:os";
 import { join } from "node:path";
@@ -102,7 +102,7 @@ describe("the records branch the smoke builds", () => {
     GIT_COMMITTER_EMAIL: "test@example.invalid",
   };
   const git = (cwd: string, ...args: ReadonlyArray<string>): string =>
-    execFileSync("git", args, { cwd, env: gitEnv, encoding: "utf8" }).trim();
+    boundedOutput("git", args, { cwd, env: gitEnv, boundMs: GIT_BOUND_MS }).trim();
 
   it("carries the trailers phax writes on a record commit", () => {
     expect(recordCommitMessage(smokeRecordManifest()).split("\n")).toEqual([
@@ -129,9 +129,10 @@ describe("the records branch the smoke builds", () => {
     }
     const path = `${SMOKE_RECORD_KEY}/record.json`;
 
-    const atTip = spawnSync("git", ["show", `phax/records/v1:${path}`], {
+    const atTip = boundedSpawn("git", ["show", `phax/records/v1:${path}`], {
       cwd: repo,
       env: gitEnv,
+      boundMs: GIT_BOUND_MS,
     });
     expect(atTip.status).not.toBe(0);
 

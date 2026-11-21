@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { boundedOutput, boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -119,7 +119,7 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
 
   beforeAll(() => {
     repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-claude-json-schema-")));
-    spawnSync("git", ["init", "-q"], { cwd: repoDir });
+    boundedOutput("git", ["init", "-q"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
   });
 
   afterAll(() => {
@@ -321,7 +321,7 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
           value: { type: "string" },
         },
       };
-      const spawned = spawnSync(
+      const spawned = boundedSpawn(
         "claude",
         [
           "-p",
@@ -333,7 +333,8 @@ describe.skipIf(!shouldRun)("claude-code --json-schema (real provider)", () => {
           "--model",
           MODEL,
         ],
-        { cwd: repoDir, input: "Answer with any value.", encoding: "utf8", timeout: 110_000 },
+        // 110 s: this call's own timeout before the bound; under its test's 120 s.
+        { cwd: repoDir, input: "Answer with any value.", boundMs: 110_000 },
       );
       const outcome = readClaudeOutcome({
         lines: spawned.stdout.split("\n").filter((line) => line.trim() !== ""),

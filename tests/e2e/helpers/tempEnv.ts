@@ -1,7 +1,7 @@
 import { cpSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { fileURLToPath } from "node:url";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 
@@ -33,13 +33,13 @@ export function createTempEnv(): TempEnv {
   // to a family and the forced provider supplies its concrete model.
 
   // Initialise a real git repo so phax can create worktrees
-  const gitOpts = { cwd: repoDir, stdio: "pipe" as const };
-  execSync("git init", gitOpts);
+  const gitOpts = { cwd: repoDir, boundMs: GIT_BOUND_MS };
+  boundedOutput("git", ["init"], gitOpts);
   disableGitAutoMaintenance(repoDir);
-  execSync("git config --local user.email e2e@phax.test", gitOpts);
-  execSync("git config --local user.name 'phax E2E'", gitOpts);
-  execSync("git add .", gitOpts);
-  execSync("git commit -m 'chore: initial commit'", gitOpts);
+  boundedOutput("git", ["config", "--local", "user.email", "e2e@phax.test"], gitOpts);
+  boundedOutput("git", ["config", "--local", "user.name", "phax E2E"], gitOpts);
+  boundedOutput("git", ["add", "."], gitOpts);
+  boundedOutput("git", ["commit", "-m", "chore: initial commit"], gitOpts);
 
   return {
     repoDir,

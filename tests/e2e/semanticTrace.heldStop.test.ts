@@ -16,7 +16,7 @@
  * Gate: set PHAX_E2E_RUN=1 to run.
  */
 
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -280,7 +280,8 @@ describe.skipIf(!shouldRun)("E2E semantic trace — held stop snapshot", () => {
     mkdirSync(stateRoot, { recursive: true });
     mkdirSync(join(root, "home"), { recursive: true });
     vi.stubEnv("HOME", join(root, "home"));
-    const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+    const git = (...args: string[]) =>
+      boundedOutput("git", args, { cwd: repoRoot, boundMs: GIT_BOUND_MS });
     git("init", "--initial-branch=main");
     disableGitAutoMaintenance(repoRoot);
     git("config", "--local", "user.email", "ada@example.test");

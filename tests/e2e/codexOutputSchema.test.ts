@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -124,7 +124,7 @@ describe.skipIf(!shouldRun)("codex --output-schema (real provider)", () => {
 
   beforeAll(() => {
     repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-codex-output-schema-")));
-    spawnSync("git", ["init", "-q"], { cwd: repoDir });
+    boundedOutput("git", ["init", "-q"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
   });
 
   afterAll(() => {
