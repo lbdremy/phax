@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 
 describe("schema upgrade", () => {
@@ -11,7 +11,7 @@ describe("schema upgrade", () => {
 
   beforeEach(() => {
     tmpDir = mkdtempSync(join(tmpdir(), "phax-schema-upgrade-cli-"));
-    execSync("git init", { cwd: tmpDir, stdio: "ignore" });
+    boundedOutput("git", ["init"], { cwd: tmpDir, boundMs: GIT_BOUND_MS });
     originalCwd = process.cwd();
     process.chdir(tmpDir);
   });

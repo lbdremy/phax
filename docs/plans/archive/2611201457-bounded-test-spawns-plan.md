@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611201446-bounded-test-spawns.md
 completes-spec: true
 approved:

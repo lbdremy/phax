@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { BoundedSpawnError, SCRIPT_BOUND_MS, boundedSpawn } from "../helpers/boundedSpawn.js";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { flagShapes, fullName } from "../../src/cli/commandLibrary/contract/index.js";
@@ -93,23 +93,22 @@ interface UsageJson {
 // ── Helpers ──────────────────────────────────────────────────────────────────────────────────
 
 function loadUsageJson(): UsageJson {
-  const result = spawnSync("usage", ["generate", "json", "-f", specPath], {
-    encoding: "utf8",
-    env: { ...process.env },
-  });
-
-  if (result.error !== undefined) {
-    const isNotFound =
-      (result.error as NodeJS.ErrnoException).code === "ENOENT" ||
-      result.error.message.includes("ENOENT");
-    if (isNotFound) {
+  let result: ReturnType<typeof boundedSpawn>;
+  try {
+    result = boundedSpawn("usage", ["generate", "json", "-f", specPath], {
+      boundMs: SCRIPT_BOUND_MS,
+      env: { ...process.env },
+    });
+  } catch (error) {
+    if (error instanceof BoundedSpawnError && error.message.includes("ENOENT")) {
       throw new Error(
         "The `usage` CLI is required for the parity gate but was not found on PATH.\n" +
           "Install it with: brew install usage\n" +
           "See https://usage.jdx.dev/cli/ for other install options.",
+        { cause: error },
       );
     }
-    throw result.error;
+    throw error;
   }
 
   if (result.status !== 0) {

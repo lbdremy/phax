@@ -2,7 +2,7 @@ import { writeFile } from "node:fs/promises";
 import { mkdtempSync, realpathSync, renameSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -11,7 +11,7 @@ import type { BranchName } from "../../src/domain/branded.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, stdio: "pipe" }).toString();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 const withGit = <A>(f: (ops: GitOps) => Effect.Effect<A, unknown>): Promise<A> =>

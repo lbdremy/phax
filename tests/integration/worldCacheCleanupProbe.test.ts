@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { existsSync, writeFileSync } from "node:fs";
 import { expect, it } from "vitest";
 import { cachedWorld } from "../fixtures/worlds/worldCache.js";
@@ -9,12 +9,15 @@ import { cachedWorld } from "../fixtures/worlds/worldCache.js";
 
 it("builds a cached world", async () => {
   const buildPath = await cachedWorld("probe", async (path) => {
-    execFileSync("git", ["init", "-q", "--bare", "-b", "main", path], { stdio: "pipe" });
-    execFileSync("git", ["config", "--local", "maintenance.auto", "false"], {
+    boundedOutput("git", ["init", "-q", "--bare", "-b", "main", path], { boundMs: GIT_BOUND_MS });
+    boundedOutput("git", ["config", "--local", "maintenance.auto", "false"], {
+      boundMs: GIT_BOUND_MS,
       cwd: path,
-      stdio: "pipe",
     });
-    execFileSync("git", ["config", "--local", "gc.auto", "0"], { cwd: path, stdio: "pipe" });
+    boundedOutput("git", ["config", "--local", "gc.auto", "0"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: path,
+    });
   });
   expect(existsSync(buildPath)).toBe(true);
   const report = process.env["PHAX_WORLD_CACHE_PROBE_REPORT"];

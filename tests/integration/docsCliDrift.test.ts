@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { execSync } from "node:child_process";
 import { readFileSync, mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { SCRIPT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   buildCliSummary,
   injectReadmeSection,
@@ -20,7 +20,9 @@ describe("docs:cli drift", () => {
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-docs-"));
     const tmpRef = join(tmpDir, "reference.md");
 
-    execSync(`usage generate markdown -f "${specPath}" --out-file "${tmpRef}"`);
+    boundedOutput("usage", ["generate", "markdown", "-f", specPath, "--out-file", tmpRef], {
+      boundMs: SCRIPT_BOUND_MS,
+    });
     const freshRef = readFileSync(tmpRef, "utf8");
 
     expect(freshRef).toBe(committedRef);
@@ -39,7 +41,9 @@ describe("docs:cli drift", () => {
     const specPath = join(repoRoot, "phax.usage.kdl");
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-docs-"));
     const tmpRef = join(tmpDir, "reference.md");
-    execSync(`usage generate markdown -f "${specPath}" --out-file "${tmpRef}"`);
+    boundedOutput("usage", ["generate", "markdown", "-f", specPath, "--out-file", tmpRef], {
+      boundMs: SCRIPT_BOUND_MS,
+    });
 
     const freshRef = readFileSync(tmpRef, "utf8");
     const expectedContent = "\n\n" + buildCliSummary(freshRef) + "\n\n";
@@ -54,7 +58,9 @@ describe("docs:cli drift", () => {
     const specPath = join(repoRoot, "phax.usage.kdl");
     const tmpDir = mkdtempSync(join(tmpdir(), "phax-docs-"));
     const tmpRef = join(tmpDir, "reference.md");
-    execSync(`usage generate markdown -f "${specPath}" --out-file "${tmpRef}"`);
+    boundedOutput("usage", ["generate", "markdown", "-f", specPath, "--out-file", tmpRef], {
+      boundMs: SCRIPT_BOUND_MS,
+    });
 
     const freshRef = readFileSync(tmpRef, "utf8");
     const summary = buildCliSummary(freshRef);

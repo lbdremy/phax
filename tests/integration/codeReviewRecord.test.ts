@@ -4,7 +4,7 @@
 // the first still in the branch's history, and nothing at all with records off.
 // Real git in a temporary repository; nothing reaches GitHub or a provider.
 import { Effect, Layer } from "effect";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdtempSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -80,7 +80,7 @@ function answerOf(messages: readonly string[]): string {
 }
 
 function runGit(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS });
 }
 
 describe("code review entry (real git)", () => {

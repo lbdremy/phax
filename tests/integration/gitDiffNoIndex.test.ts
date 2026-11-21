@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { chmodSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -17,7 +17,7 @@ let repoDir: string;
 
 beforeEach(() => {
   repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-diff-no-index-")));
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repoDir, stdio: "pipe" });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   disableGitAutoMaintenance(repoDir);
 });
 
@@ -93,7 +93,7 @@ describe("Git.diffNoIndex", () => {
       ["color.ui", "always"],
       ["color.diff", "always"],
     ] as const) {
-      execFileSync("git", ["config", key, value], { cwd: repoDir, stdio: "pipe" });
+      boundedOutput("git", ["config", key, value], { boundMs: GIT_BOUND_MS, cwd: repoDir });
     }
     const before = join(repoDir, "before.md");
     const after = join(repoDir, "after.md");

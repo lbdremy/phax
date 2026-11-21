@@ -3,7 +3,6 @@
 // called alone writes its help on stderr and exits 64, `phax --json-schema` prints the runner
 // program's catalogue, and `phax --usage` prints the committed phax.usage.kdl.
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,18 +10,26 @@ import { fileURLToPath } from "node:url";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
-const mainTs = join(repoRoot, "src/cli/main.ts");
 
 let base: string;
 let repo: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd: repo,
-    encoding: "utf8",
     env: phaxHomeEnv(),
   });
 }
@@ -32,7 +39,7 @@ beforeAll(() => {
   base = realpathSync(mkdtempSync(join(tmpdir(), "phax-cli-refused-")));
   repo = join(base, "repo");
   mkdirSync(repo);
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo, stdio: "ignore" });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: repo });
   disableGitAutoMaintenance(repo);
   writeFileSync(
     join(repo, "phax.json"),

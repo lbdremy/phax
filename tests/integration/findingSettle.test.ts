@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { findingGroup } from "../../src/cli/definitions/finding.js";
@@ -31,7 +31,7 @@ const POINTER = "docs/briefs/gate-retry-docs.md";
 const OPERATOR = { kind: "operator", name: "phax test" };
 
 function git(repo: FateRunRepo, args: readonly string[]): string {
-  return execFileSync("git", [...args], { cwd: repo.repoDir, encoding: "utf8", stdio: "pipe" });
+  return boundedOutput("git", [...args], { cwd: repo.repoDir, boundMs: GIT_BOUND_MS });
 }
 
 describe("phax finding dismiss and defer", () => {

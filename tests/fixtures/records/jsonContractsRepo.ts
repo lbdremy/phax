@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,6 +8,7 @@ import { decodeBranchName } from "../../../src/domain/branded.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../../src/schemas/runRecord.js";
 import { withSchemaUrl } from "../../../src/schemas/persisted.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 export const PROMPT_TEXT = "Implement the widget.\nKeep it small.";
 const DIFF_TEXT = [
@@ -38,7 +38,7 @@ export interface JsonContractsRepo {
 }
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" }).trim();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 /**

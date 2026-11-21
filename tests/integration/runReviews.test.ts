@@ -3,7 +3,7 @@
 // when it differs from the newest record of its kind). Real git in a temporary
 // repository, records written by writeReviewRecord.
 import { Effect, Layer } from "effect";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, readdirSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -35,7 +35,7 @@ const RECORDS: ResolvedRecordsConfig = {
 };
 
 function runGit(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function finding(message: string, id?: string) {

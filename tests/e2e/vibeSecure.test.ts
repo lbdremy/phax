@@ -55,7 +55,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { parsePartialCommand } from "../../src/domain/gate/partialCommand.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { runVibeAgent } from "../../src/infra/providers/mistralVibe.js";
@@ -67,12 +67,12 @@ import { removeTempDir } from "../helpers/tempGit.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { runCli } from "./helpers/runCli.js";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
-import { expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
+import { expectedSelectedProvider, probeProvider, providerVersion } from "./helpers/providers.js";
 
 function vibeVersionAtLeast313(): boolean {
-  const r = spawnSync("vibe", ["--version"], { encoding: "utf8", timeout: 5_000, stdio: "pipe" });
-  if (r.status !== 0) return false;
-  const v = parseVibeVersion(`${r.stdout}${r.stderr}`);
+  const output = providerVersion("vibe"); // undefined: not installed, or not answering
+  if (output === undefined) return false;
+  const v = parseVibeVersion(output);
   if (v === undefined) return false;
   if (v.major !== 3) return v.major > 3;
   if (v.minor !== 1) return v.minor > 1;
@@ -349,7 +349,7 @@ function commitSetup(env: TempEnv): void {
     ["add", "-A"],
     ["commit", "-q", "--allow-empty", "-m", "chore: e2e setup"],
   ]) {
-    const r = spawnSync("git", args, { cwd: env.repoDir, encoding: "utf8", stdio: "pipe" });
+    const r = boundedSpawn("git", args, { cwd: env.repoDir, boundMs: GIT_BOUND_MS });
     expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
   }
 }
@@ -373,7 +373,7 @@ function runPhase(
       ...extraArgs,
     ],
     env.repoDir,
-    { timeout: 590_000, env: extraEnv },
+    { boundMs: 590_000, env: extraEnv }, // a real provider call: its old timeout
   );
 }
 
@@ -572,7 +572,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       expect(existsSync(join(cwd, "notes.txt")), "the builder wrote").toBe(true);
 
       const status = (): string =>
-        spawnSync("git", ["status", "--porcelain"], { cwd, encoding: "utf8" }).stdout;
+        boundedSpawn("git", ["status", "--porcelain"], { cwd, boundMs: GIT_BOUND_MS }).stdout;
       const before = status();
 
       // The same session, resumed read-only as a stop's closing turn is.
@@ -629,7 +629,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
 
       const shortName = (runDir(env).split("/").pop() as string).split(".").slice(1).join(".");
       const resumed = runCli(["resume", shortName, "--yes", "--verbose"], env.repoDir, {
-        timeout: 590_000,
+        boundMs: 590_000, // a real provider call: its old timeout
       });
       failed ||= resumed.exitCode !== 0;
       expect(resumed.exitCode, `stdout:\n${resumed.stdout}\nstderr:\n${resumed.stderr}`).toBe(0);
@@ -717,7 +717,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-"));
       scratch.push(cwd);
       const git = (...args: string[]): void => {
-        const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+        const r = boundedSpawn("git", args, { cwd, boundMs: GIT_BOUND_MS });
         expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
       };
       git("init", "-q");
@@ -790,7 +790,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       const cwd = mkdtempSync(join(tmpdir(), "phax-e2e-vibe-partial-neg-"));
       scratch.push(cwd);
       const git = (...args: string[]): void => {
-        const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+        const r = boundedSpawn("git", args, { cwd, boundMs: GIT_BOUND_MS });
         expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
       };
       git("init", "-q");
@@ -940,7 +940,7 @@ describe.skipIf(DIRECT_SKIP !== undefined)(
       const vibeHome = mkdtempSync(join(tmpdir(), `phax-e2e-vibe-${label}-home-`));
       scratch.push(cwd, phaseFolder, vibeHome);
       const git = (...args: string[]): void => {
-        const r = spawnSync("git", args, { cwd, encoding: "utf8", stdio: "pipe" });
+        const r = boundedSpawn("git", args, { cwd, boundMs: GIT_BOUND_MS });
         expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
       };
       git("init", "-q");

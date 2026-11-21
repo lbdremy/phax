@@ -1,19 +1,24 @@
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { isolatePhaxHome, phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `phax validate` and `phax run` from source in a made-up git repository: how
 // the CLI reads phax.json's `protectedPaths`. Every spawned CLI gets a
 // temporary HOME (phaxHomeEnv), and git is isolated from the person's
 // configuration, so no real ~/.phax or global git config is read.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 let base: string;
 let repo: string;
@@ -26,7 +31,7 @@ beforeEach(() => {
   base = realpathSync(mkdtempSync(join(tmpdir(), "phax-protected-config-test-")));
   repo = join(base, "repo");
   mkdirSync(repo);
-  execFileSync("git", ["init", "--initial-branch=main"], { cwd: repo, stdio: "pipe" });
+  boundedOutput("git", ["init", "--initial-branch=main"], { boundMs: GIT_BOUND_MS, cwd: repo });
   disableGitAutoMaintenance(repo);
 });
 
@@ -36,8 +41,12 @@ afterEach(() => {
   restoreGit();
 });
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd: repo, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd: repo,
+    env: phaxHomeEnv(),
+  });
 }
 
 function writePhaxJson(extra: Record<string, unknown>): void {
@@ -53,8 +62,7 @@ function writePhaxJson(extra: Record<string, unknown>): void {
   );
 }
 
-const output = (result: SpawnSyncReturns<string>): string =>
-  `${result.stdout ?? ""}${result.stderr ?? ""}`;
+const output = (result: BoundedExit): string => `${result.stdout ?? ""}${result.stderr ?? ""}`;
 
 // `run` reads the configuration before the plan, so a refusal never reaches it.
 const COMMANDS: readonly (readonly [string, readonly string[]])[] = [
@@ -82,9 +90,9 @@ describe("phax validate with a declared protectedPaths", { timeout: 60_000 }, ()
         protectedPaths: ["**/steme.baseline.json"],
       }),
     );
-    const result = spawnSync("tsx", [mainTs, "validate"], {
+    const result = boundedSpawn(CLI_LAUNCHER, cliArgs("validate"), {
+      boundMs: CLI_BOUND_MS,
       cwd: join(repo, "pkg"),
-      encoding: "utf8",
       env: phaxHomeEnv(),
     });
     expect(result.status).toBe(0);

@@ -1,6 +1,5 @@
 // The spec document's acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -25,6 +24,7 @@ import { isolateGit } from "../../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 import { ANSWER_FOLLOW, FILE_VALID, SPEC, SPEC_PATH } from "../../unit/decide/verdictsFixtures.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // The world of tests/integration/artifactStdinDocuments.test.ts: a git repository in a temporary
 // directory with its own identity, a Draft headless spec with its sidecar and open questions
@@ -167,7 +167,7 @@ export function makeStdinDocumentsRepo(): StdinDocumentsRepo {
   const home = isolatePhaxHome();
   const repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-stdin-documents-")));
   const git = (...args: readonly string[]): string =>
-    execFileSync("git", [...args], { cwd: repoDir, stdio: "pipe" }).toString();
+    boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   const write = (rel: string, text: string): void => {
     const abs = join(repoDir, rel);
     mkdirSync(dirname(abs), { recursive: true });

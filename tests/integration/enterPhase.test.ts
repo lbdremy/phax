@@ -10,9 +10,15 @@ import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
-vi.mock("node:child_process", () => ({
-  spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
-}));
+// Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
+const spawnSyncMock = vi.hoisted(() =>
+  vi.fn((_command: string, _args: readonly string[], _options: object) => ({
+    status: 0,
+    error: undefined,
+  })),
+);
+
+vi.mock("node:child_process", () => ({ spawnSync: spawnSyncMock }));
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -255,7 +261,6 @@ describe("runEnterPhase", () => {
   });
 
   it("dispatches to claude adapter and spawns --resume when binding is claude", async () => {
-    const { spawnSync } = await import("node:child_process");
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
@@ -274,12 +279,12 @@ describe("runEnterPhase", () => {
 
     expect(exitCode).toBe(0);
     // The session is resumed under the phase's own posture (carry-posture).
-    expect(spawnSync).toHaveBeenCalledWith(
+    expect(spawnSyncMock).toHaveBeenCalledWith(
       "claude",
       expect.arrayContaining(["--resume", "sess-xyz", "--permission-mode", "acceptEdits"]),
       { cwd: worktreePath, stdio: "inherit" },
     );
-    const args = vi.mocked(spawnSync).mock.calls[0]![1] as string[];
+    const args = vi.mocked(spawnSyncMock).mock.calls[0]![1] as string[];
     expect(args.slice(0, 6)).toEqual([
       "--resume",
       "sess-xyz",
@@ -291,7 +296,6 @@ describe("runEnterPhase", () => {
   });
 
   it("resumes a codex binding interactively with codex resume, under the phase's posture", async () => {
-    const { spawnSync } = await import("node:child_process");
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
@@ -310,7 +314,7 @@ describe("runEnterPhase", () => {
 
     expect(exitCode).toBe(0);
     expect(err).toBe("");
-    expect(spawnSync).toHaveBeenCalledWith(
+    expect(spawnSyncMock).toHaveBeenCalledWith(
       "codex",
       expect.arrayContaining(["resume", "sess-codex", 'approval_policy="on-request"']),
       { cwd: worktreePath, stdio: "inherit" },
@@ -318,7 +322,6 @@ describe("runEnterPhase", () => {
   });
 
   it("refuses to re-enter a phase whose security.json is missing, opening nothing", async () => {
-    const { spawnSync } = await import("node:child_process");
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
@@ -340,7 +343,7 @@ describe("runEnterPhase", () => {
     expect(exitCode).toBe(1);
     expect(errors.join("\n")).toContain("security.json");
     expect(errors.join("\n")).toContain("will not open its session unconfined");
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
   });
 
   it("returns 1 with a no-binding error when agent-binding.json is absent", async () => {

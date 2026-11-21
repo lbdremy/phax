@@ -14,9 +14,15 @@ import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
-vi.mock("node:child_process", () => ({
-  spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
-}));
+// Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
+const spawnSyncMock = vi.hoisted(() =>
+  vi.fn((_command: string, _args: readonly string[], _options: object) => ({
+    status: 0,
+    error: undefined,
+  })),
+);
+
+vi.mock("node:child_process", () => ({ spawnSync: spawnSyncMock }));
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -158,7 +164,6 @@ describe("runEnter", () => {
   });
 
   it("dispatches to claude adapter and spawns --resume when binding is claude", async () => {
-    const { spawnSync } = await import("node:child_process");
     const worktreePath = join(stateRoot, "worktrees", "my-run", "phase-01");
 
     const runPath = await buildFakeRunFolder(stateRoot, [
@@ -176,7 +181,7 @@ describe("runEnter", () => {
     const { code: exitCode } = await phaxCall(["enter", "my-run"]);
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith("claude", ["--resume", "sess-enter"], {
+    expect(spawnSyncMock).toHaveBeenCalledWith("claude", ["--resume", "sess-enter"], {
       cwd: worktreePath,
       stdio: "inherit",
     });

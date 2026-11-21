@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Effect, Result, Layer } from "effect";
 import { runner } from "../../src/cli/commandLibrary/commander/index.js";
@@ -52,7 +52,7 @@ function bytes(text: string): Uint8Array {
 }
 
 function execGit(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function run<A>(effect: Effect.Effect<A, GitError | ShellError, Git | Shell>): Promise<A> {

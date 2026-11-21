@@ -1,7 +1,7 @@
 import { mkdtempSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, basename } from "node:path";
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { initProject, writeConfigSchemaFile } from "../../src/app/initProject.js";
@@ -11,7 +11,7 @@ let tmpDir: string;
 
 beforeEach(() => {
   tmpDir = mkdtempSync(join(tmpdir(), "phax-initproject-test-"));
-  execSync("git init", { cwd: tmpDir, stdio: "ignore" });
+  boundedOutput("git", ["init"], { cwd: tmpDir, boundMs: GIT_BOUND_MS });
 });
 
 afterEach(() => {

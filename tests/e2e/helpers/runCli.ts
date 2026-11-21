@@ -1,40 +1,72 @@
-import { spawnSync } from "node:child_process";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const dir = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(dir, "../../..");
-const CLI_ENTRY = join(PROJECT_ROOT, "src", "cli", "main.ts");
-const TSX_BIN = join(PROJECT_ROOT, "node_modules", ".bin", "tsx");
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  boundedSpawn,
+  BoundedSpawnError,
+  CLI_LAUNCHER,
+  cliArgs,
+} from "../../helpers/boundedSpawn.js";
+import { printArtifacts } from "./artifacts.js";
 
 export interface CliResult {
   readonly exitCode: number;
   readonly stdout: string;
   readonly stderr: string;
-  readonly timedOut: boolean;
 }
+
+/** The bound of a real-provider CLI call: today's default of five minutes. */
+export const E2E_CLI_BOUND_MS = 300_000;
 
 export interface RunCliOptions {
-  timeout?: number;
+  /** The call's bound in ms, required. A bound reached, or any signal ending, throws. */
+  readonly boundMs: number;
   /** Variables merged over the process environment. */
-  env?: Readonly<Record<string, string>>;
+  readonly env?: Readonly<Record<string, string>>;
 }
 
-export function runCli(args: string[], cwd: string, opts: RunCliOptions = {}): CliResult {
-  const timeout = opts.timeout ?? 300_000;
-  const result = spawnSync(TSX_BIN, [CLI_ENTRY, ...args], {
-    cwd,
-    encoding: "utf8",
-    timeout,
-    env: { ...process.env, ...opts.env },
-  });
+// The repositories whose CLI call threw: their temporary environment is kept for reading.
+const threwIn = new Set<string>();
 
-  const timedOut = result.signal === "SIGTERM" || result.status === null;
+/** Whether a CLI call in `repoDir` threw: its environment is then kept, not removed. */
+export function cliThrewIn(repoDir: string): boolean {
+  return threwIn.has(repoDir);
+}
 
-  return {
-    exitCode: result.status ?? 1,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-    timedOut,
-  };
+/**
+ * Run the CLI in `cwd`. A call that reaches its bound, or ends by a signal, throws: before it
+ * does, the run's artifacts are printed and its temporary environment is kept, as a non-zero exit
+ * lets the caller do.
+ */
+export function runCli(args: string[], cwd: string, opts: RunCliOptions): CliResult {
+  try {
+    const result = boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+      cwd,
+      boundMs: opts.boundMs,
+      env: { ...process.env, ...opts.env },
+    });
+    return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+  } catch (error) {
+    if (error instanceof BoundedSpawnError) {
+      threwIn.add(cwd);
+      printArtifacts(
+        { repoDir: cwd, phaxHome: stateRootOf(cwd) },
+        `phax ${args.join(" ")} did not exit on its own:\n${error.message}`,
+      );
+    }
+    throw error;
+  }
+}
+
+// The PHAX_HOME a temporary repository points at: its phax.json's state.root.
+function stateRootOf(repoDir: string): string {
+  try {
+    const config: unknown = JSON.parse(readFileSync(join(repoDir, "phax.json"), "utf8"));
+    const state: unknown =
+      typeof config === "object" && config !== null ? Reflect.get(config, "state") : undefined;
+    const root: unknown =
+      typeof state === "object" && state !== null ? Reflect.get(state, "root") : undefined;
+    return typeof root === "string" ? root : "(unknown)";
+  } catch {
+    return "(unknown)";
+  }
 }

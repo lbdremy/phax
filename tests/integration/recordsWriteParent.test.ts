@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -26,11 +26,7 @@ const BRANCH_REF = `refs/heads/${RECORDS_BRANCH_NAME}`;
 const TRACKING_REF = `refs/remotes/origin/${RECORDS_BRANCH_NAME}`;
 
 function sh(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], {
-    cwd,
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 type Destination = "dedicated" | "in-repo";

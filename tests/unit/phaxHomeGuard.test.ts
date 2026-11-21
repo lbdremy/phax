@@ -324,14 +324,16 @@ function suites(dir: string): string[] {
 // phax CLI must give the child a temporary HOME in its `env`.
 //
 // The check reads source text, so it is a tripwire, not a proof. It finds a
-// spawn-family call (spawn, spawnSync, exec, execSync, execFile, execFileSync,
-// fork) whose arguments name the entry point, literally or through a `const`
-// assigned from it, and requires an `env:` option whose expression calls
+// spawn-family call (boundedSpawn, boundedOutput, spawn, spawnSync, exec,
+// execSync, execFile, execFileSync, fork) whose arguments name the entry point,
+// literally, through `cliArgs(` (tests/helpers/boundedSpawn.ts) or through a
+// `const` assigned from it, and requires an `env:` option whose expression calls
 // phaxHomeEnv() or childEnvUnder() or sets HOME. It cannot tell that the HOME
 // is a temporary one, nor see a spawn whose entry point reaches it through a
 // helper in another file.
-const NEEDLES = ["src/cli/main.ts", "dist/cli/main.js"];
-const SPAWN_CALL = /\b(?:spawnSync|spawn|execFileSync|execFile|execSync|exec|fork)\(/g;
+const NEEDLES = ["src/cli/main.ts", "dist/cli/main.js", "cliArgs("];
+const SPAWN_CALL =
+  /\b(?:boundedSpawn|boundedOutput|spawnSync|spawn|execFileSync|execFile|execSync|exec|fork)\(/g;
 const TEMP_HOME_ENV = /phaxHomeEnv\(|childEnvUnder\(|\bHOME:/;
 
 // The index just past the expression that starts at `from`, stopping at the
@@ -417,6 +419,27 @@ describe("suites that spawn the phax CLI", () => {
     expect(unguardedCliSpawns(`${entry}execFileSync("git", ["status"], { cwd: root });`)).toEqual(
       [],
     );
+    expect(
+      unguardedCliSpawns('boundedSpawn(CLI_LAUNCHER, cliArgs("ls"), { boundMs: CLI_BOUND_MS });'),
+    ).toEqual([1]);
+    expect(
+      unguardedCliSpawns(
+        'boundedOutput(CLI_LAUNCHER, cliArgs("ls"), { boundMs: CLI_BOUND_MS, env: {} });',
+      ),
+    ).toEqual([1]);
+    expect(
+      unguardedCliSpawns(
+        'boundedSpawn(CLI_LAUNCHER, cliArgs("ls"), { boundMs: CLI_BOUND_MS, env: phaxHomeEnv() });',
+      ),
+    ).toEqual([]);
+    expect(
+      unguardedCliSpawns(
+        'const args = cliArgs("ls");\nboundedSpawn(CLI_LAUNCHER, args, { boundMs: CLI_BOUND_MS });',
+      ),
+    ).toEqual([2]);
+    expect(
+      unguardedCliSpawns('boundedSpawn("git", ["status"], { boundMs: GIT_BOUND_MS, cwd: root });'),
+    ).toEqual([]);
   });
 
   it("gives every CLI child a temporary HOME in its env", () => {

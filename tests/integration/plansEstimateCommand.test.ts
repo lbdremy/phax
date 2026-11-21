@@ -1,29 +1,34 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // `phax plans estimate` from source in a made-up repository, with HOME and the
 // state root in a temp dir so no real ~/.phax or ~/.claude is read. Every
 // invocation passes --no-probe, so no real `claude` process starts.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
-
 let base: string;
 let repo: string;
 let home: string;
 
-function git(cwd: string, args: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "ignore" });
+function git(cwd: string, ...args: string[]): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
-function runCli(args: string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], {
+function runCli(args: string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd: repo,
-    encoding: "utf8",
     env: { ...process.env, HOME: home },
   });
 }
@@ -70,7 +75,7 @@ beforeAll(() => {
   home = join(base, "home");
   mkdirSync(join(repo, "docs", "plans"), { recursive: true });
   mkdirSync(home);
-  git(repo, "init -q -b main");
+  git(repo, "init", "-q", "-b", "main");
   disableGitAutoMaintenance(repo);
   writeFileSync(
     join(repo, "phax.json"),
@@ -83,10 +88,19 @@ beforeAll(() => {
   );
   writeFileSync(join(repo, "docs", "plans", "2610170900-widget-plan.md"), planMd);
   writeFileSync(join(repo, "docs", "plans", "widget-plan.md"), planMd);
-  git(repo, "add .");
+  git(repo, "add", ".");
   git(
     repo,
-    "-c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m init",
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "init",
   );
 });
 

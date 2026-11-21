@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
-import { runCli } from "./helpers/runCli.js";
+import { E2E_CLI_BOUND_MS, runCli } from "./helpers/runCli.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { probeProvider } from "./helpers/providers.js";
 
@@ -60,7 +60,7 @@ describe.skipIf(!shouldRun)("phax headless authoring E2E", () => {
           "low",
         ],
         env.repoDir,
-        { timeout: 290_000 },
+        { boundMs: 290_000 }, // a real provider call: its old timeout
       );
 
       if (result.exitCode !== 0) {
@@ -84,14 +84,16 @@ describe.skipIf(!shouldRun)("phax headless authoring E2E", () => {
       expect(existsSync(join(env.repoDir, specPath)), `${specPath} should exist`).toBe(true);
       expect(existsSync(join(env.repoDir, sidecarPath)), `${sidecarPath} should exist`).toBe(true);
 
-      const headFiles = execSync("git show --stat --name-only HEAD", {
+      const headFiles = boundedOutput("git", ["show", "--stat", "--name-only", "HEAD"], {
         cwd: env.repoDir,
-        encoding: "utf8",
+        boundMs: GIT_BOUND_MS,
       });
       expect(headFiles, "HEAD should list the spec").toContain(specPath);
       expect(headFiles, "HEAD should list the sidecar").toContain(sidecarPath);
 
-      const statusResult = runCli(["artifact", "status", specPath], env.repoDir);
+      const statusResult = runCli(["artifact", "status", specPath], env.repoDir, {
+        boundMs: E2E_CLI_BOUND_MS,
+      });
       expect(statusResult.exitCode, `status output:\n${statusResult.stdout}`).toBe(0);
       expect(statusResult.stdout).toContain("in sync");
     },

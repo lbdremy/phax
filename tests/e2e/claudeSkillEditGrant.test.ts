@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { boundedOutput, boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -73,7 +73,7 @@ describe.skipIf(!shouldRun)("ac-skill-grant: claude-code skill edit grant, proje
     // realpath: macOS tmpdir is a symlink, and the `if` rule must match the
     // path Claude Code resolves.
     repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-skill-grant-e2e-")));
-    spawnSync("git", ["init", "-q"], { cwd: repoDir });
+    boundedOutput("git", ["init", "-q"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
     for (const file of [FOO, BAR]) {
       mkdirSync(join(repoDir, file, ".."), { recursive: true });
       writeFileSync(join(repoDir, file), ORIGINAL);
@@ -113,11 +113,10 @@ describe.skipIf(!shouldRun)("ac-skill-grant: claude-code skill edit grant, proje
       "Do not use any other tools. Then reply DONE.",
     ].join("\n");
 
-    const result = spawnSync("claude", args, {
+    const result = boundedSpawn("claude", args, {
       cwd: repoDir,
       input: prompt,
-      encoding: "utf8",
-      timeout: 300_000,
+      boundMs: 300_000, // a real provider call: its old timeout
       env: projectOnlyEnvironment(process.env),
     });
     expect(result.status, result.stderr).toBe(0);

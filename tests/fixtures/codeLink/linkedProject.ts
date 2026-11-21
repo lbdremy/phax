@@ -7,13 +7,13 @@
  * The builder changes the process's working directory to the process repository (commands are
  * called in-process, from there); `dispose()` puts it back.
  */
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { isolateGit } from "../../helpers/isolateGit.js";
 import { phaxCall } from "../../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 const OPERATOR = "Ada Example";
 /** A fixed stamp: the fixture never reads the clock. */
@@ -89,9 +89,7 @@ export interface LinkedProject {
 }
 
 function sh(cwd: string, args: ReadonlyArray<string>): string {
-  return execFileSync("git", [...args], { cwd, stdio: "pipe" })
-    .toString()
-    .trim();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 function put(repo: string, rel: string, text: string): void {

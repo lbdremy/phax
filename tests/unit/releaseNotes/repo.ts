@@ -3,13 +3,13 @@
 // 4.1.0, the tag v4.1.0, the opened version 4.2.0), and builders for the
 // plans, specs and sidecars it reads. Git is isolated from the person's
 // configuration until `dispose`.
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { isolateGit } from "../../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 import { validDocuments, withKey } from "../schemasPackage/documents.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 export const PREVIOUS = "4.1.0";
 export const OPENED = "4.2.0";
@@ -41,7 +41,7 @@ function createFixtureRepo(): FixtureRepo {
   const restoreGit = isolateGit();
   const root = realpathSync(mkdtempSync(join(tmpdir(), "phax-release-notes-")));
   const git = (...args: string[]): string =>
-    execFileSync("git", args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: root });
   git("init", "-q", "-b", "main");
   disableGitAutoMaintenance(root);
   git("config", "--local", "user.name", "Fixture");
@@ -66,10 +66,10 @@ function createFixtureRepo(): FixtureRepo {
           ? [subject, ...(options.body === undefined ? [] : [options.body]), trailers.join("\n")]
           : [subject, options.body ?? "", "---", trailers.join("\n")];
       const message = options.message ?? `${parts.filter((part) => part !== "").join("\n\n")}\n`;
-      execFileSync("git", ["commit", "-q", "--allow-empty", "-F", "-"], {
+      boundedOutput("git", ["commit", "-q", "--allow-empty", "-F", "-"], {
+        boundMs: GIT_BOUND_MS,
         cwd: root,
         input: message,
-        stdio: ["pipe", "pipe", "pipe"],
       });
       return git("rev-parse", "HEAD").trim();
     },

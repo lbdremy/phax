@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { Result } from "effect";
@@ -9,6 +8,7 @@ import { findingGroup } from "../../../src/cli/definitions/finding.js";
 import { decodeFindingListFile } from "../../../src/schemas/findingList.js";
 import { runnerCall } from "../../helpers/runnerCall.js";
 import { buildFindingRunRepo, type FindingRunRepo } from "./findingRunRepo.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // The project of the acceptance tests of `phax finding fix`, `dismiss` and `defer`: the run of
 // findingRunRepo.ts plus tracked files in its final worktree, and helpers to change, stage and
@@ -24,7 +24,7 @@ export interface FateRunRepo extends FindingRunRepo {
 }
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function writeTracked(root: string, path: string, content: string): void {

@@ -1,4 +1,7 @@
-import { spawnSync } from "node:child_process";
+import { boundedSpawn } from "../../helpers/boundedSpawn.js";
+
+/** The bound of a provider's `--version` probe: its old timeout, a probe answers in under a second. */
+const PROBE_BOUND_MS = 5_000;
 
 /**
  * The three agent providers the real E2E flow exercises. Each suite forces its
@@ -26,17 +29,21 @@ export const E2E_PROVIDERS: readonly E2EProvider[] = [
   { id: "codex-cli", executable: "codex", securityMode: "secure" },
 ];
 
-export function probeProvider(executable: string): boolean {
+/**
+ * What the provider's `--version` wrote, stdout then stderr, or undefined when it is not
+ * installed, not answering, or exits non-zero.
+ */
+export function providerVersion(executable: string): string | undefined {
   try {
-    const r = spawnSync(executable, ["--version"], {
-      encoding: "utf8",
-      timeout: 5_000,
-      stdio: "pipe",
-    });
-    return r.status === 0;
+    const r = boundedSpawn(executable, ["--version"], { boundMs: PROBE_BOUND_MS });
+    return r.status === 0 ? `${r.stdout}${r.stderr}` : undefined;
   } catch {
-    return false;
+    return undefined;
   }
+}
+
+export function probeProvider(executable: string): boolean {
+  return providerVersion(executable) !== undefined;
 }
 
 /**

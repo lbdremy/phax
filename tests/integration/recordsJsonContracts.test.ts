@@ -1,8 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import {
@@ -10,6 +8,15 @@ import {
   PROMPT_TEXT,
   type JsonContractsRepo,
 } from "../fixtures/records/jsonContractsRepo.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Acceptance tests of spec command-contracts, frozen until the phase that moves
 // the `records` group onto the command runner: every test carries `.fails`,
@@ -20,24 +27,21 @@ import {
 //   ac-json-every-command, ac-text-unchanged, ac-error-sentence, ac-no-person,
 //   ac-json-schema-command and ac-unknown-option.
 
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
-
 const MESSAGE_KINDS = ["note", "written", "error", "refused", "defect"];
 
 let restoreGit: () => void;
 let fixture: JsonContractsRepo;
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
+function runCli(args: readonly string[]): BoundedExit {
   // stdin is closed: a command that prompts would find nobody to answer.
-  return spawnSync("tsx", [mainTs, ...args], {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
     cwd: fixture.repo,
-    encoding: "utf8",
     env: phaxHomeEnv(),
-    stdio: ["ignore", "pipe", "pipe"],
   });
 }
 
-function stderrLines(result: SpawnSyncReturns<string>): Record<string, unknown>[] {
+function stderrLines(result: BoundedExit): Record<string, unknown>[] {
   return result.stderr
     .split("\n")
     .filter((line) => line !== "")
@@ -63,8 +67,11 @@ beforeAll(async () => {
   // `phax records sync` fetches an in-repo records branch from `publish.remote`: give the
   // repository an `origin` to fetch from. It holds no records branch, so sync leaves it alone.
   const origin = join(fixture.base, "origin.git");
-  execFileSync("git", ["init", "-q", "--bare", origin]);
-  execFileSync("git", ["remote", "add", "origin", origin], { cwd: fixture.repo });
+  boundedOutput("git", ["init", "-q", "--bare", origin], { boundMs: GIT_BOUND_MS });
+  boundedOutput("git", ["remote", "add", "origin", origin], {
+    boundMs: GIT_BOUND_MS,
+    cwd: fixture.repo,
+  });
 });
 
 afterAll(() => {

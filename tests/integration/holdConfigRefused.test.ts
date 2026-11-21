@@ -4,11 +4,11 @@
  * changes for it. Real config loading in a temporary repository, with the home
  * directory replaced so ~/.phax is never read.
  */
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
 
@@ -40,7 +40,7 @@ beforeEach(() => {
   home.dir = join(root, "home");
   mkdirSync(repo);
   mkdirSync(join(home.dir, ".phax"), { recursive: true });
-  execFileSync("git", ["init", "--quiet"], { cwd: repo });
+  boundedOutput("git", ["init", "--quiet"], { boundMs: GIT_BOUND_MS, cwd: repo });
   disableGitAutoMaintenance(repo);
   vi.spyOn(process, "cwd").mockReturnValue(repo);
 });

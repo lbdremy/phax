@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -143,7 +143,7 @@ describe("fate commands and the pull request, off the happy path", () => {
     const clone = realpathSync(mkdtempSync(join(tmpdir(), "phax-pr-clone-")));
     scratch.push(clone);
     const sh = (args: readonly string[]) =>
-      execFileSync("git", [...args], { cwd: clone, encoding: "utf8", stdio: "pipe" });
+      boundedOutput("git", [...args], { cwd: clone, boundMs: GIT_BOUND_MS });
     sh(["clone", "-q", repo.remoteDir, "."]);
     sh(["checkout", "-q", repo.runBranch]);
     writeFileSync(join(clone, "elsewhere.txt"), "moved\n");
@@ -187,7 +187,7 @@ describe("fate commands and the pull request, off the happy path", () => {
     const clone = realpathSync(mkdtempSync(join(tmpdir(), "phax-pr-clone-")));
     scratch.push(clone);
     const sh = (args: readonly string[]) =>
-      execFileSync("git", [...args], { cwd: clone, encoding: "utf8", stdio: "pipe" });
+      boundedOutput("git", [...args], { cwd: clone, boundMs: GIT_BOUND_MS });
     sh(["clone", "-q", repo.remoteDir, "."]);
     sh(["checkout", "-q", repo.runBranch]);
     writeFileSync(join(clone, "elsewhere.txt"), "moved\n");

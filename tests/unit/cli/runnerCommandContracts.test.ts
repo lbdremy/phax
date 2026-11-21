@@ -3,7 +3,7 @@
 // moves (command-contracts plan 2): `--json-schema` prints its catalogue entry, `--help` lists
 // `--json`, an undeclared option is refused with 64 (a `refused` line from the flags under
 // `--json`), and a group the runner holds whole, called alone, writes its help and is refused.
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -174,7 +174,7 @@ describe("phax artifact new spec, in the whole group", () => {
     const repo = realpathSync(mkdtempSync(join(tmpdir(), "phax-new-spec-")));
     const cwd = vi.spyOn(process, "cwd").mockReturnValue(repo);
     try {
-      execFileSync("git", ["init", "-q"], { cwd: repo });
+      boundedOutput("git", ["init", "-q"], { cwd: repo, boundMs: GIT_BOUND_MS });
       disableGitAutoMaintenance(repo);
       const called = await call(["artifact", "new", "spec", "plan-prune"]);
       expect(called.err).toBe("");

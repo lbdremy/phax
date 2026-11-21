@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { upgradeConfigSchema } from "../../src/app/initProject.js";
 
 let repoDir: string;
 
 beforeEach(() => {
   repoDir = mkdtempSync(join(tmpdir(), "phax-schema-upgrade-test-"));
-  execSync("git init", { cwd: repoDir, stdio: "ignore" });
+  boundedOutput("git", ["init"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
 });
 
 afterEach(() => {

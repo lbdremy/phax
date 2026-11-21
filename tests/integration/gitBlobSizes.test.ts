@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -17,19 +17,26 @@ let repoDir: string;
 // `--before` sees a known history whatever the wall clock says.
 function commitAt(instant: string, message: string): string {
   const env = { ...process.env, GIT_AUTHOR_DATE: instant, GIT_COMMITTER_DATE: instant };
-  execFileSync("git", ["add", "-A"], { cwd: repoDir, stdio: "pipe" });
-  execFileSync("git", ["commit", "-m", message], { cwd: repoDir, stdio: "pipe", env });
-  return execFileSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, stdio: "pipe" })
-    .toString()
-    .trim();
+  boundedOutput("git", ["add", "-A"], { boundMs: GIT_BOUND_MS, cwd: repoDir });
+  boundedOutput("git", ["commit", "-m", message], { boundMs: GIT_BOUND_MS, cwd: repoDir, env });
+  return boundedOutput("git", ["rev-parse", "HEAD"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: repoDir,
+  }).trim();
 }
 
 beforeEach(() => {
   repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-git-blob-sizes-test-")));
-  execFileSync("git", ["init", "--initial-branch=main"], { cwd: repoDir, stdio: "pipe" });
+  boundedOutput("git", ["init", "--initial-branch=main"], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   disableGitAutoMaintenance(repoDir);
-  execFileSync("git", ["config", "--local", "user.email", "test@phax.test"], { cwd: repoDir });
-  execFileSync("git", ["config", "--local", "user.name", "phax test"], { cwd: repoDir });
+  boundedOutput("git", ["config", "--local", "user.email", "test@phax.test"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: repoDir,
+  });
+  boundedOutput("git", ["config", "--local", "user.name", "phax test"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: repoDir,
+  });
 });
 
 afterEach(() => {

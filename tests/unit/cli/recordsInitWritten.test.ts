@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -40,7 +40,7 @@ describe("phax records init answers the file it configured", () => {
     restoreGit = isolateGit();
     base = realpathSync(mkdtempSync(join(tmpdir(), "phax-records-init-written-")));
     repo = join(base, "repo");
-    execFileSync("git", ["init", "-q", "-b", "main", repo]);
+    boundedOutput("git", ["init", "-q", "-b", "main", repo], { boundMs: GIT_BOUND_MS });
     writeFileSync(
       join(repo, "phax.json"),
       JSON.stringify(

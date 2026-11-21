@@ -8,7 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Result } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -28,7 +28,7 @@ let repo: string;
 let hooks: string;
 
 const git = (...args: string[]): string =>
-  execFileSync("git", args, { cwd: repo, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 
 const write = (path: string, content: string): void => {
   mkdirSync(join(repo, path, ".."), { recursive: true });

@@ -5,7 +5,7 @@
 // already opened above the ledger, else the next minor of the ledger's last
 // entry, opened on the copy first. So a real release or opening never needs
 // this test edited.
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, SCRIPT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import {
   cpSync,
   existsSync,
@@ -389,13 +389,12 @@ describe("cutRelease on an opened copy of the tree", { timeout: 30_000 }, () => 
 
       const restoreGit = isolateGit();
       try {
-        const result = spawnSync(
+        const result = boundedSpawn(
           join(repoRoot, "node_modules/.bin/tsx"),
           ["scripts/release-cut.ts", O, "--root", copy],
           {
             cwd: repoRoot,
-            encoding: "utf8",
-            timeout: 30_000,
+            boundMs: SCRIPT_BOUND_MS,
             env: { ...process.env, GIT_CEILING_DIRECTORIES: tmpdir() },
           },
         );

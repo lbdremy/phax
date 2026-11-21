@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +26,7 @@ import { isolatePhaxHome } from "../../helpers/isolatePhaxHome.js";
 import { phaxPlanJson } from "../../helpers/costHistory.js";
 import { phaseStatusFile } from "../../helpers/phaseStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // A project for the acceptance tests of `phax finding list`: a git repository in a temporary
 // directory with its own identity, a phax.json with records in-repo (no push) and the code
@@ -51,7 +51,7 @@ export interface FindingRunRepo {
 }
 
 function git(args: readonly string[], cwd: string): void {
-  execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" });
+  boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 /** Builds the project and the run in temporary directories; call `cleanup` after the test. */

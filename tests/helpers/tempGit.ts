@@ -1,5 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { rmSync } from "node:fs";
+import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
 /**
  * Stop a fixture repo from leaving background work behind.
@@ -13,11 +13,14 @@ import { rmSync } from "node:fs";
  * any clone made mid-test.
  */
 export function disableGitAutoMaintenance(repoDir: string): void {
-  execFileSync("git", ["config", "--local", "maintenance.auto", "false"], {
+  boundedOutput("git", ["config", "--local", "maintenance.auto", "false"], {
+    boundMs: GIT_BOUND_MS,
     cwd: repoDir,
-    stdio: "pipe",
   });
-  execFileSync("git", ["config", "--local", "gc.auto", "0"], { cwd: repoDir, stdio: "pipe" });
+  boundedOutput("git", ["config", "--local", "gc.auto", "0"], {
+    boundMs: GIT_BOUND_MS,
+    cwd: repoDir,
+  });
 }
 
 /**

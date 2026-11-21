@@ -6,7 +6,6 @@
  * under test. All content is made up here; nothing is read from ~/.phax or from
  * another repository.
  */
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -20,6 +19,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { OutputPort } from "../../../src/ports/output.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 const FIXTURE_NAMESPACE = "acme";
 /** The model every fixture phase uses unless overridden: an active catalog entry. */
@@ -72,7 +72,7 @@ export interface Fixture {
 }
 
 export function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 /**

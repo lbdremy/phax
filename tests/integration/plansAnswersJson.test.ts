@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { Result } from "effect";
 import { decodePlanLintFile } from "../../src/schemas/planLint.js";
 import { decodePlanOverviewFile } from "../../src/schemas/planOverview.js";
@@ -22,6 +20,15 @@ import {
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // Acceptance tests of spec command-contracts, frozen until the phase that moves
 // `phax plans overview`, `phax plans lint` (and `ls` and `artifact status`) onto
@@ -31,8 +38,6 @@ import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js"
 // ~/.claude, ~/.codex, ~/.vibe or global git config is read.
 //   ac-overview, ac-lint-verdict, ac-json-schema-command, ac-catalogue and
 //   ac-json-every-command.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const SPEC_REL = "docs/specs/2611011202-simple-spec.md";
 const SPEC_MD =
@@ -44,8 +49,12 @@ let base: string;
 let repo: string;
 let restoreGit: () => void;
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd: repo, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd: repo,
+    env: phaxHomeEnv(),
+  });
 }
 
 function write(rel: string, content: string): void {
@@ -74,7 +83,7 @@ beforeAll(() => {
   const state = join(base, "state");
   mkdirSync(repo);
   mkdirSync(state);
-  execFileSync("git", ["init", "-q", "-b", "main"], { cwd: repo });
+  boundedOutput("git", ["init", "-q", "-b", "main"], { boundMs: GIT_BOUND_MS, cwd: repo });
   disableGitAutoMaintenance(repo);
   write(
     "phax.json",

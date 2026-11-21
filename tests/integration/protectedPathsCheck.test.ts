@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, SCRIPT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   chmodSync,
   mkdirSync,
@@ -27,7 +27,7 @@ let base: string;
 let restoreGit: () => void;
 
 const git = (...args: string[]): string =>
-  execFileSync("git", args, { cwd: repo, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 
 const write = (path: string, content: string): void => {
   mkdirSync(dirname(join(repo, path)), { recursive: true });
@@ -243,7 +243,10 @@ describe("checkProtectedPaths against a real worktree", () => {
 
     // A git on PATH that logs each call's argument count and subcommand, then
     // runs the real one.
-    const realGit = execFileSync("sh", ["-c", "command -v git"], { encoding: "utf8" }).trim();
+    // `command -v` is a shell builtin, so this one call needs sh.
+    const realGit = boundedOutput("sh", ["-c", "command -v git"], {
+      boundMs: SCRIPT_BOUND_MS,
+    }).trim();
     const shim = realpathSync(mkdtempSync(join(tmpdir(), "phax-git-shim-")));
     const log = join(shim, "calls.log");
     writeFileSync(
@@ -329,11 +332,11 @@ describe("checkProtectedPaths on links it cannot see through", () => {
 
   it("names a nested repository with a commit and one with none", async () => {
     write("packages/n/steme.baseline.json", '{ "accepted": "the agent" }\n');
-    execFileSync("git", ["init", "-q"], { cwd: join(repo, "packages/n") });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: join(repo, "packages/n") });
     write("packages/m/steme.baseline.json", '{ "accepted": "the agent" }\n');
-    execFileSync("git", ["init", "-q"], { cwd: join(repo, "packages/m") });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: join(repo, "packages/m") });
     const nested = (...args: string[]): string =>
-      execFileSync("git", args, { cwd: join(repo, "packages/m"), encoding: "utf8" });
+      boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: join(repo, "packages/m") });
     nested("add", "-A");
     nested("-c", "user.name=Ada", "-c", "user.email=ada@example.test", "commit", "-qm", "x");
 
@@ -345,7 +348,7 @@ describe("checkProtectedPaths on links it cannot see through", () => {
 
   it("names a nested repository under a gitignored folder", async () => {
     write("generated/n/steme.baseline.json", '{ "accepted": "the agent" }\n');
-    execFileSync("git", ["init", "-q"], { cwd: join(repo, "generated/n") });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: join(repo, "generated/n") });
     expect(brief(await check(["**/steme.baseline.json"]))).toEqual([
       ["generated/n", "nested-repository"],
     ]);

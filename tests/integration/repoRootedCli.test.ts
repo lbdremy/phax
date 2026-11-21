@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { Effect, Result, type Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
@@ -36,7 +36,7 @@ let config: ResolvedConfig;
 beforeEach(() => {
   originalCwd = process.cwd();
   repoDir = mkdtempSync(join(tmpdir(), "phax-rooted-repo-"));
-  execSync("git init", { cwd: repoDir, stdio: "ignore" });
+  boundedOutput("git", ["init"], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   tempHome = mkdtempSync(join(tmpdir(), "phax-rooted-home-"));
   originalHome = process.env["HOME"];
   process.env["HOME"] = tempHome;

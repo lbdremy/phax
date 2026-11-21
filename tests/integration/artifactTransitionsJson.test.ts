@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync, type SpawnSyncReturns } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
   existsSync,
@@ -11,19 +10,25 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { answerJsonSchema } from "../../src/schemas/answerSchemas.js";
 import { getDecideVerdictsFileJsonSchema } from "../../src/schemas/decideVerdicts.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
+import {
+  type BoundedExit,
+  CLI_BOUND_MS,
+  CLI_LAUNCHER,
+  GIT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+  cliArgs,
+} from "../helpers/boundedSpawn.js";
 
 // The lifecycle commands on the command runner (spec command-contracts: ac-written,
 // ac-json-every-command, ac-error-sentence, ac-no-person, ac-versioned-stable): each spawns
 // `tsx src/cli/main.ts` in a temporary repository with its own git identity, a temporary PHAX
 // home and an isolated git configuration, so no real ~/.phax or global git config is read.
-
-const mainTs = join(fileURLToPath(import.meta.url), "../../../src/cli/main.ts");
 
 const SPEC = "docs/specs/2611011200-garden-sync.md";
 const SPEC_RECORD = "docs/specs/approvals/2611011200-garden-sync.json";
@@ -39,15 +44,15 @@ let repo: string;
 let restoreGit: () => void;
 
 function git(args: readonly string[]): string {
-  return execFileSync("git", args, {
-    cwd: repo,
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  return boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
 }
 
-function runCli(args: readonly string[]): SpawnSyncReturns<string> {
-  return spawnSync("tsx", [mainTs, ...args], { cwd: repo, encoding: "utf8", env: phaxHomeEnv() });
+function runCli(args: readonly string[]): BoundedExit {
+  return boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
+    boundMs: CLI_BOUND_MS,
+    cwd: repo,
+    env: phaxHomeEnv(),
+  });
 }
 
 function write(rel: string, content: string): void {
@@ -160,7 +165,10 @@ const sha256 = (bytes: Buffer): string =>
 
 /** The bytes a path holds in the last commit. */
 function committed(path: string): Buffer {
-  return execFileSync("git", ["show", `HEAD:${path}`], { cwd: repo });
+  return Buffer.from(
+    boundedOutput("git", ["show", `HEAD:${path}`], { boundMs: GIT_BOUND_MS, cwd: repo }),
+    "utf8",
+  );
 }
 
 // Each test spawns `tsx` one to three times: under the full suite's parallel load that is slow.

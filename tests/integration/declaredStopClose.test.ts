@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -130,7 +130,7 @@ afterEach(() => {
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { cwd, boundMs: GIT_BOUND_MS });
 
 const write = (run: StoppedRun, path: string, content: string): void => {
   mkdirSync(dirname(join(run.worktree, path)), { recursive: true });

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
@@ -38,6 +37,7 @@ import { isolateGit } from "./isolateGit.js";
 import { providerStoreRootsUnder } from "./providerStoreRoots.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
 import { processOutput } from "./processOutput.js";
+import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
 // A made-up world for a run that holds phases: the six-phase invoice-export
 // plan (phase-03 declared interactive, phase-02 built on codex), run through
@@ -116,7 +116,8 @@ export function createHeldWorld(): HeldWorld {
   mkdirSync(join(repoRoot, "src"), { recursive: true });
   mkdirSync(stateRoot, { recursive: true });
   mkdirSync(home, { recursive: true });
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoRoot });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");
@@ -595,4 +596,4 @@ export const worktreeOf = (run: HeldRun, phaseId: string): string =>
   join(run.world.stateRoot, "worktrees", RUN_KEY, phaseId);
 
 export const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, stdio: "pipe" }).toString().trim();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd }).trim();

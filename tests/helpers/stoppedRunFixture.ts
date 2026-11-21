@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,6 +22,7 @@ import { isolateGit } from "./isolateGit.js";
 import { phaseStatusFile } from "./phaseStatusFixture.js";
 import { runStatus } from "./runStatusFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
 // A made-up world for the commands that act on a run awaiting review: one
 // main repository and one state root, holding the invoice-export and
@@ -64,7 +64,8 @@ export function createWorld(): World {
   const stateRoot = join(root, "state");
   mkdirSync(repoRoot, { recursive: true });
   mkdirSync(stateRoot, { recursive: true });
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoRoot });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");
@@ -152,7 +153,7 @@ export async function stopRun(world: World, options: StopRunOptions = {}): Promi
   const branch = `phax/${shortName}--phase-03`;
 
   const git = (...args: string[]) =>
-    execFileSync("git", args, { cwd: world.repoRoot, stdio: "pipe" }).toString().trim();
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: world.repoRoot }).trim();
   const base = git("rev-parse", "HEAD");
   mkdirSync(join(worktree, ".."), { recursive: true });
   git("worktree", "add", "-b", branch, worktree, "HEAD");

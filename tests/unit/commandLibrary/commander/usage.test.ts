@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { boundedOutput, SCRIPT_BOUND_MS } from "../../../helpers/boundedSpawn.js";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -114,8 +114,8 @@ function parsedByUsage(spec: string): {
 } {
   const file = join(directory, "todos.usage.kdl");
   writeFileSync(file, spec);
-  const json = execFileSync("usage", ["generate", "json", "-f", file], {
-    encoding: "utf8",
+  const json = boundedOutput("usage", ["generate", "json", "-f", file], {
+    boundMs: SCRIPT_BOUND_MS,
   });
   return JSON.parse(json) as { cmd: Cmd; bin: string };
 }

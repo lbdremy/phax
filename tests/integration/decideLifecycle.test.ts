@@ -1,6 +1,6 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -76,7 +76,7 @@ let stateRoot: string;
 let originalCwd: string;
 
 function git(args: readonly string[]): string {
-  return execFileSync("git", args, { cwd: repoDir, stdio: "pipe" }).toString();
+  return boundedOutput("git", args, { cwd: repoDir, boundMs: GIT_BOUND_MS });
 }
 
 function writeRepoFile(rel: string, content: string): void {

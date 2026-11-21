@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { generateUsageSpec } from "../../scripts/generate-usage-spec.js";
 import { phaxHomeEnv } from "../helpers/isolatePhaxHome.js";
+import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 const repoRoot = join(fileURLToPath(import.meta.url), "../../..");
 
@@ -44,15 +44,11 @@ describe("usageSpec completers gate", () => {
 
 describe("phax ls --complete output", () => {
   it("exits 0 and prints short-name:state lines (no table chrome)", () => {
-    const result = spawnSync(
-      "node",
-      ["--import", "tsx/esm", join(repoRoot, "src/cli/main.ts"), "ls", "--complete"],
-      {
-        encoding: "utf8",
-        env: phaxHomeEnv(),
-        cwd: repoRoot,
-      },
-    );
+    const result = boundedSpawn(CLI_LAUNCHER, cliArgs("ls", "--complete"), {
+      boundMs: CLI_BOUND_MS,
+      env: phaxHomeEnv(),
+      cwd: repoRoot,
+    });
 
     // May exit non-zero if no registry exists (fresh checkout) — that's fine,
     // but if it does produce output it must match the `short-name:state` format.
