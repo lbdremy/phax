@@ -667,15 +667,21 @@ describe("phax's own acceptance declaration", () => {
     const command = decoded.success.acceptance?.command;
     expect(command).toBe("node examples/vitest-acceptance/main.mjs");
 
-    const [file, ...args] = (command ?? "").split(/\s+/);
+    // The declared command, as an argument array: phax.json's value is pinned just above.
+    // A file committed once and never edited: a live test file the phase is editing would turn
+    // this test red with nothing to fix.
     const request = authoredRequest(git(repoRoot, ["rev-parse", "HEAD"]), [
-      "tests/integration/boundedSpawn.test.ts",
+      "tests/fixtures/acceptance/pinned.test.ts",
     ]);
-    const { stdout, status } = boundedSpawn(file ?? "", args, {
-      boundMs: SCRIPT_BOUND_MS,
-      input: request,
-      cwd: repoRoot,
-    });
+    const { stdout, status } = boundedSpawn(
+      process.execPath,
+      ["examples/vitest-acceptance/main.mjs"],
+      {
+        boundMs: SCRIPT_BOUND_MS,
+        input: request,
+        cwd: repoRoot,
+      },
+    );
     expect(answerOf(stdout)).toMatchObject({ outcome: "checked", findings: [] });
     expect(status).toBe(0);
   });
