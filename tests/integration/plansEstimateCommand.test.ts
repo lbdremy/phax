@@ -21,8 +21,8 @@ let base: string;
 let repo: string;
 let home: string;
 
-function git(cwd: string, args: string): void {
-  boundedOutput("git", args.split(" "), { boundMs: GIT_BOUND_MS, cwd });
+function git(cwd: string, ...args: string[]): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function runCli(args: string[]): BoundedExit {
@@ -75,7 +75,7 @@ beforeAll(() => {
   home = join(base, "home");
   mkdirSync(join(repo, "docs", "plans"), { recursive: true });
   mkdirSync(home);
-  git(repo, "init -q -b main");
+  git(repo, "init", "-q", "-b", "main");
   disableGitAutoMaintenance(repo);
   writeFileSync(
     join(repo, "phax.json"),
@@ -88,10 +88,19 @@ beforeAll(() => {
   );
   writeFileSync(join(repo, "docs", "plans", "2610170900-widget-plan.md"), planMd);
   writeFileSync(join(repo, "docs", "plans", "widget-plan.md"), planMd);
-  git(repo, "add .");
+  git(repo, "add", ".");
   git(
     repo,
-    "-c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m init",
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "init",
   );
 });
 

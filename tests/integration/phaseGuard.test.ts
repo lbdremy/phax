@@ -36,8 +36,8 @@ let phaseWorktree: string;
 let plainWorktree: string;
 let home: string;
 
-function git(cwd: string, args: string): void {
-  boundedOutput("git", args.split(" "), { boundMs: GIT_BOUND_MS, cwd });
+function git(cwd: string, ...args: string[]): void {
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function runCli(cwd: string, args: string[]): BoundedExit {
@@ -59,7 +59,7 @@ beforeAll(() => {
   home = join(base, "home");
   mkdirSync(mainRoot);
   mkdirSync(home);
-  git(mainRoot, "init -q -b main");
+  git(mainRoot, "init", "-q", "-b", "main");
   disableGitAutoMaintenance(mainRoot);
   writeFileSync(
     join(mainRoot, "phax.json"),
@@ -69,13 +69,22 @@ beforeAll(() => {
       gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
     }),
   );
-  git(mainRoot, "add phax.json");
+  git(mainRoot, "add", "phax.json");
   git(
     mainRoot,
-    "-c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m init",
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "init",
   );
-  git(mainRoot, `worktree add -q -b phase-01 ${phaseWorktree}`);
-  git(mainRoot, `worktree add -q -b plain ${plainWorktree}`);
+  git(mainRoot, "worktree", "add", "-q", "-b", "phase-01", phaseWorktree);
+  git(mainRoot, "worktree", "add", "-q", "-b", "plain", plainWorktree);
   mkdirSync(join(phaseWorktree, ".phax-context"));
 });
 

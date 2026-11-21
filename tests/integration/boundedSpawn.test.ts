@@ -230,24 +230,41 @@ setInterval(() => {}, 1000);
     expect(error.message).toContain("stderr (24 bytes): self-term: about to end");
   });
 
-  it("fails naming a signal the supervisor itself received, and ends the child", async () => {
-    // The child's parent is the supervisor.
-    const child = script(
-      "term-parent.mjs",
-      `import { writeFileSync, writeSync } from "node:fs";
-writeFileSync(${JSON.stringify(join(pids, "term-parent.pid"))}, String(process.pid));
-writeSync(1, "term-parent: up\\n");
-process.kill(process.ppid, "SIGTERM");
+  it("returns a normal exit even when a process outside the group holds the pipes", async () => {
+    // A detached grandchild has a group of its own, out of the bound's reach (an accepted loss),
+    // and inherits the child's pipes: the call must not wait for it.
+    const holder = script(
+      "holder.mjs",
+      `import { writeFileSync } from "node:fs";
+writeFileSync(${JSON.stringify(join(pids, "holder.pid"))}, String(process.pid));
 setInterval(() => {}, 1000);
 `,
     );
-    const error = thrown(() => boundedSpawn(process.execPath, [child], { boundMs: SCRIPT_MS }));
-    expect(error.message).toContain(
-      `\`node ${child}\` ended by SIGTERM, not by its bound (${SCRIPT_MS} ms)`,
+    const child = script(
+      "leaves-holder.mjs",
+      `import { spawn } from "node:child_process";
+import { existsSync, writeSync } from "node:fs";
+spawn(process.execPath, [${JSON.stringify(holder)}], { detached: true, stdio: "inherit" }).unref();
+while (!existsSync(${JSON.stringify(join(pids, "holder.pid"))})) await new Promise((r) => setTimeout(r, 10));
+writeSync(1, "child: left a holder\\n");
+process.exit(0);
+`,
     );
-    expect(error.message).toContain("the supervisor itself received SIGTERM");
-    expect(error.message).toContain("term-parent: up");
-    expect(await goneWithin(readPid("term-parent"))).toBe(true);
+    const started = performance.now();
+    let result: ReturnType<typeof boundedSpawn>;
+    try {
+      result = boundedSpawn(process.execPath, [child], { boundMs: SCRIPT_MS });
+    } finally {
+      try {
+        process.kill(readPid("holder"), "SIGKILL");
+      } catch {
+        // never started, or ended meanwhile
+      }
+    }
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("child: left a holder\n");
+    expect(performance.now() - started).toBeLessThan(SCRIPT_MS);
+    expect(await goneWithin(readPid("holder"))).toBe(true);
   });
 
   it("fails a CLI spawn whose node process is SIGTERMed, relayed by tsx as 143 (ac-relayed-143)", () => {
@@ -326,6 +343,18 @@ process.exit(64);
       stdout: "alpha\nbéta",
       stderr: "gamma\n\n",
     });
+  });
+
+  it("starts the child from the calling process itself, with no process in between", () => {
+    // A supervisor process per call cost ~50 ms, about 15 minutes over the suite's git calls.
+    const result = boundedSpawn(
+      process.execPath,
+      ["-e", "process.stdout.write(String(process.ppid))"],
+      {
+        boundMs: SCRIPT_MS,
+      },
+    );
+    expect(result.stdout).toBe(String(process.pid));
   });
 
   it("passes input on stdin, and an empty closed stdin without it", () => {
