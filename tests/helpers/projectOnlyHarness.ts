@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -30,6 +29,7 @@ import { makeFakeProviderCli, type FakeProviderCli } from "./fakeProviderCli.js"
 import { isolateGit } from "./isolateGit.js";
 import { processOutput } from "./processOutput.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
 // The shared setup of the project-only acceptance tests. Every Claude Code
 // session phax launches headless must carry `--setting-sources project` in its
@@ -306,7 +306,8 @@ export async function runHeadlessPlan(fake: FakeClaude, options: PlanRunOptions)
   mkdirSync(join(repoRoot, "src"), { recursive: true });
   mkdirSync(join(repoRoot, "scripts"), { recursive: true });
   mkdirSync(stateRoot, { recursive: true });
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoRoot });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");

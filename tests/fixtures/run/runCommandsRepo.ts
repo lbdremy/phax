@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -29,6 +28,7 @@ import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { isolateGit } from "../../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // The world of tests/integration/runCommandsAnswers.test.ts: a git repository in a temporary
 // directory with its own identity, a phax.json with one gate profile and a state root of its
@@ -178,7 +178,7 @@ export async function makeRunCommandsRepo(): Promise<RunCommandsRepo> {
   const repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-run-commands-")));
   const stateRoot = realpathSync(mkdtempSync(join(tmpdir(), "phax-run-commands-state-")));
   const git = (...args: readonly string[]): string =>
-    execFileSync("git", [...args], { cwd: repoDir, stdio: "pipe" }).toString();
+    boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   const write = (rel: string, text: string): void => {
     const abs = join(repoDir, rel);
     mkdirSync(dirname(abs), { recursive: true });

@@ -4,7 +4,6 @@
  * phase turn edits `src/export/csv.ts`, so a one-phase run reaches review. It builds on
  * `createLinkedProject` and never edits it.
  */
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -23,6 +22,7 @@ import type { AgentRunOptions, BackendOps } from "../../../src/ports/backend.js"
 import { phaxCall } from "../../helpers/runnerCall.js";
 import { disableGitAutoMaintenance } from "../../helpers/tempGit.js";
 import type { LinkedProject } from "./linkedProject.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 const STAMP = "2611181000";
 /** The plan's title: its run short name (`csv-export`) differs from the plan's slug. */
@@ -106,7 +106,8 @@ export function createControlRepo(): ControlRepo {
   const stateRoot = join(root, "state");
   mkdirSync(repo);
   mkdirSync(stateRoot);
-  const sh = (...args: string[]) => execFileSync("git", args, { cwd: repo, stdio: "pipe" });
+  const sh = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repo });
   sh("init", "-q", "-b", "main");
   disableGitAutoMaintenance(repo);
   sh("config", "--local", "user.name", "Ada Example");
@@ -211,9 +212,9 @@ export function runState(world: LinkedProject): RunState {
   return {
     runs: existsSync(runsDir) ? readdirSync(runsDir).toSorted() : [],
     registry: existsSync(registry) ? readFileSync(registry, "utf8") : null,
-    branches: execFileSync("git", ["branch", "--list", "phax/*"], {
+    branches: boundedOutput("git", ["branch", "--list", "phax/*"], {
+      boundMs: GIT_BOUND_MS,
       cwd: world.codeRepo,
-      encoding: "utf8",
     }),
   };
 }

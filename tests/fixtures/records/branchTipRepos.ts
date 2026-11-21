@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -27,6 +26,7 @@ import {
   seedRecordMessage,
   writeRecordsInBulk,
 } from "./bulkRecords.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // Real git repositories in every branch state of the records branch, for the acceptance tests of
 // `phax records sync`. Every repository here carries its own identity, every commit has a fixed
@@ -69,11 +69,7 @@ const FAKE_SSH = [
 ].join("\n");
 
 export function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], {
-    cwd,
-    encoding: "utf8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }).trim();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 /** Whether `ancestor` is `of` or one of its ancestors. */
@@ -260,9 +256,9 @@ function buildPathBoundPart(base: string): void {
   git(["add", "."], paths.sourceRepo);
   // The identity is the repository's own; it is also named here so that an identity a test set
   // in its environment (under its own isolation) cannot reach the commit.
-  execFileSync("git", ["commit", "-q", "-m", "chore: initial commit"], {
+  boundedOutput("git", ["commit", "-q", "-m", "chore: initial commit"], {
+    boundMs: GIT_BOUND_MS,
     cwd: paths.sourceRepo,
-    stdio: ["pipe", "pipe", "pipe"],
     env: {
       ...process.env,
       GIT_AUTHOR_NAME: SEED_IDENTITY.name,
