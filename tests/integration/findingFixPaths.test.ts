@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -28,7 +28,7 @@ vi.mock("node:os", async (importOriginal) =>
 const RECORDS_BRANCH = "phax/records/v1";
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" }).trim();
+  return boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS }).trim();
 }
 
 describe("phax finding fix: paths and --commit", () => {

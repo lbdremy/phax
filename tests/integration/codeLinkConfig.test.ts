@@ -4,7 +4,7 @@
  * checked out at `code/` and ignored. HOME is a temporary directory and git is isolated, so no
  * real ~/.phax, credential store or global git config is read.
  */
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -14,7 +14,7 @@ import { phaxCall } from "../helpers/runnerCall.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 
 function sh(args: readonly string[], cwd: string): void {
-  execFileSync("git", [...args], { cwd, stdio: "pipe" });
+  boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS });
 }
 
 const BASE_CONFIG = {

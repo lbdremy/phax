@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -120,7 +120,8 @@ beforeEach(() => {
   mkdirSync(stateRoot, { recursive: true });
   mkdirSync(join(root, "home"), { recursive: true });
   vi.stubEnv("HOME", join(root, "home"));
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { cwd: repoRoot, boundMs: GIT_BOUND_MS });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");
@@ -467,7 +468,7 @@ const worktreeOf = (phaseId: string): string =>
   join(world.stateRoot, "worktrees", `${NAMESPACE}.${SHORT}`, phaseId);
 
 const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, stdio: "pipe" }).toString().trim();
+  boundedOutput("git", args, { cwd, boundMs: GIT_BOUND_MS }).trim();
 
 const readJson = (path: string): Record<string, unknown> =>
   JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;

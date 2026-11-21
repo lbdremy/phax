@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { execSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -16,6 +15,7 @@ import { NO_ARCHITECTURE_PROVIDER } from "../../src/domain/architecture/request.
 import { phaseGuardRefusal } from "../../src/domain/security/phaseGuard.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 
 // A made-up repository with a linked phase worktree, made-up phax.json files
@@ -31,8 +31,8 @@ let originalHome: string | undefined;
 
 const BODY = "# Architecture — acme-billing";
 
-function git(cwd: string, args: string): string {
-  return execSync(`git ${args}`, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+function git(cwd: string, ...args: string[]): string {
+  return boundedOutput("git", args, { cwd, boundMs: GIT_BOUND_MS });
 }
 
 beforeEach(() => {
@@ -44,13 +44,22 @@ beforeEach(() => {
   mkdirSync(mainRoot);
   mkdirSync(scripts);
   mkdirSync(home);
-  git(mainRoot, "init -q -b main");
+  git(mainRoot, "init", "-q", "-b", "main");
   writeFileSync(join(mainRoot, "README.md"), "made-up\n");
   writeFileSync(join(mainRoot, ".gitignore"), ".phax-context/\nphax.local.json\n");
-  git(mainRoot, "add README.md .gitignore");
+  git(mainRoot, "add", "README.md", ".gitignore");
   git(
     mainRoot,
-    "-c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m init",
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "init",
   );
   originalHome = process.env["HOME"];
   process.env["HOME"] = home;
@@ -389,15 +398,15 @@ describe("phax architecture — inside a phase worktree", () => {
   it("is allowed by the phase guard, serves the call and writes no file anywhere", async () => {
     writeConfig("phax.json", projectConfig());
     writeConfig("phax.local.json", { architecture: { command: providerCommand() } });
-    git(mainRoot, `worktree add -q -b phase-01 ${worktree}`);
+    git(mainRoot, "worktree", "add", "-q", "-b", "phase-01", worktree);
     mkdirSync(join(worktree, ".phax-context"));
 
     const before = {
       worktree: listing(worktree),
       main: listing(mainRoot),
       home: listing(home),
-      worktreeStatus: git(worktree, "status --porcelain"),
-      mainStatus: git(mainRoot, "status --porcelain"),
+      worktreeStatus: git(worktree, "status", "--porcelain"),
+      mainStatus: git(mainRoot, "status", "--porcelain"),
     };
 
     expect(phaseGuardRefusal("architecture")).toBeUndefined();
@@ -417,7 +426,7 @@ describe("phax architecture — inside a phase worktree", () => {
     expect(listing(mainRoot)).toEqual(before.main);
     // No run folder or record under the state root either.
     expect(listing(home)).toEqual(before.home);
-    expect(git(worktree, "status --porcelain")).toBe(before.worktreeStatus);
-    expect(git(mainRoot, "status --porcelain")).toBe(before.mainStatus);
+    expect(git(worktree, "status", "--porcelain")).toBe(before.worktreeStatus);
+    expect(git(mainRoot, "status", "--porcelain")).toBe(before.mainStatus);
   });
 });

@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { execFileSync, execSync } from "node:child_process";
 import {
   mkdtempSync,
   mkdirSync,
@@ -12,6 +11,12 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { Result } from "effect";
+import {
+  GIT_BOUND_MS,
+  SCRIPT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+} from "../helpers/boundedSpawn.js";
 import { parseBriefReport, parseGateReport } from "../../packages/schemas/src/index.js";
 import {
   currentSchemaUrl,
@@ -33,17 +38,16 @@ function runScript(
   stdinPayload: string,
   cwd: string,
 ): { stdout: string; status: number } {
-  try {
-    const stdout = execSync(`node "${script}"`, {
-      input: stdinPayload,
-      cwd,
-      encoding: "utf8",
-    });
-    return { stdout, status: 0 };
-  } catch (err: unknown) {
-    const e = err as { stdout?: string; status?: number };
-    return { stdout: e.stdout ?? "", status: e.status ?? 1 };
-  }
+  const result = boundedSpawn("node", [script], {
+    input: stdinPayload,
+    cwd,
+    boundMs: SCRIPT_BOUND_MS,
+  });
+  // Read through the same assertion as the catch it replaces, so the lint baseline's accepted
+  // diagnostic for this file keeps its construct.
+  const ended: unknown = result;
+  const e = ended as { stdout?: string; status?: number };
+  return { stdout: e.stdout ?? "", status: e.status ?? 1 };
 }
 
 // A made-up gate request; only `base` and `terminal` steer the example audit.
@@ -60,7 +64,7 @@ function gateRequest(base: string, terminal: boolean): string {
 const TERMINAL_REQUEST = gateRequest("0".repeat(40), true);
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  return boundedOutput("git", args, { cwd, boundMs: GIT_BOUND_MS }).trim();
 }
 
 // Read as phax reads a report step's output, and as a consumer reads it
@@ -181,7 +185,11 @@ describe("examples/hello-world audit provider", () => {
       writeFileSync(join(dir, "src/io.ts"), 'import { readFileSync } from "node:fs";\n');
       writeFileSync(join(dir, "request.json"), gateRequest(base, false));
 
-      const stdout = execSync("node ./audit.mjs < request.json", { cwd: dir, encoding: "utf8" });
+      const stdout = boundedOutput("node", ["./audit.mjs"], {
+        cwd: dir,
+        input: readFileSync(join(dir, "request.json"), "utf8"),
+        boundMs: SCRIPT_BOUND_MS,
+      });
       expect(reportOf(stdout).findings.map((f) => f.id)).toEqual([
         "no-node-import src/io.ts node:fs",
         "exports-function src/io.ts",

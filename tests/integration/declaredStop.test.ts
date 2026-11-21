@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -111,7 +111,7 @@ let runPath: string;
 let phaseFolder: string;
 
 const git = (...args: string[]): string =>
-  execFileSync("git", args, { cwd: worktree, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { cwd: worktree, boundMs: GIT_BOUND_MS });
 
 function writeJson(path: string, value: unknown): void {
   mkdirSync(join(path, ".."), { recursive: true });

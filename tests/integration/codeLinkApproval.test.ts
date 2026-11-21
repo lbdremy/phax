@@ -5,7 +5,7 @@
  * ignored. HOME is a temporary directory and git is isolated, so no real ~/.phax, credential store
  * or global git config is read.
  */
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -97,9 +97,7 @@ let savedCwd: string;
 let savedHome: string | undefined;
 
 function sh(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", [...args], { cwd, stdio: "pipe" })
-    .toString()
-    .trim();
+  return boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS }).trim();
 }
 
 function identify(cwd: string): void {

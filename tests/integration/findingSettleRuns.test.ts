@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,7 +26,7 @@ const RECORDS_BRANCH = "phax/records/v1";
 const NAMESPACE = "findings-test";
 
 function git(repo: FateRunRepo, args: readonly string[]): string {
-  return execFileSync("git", [...args], { cwd: repo.repoDir, encoding: "utf8", stdio: "pipe" });
+  return boundedOutput("git", [...args], { cwd: repo.repoDir, boundMs: GIT_BOUND_MS });
 }
 
 describe("phax finding dismiss and defer: runs and refusals", () => {
@@ -140,18 +140,19 @@ describe("phax finding dismiss and defer: runs and refusals", () => {
     // A fate record this phax cannot read, as a later phax with a new fate would write it.
     const path = `${repo.runId}/finding/F1/02/record.json`;
     const text = JSON.stringify({ kind: "finding-fate", runId: repo.runId, finding: "F1" });
-    const blob = execFileSync("git", ["hash-object", "-w", "--stdin"], {
+    const blob = boundedOutput("git", ["hash-object", "-w", "--stdin"], {
       cwd: repo.repoDir,
       input: text,
-      encoding: "utf8",
+      boundMs: GIT_BOUND_MS,
     }).trim();
-    execFileSync("git", ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], {
+    boundedOutput("git", ["update-index", "--add", "--cacheinfo", `100644,${blob},${path}`], {
       cwd: repo.repoDir,
+      boundMs: GIT_BOUND_MS,
       env: { ...process.env, GIT_INDEX_FILE: join(repo.repoDir, ".git", "fate-test-index") },
     });
-    const tree = execFileSync("git", ["write-tree"], {
+    const tree = boundedOutput("git", ["write-tree"], {
       cwd: repo.repoDir,
-      encoding: "utf8",
+      boundMs: GIT_BOUND_MS,
       env: { ...process.env, GIT_INDEX_FILE: join(repo.repoDir, ".git", "fate-test-index") },
     }).trim();
     const tip = head(repo, RECORDS_BRANCH) ?? "";
