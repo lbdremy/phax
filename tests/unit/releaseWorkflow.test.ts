@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, SCRIPT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -84,10 +84,10 @@ describe("release workflow invariants", () => {
       const dir = mkdtempSync(join(tmpdir(), "phax-verify-notes-"));
       try {
         setup(dir);
-        return spawnSync("bash", ["-c", verify.run!], {
+        return boundedSpawn("bash", ["-c", verify.run!], {
           cwd: dir,
           env: { ...process.env, RELEASE_TAG: "v0.18.0" },
-          encoding: "utf-8",
+          boundMs: SCRIPT_BOUND_MS,
         });
       } finally {
         rmSync(dir, { recursive: true, force: true });
@@ -390,9 +390,9 @@ describe("release workflow: the docs site deploy", () => {
     expect(upload).toContain('--tag "$RELEASE_TAG"');
     const alias = /--preview-alias "([^"]+)"/.exec(upload)?.[1];
     expect(alias).toBe("${RELEASE_TAG//./-}");
-    const evaluated = spawnSync("bash", ["-c", `printf '%s' "${alias}"`], {
+    const evaluated = boundedSpawn("bash", ["-c", `printf '%s' "${alias}"`], {
       env: { PATH: process.env["PATH"], RELEASE_TAG: "v0.18.0" },
-      encoding: "utf8",
+      boundMs: SCRIPT_BOUND_MS,
     });
     expect(evaluated.stdout).toBe("v0-18-0");
   });
@@ -669,12 +669,10 @@ describe("release script invariants", () => {
   });
 
   it("parses with bash -n", () => {
-    const result = spawnSync(
+    const result = boundedSpawn(
       "bash",
       ["-n", join(import.meta.dirname, "../../scripts/release.sh")],
-      {
-        encoding: "utf8",
-      },
+      { boundMs: SCRIPT_BOUND_MS },
     );
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);

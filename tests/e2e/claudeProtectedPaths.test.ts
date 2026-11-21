@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { boundedOutput, boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -76,7 +76,7 @@ describe.skipIf(!shouldRun)("ac-protected-path: claude-code protected path deny 
     // realpath: macOS tmpdir is a symlink, and the deny rule must match the
     // path Claude Code resolves.
     repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-protected-e2e-")));
-    spawnSync("git", ["init", "-q"], { cwd: repoDir });
+    boundedOutput("git", ["init", "-q"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
     mkdirSync(join(repoDir, "packages", "a"), { recursive: true });
     writeFileSync(join(repoDir, PROTECTED), ORIGINAL);
   });
@@ -113,11 +113,10 @@ describe.skipIf(!shouldRun)("ac-protected-path: claude-code protected path deny 
       "Do not use any other tools. Then reply DONE.",
     ].join("\n");
 
-    const result = spawnSync("claude", args, {
+    const result = boundedSpawn("claude", args, {
       cwd: repoDir,
       input: prompt,
-      encoding: "utf8",
-      timeout: 300_000,
+      boundMs: 300_000, // a real provider call: its old timeout
       env: projectOnlyEnvironment(process.env),
     });
     expect(result.status, result.stderr).toBe(0);

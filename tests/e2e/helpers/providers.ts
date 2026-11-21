@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, SCRIPT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 /**
  * The three agent providers the real E2E flow exercises. Each suite forces its
@@ -28,11 +28,7 @@ export const E2E_PROVIDERS: readonly E2EProvider[] = [
 
 export function probeProvider(executable: string): boolean {
   try {
-    const r = spawnSync(executable, ["--version"], {
-      encoding: "utf8",
-      timeout: 5_000,
-      stdio: "pipe",
-    });
+    const r = boundedSpawn(executable, ["--version"], { boundMs: SCRIPT_BOUND_MS });
     return r.status === 0;
   } catch {
     return false;

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Result } from "effect";
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { existsSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -80,7 +80,7 @@ const commandOf = (call: ToolCall): string =>
   String((call.input as { command?: unknown } | null)?.command ?? "");
 
 function git(cwd: string, args: readonly string[]): void {
-  const r = spawnSync("git", [...args], { cwd, encoding: "utf8" });
+  const r = boundedSpawn("git", [...args], { cwd, boundMs: GIT_BOUND_MS });
   expect(r.status, `git ${args.join(" ")}: ${r.stderr}`).toBe(0);
 }
 
@@ -140,11 +140,10 @@ describe.skipIf(!shouldRun)("ac-claude-real: claude-code piped partial command",
       "Make no other tool call. Then reply DONE.",
     ].join("\n");
 
-    const result = spawnSync("claude", args, {
+    const result = boundedSpawn("claude", args, {
       cwd: repoDir,
       input: prompt,
-      encoding: "utf8",
-      timeout: 300_000,
+      boundMs: 300_000, // a real provider call: its old timeout
       env: projectOnlyEnvironment(process.env),
     });
     expect(result.status, result.stderr).toBe(0);

@@ -1,40 +1,26 @@
-import { spawnSync } from "node:child_process";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const dir = dirname(fileURLToPath(import.meta.url));
-const PROJECT_ROOT = join(dir, "../../..");
-const CLI_ENTRY = join(PROJECT_ROOT, "src", "cli", "main.ts");
-const TSX_BIN = join(PROJECT_ROOT, "node_modules", ".bin", "tsx");
+import { boundedSpawn, CLI_LAUNCHER, cliArgs } from "../../helpers/boundedSpawn.js";
 
 export interface CliResult {
   readonly exitCode: number;
   readonly stdout: string;
   readonly stderr: string;
-  readonly timedOut: boolean;
 }
+
+/** The bound of a real-provider CLI call: today's default of five minutes. */
+export const E2E_CLI_BOUND_MS = 300_000;
 
 export interface RunCliOptions {
-  timeout?: number;
+  /** The call's bound in ms, required. A bound reached, or any signal ending, throws. */
+  readonly boundMs: number;
   /** Variables merged over the process environment. */
-  env?: Readonly<Record<string, string>>;
+  readonly env?: Readonly<Record<string, string>>;
 }
 
-export function runCli(args: string[], cwd: string, opts: RunCliOptions = {}): CliResult {
-  const timeout = opts.timeout ?? 300_000;
-  const result = spawnSync(TSX_BIN, [CLI_ENTRY, ...args], {
+export function runCli(args: string[], cwd: string, opts: RunCliOptions): CliResult {
+  const result = boundedSpawn(CLI_LAUNCHER, cliArgs(...args), {
     cwd,
-    encoding: "utf8",
-    timeout,
+    boundMs: opts.boundMs,
     env: { ...process.env, ...opts.env },
   });
-
-  const timedOut = result.signal === "SIGTERM" || result.status === null;
-
-  return {
-    exitCode: result.status ?? 1,
-    stdout: result.stdout ?? "",
-    stderr: result.stderr ?? "",
-    timedOut,
-  };
+  return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
 }

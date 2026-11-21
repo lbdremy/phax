@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -416,7 +416,7 @@ describe("runValidate", () => {
 
     beforeEach(async () => {
       repoDir = mkdtempSync(join(tmpdir(), "phax-validate-input-"));
-      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      boundedOutput("git", ["init"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
       vi.stubEnv("HOME", repoDir);
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
       const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
@@ -531,7 +531,7 @@ describe("runValidate", () => {
 
     beforeEach(async () => {
       repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-bounds-")));
-      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      boundedOutput("git", ["init"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
       vi.stubEnv("HOME", repoDir);
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
       const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(
@@ -652,7 +652,7 @@ describe("runValidate", () => {
 
     beforeEach(async () => {
       repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-validate-acceptance-")));
-      execSync("git init", { cwd: repoDir, stdio: "ignore" });
+      boundedOutput("git", ["init"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
       vi.stubEnv("HOME", repoDir);
       cwdSpy = vi.spyOn(process, "cwd").mockReturnValue(repoDir);
       const actual = await vi.importActual<typeof import("../../../src/app/loadConfig.js")>(

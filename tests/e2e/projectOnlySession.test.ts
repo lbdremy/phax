@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { spawnSync } from "node:child_process";
+import { boundedOutput, boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import {
   existsSync,
   mkdirSync,
@@ -147,17 +147,26 @@ describe.skipIf(!shouldRun)("ac-real-init: project-only sources (real provider)"
     // memory by the path it resolves.
     repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-project-only-e2e-")));
     scratchDir = mkdtempSync(join(tmpdir(), "phax-project-only-out-"));
-    spawnSync("git", ["init", "-q"], { cwd: repoDir });
+    boundedOutput("git", ["init", "-q"], { cwd: repoDir, boundMs: GIT_BOUND_MS });
     disableGitAutoMaintenance(repoDir);
-    spawnSync("git", ["config", "--local", "user.email", "e2e@phax.test"], { cwd: repoDir });
-    spawnSync("git", ["config", "--local", "user.name", "phax E2E"], { cwd: repoDir });
+    boundedOutput("git", ["config", "--local", "user.email", "e2e@phax.test"], {
+      cwd: repoDir,
+      boundMs: GIT_BOUND_MS,
+    });
+    boundedOutput("git", ["config", "--local", "user.name", "phax E2E"], {
+      cwd: repoDir,
+      boundMs: GIT_BOUND_MS,
+    });
     mkdirSync(join(repoDir, ".claude", "skills", "repo-skill"), { recursive: true });
     writeFileSync(
       join(repoDir, ".claude", "skills", "repo-skill", "SKILL.md"),
       "---\nname: repo-skill\ndescription: The repository's own skill.\n---\n\nA repository skill.\n",
     );
-    spawnSync("git", ["add", "."], { cwd: repoDir });
-    spawnSync("git", ["commit", "-q", "-m", "chore: initial commit"], { cwd: repoDir });
+    boundedOutput("git", ["add", "."], { cwd: repoDir, boundMs: GIT_BOUND_MS });
+    boundedOutput("git", ["commit", "-q", "-m", "chore: initial commit"], {
+      cwd: repoDir,
+      boundMs: GIT_BOUND_MS,
+    });
 
     vi.stubEnv("CLAUDE_CONFIG_DIR", configDir);
     layer = plantUserLayer({ configDir, repoDir });
@@ -210,11 +219,10 @@ describe.skipIf(!shouldRun)("ac-real-init: project-only sources (real provider)"
       delete controlEnv["CLAUDE_CODE_DISABLE_AUTO_MEMORY"];
 
       // Control: today's launch. Every planted item must show.
-      const control = spawnSync("claude", controlArgs, {
+      const control = boundedSpawn("claude", controlArgs, {
         cwd: repoDir,
         input: PROMPT,
-        encoding: "utf8",
-        timeout: SESSION_TIMEOUT,
+        boundMs: SESSION_TIMEOUT,
         env: controlEnv,
       });
       const controlReading = readSession(control.stdout);

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { boundedSpawn, SCRIPT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { Result } from "effect";
@@ -633,10 +633,9 @@ describe("parseArguments", () => {
 
 describe("the preview entry", { timeout: 60_000 }, () => {
   function run(args: ReadonlyArray<string>, cwd: string = phaxRoot) {
-    return spawnSync(TSX, [join(phaxRoot, "scripts/release-notes.ts"), ...args], {
+    return boundedSpawn(TSX, [join(phaxRoot, "scripts/release-notes.ts"), ...args], {
       cwd,
-      encoding: "utf8",
-      timeout: 30_000,
+      boundMs: SCRIPT_BOUND_MS,
     });
   }
 
