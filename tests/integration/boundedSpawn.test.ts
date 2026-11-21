@@ -158,6 +158,7 @@ setInterval(() => {}, 1000);
       "/bin",
     ].join(":");
 
+    const started = performance.now();
     const error = thrown(() =>
       boundedSpawn(CLI_LAUNCHER, cliArgs("completions", "zsh"), {
         // Long enough for the CLI to load and reach its usage child under a loaded gate.
@@ -165,7 +166,13 @@ setInterval(() => {}, 1000);
         env: { ...phaxHomeEnv(), PATH: path },
       }),
     );
+    const elapsed = performance.now() - started;
     if (error.childPid !== undefined) recordPid("tsx", error.childPid);
+
+    // Within the bound plus the 2 s grace, with room for a loaded gate: the calling side's safety
+    // wait (bound + grace + 2 s pipe wait + 5 s) would answer only after 39 s.
+    expect(elapsed).toBeGreaterThanOrEqual(30_000);
+    expect(elapsed).toBeLessThan(30_000 + 2_000 + 3_000);
 
     expect(error.message).toContain(
       "`tsx src/cli/main.ts completions zsh` reached its bound (30000 ms) and was ended by it",
@@ -228,6 +235,30 @@ setInterval(() => {}, 1000);
       `\`node ${child}\` ended by SIGTERM, not by its bound (${SCRIPT_MS} ms)`,
     );
     expect(error.message).toContain("stderr (24 bytes): self-term: about to end");
+  });
+
+  it("counts and ends a descendant the child left in its group after a normal exit", async () => {
+    const stayer = script(
+      "stayer.mjs",
+      `import { writeFileSync } from "node:fs";
+process.on("SIGTERM", () => {});
+writeFileSync(${JSON.stringify(join(pids, "stayer.pid"))}, String(process.pid));
+setInterval(() => {}, 1000);
+`,
+    );
+    const child = script(
+      "leaves-stayer.mjs",
+      `import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+spawn(process.execPath, [${JSON.stringify(stayer)}], { stdio: "ignore" }).unref();
+while (!existsSync(${JSON.stringify(join(pids, "stayer.pid"))})) await new Promise((r) => setTimeout(r, 10));
+process.exit(0);
+`,
+    );
+    const result = boundedSpawn(process.execPath, [child], { boundMs: SCRIPT_MS });
+    expect(result.status).toBe(0);
+    expect(result.leftover).toBe(1);
+    expect(await goneWithin(readPid("stayer"))).toBe(true);
   });
 
   it("returns a normal exit even when a process outside the group holds the pipes", async () => {
@@ -298,6 +329,24 @@ if ((process.argv[1] ?? "").endsWith("src/cli/main.ts")) {
     expect(error.message).toContain("stderr (25 bytes): preload: sending SIGTERM");
   });
 
+  it("fails a script run through tsx whose node process is SIGTERMed, relayed as 143 (ac-relayed-143)", () => {
+    // Any launch through tsx relays the signal, not only the CLI's.
+    const child = script(
+      "tsx-self-term.mjs",
+      `import { writeSync } from "node:fs";
+writeSync(2, "script: sending SIGTERM\\n");
+process.kill(process.pid, "SIGTERM");
+await new Promise((resolve) => setTimeout(resolve, 10_000));
+`,
+    );
+    const error = thrown(() => boundedSpawn(CLI_LAUNCHER, [child], { boundMs: CLI_BOUND_MS }));
+    expect(error.message).toContain(
+      `\`tsx ${child}\` ended by SIGTERM, not by its bound (${CLI_BOUND_MS} ms)`,
+    );
+    expect(error.message).toContain("sent through tsx: exit status 143");
+    expect(error.message).toContain("diagnosis:");
+  });
+
   it("returns an expected signal as a result, and still fails another (ac-expected-signal)", () => {
     const sigint = script(
       "self-int.mjs",
@@ -346,6 +395,7 @@ process.exit(64);
       signal: null,
       stdout: "alpha\nbéta",
       stderr: "gamma\n\n",
+      leftover: 0,
     });
   });
 
