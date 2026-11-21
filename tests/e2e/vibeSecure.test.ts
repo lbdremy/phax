@@ -55,7 +55,7 @@ import {
 } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
-import { boundedSpawn, GIT_BOUND_MS, SCRIPT_BOUND_MS } from "../helpers/boundedSpawn.js";
+import { boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { parsePartialCommand } from "../../src/domain/gate/partialCommand.js";
 import type { SecurityPolicy } from "../../src/domain/security/types.js";
 import { runVibeAgent } from "../../src/infra/providers/mistralVibe.js";
@@ -67,13 +67,12 @@ import { removeTempDir } from "../helpers/tempGit.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { runCli } from "./helpers/runCli.js";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
-import { expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
+import { expectedSelectedProvider, probeProvider, providerVersion } from "./helpers/providers.js";
 
 function vibeVersionAtLeast313(): boolean {
-  if (!probeProvider("vibe")) return false; // not installed, or not answering
-  const r = boundedSpawn("vibe", ["--version"], { boundMs: SCRIPT_BOUND_MS });
-  if (r.status !== 0) return false;
-  const v = parseVibeVersion(`${r.stdout}${r.stderr}`);
+  const output = providerVersion("vibe"); // undefined: not installed, or not answering
+  if (output === undefined) return false;
+  const v = parseVibeVersion(output);
   if (v === undefined) return false;
   if (v.major !== 3) return v.major > 3;
   if (v.minor !== 1) return v.minor > 1;
