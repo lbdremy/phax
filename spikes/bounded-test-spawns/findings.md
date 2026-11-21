@@ -308,6 +308,74 @@ SIGTERM it really received.
   windows turn a child's exit status into the launcher's signal status under load. That is a
   design choice, not a sender, and this phase drafts no issue for it.
 
+## Fix
+
+**Branch taken: test code.** The sender was a test's own `spawnSync`, so the fix is in test code,
+and phax is unchanged under `src/`.
+
+- What stopped the sender: phase-02 moved every CLI-spawning suite to `boundedSpawn`
+  (`tests/helpers/boundedSpawn.ts`). Its spawning thread reads stdout and stderr with no cap
+  (`runCall`), so output size never makes it send a signal. Its only signals go to the process group
+  it started: at the bound, and to members still alive after a normal exit. That is why the fix
+  lies there. The sender was the reader of the child's output, not phax, tsx or vitest. Only the
+  reader can stop signalling for output size. Phase-05 adds the guard and the record:
+  - `tests/integration/strayTermRegression.test.ts` drives the sender's path. A script run through
+    `CLI_LAUNCHER` (tsx) prints 3 MiB, stays alive 500 ms, and writes any SIGTERM, SIGINT or SIGHUP
+    it receives to a marker file. The test asserts no marker, status 0 and all 3,145,728 bytes.
+    That script is the process the sender never started, as phax was. A second case runs the call
+    killed on record, `boundedSpawn(CLI_LAUNCHER, cliArgs("--json-schema"), …)`. It asserts status
+    0, empty stderr, more than 1 MiB of stdout and a stdout that parses. An `afterAll` kills and
+    reports any process the file left behind.
+  - `tests/helpers/boundedSpawn.ts`: a comment at the output collection says the missing cap is
+    deliberate.
+- Failing on the code from before: the same file, with `boundedSpawn` swapped for the pre-phase-02
+  call (`spawnSync(command, args, { encoding: "utf8", env })`, no `maxBuffer`, `error` unread),
+  fails the 3 MiB case 3 times out of 3 on an idle machine:
+
+  ```text
+  AssertionError: expected { signalled: 'SIGTERM', …(2) } to deeply equal { signalled: null, status: +0, …(1) }
+
+    {
+  -   "bytes": 3145728,
+  -   "signalled": null,
+  +   "bytes": 1114112,
+  +   "signalled": "SIGTERM",
+      "status": 0,
+    }
+  ```
+
+  Node stopped at 1,114,112 bytes (`ENOBUFS`) and SIGTERMed tsx. tsx relayed the SIGTERM to the
+  script, which received it. tsx exited 0 only because the script's handler exits 0 right away. A
+  phax still busy after its last write gives 143 there (Candidates). Without the script's
+  `process.stdout.on("error")`, the script dies of EPIPE first (status 1). The test then still
+  fails, but on the bytes and the status, not on the signal. The `--json-schema` case passes on the
+  pre-fix code when the machine is idle. It records the call on record, and the 3 MiB case is the
+  one that fails without load.
+
+- No upstream issue is drafted: Node documents `maxBuffer`, and tsx relays a SIGTERM it really
+  received (Fix direction).
+- Left to phases 06 to 10: the raw `spawnSync` and `execFileSync` calls they move. Any of them whose
+  output passes 1 MiB loses its cap with the move. phase-11's guard then keeps a raw spawn out of
+  `tests/`.
+
+### Short reproduction after the fix
+
+`node spikes/bounded-test-spawns/repro.mjs --runs 3 --load gate`, on the operator's macOS
+machine, at this phase's change:
+
+```text
+Summary
+  rounds: 3, suites: 3
+  suite seconds: 190, 185, 186
+  suites failing: 0
+  non-normal endings logged: 18 (18 from tests/integration/boundedSpawn.test.ts, 0 foreign)
+  from tests/integration/boundedSpawn.test.ts: {"bound":6,"signal":6,"exit":3,"spawn-error":3}
+```
+
+Each suite ran 22,562 tests, the 2 of `strayTermRegression.test.ts` included, with 0 failed and 0
+vitest worker losses. Every logged ending came from `boundedSpawn.test.ts`, which causes each kind
+of ending on purpose. No CLI spawn ended on a foreign signal.
+
 ## CI (to fill at review)
 
 The pull request's CI runs the suite with every CLI spawn bounded. A foreign-signal ending there

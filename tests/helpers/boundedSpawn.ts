@@ -313,6 +313,8 @@ function runCall({ call, flag, port }: ThreadRequest): void {
     takeSnapshot();
     reportWhenDone();
   });
+  // No cap on what is read, deliberately: spawnSync's maxBuffer (1 MiB) SIGTERMed tsx on the root
+  // --json-schema, the stray SIGTERM (tests/integration/strayTermRegression.test.ts).
   child.stdout?.on("data", (chunk: Buffer) => stdout.push(chunk));
   child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
   // A child that exits without reading its stdin breaks the pipe: its exit still reports.
