@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
@@ -22,7 +22,7 @@ const CLAUDE_SESSION = "3f2b9c1e-6a4d-4e8f-9b21-7c5d0e8a1f42";
 const CODEX_SESSION = "019a2f6e-0000-4000-8000-000000000002";
 
 const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, encoding: "utf8" });
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 
 /** The committed record.json of `phaseId`: each records commit holds only its own record. */
 function manifestOf(run: PlanRun, phaseId: string): Record<string, unknown> {

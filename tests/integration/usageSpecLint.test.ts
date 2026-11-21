@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { BoundedSpawnError, SCRIPT_BOUND_MS, boundedSpawn } from "../helpers/boundedSpawn.js";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,23 +19,22 @@ describe("phax.usage.kdl", () => {
   });
 
   it("lints clean with the usage CLI (warnings and infos treated as errors)", () => {
-    const result = spawnSync("usage", ["lint", "-W", specPath], {
-      encoding: "utf8",
-      env: { ...process.env },
-    });
-
-    if (result.error !== undefined) {
-      const isNotFound =
-        (result.error as NodeJS.ErrnoException).code === "ENOENT" ||
-        result.error.message.includes("ENOENT");
-      if (isNotFound) {
+    let result: ReturnType<typeof boundedSpawn>;
+    try {
+      result = boundedSpawn("usage", ["lint", "-W", specPath], {
+        boundMs: SCRIPT_BOUND_MS,
+        env: { ...process.env },
+      });
+    } catch (error) {
+      if (error instanceof BoundedSpawnError && error.message.includes("ENOENT")) {
         throw new Error(
           "The `usage` CLI is required but was not found on PATH.\n" +
             "Install it with: brew install usage\n" +
             "See https://usage.jdx.dev/cli/ for other install options.",
+          { cause: error },
         );
       }
-      throw result.error;
+      throw error;
     }
 
     const output = [result.stdout, result.stderr].filter(Boolean).join("\n");

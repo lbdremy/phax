@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -39,7 +39,7 @@ const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer
 const RUN_ID = "2610270900-example";
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function inRepoConfig(transcript = false): ResolvedRecordsConfig {
@@ -131,12 +131,13 @@ describe("writeReviewRecord (real git)", () => {
     ]);
 
     // byte-identical to the run folder's file
-    const committed = execFileSync(
-      "git",
-      ["show", `${status.commitSha}:${key}/compliance-review.json`],
-      {
+    // The committed file is UTF-8 text, so the helper's text answer round-trips to its bytes.
+    const committed = Buffer.from(
+      boundedOutput("git", ["show", `${status.commitSha}:${key}/compliance-review.json`], {
+        boundMs: GIT_BOUND_MS,
         cwd: repoDir,
-      },
+      }),
+      "utf8",
     );
     expect(committed.equals(await readFile(join(runPath, "compliance-review.json")))).toBe(true);
     expect(committed.toString("utf8")).toBe(COMPLIANCE_FILE);

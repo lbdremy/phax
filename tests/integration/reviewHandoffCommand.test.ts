@@ -1,5 +1,5 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -101,7 +101,7 @@ describe("runReviewHandoff command", () => {
     runPath = join(stateRoot, "runs", `test.${SHORT_NAME}`);
 
     // Make a git repo so loadConfig can find a git root
-    execSync("git init -q", { cwd: repoRoot });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: repoRoot });
 
     // Write phax.json pointing stateRoot to our temp dir
     await writeFile(

@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -56,9 +56,15 @@ describe("commands that hand over the terminal", () => {
     const stateRoot = join(repoRoot, ".phax-state");
     runPath = join(stateRoot, "runs", `test.${SHORT_NAME}`);
     worktreePath = join(stateRoot, "worktrees", SHORT_NAME, "phase-01");
-    execSync("git init -q", { cwd: repoRoot });
-    execSync('git config user.name "Handover Test"', { cwd: repoRoot });
-    execSync("git config user.email handover-test@example.com", { cwd: repoRoot });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: repoRoot });
+    boundedOutput("git", ["config", "user.name", "Handover Test"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoRoot,
+    });
+    boundedOutput("git", ["config", "user.email", "handover-test@example.com"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoRoot,
+    });
     writeFileSync(
       join(repoRoot, "phax.json"),
       JSON.stringify({

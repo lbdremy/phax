@@ -10,7 +10,7 @@ import type { ClaudeSessionId } from "../../src/domain/branded.js";
 import { HandoffPausedError, UsageLimitError } from "../../src/domain/errors.js";
 import { validateHandoffSections } from "../../src/app/handoffGeneration.js";
 import { inspectResumeOnDisk } from "../helpers/inspectResume.js";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { existsSync, writeFileSync } from "node:fs";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -442,10 +442,9 @@ async function readJson(path: string): Promise<Record<string, unknown>> {
 // `git` in `cwd`, isolated from the person's configuration by the caller,
 // with its messages in English.
 function git(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", args, {
+  return boundedOutput("git", args, {
+    boundMs: GIT_BOUND_MS,
     cwd,
-    encoding: "utf8",
-    stdio: "pipe",
     env: { ...process.env, LC_ALL: "C" },
   });
 }

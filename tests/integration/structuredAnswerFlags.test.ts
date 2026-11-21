@@ -1,6 +1,6 @@
 // Spec acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -517,7 +517,8 @@ async function driveFirstTurn(provider: ProviderId, table?: StructuredCallsTable
   const phaseFolder = join(root, "runs", "invoice-export", "phase-03");
   mkdirSync(worktree, { recursive: true });
   mkdirSync(phaseFolder, { recursive: true });
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: worktree, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: worktree });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(worktree);
   git("config", "--local", "user.email", "ada@example.test");

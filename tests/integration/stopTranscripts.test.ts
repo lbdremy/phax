@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { createHash, randomUUID } from "node:crypto";
 import {
   appendFileSync,
@@ -272,19 +272,18 @@ const modeOf = (path: string): number => statSync(path).mode & 0o777;
 
 // Every ref of the repository holds no path under interactive-transcripts/.
 function expectNoBranchHoldsTranscripts(repoRoot: string): void {
-  const refs = execFileSync("git", ["for-each-ref", "--format=%(refname)", "refs/heads"], {
+  const refs = boundedOutput("git", ["for-each-ref", "--format=%(refname)", "refs/heads"], {
+    boundMs: GIT_BOUND_MS,
     cwd: repoRoot,
-    stdio: "pipe",
   })
-    .toString()
     .split("\n")
     .filter((ref) => ref !== "");
   expect(refs.length).toBeGreaterThan(1);
   for (const ref of refs) {
-    const paths = execFileSync("git", ["ls-tree", "-r", "--name-only", ref], {
+    const paths = boundedOutput("git", ["ls-tree", "-r", "--name-only", ref], {
+      boundMs: GIT_BOUND_MS,
       cwd: repoRoot,
-      stdio: "pipe",
-    }).toString();
+    });
     expect(paths, ref).not.toContain("interactive-transcripts");
   }
 }
@@ -657,7 +656,7 @@ describe("transcripts at a declared stop's close", () => {
 });
 
 const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, stdio: "pipe" }).toString().trim();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd }).trim();
 
 // ── The held stop ──────────────────────────────────────────────────────────
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -248,7 +248,7 @@ describe("explain's address: which trailers name a record", () => {
   const RUN = "invoice-export-1786800000000";
 
   const git = (...args: string[]): string =>
-    execFileSync("git", args, { cwd: repoDir, encoding: "utf8" }).trim();
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoDir }).trim();
 
   function commitWith(trailers: readonly string[]): string {
     git(
