@@ -1111,8 +1111,9 @@ describe("architectural guard: a frozen module imports only effect", () => {
 // A test starts a child only through boundedSpawn, with a bound. The scanner parses a script
 // file and reports every way it reaches node:child_process: a call of an imported binding (named,
 // default, namespace, required, createRequire, dynamic import) at the call's line, or the line of
-// the import itself when no call is found (a re-export, a binding passed on). Text inside a string
-// or template literal is never code, so a script a test writes to disk is not scanned.
+// the import itself when no call is found (a re-export, a binding passed on), or a vi.mock factory
+// that takes importOriginal, which hands back the real module. Text inside a string or template
+// literal is never code, so a script a test writes to disk is not scanned.
 
 // The implementation of the bounded spawn, not an exemption: the one file that starts children.
 const BOUNDED_SPAWN_FILE = "tests/helpers/boundedSpawn.ts";
@@ -1205,7 +1206,9 @@ function moduleCallSpecifier(call: AstNode, requireNames: ReadonlySet<string>): 
 }
 
 // A command line split on spaces (`command.split(" ").slice(1)`) breaks any argument holding a
-// space, so it is never the argument array of a bounded spawn.
+// space, so it is never the argument array of a bounded spawn: neither inline, nor through a
+// variable a split initialised (`const [file, ...args] = command.split(" ")`). The variable is
+// matched by name in the file, not by scope.
 function splitsAString(node: AstNode | undefined): boolean {
   if (node === undefined) return false;
   if (
@@ -1222,6 +1225,43 @@ function splitsAString(node: AstNode | undefined): boolean {
   return (
     nodeName(subNode(callee, "property")) === "split" || splitsAString(subNode(callee, "object"))
   );
+}
+
+// The names a split initialises: `const args = line.split(" ")`, `const [file, ...args] = …`.
+function namesSplitInto(root: AstNode): ReadonlySet<string> {
+  const names = new Set<string>();
+  walkAst(root, (node) => {
+    if (node.type !== "VariableDeclarator" || !splitsAString(subNode(node, "init"))) return;
+    const id = subNode(node, "id");
+    const whole = nodeName(id);
+    if (whole !== undefined) names.add(whole);
+    for (const element of nodeList(id, "elements")) {
+      const name = nodeName(
+        element.type === "RestElement" ? subNode(element, "argument") : element,
+      );
+      if (name !== undefined) names.add(name);
+    }
+  });
+  return names;
+}
+
+// vi.mock("node:child_process", async (importOriginal) => …): the factory's parameter hands back
+// the real module, with no specifier of its own to follow.
+function mocksWithOriginal(node: AstNode): string | undefined {
+  const callee = subNode(node, "callee");
+  if (callee?.type !== "MemberExpression" || nodeName(subNode(callee, "object")) !== "vi") {
+    return undefined;
+  }
+  const method = nodeName(subNode(callee, "property"));
+  if (method !== "mock" && method !== "doMock") return undefined;
+  const [first, factory] = nodeList(node, "arguments");
+  const specifier = childProcessSpecifier(first);
+  if (specifier === undefined || factory === undefined) return undefined;
+  const isFunction =
+    factory.type === "ArrowFunctionExpression" || factory.type === "FunctionExpression";
+  return isFunction && nodeList(factory, "params").length > 0
+    ? `vi.${method} of ${specifier} through importOriginal`
+    : undefined;
 }
 
 const TRANSPARENT_WRAPPERS: ReadonlySet<string> = new Set([
@@ -1262,6 +1302,7 @@ function scanUnboundedSpawns(file: string, text: string): SpawnFinding[] {
     }
   });
 
+  const splitNames = namesSplitInto(root);
   const findings: SpawnFinding[] = [];
   const sites: ImportSite[] = [];
   const named = new Map<string, { site: ImportSite; name: string }>();
@@ -1352,6 +1393,8 @@ function scanUnboundedSpawns(file: string, text: string): SpawnFinding[] {
       if (specifier === undefined) return;
       bindSource(newSite(node, `dynamic import of ${specifier}`, specifier), node, ancestors);
     } else if (node.type === "CallExpression") {
+      const mocked = mocksWithOriginal(node);
+      if (mocked !== undefined) report(node.start, mocked);
       const specifier = moduleCallSpecifier(node, requireNames);
       if (specifier === undefined) return;
       bindSource(newSite(node, `require of ${specifier}`, specifier), node, ancestors);
@@ -1374,7 +1417,8 @@ function scanUnboundedSpawns(file: string, text: string): SpawnFinding[] {
       }
       if (calleeName === "boundedSpawn" || calleeName === "boundedOutput") {
         const args = nodeList(node, "arguments")[1];
-        if (args !== undefined && splitsAString(args)) {
+        const splitVariable = args?.type === "Identifier" && splitNames.has(nodeName(args) ?? "");
+        if (args !== undefined && (splitsAString(args) || splitVariable)) {
           report(args.start, `a command line split on spaces, passed to ${calleeName}`);
         }
       }
@@ -1525,6 +1569,25 @@ describe("unbounded test spawns", () => {
     expect(findingsOf(text)).toEqual([
       [1, "a command line split on spaces, passed to boundedSpawn"],
       [2, "a command line split on spaces, passed to boundedOutput"],
+    ]);
+  });
+
+  it("reports a command line split into a variable, then passed to a bounded spawn", () => {
+    const text = `const [file, ...args] = command.split(/\\s+/);\nboundedSpawn(file ?? "", args, { boundMs: SCRIPT_BOUND_MS });\nconst parts = line.split(" ");\nboundedOutput("git", parts, { boundMs: GIT_BOUND_MS });\nconst kept = ["status"];\nboundedOutput("git", kept, { boundMs: GIT_BOUND_MS });\n`;
+    expect(findingsOf(text)).toEqual([
+      [2, "a command line split on spaces, passed to boundedSpawn"],
+      [4, "a command line split on spaces, passed to boundedOutput"],
+    ]);
+  });
+
+  it("reports a vi.mock of node:child_process whose factory takes importOriginal", () => {
+    expect(
+      findingsOf(
+        `vi.mock("node:child_process", async (importOriginal) => {\n  const cp = await importOriginal();\n  cp.spawnSync("a");\n  return cp;\n});\n`,
+      ),
+    ).toEqual([[1, "vi.mock of node:child_process through importOriginal"]]);
+    expect(findingsOf(`vi.doMock("child_process", (original) => ({ ...original }));\n`)).toEqual([
+      [1, "vi.doMock of child_process through importOriginal"],
     ]);
   });
 
