@@ -23,9 +23,15 @@ function runAdjustPlan(
   ]);
 }
 
-vi.mock("node:child_process", () => ({
-  spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
-}));
+// Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
+const spawnSyncMock = vi.hoisted(() =>
+  vi.fn((_command: string, _args: readonly string[], _options: object) => ({
+    status: 0,
+    error: undefined,
+  })),
+);
+
+vi.mock("node:child_process", () => ({ spawnSync: spawnSyncMock }));
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -248,7 +254,6 @@ describe("runAdjustPlan", () => {
   });
 
   it("new session with cached plan: exit 0, spawns claude --session-id, cwd is process.cwd()", async () => {
-    const { spawnSync } = await import("node:child_process");
     const planPath = join(stateRoot, "plan.md");
     const { runPath, phaseDir } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
@@ -261,12 +266,12 @@ describe("runAdjustPlan", () => {
     });
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalledWith(
+    expect(spawnSyncMock).toHaveBeenCalledWith(
       "claude",
       expect.arrayContaining(["--session-id"]),
       expect.objectContaining({ cwd: process.cwd(), stdio: "inherit" }),
     );
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("--model");
     expect(call[1]).toContain("claude-opus-5-5");
     expect(call[1]).toContain("--effort");
@@ -275,7 +280,6 @@ describe("runAdjustPlan", () => {
   });
 
   it("resume (no --new-session): spawns --resume with existing session id", async () => {
-    const { spawnSync } = await import("node:child_process");
     const planPath = join(stateRoot, "plan.md");
     const { runPath, phaseDir } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
@@ -308,7 +312,7 @@ describe("runAdjustPlan", () => {
     });
 
     expect(exitCode).toBe(0);
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("--resume");
     expect(call[1]).toContain("resume-session-xyz");
     expect(call[1]).not.toContain("--model");
@@ -317,7 +321,6 @@ describe("runAdjustPlan", () => {
   });
 
   it("landed run lacking reconciliation: exit 1, refused error", async () => {
-    const { spawnSync } = await import("node:child_process");
     const planPath = join(stateRoot, "plan.md");
     const { phaseDir, runPath } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
@@ -330,25 +333,22 @@ describe("runAdjustPlan", () => {
     });
 
     expect(exitCode).toBe(1);
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("global-file-reconciliation.json"))).toBe(true);
   });
 
   it("invalid --effort: exit 1 without spawning", async () => {
-    const { spawnSync } = await import("node:child_process");
-
     const { code: exitCode, errLines: errors } = await runAdjustPlan("plan.md", {
       landed: SHORT_NAME,
       effort: "max",
     });
 
     expect(exitCode).toBe(1);
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("low | medium | high"))).toBe(true);
   });
 
   it("relative plan path resolves against process.cwd(): exit 0, spawns claude", async () => {
-    const { spawnSync } = await import("node:child_process");
     const planPath = join(stateRoot, "plan.md");
     const { runPath, phaseDir } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
@@ -364,11 +364,10 @@ describe("runAdjustPlan", () => {
     const { code: exitCode } = await runAdjustPlan(relativePlanPath, { landed: SHORT_NAME });
 
     expect(exitCode).toBe(0);
-    expect(spawnSync).toHaveBeenCalled();
+    expect(spawnSyncMock).toHaveBeenCalled();
   });
 
   it("missing plan.md: exit 1 without spawning", async () => {
-    const { spawnSync } = await import("node:child_process");
     const { phaseDir, runPath } = await buildFakeRun(stateRoot, SHORT_NAME);
     await writeClaudeBinding(phaseDir, runPath);
 
@@ -378,7 +377,7 @@ describe("runAdjustPlan", () => {
     );
 
     expect(exitCode).toBe(1);
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("nonexistent.md"))).toBe(true);
   });
 });

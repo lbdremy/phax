@@ -6,9 +6,15 @@ import { Result } from "effect";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
-vi.mock("node:child_process", () => ({
-  spawnSync: vi.fn(() => ({ status: 0, error: undefined })),
-}));
+// Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
+const spawnSyncMock = vi.hoisted(() =>
+  vi.fn((_command: string, _args: readonly string[], _options: object) => ({
+    status: 0,
+    error: undefined,
+  })),
+);
+
+vi.mock("node:child_process", () => ({ spawnSync: spawnSyncMock }));
 
 vi.mock("../../src/app/loadConfig.js", () => ({
   loadConfig: vi.fn(),
@@ -204,7 +210,6 @@ describe("runReviewCode", () => {
   });
 
   it("new session: spawns claude --session-id, returns fake exit code", async () => {
-    const { spawnSync } = await import("node:child_process");
     const shortName = "test-run";
     const { runPath, worktreePath } = await buildFakeRunFolder(stateRoot, { shortName });
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
@@ -220,12 +225,12 @@ describe("runReviewCode", () => {
     const exitCode = await runReviewCode(shortName, {}, out);
 
     expect(exitCode).toBe(FAKE_SESSION_EXIT_CODE);
-    expect(spawnSync).toHaveBeenCalledWith(
+    expect(spawnSyncMock).toHaveBeenCalledWith(
       "claude",
       expect.arrayContaining(["--session-id"]),
       expect.objectContaining({ cwd: worktreePath, stdio: "inherit" }),
     );
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("--model");
     expect(call[1]).toContain("claude-opus-4-8");
     expect(call[1]).toContain("--effort");
@@ -234,7 +239,6 @@ describe("runReviewCode", () => {
   });
 
   it("--model/--effort overrides: spawned argv uses overridden values", async () => {
-    const { spawnSync } = await import("node:child_process");
     const shortName = "test-run";
     const { runPath, worktreePath } = await buildFakeRunFolder(stateRoot, { shortName });
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
@@ -244,7 +248,7 @@ describe("runReviewCode", () => {
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6", effort: "medium" }, out);
 
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("claude-sonnet-4-6");
     expect(call[1]).toContain("medium");
     expect(call[1]).not.toContain("claude-opus-4-8");
@@ -252,20 +256,17 @@ describe("runReviewCode", () => {
   });
 
   it("invalid --effort value: returns 1 without spawning", async () => {
-    const { spawnSync } = await import("node:child_process");
-
     const errors: string[] = [];
     const out = { log: vi.fn(), warn: vi.fn(), error: (m: string) => errors.push(m) };
 
     const exitCode = await runReviewCode("test-run", { effort: "max" }, out);
 
     expect(exitCode).toBe(1);
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("low | medium | high"))).toBe(true);
   });
 
   it("resume (no overrides): spawned argv uses --resume without --model/--effort", async () => {
-    const { spawnSync } = await import("node:child_process");
     const shortName = "test-run";
     const { runPath, worktreePath } = await buildFakeRunFolder(stateRoot, { shortName });
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
@@ -296,7 +297,7 @@ describe("runReviewCode", () => {
     const exitCode = await runReviewCode(shortName, {}, out);
 
     expect(exitCode).toBe(FAKE_SESSION_EXIT_CODE);
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("--resume");
     expect(call[1]).toContain("stored-session-abc");
     expect(call[1]).not.toContain("--model");
@@ -305,7 +306,6 @@ describe("runReviewCode", () => {
   });
 
   it("resume with --model: spawned argv contains --resume plus --model", async () => {
-    const { spawnSync } = await import("node:child_process");
     const shortName = "test-run";
     const { runPath, worktreePath } = await buildFakeRunFolder(stateRoot, { shortName });
     await writeClaudeBinding(join(runPath, "phase-01"), shortName, worktreePath);
@@ -328,7 +328,7 @@ describe("runReviewCode", () => {
 
     await runReviewCode(shortName, { model: "claude-sonnet-4-6" }, out);
 
-    const call = vi.mocked(spawnSync).mock.calls[0]!;
+    const call = vi.mocked(spawnSyncMock).mock.calls[0]!;
     expect(call[1]).toContain("--resume");
     expect(call[1]).toContain("stored-session-abc");
     expect(call[1]).toContain("--model");
@@ -337,7 +337,6 @@ describe("runReviewCode", () => {
   });
 
   it("run not in review_open: returns 1 without spawning", async () => {
-    const { spawnSync } = await import("node:child_process");
     const shortName = "test-run";
     const { runPath, worktreePath } = await buildFakeRunFolder(stateRoot, {
       shortName,
@@ -351,7 +350,7 @@ describe("runReviewCode", () => {
     const exitCode = await runReviewCode(shortName, {}, out);
 
     expect(exitCode).toBe(1);
-    expect(spawnSync).not.toHaveBeenCalled();
+    expect(spawnSyncMock).not.toHaveBeenCalled();
     expect(errors.some((e) => e.includes("review_open"))).toBe(true);
   });
 });
