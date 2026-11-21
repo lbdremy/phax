@@ -16,7 +16,8 @@
 // exit are ended with SIGKILL too, so none holds the child's pipes open. A thread, not a supervisor
 // process: a call costs about what spawnSync costs, where a node process per call cost ~50 ms.
 //
-// A normal exit is returned unchanged, whatever its status. A signal the call names in
+// A normal exit is returned with its status, whatever it is, and `leftover`: the members of the
+// group still alive after it, which the call ended with SIGKILL. A signal the call names in
 // `expectSignal` is returned as a result. Any other ending throws a `BoundedSpawnError` naming
 // the command, the bound, the signal, who ended the child and everything it wrote.
 //
@@ -34,7 +35,7 @@ import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { constants as osConstants } from "node:os";
-import { dirname, isAbsolute, join, relative, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   isMainThread,
@@ -61,6 +62,8 @@ const GRACE_MS = 2_000;
 const SAFETY_MARGIN_MS = 5_000;
 /** How long the thread waits for the child's pipes to close after it exited. */
 const PIPES_CLOSE_MS = 2_000;
+/** What a ps listing may hold: a full process table with whole command lines. */
+const PS_MAX_BUFFER = 64 * 1024 * 1024;
 /** The workerData that tells this file it is the spawning thread, not a test's module. */
 const THREAD_TAG = "phax-bounded-spawn-thread";
 
@@ -115,12 +118,16 @@ interface EndingReport {
   readonly childKilled: boolean;
   /** Descendants SIGKILL ended: at the grace's end, or left over after a normal exit. */
   readonly descendantsKilled: number | null;
+  /** Live members of the group after a normal exit (0 when none); null when ps could not list them. */
+  readonly leftover: number | null;
   readonly error: string | null;
   /**
    * `ps -A -o pid,ppid,pgid,stat,lstart,command` at the moment of a non-normal ending or of an
    * exit status above 128; null otherwise.
    */
   readonly snapshot: string | null;
+  /** Why ps gave no snapshot, when it failed; null otherwise. */
+  readonly snapshotError: string | null;
   /** ISO moment the thread saw the ending. */
   readonly seenAt: string | null;
   readonly stdout: string;
@@ -144,12 +151,14 @@ function runCall({ call, flag, port }: ThreadRequest): void {
   let killAtMs: number | null = null;
   let childKilled = false;
   let descendantsKilled: number | null = null;
+  let leftover: number | null = null;
   let ending = false;
   let killed = false;
   let pipesClosed = false;
   let pipesWaitOver = false;
   let reported = false;
   let snapshot: string | null = null;
+  let snapshotError: string | null = null;
   let seenAt: string | null = null;
   const stdout: Buffer[] = [];
   const stderr: Buffer[] = [];
@@ -162,25 +171,32 @@ function runCall({ call, flag, port }: ThreadRequest): void {
     try {
       snapshot = execFileSync("ps", ["-A", "-o", "pid,ppid,pgid,stat,lstart,command"], {
         encoding: "utf8",
+        maxBuffer: PS_MAX_BUFFER,
         stdio: ["ignore", "pipe", "ignore"],
       });
-    } catch {
+    } catch (error) {
       snapshot = "";
+      snapshotError = error instanceof Error ? error.message : String(error);
     }
   };
 
-  // The pids of the group's members, from ps; null when ps cannot answer.
+  // The pids of the group's live members, from ps; null when ps cannot answer. A zombie (stat Z)
+  // has ended already: it waits only for its parent, or init, to reap it.
   const members = (): number[] | null => {
     if (pgid === null) return [];
     try {
-      const listing = execFileSync("ps", ["-A", "-o", "pid=,pgid="], {
+      const listing = execFileSync("ps", ["-A", "-o", "pid=,pgid=,stat="], {
         encoding: "utf8",
+        maxBuffer: PS_MAX_BUFFER,
         stdio: ["ignore", "pipe", "ignore"],
       });
       const pids: number[] = [];
       for (const line of listing.split("\n")) {
-        const [pid, group] = line.trim().split(/\s+/).map(Number);
-        if (group === pgid && pid !== undefined && Number.isInteger(pid)) pids.push(pid);
+        const [pidText, groupText, stat] = line.trim().split(/\s+/);
+        const pid = Number(pidText);
+        if (Number(groupText) !== pgid || !Number.isInteger(pid) || pid <= 0) continue;
+        if (stat?.startsWith("Z")) continue;
+        pids.push(pid);
       }
       return pids;
     } catch {
@@ -231,10 +247,12 @@ function runCall({ call, flag, port }: ThreadRequest): void {
       killAtMs,
       childKilled,
       descendantsKilled,
+      leftover,
       error: spawnError,
       // Taken only for an ending other than a normal exit, or for a status a launcher may have
       // relayed from a signal (above 128): the caller decides which of those it reports.
       snapshot,
+      snapshotError,
       seenAt,
       stdout: Buffer.concat(stdout).toString("utf8"),
       stderr: Buffer.concat(stderr).toString("utf8"),
@@ -347,9 +365,12 @@ function runCall({ call, flag, port }: ThreadRequest): void {
       return;
     }
     clearTimeout(bound);
-    // A normal exit: a member left in the group would hold the pipes open.
+    // A normal exit: a member left in the group would hold the pipes open. It is counted, so a test
+    // can tell a child that left a process behind from one that did not.
+    leftover = 0;
     if (groupAlive()) {
-      descendantsKilled = descendantsOf(members());
+      leftover = descendantsOf(members());
+      descendantsKilled = leftover;
       signalGroup("SIGKILL");
     }
     reportWhenDone();
@@ -396,6 +417,11 @@ export interface BoundedExit {
   readonly signal: null;
   readonly stdout: string;
   readonly stderr: string;
+  /**
+   * The child's descendants still alive in its process group after it exited, which the call then
+   * ended with SIGKILL: 0 when it left none, null when ps could not list the group.
+   */
+  readonly leftover: number | null;
 }
 
 interface BoundedSignal {
@@ -518,7 +544,7 @@ export function boundedSpawn(
     );
   }
   const status = report.status ?? 0;
-  const relayed = isCliSpawn(args) ? relayedSignal(status) : undefined;
+  const relayed = isLauncherSpawn(command, args) ? relayedSignal(status) : undefined;
   if (relayed !== undefined && relayed === options.expectSignal) {
     return { status: null, signal: relayed, stdout, stderr };
   }
@@ -528,7 +554,7 @@ export function boundedSpawn(
         `after ${report.elapsedMs} ms`,
     );
   }
-  return { status, signal: null, stdout, stderr };
+  return { status, signal: null, stdout, stderr, leftover: report.leftover };
 }
 
 /**
@@ -587,9 +613,14 @@ function diagnose(report: EndingReport): Diagnosis {
   const groups = new Set<number>(
     [worker?.pgid, report.pgid].filter((id): id is number => id !== undefined && id !== null),
   );
-  const related = rows
-    .filter((row) => ancestors.has(row.pid) || groups.has(row.pgid) || row.pid === report.childPid)
-    .map((row) => row.text.trim());
+  const related =
+    report.snapshotError === null
+      ? rows
+          .filter(
+            (row) => ancestors.has(row.pid) || groups.has(row.pgid) || row.pid === report.childPid,
+          )
+          .map((row) => row.text.trim())
+      : [`ps failed: ${report.snapshotError}`];
   return {
     worker: { pid: process.pid, ppid: process.ppid, pgid: worker?.pgid ?? null },
     child: { pid: report.childPid, pgid: report.pgid },
@@ -645,7 +676,10 @@ function definedEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   return defined;
 }
 
-function isCliSpawn(args: readonly string[]): boolean {
+// A launcher that relays its child's signal as status 128 + n: tsx by any path, or the CLI's
+// entry run by another launcher.
+function isLauncherSpawn(command: string, args: readonly string[]): boolean {
+  if (command === CLI_LAUNCHER || basename(command) === "tsx") return true;
   return args.some((arg) => {
     const path = arg.split(sep).join("/");
     return path.endsWith("src/cli/main.ts") || path.endsWith("dist/cli/main.js");
