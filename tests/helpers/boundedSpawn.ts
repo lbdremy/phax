@@ -6,40 +6,44 @@
 //     env: phaxHomeEnv(),
 //   });
 //
-// The call is synchronous, like spawnSync, but a synchronous call cannot end a process group, so
-// it runs a supervisor: this same file, run by node as its own main module. The supervisor starts
-// the command in a process group of its own and writes how it ended to a report file. At the
-// bound it sends SIGTERM to the group, then SIGKILL once the grace has passed, so the child and
+// The call is synchronous, like spawnSync, but spawnSync's own timeout reaches only the direct
+// child, never a process group. So the child is started by a worker thread of the calling process:
+// this same file, loaded by node as the thread's module. The thread starts the command in a process
+// group of its own; the calling thread blocks (Atomics.wait) until the thread answers. At the bound
+// the thread sends SIGTERM to the group, then SIGKILL once the grace has passed, so the child and
 // every descendant end, even one that ignores SIGTERM. Members of the group left after a normal
-// exit are ended with SIGKILL too, so none holds the caller's pipes open.
+// exit are ended with SIGKILL too, so none holds the child's pipes open. A thread, not a supervisor
+// process: a call costs about what spawnSync costs, where a node process per call cost ~50 ms.
 //
 // A normal exit is returned unchanged, whatever its status. A signal the call names in
 // `expectSignal` is returned as a result. Any other ending throws a `BoundedSpawnError` naming
 // the command, the bound, the signal, who ended the child and everything it wrote.
 //
-// A foreign-signal error ends with a `diagnosis:` block: the worker, supervisor and child pids,
-// parents and process groups, the moment, and the related lines of a ps snapshot the supervisor
-// took when it saw the ending. The sender is named when the platform reports it.
+// A foreign-signal error ends with a `diagnosis:` block: the worker's and the child's pids,
+// parents and process groups, the moment, and the related lines of a ps snapshot the thread took
+// when it saw the ending. The sender is named when the platform reports it.
 //
 // PHAX_SPAWN_DIAG_LOG: when it names a file, every ending other than a normal exit (a bound
 // included) appends one JSON line to it: the diagnosis fields, the command line, the ending, the
 // vitest pool id and the test file. Unset, nothing is written.
 //
-// The supervisor runs this file under node's type stripping: it imports only node: modules and
-// uses erasable TypeScript only. Keep it that way.
-import { execFileSync, spawn, spawnSync } from "node:child_process";
+// The thread loads this file under node's type stripping: it imports only node: modules and uses
+// erasable TypeScript only. Keep it that way.
+import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import {
-  appendFileSync,
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { constants as osConstants, tmpdir } from "node:os";
-import { basename, dirname, isAbsolute, join, relative, sep } from "node:path";
+import { appendFileSync } from "node:fs";
+import { constants as osConstants } from "node:os";
+import { dirname, isAbsolute, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  isMainThread,
+  MessageChannel,
+  parentPort,
+  receiveMessageOnPort,
+  Worker,
+  workerData,
+} from "node:worker_threads";
+import type { MessagePort } from "node:worker_threads";
 
 /** The bound of a phax CLI call: about 15 s at most under a loaded gate, with 4× headroom. */
 export const CLI_BOUND_MS = 60_000;
@@ -52,9 +56,12 @@ export const SCRIPT_BOUND_MS = 25_000;
 
 /** Time between the SIGTERM at the bound and the SIGKILL that follows it. No call sets it. */
 const GRACE_MS = 2_000;
-/** What the caller's own timeout adds to bound + grace, for a supervisor that never reports. */
+/** What the caller's own wait adds to bound + grace, for a thread that never answers. */
 const SAFETY_MARGIN_MS = 5_000;
-const MAX_BUFFER = 512 * 1024 * 1024;
+/** How long the thread waits for the child's pipes to close after it exited. */
+const PIPES_CLOSE_MS = 2_000;
+/** The workerData that tells this file it is the spawning thread, not a test's module. */
+const THREAD_TAG = "phax-bounded-spawn-thread";
 
 const SELF = fileURLToPath(import.meta.url);
 const REPO_ROOT = join(dirname(SELF), "..", "..");
@@ -68,33 +75,36 @@ export function cliArgs(...args: readonly string[]): string[] {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The protocol between the caller and the supervisor.
+// The protocol between the calling thread and the spawning thread.
 
-type EndingKind = "exit" | "signal" | "bound" | "supervisor-signal" | "spawn-error";
+type EndingKind = "exit" | "signal" | "bound" | "spawn-error";
 
-interface SupervisorCall {
+interface ThreadCall {
   readonly command: string;
   readonly args: readonly string[];
   readonly cwd: string | null;
   readonly env: Record<string, string>;
+  readonly input: string | Uint8Array;
   readonly boundMs: number;
   readonly graceMs: number;
-  readonly reportPath: string;
-  readonly startedPath: string;
 }
 
-interface SupervisorReport {
+interface ThreadRequest {
+  readonly call: ThreadCall;
+  /** [0]: 0 while the call runs, 1 once answered; [1]: the child's pid once started. */
+  readonly flag: Int32Array;
+  readonly port: MessagePort;
+}
+
+interface EndingReport {
   readonly kind: EndingKind;
   /** The child's exit status, or null when a signal ended it or it never started. */
   readonly status: number | null;
   readonly signal: NodeJS.Signals | null;
   readonly elapsedMs: number;
-  readonly supervisorPid: number;
   readonly childPid: number | null;
   readonly pgid: number | null;
-  /** The signal the supervisor itself received, for kind supervisor-signal. */
-  readonly supervisorSignal: NodeJS.Signals | null;
-  /** When the group was sent SIGTERM (at the bound or on a supervisor signal). */
+  /** When the group was sent SIGTERM at the bound. */
   readonly termAtMs: number | null;
   /** Descendants of the child alive when SIGTERM was sent; null when unknown. */
   readonly descendantsAtTerm: number | null;
@@ -107,16 +117,16 @@ interface SupervisorReport {
   readonly error: string | null;
   /** `ps -A -o pid,ppid,pgid,stat,lstart,command` at the moment of a non-normal ending. */
   readonly snapshot: string | null;
-  /** ISO moment the supervisor saw the ending. */
+  /** ISO moment the thread saw the ending. */
   readonly seenAt: string | null;
+  readonly stdout: string;
+  readonly stderr: string;
 }
 
 // ---------------------------------------------------------------------------------------------
-// The supervisor side: this file run by node as its own main module.
+// The spawning thread: this file loaded by node as a worker thread's module.
 
-function supervise(callPath: string): void {
-  // Written by the caller below, in this same file.
-  const call: SupervisorCall = JSON.parse(readFileSync(callPath, "utf8"));
+function runCall({ call, flag, port }: ThreadRequest): void {
   const startedAt = performance.now();
   const elapsed = (): number => Math.round(performance.now() - startedAt);
 
@@ -125,7 +135,6 @@ function supervise(callPath: string): void {
   let childExit: { status: number | null; signal: NodeJS.Signals | null } | undefined;
   let spawnError: string | null = null;
   let boundReached = false;
-  let supervisorSignal: NodeJS.Signals | null = null;
   let termAtMs: number | null = null;
   let descendantsAtTerm: number | null = null;
   let killAtMs: number | null = null;
@@ -133,11 +142,16 @@ function supervise(callPath: string): void {
   let descendantsKilled: number | null = null;
   let ending = false;
   let killed = false;
+  let pipesClosed = false;
+  let pipesWaitOver = false;
   let reported = false;
   let snapshot: string | null = null;
   let seenAt: string | null = null;
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+  const timers: NodeJS.Timeout[] = [];
 
-  // Taken once, when the supervisor first sees an ending other than a normal exit.
+  // Taken once, when the thread first sees an ending other than a normal exit.
   const takeSnapshot = (): void => {
     if (snapshot !== null) return;
     seenAt = new Date().toISOString();
@@ -192,25 +206,22 @@ function supervise(callPath: string): void {
   const report = (): void => {
     if (reported) return;
     reported = true;
+    for (const timer of timers) clearTimeout(timer);
     const kind: EndingKind =
       spawnError !== null
         ? "spawn-error"
-        : supervisorSignal !== null
-          ? "supervisor-signal"
-          : boundReached
-            ? "bound"
-            : (childExit?.signal ?? null) !== null
-              ? "signal"
-              : "exit";
-    const ended: SupervisorReport = {
+        : boundReached
+          ? "bound"
+          : (childExit?.signal ?? null) !== null
+            ? "signal"
+            : "exit";
+    const ended: EndingReport = {
       kind,
       status: childExit?.status ?? null,
       signal: childExit?.signal ?? null,
       elapsedMs: elapsed(),
-      supervisorPid: process.pid,
       childPid: child?.pid ?? null,
       pgid,
-      supervisorSignal,
       termAtMs,
       descendantsAtTerm,
       killAtMs,
@@ -219,16 +230,27 @@ function supervise(callPath: string): void {
       error: spawnError,
       snapshot: kind === "exit" ? null : snapshot,
       seenAt: kind === "exit" ? null : seenAt,
+      stdout: Buffer.concat(stdout).toString("utf8"),
+      stderr: Buffer.concat(stderr).toString("utf8"),
     };
-    writeFileSync(call.reportPath, JSON.stringify(ended));
-    process.exit(0);
+    child?.stdout?.destroy();
+    child?.stderr?.destroy();
+    port.postMessage(ended);
+    port.close();
+    Atomics.store(flag, 0, 1);
+    Atomics.notify(flag, 0);
   };
 
-  // Reports once the child has exited and, after a SIGTERM to the group, once every member has
-  // ended or SIGKILL has followed.
+  // Reports once the child has exited and its pipes are read, and, after a SIGTERM to the group,
+  // once every member has ended or SIGKILL has followed.
   const reportWhenDone = (): void => {
-    if (childExit === undefined && spawnError === null) return;
+    if (spawnError !== null) {
+      report();
+      return;
+    }
+    if (childExit === undefined) return;
     if (ending && !killed && groupAlive()) return;
+    if (!pipesClosed && !pipesWaitOver) return;
     report();
   };
 
@@ -263,19 +285,12 @@ function supervise(callPath: string): void {
     }, 20);
   };
 
-  for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
-    process.on(signal, () => {
-      supervisorSignal ??= signal;
-      endGroup();
-    });
-  }
-
   try {
     child = spawn(call.command, [...call.args], {
       ...(call.cwd === null ? {} : { cwd: call.cwd }),
       env: call.env,
       detached: true,
-      stdio: "inherit",
+      stdio: ["pipe", "pipe", "pipe"],
     });
   } catch (error) {
     spawnError = error instanceof Error ? error.message : String(error);
@@ -285,37 +300,75 @@ function supervise(callPath: string): void {
   }
   if (child.pid !== undefined) {
     pgid = child.pid;
-    writeFileSync(call.startedPath, JSON.stringify({ childPid: child.pid, pgid }));
+    Atomics.store(flag, 1, child.pid);
   }
   child.on("error", (error) => {
     if (child?.pid !== undefined) return; // a later error of a started child: its exit reports
     spawnError = error.message;
     takeSnapshot();
-    report();
+    reportWhenDone();
+  });
+  child.stdout?.on("data", (chunk: Buffer) => stdout.push(chunk));
+  child.stderr?.on("data", (chunk: Buffer) => stderr.push(chunk));
+  // A child that exits without reading its stdin breaks the pipe: its exit still reports.
+  child.stdin?.on("error", () => undefined);
+  child.stdin?.end(call.input);
+  child.on("close", () => {
+    pipesClosed = true;
+    reportWhenDone();
   });
   const bound = setTimeout(() => {
     boundReached = true;
     endGroup();
   }, call.boundMs);
+  timers.push(bound);
   child.on("exit", (status, signal) => {
     childExit = { status, signal };
     if (signal !== null && !ending) takeSnapshot();
+    // A process outside the group (one that called setsid) may hold the pipes: stop waiting.
+    timers.push(
+      setTimeout(() => {
+        pipesWaitOver = true;
+        reportWhenDone();
+      }, PIPES_CLOSE_MS),
+    );
     if (ending) {
       reportWhenDone();
       return;
     }
     clearTimeout(bound);
-    // A normal exit: a member left in the group would hold the caller's pipes open.
+    // A normal exit: a member left in the group would hold the pipes open.
     if (groupAlive()) {
       descendantsKilled = descendantsOf(members());
       signalGroup("SIGKILL");
     }
-    report();
+    reportWhenDone();
   });
 }
 
+if (!isMainThread && workerData === THREAD_TAG) {
+  parentPort?.on("message", (request: ThreadRequest) => runCall(request));
+}
+
 // ---------------------------------------------------------------------------------------------
-// The caller side.
+// The calling side.
+
+let thread: Worker | undefined;
+
+// One spawning thread per process, started on the first call; it never keeps the process alive.
+function spawningThread(): Worker {
+  if (thread !== undefined) return thread;
+  const started = new Worker(SELF, { workerData: THREAD_TAG, execArgv: [] });
+  started.unref();
+  started.on("error", () => {
+    if (thread === started) thread = undefined;
+  });
+  started.on("exit", () => {
+    if (thread === started) thread = undefined;
+  });
+  thread = started;
+  return started;
+}
 
 interface SpawnOptions {
   /** How long the child may run, in ms: a finite number above 0. Required at every call. */
@@ -382,112 +435,90 @@ export function boundedSpawn(
     );
   }
 
-  const dir = mkdtempSync(join(tmpdir(), "phax-bounded-spawn-"));
-  try {
-    const call: SupervisorCall = {
-      command,
-      args,
-      cwd: options.cwd ?? null,
-      env: definedEnv(options.env ?? process.env),
-      boundMs,
-      graceMs: GRACE_MS,
-      reportPath: join(dir, "report.json"),
-      startedPath: join(dir, "started.json"),
-    };
-    const callPath = join(dir, "call.json");
-    writeFileSync(callPath, JSON.stringify(call));
-    const supervisorEnv = { ...process.env };
-    delete supervisorEnv["NODE_OPTIONS"];
-    const safetyMs = boundMs + GRACE_MS + SAFETY_MARGIN_MS;
-    const run = spawnSync(process.execPath, [SELF, callPath], {
-      input: options.input ?? "",
-      stdio: "pipe",
-      encoding: "utf8",
-      maxBuffer: MAX_BUFFER,
-      timeout: safetyMs,
-      killSignal: "SIGKILL",
-      env: supervisorEnv,
-    });
-    const stdout = run.stdout ?? "";
-    const stderr = run.stderr ?? "";
-    const output = streams(stdout, stderr);
+  const call: ThreadCall = {
+    command,
+    args,
+    cwd: options.cwd ?? null,
+    env: definedEnv(options.env ?? process.env),
+    input: options.input ?? "",
+    boundMs,
+    graceMs: GRACE_MS,
+  };
+  const flag = new Int32Array(new SharedArrayBuffer(8));
+  const { port1, port2 } = new MessageChannel();
+  const safetyMs = boundMs + GRACE_MS + PIPES_CLOSE_MS + SAFETY_MARGIN_MS;
+  const request: ThreadRequest = { call, flag, port: port2 };
+  spawningThread().postMessage(request, [port2]);
+  Atomics.wait(flag, 0, 0, safetyMs);
+  const answer = receiveMessageOnPort(port1);
+  port1.close();
 
-    if (!existsSync(call.reportPath)) {
-      const started = readStarted(call.startedPath);
-      if (started !== undefined) {
-        try {
-          process.kill(-started.pgid, "SIGKILL");
-        } catch {
-          // the group has ended
-        }
+  if (answer === undefined) {
+    const childPid = Atomics.load(flag, 1);
+    if (childPid > 0) {
+      try {
+        process.kill(-childPid, "SIGKILL");
+      } catch {
+        // the group has ended
       }
-      const how =
-        run.error !== undefined
-          ? `${run.error.message}${"code" in run.error && run.error.code === "ETIMEDOUT" ? ` (its safety timeout of ${safetyMs} ms passed)` : ""}`
-          : run.signal !== null
-            ? `it was ended by ${run.signal}`
-            : `it exited with status ${String(run.status)}`;
-      throw new BoundedSpawnError(
-        `bounded spawn: \`${line}\` gave no report: its supervisor ended without one: ${how}\n${output}`,
-        started?.childPid,
-      );
     }
-
-    // Written by the supervisor above, in this same file.
-    const report: SupervisorReport = JSON.parse(readFileSync(call.reportPath, "utf8"));
-    const fail = (lines: string, after = ""): BoundedSpawnError =>
-      new BoundedSpawnError(
-        `bounded spawn: \`${line}\` ${lines}\n${output}${after}`,
-        report.childPid ?? undefined,
-      );
-    const foreign = (signal: string): string =>
-      `ended by ${signal}, not by its bound (${boundMs} ms)`;
-    // A foreign-signal ending: logged, and its message ends with the diagnosis block.
-    const diagnosed = (lines: string): BoundedSpawnError => {
-      const diagnosis = diagnose(report);
-      logEnding(line, report, diagnosis);
-      return fail(lines, `\n${diagnosisBlock(diagnosis)}`);
-    };
-
-    if (report.kind === "spawn-error") {
-      logEnding(line, report, diagnose(report));
-      const cwd = options.cwd === undefined ? "" : ` (cwd ${options.cwd})`;
-      throw fail(`could not start: ${report.error ?? "unknown error"}${cwd}`);
-    }
-    if (report.kind === "bound") {
-      logEnding(line, report, diagnose(report));
-      throw fail(`reached its bound (${boundMs} ms) and was ended by it\n  ${groupEnding(report)}`);
-    }
-    if (report.kind === "supervisor-signal") {
-      const signal = report.supervisorSignal ?? "a signal";
-      throw diagnosed(
-        `${foreign(signal)}\n  the supervisor itself received ${signal} after ` +
-          `${report.termAtMs ?? report.elapsedMs} ms and ended the child: ${groupEnding(report)}`,
-      );
-    }
-    if (report.kind === "signal") {
-      const signal = report.signal ?? "SIGKILL";
-      if (signal === options.expectSignal) return { status: null, signal, stdout, stderr };
-      throw diagnosed(
-        `${foreign(signal)}\n  the child received ${signal} from outside the bounded spawn ` +
-          `after ${report.elapsedMs} ms`,
-      );
-    }
-    const status = report.status ?? 0;
-    const relayed = isCliSpawn(args) ? relayedSignal(status) : undefined;
-    if (relayed !== undefined && relayed === options.expectSignal) {
-      return { status: null, signal: relayed, stdout, stderr };
-    }
-    if (relayed !== undefined) {
-      throw diagnosed(
-        `${foreign(relayed)}\n  sent through ${displayCommand(command)}: exit status ${status}, ` +
-          `after ${report.elapsedMs} ms`,
-      );
-    }
-    return { status, signal: null, stdout, stderr };
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
+    const stuck = thread;
+    thread = undefined;
+    void stuck?.terminate();
+    throw new BoundedSpawnError(
+      `bounded spawn: \`${line}\` gave no report: its spawning thread did not answer within ` +
+        `its safety timeout of ${safetyMs} ms`,
+      childPid > 0 ? childPid : undefined,
+    );
   }
+
+  // Posted by runCall above, in this same file.
+  const report: EndingReport = answer.message;
+  const { stdout, stderr } = report;
+  const output = streams(stdout, stderr);
+  const fail = (lines: string, after = ""): BoundedSpawnError =>
+    new BoundedSpawnError(
+      `bounded spawn: \`${line}\` ${lines}\n${output}${after}`,
+      report.childPid ?? undefined,
+    );
+  const foreign = (signal: string): string =>
+    `ended by ${signal}, not by its bound (${boundMs} ms)`;
+  // A foreign-signal ending: logged, and its message ends with the diagnosis block.
+  const diagnosed = (lines: string): BoundedSpawnError => {
+    const diagnosis = diagnose(report);
+    logEnding(line, report, diagnosis);
+    return fail(lines, `\n${diagnosisBlock(diagnosis)}`);
+  };
+
+  if (report.kind === "spawn-error") {
+    logEnding(line, report, diagnose(report));
+    const cwd = options.cwd === undefined ? "" : ` (cwd ${options.cwd})`;
+    throw fail(`could not start: ${report.error ?? "unknown error"}${cwd}`);
+  }
+  if (report.kind === "bound") {
+    logEnding(line, report, diagnose(report));
+    throw fail(`reached its bound (${boundMs} ms) and was ended by it\n  ${groupEnding(report)}`);
+  }
+  if (report.kind === "signal") {
+    const signal = report.signal ?? "SIGKILL";
+    if (signal === options.expectSignal) return { status: null, signal, stdout, stderr };
+    throw diagnosed(
+      `${foreign(signal)}\n  the child received ${signal} from outside the bounded spawn ` +
+        `after ${report.elapsedMs} ms`,
+    );
+  }
+  const status = report.status ?? 0;
+  const relayed = isCliSpawn(args) ? relayedSignal(status) : undefined;
+  if (relayed !== undefined && relayed === options.expectSignal) {
+    return { status: null, signal: relayed, stdout, stderr };
+  }
+  if (relayed !== undefined) {
+    throw diagnosed(
+      `${foreign(relayed)}\n  sent through ${displayCommand(command)}: exit status ${status}, ` +
+        `after ${report.elapsedMs} ms`,
+    );
+  }
+  return { status, signal: null, stdout, stderr };
 }
 
 /**
@@ -517,7 +548,6 @@ interface Row {
 
 interface Diagnosis {
   readonly worker: { pid: number; ppid: number; pgid: number | null };
-  readonly supervisor: { pid: number; ppid: number | null; pgid: number | null };
   readonly child: { pid: number | null; pgid: number | null };
   readonly moment: string;
   readonly elapsedMs: number;
@@ -536,11 +566,10 @@ function parseSnapshot(snapshot: string | null): Row[] {
   return rows;
 }
 
-function diagnose(report: SupervisorReport): Diagnosis {
+function diagnose(report: EndingReport): Diagnosis {
   const rows = parseSnapshot(report.snapshot);
   const byPid = new Map(rows.map((row) => [row.pid, row]));
   const worker = byPid.get(process.pid);
-  const supervisor = byPid.get(report.supervisorPid);
   const ancestors = new Set<number>();
   for (let row = worker; row !== undefined && !ancestors.has(row.pid); row = byPid.get(row.ppid)) {
     ancestors.add(row.pid);
@@ -553,11 +582,6 @@ function diagnose(report: SupervisorReport): Diagnosis {
     .map((row) => row.text.trim());
   return {
     worker: { pid: process.pid, ppid: process.ppid, pgid: worker?.pgid ?? null },
-    supervisor: {
-      pid: report.supervisorPid,
-      ppid: supervisor?.ppid ?? null,
-      pgid: supervisor?.pgid ?? null,
-    },
     child: { pid: report.childPid, pgid: report.pgid },
     moment: report.seenAt ?? new Date().toISOString(),
     elapsedMs: report.elapsedMs,
@@ -571,7 +595,6 @@ function diagnosisBlock(d: Diagnosis): string {
   return [
     "  diagnosis:",
     `    worker: pid ${d.worker.pid}, parent ${d.worker.ppid}, group ${id(d.worker.pgid)}`,
-    `    supervisor: pid ${d.supervisor.pid}, parent ${id(d.supervisor.ppid)}, group ${id(d.supervisor.pgid)}`,
     `    child: pid ${id(d.child.pid)}, group ${id(d.child.pgid)}`,
     `    moment: ${d.moment} (${d.elapsedMs} ms after the start)`,
     `    sender: ${d.sender}`,
@@ -581,7 +604,7 @@ function diagnosisBlock(d: Diagnosis): string {
 }
 
 // One JSON line per non-normal ending, when PHAX_SPAWN_DIAG_LOG names a file.
-function logEnding(line: string, report: SupervisorReport, diagnosis: Diagnosis): void {
+function logEnding(line: string, report: EndingReport, diagnosis: Diagnosis): void {
   const path = process.env["PHAX_SPAWN_DIAG_LOG"];
   if (path === undefined || path === "") return;
   // vitest keeps the running file on its worker state; read it without importing vitest.
@@ -593,7 +616,7 @@ function logEnding(line: string, report: SupervisorReport, diagnosis: Diagnosis)
       path,
       `${JSON.stringify({
         ending: report.kind,
-        signal: report.signal ?? report.supervisorSignal,
+        signal: report.signal,
         status: report.status,
         command: line,
         ...diagnosis,
@@ -610,16 +633,6 @@ function definedEnv(env: NodeJS.ProcessEnv): Record<string, string> {
   const defined: Record<string, string> = {};
   for (const [name, value] of Object.entries(env)) if (value !== undefined) defined[name] = value;
   return defined;
-}
-
-function readStarted(path: string): { childPid: number; pgid: number } | undefined {
-  try {
-    // Written by the supervisor above, in this same file.
-    const started: { childPid: number; pgid: number } = JSON.parse(readFileSync(path, "utf8"));
-    return started;
-  } catch {
-    return undefined;
-  }
 }
 
 function isCliSpawn(args: readonly string[]): boolean {
@@ -643,7 +656,7 @@ function isSignal(name: string): name is NodeJS.Signals {
   return name in osConstants.signals;
 }
 
-function groupEnding(report: SupervisorReport): string {
+function groupEnding(report: EndingReport): string {
   const descendants = (n: number | null): string =>
     n === null ? "an unknown number of descendants" : `${n} descendant${n === 1 ? "" : "s"}`;
   const termAt = report.termAtMs ?? 0;
@@ -691,13 +704,4 @@ function displayArg(arg: string): string {
 
 function commandLine(command: string, args: readonly string[]): string {
   return [displayCommand(command), ...args.map(displayArg)].join(" ");
-}
-
-if (import.meta.main) {
-  const callPath = process.argv[2];
-  if (callPath === undefined) {
-    process.stderr.write(`usage: node ${basename(SELF)} <call file>\n`);
-    process.exit(2);
-  }
-  supervise(callPath);
 }
