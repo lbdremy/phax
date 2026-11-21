@@ -5,7 +5,6 @@
  * (ac-trailers), and the review text of an unlinked run is unchanged. Built on the phase-06
  * fixtures, which it never edits.
  */
-import { execFileSync } from "node:child_process";
 import {
   mkdirSync,
   mkdtempSync,
@@ -17,6 +16,7 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 import { createLinkedProject, type LinkedProject } from "../fixtures/codeLink/linkedProject.js";
@@ -52,7 +52,7 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
 });
 
 const git = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd }).trim();
 
 /** A plan that needs no approval record: frontmatter `Approved`, outside docs/plans/. */
 const approvedByHand = (): string => exportPlanMd().replace("status: Draft", "status: Approved");

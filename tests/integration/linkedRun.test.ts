@@ -9,10 +9,10 @@
  * directory and git is isolated, so no real ~/.phax or global git config is read. Only the
  * HOME-derived loaders and the provider backend are replaced, as in holdCli.test.ts.
  */
-import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 import {
   createControlRepo,
@@ -56,7 +56,7 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
 });
 
 const git = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd }).trim();
 
 describe(
   "a run from the code repository on a plan of the process repository",

@@ -5,7 +5,6 @@
  * naming the process phax.json only where phax cannot tell whether a plan of its docs/plans/ is
  * linked, or where the link names the run's repository but is unusable.
  */
-import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -15,13 +14,14 @@ import { type PlanLink, resolvePlanLink } from "../../src/app/planLink.js";
 import { ConfigValidationError } from "../../src/domain/errors.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 
 const PLAN_REL = "docs/plans/2611181000-export-plan.md";
 
 function sh(cwd: string, ...args: string[]): void {
-  execFileSync("git", args, { cwd, stdio: "pipe" });
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function put(path: string, text: string): void {

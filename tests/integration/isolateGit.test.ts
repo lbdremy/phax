@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,7 +49,7 @@ afterEach(() => {
 });
 
 const gitIn = (cwd: string, ...args: string[]): string =>
-  execFileSync("git", args, { cwd, stdio: "pipe", env: process.env }).toString().trim();
+  boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd, env: process.env }).trim();
 
 describe("isolateGit", () => {
   it("gives git an empty global config, no system config and no identity from the environment", () => {

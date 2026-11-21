@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -24,7 +24,7 @@ let restoreGit: () => void;
 beforeEach(() => {
   restoreGit = isolateGit();
   repoDir = mkdtempSync(join(tmpdir(), "phax-partial-config-"));
-  execFileSync("git", ["init"], { cwd: repoDir, stdio: "ignore" });
+  boundedOutput("git", ["init"], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   disableGitAutoMaintenance(repoDir);
   tempHome = mkdtempSync(join(tmpdir(), "phax-partial-config-home-"));
   mkdirSync(join(tempHome, ".phax"), { recursive: true });

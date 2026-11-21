@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   mkdirSync,
   mkdtempSync,
@@ -110,7 +110,8 @@ beforeEach(() => {
   mkdirSync(join(repoRoot, "scripts"), { recursive: true });
   mkdirSync(realStateRoot, { recursive: true });
   symlinkSync(realStateRoot, stateRoot);
-  const git = (...args: string[]) => execFileSync("git", args, { cwd: repoRoot, stdio: "pipe" });
+  const git = (...args: string[]) =>
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: repoRoot });
   git("init", "--initial-branch=main");
   disableGitAutoMaintenance(repoRoot);
   git("config", "--local", "user.email", "ada@example.test");

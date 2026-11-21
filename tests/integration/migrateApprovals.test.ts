@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -104,7 +104,7 @@ let repoDir: string;
 const extraDirs: string[] = [];
 
 function gitIn(cwd: string, args: readonly string[]): string {
-  return execFileSync("git", args, { cwd, stdio: "pipe" }).toString();
+  return boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function git(args: readonly string[]): string {
