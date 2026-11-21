@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -45,7 +45,7 @@ let phaseFolder: string;
 let cli: FakeProviderCli;
 
 const git = (...args: string[]): string =>
-  execFileSync("git", args, { cwd: worktree, stdio: "pipe" }).toString();
+  boundedOutput("git", args, { cwd: worktree, boundMs: GIT_BOUND_MS });
 
 beforeEach(() => {
   root = realpathSync(mkdtempSync(join(tmpdir(), "phax-declared-stop-argv-test-")));

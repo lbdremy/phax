@@ -5,7 +5,7 @@
 // ports; the by-hand tests use real git, a temporary repository and a bare
 // remote. Nothing reaches GitHub: every test uses makeFakeGitHub().
 import { Effect, Result, Layer } from "effect";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -335,7 +335,7 @@ function phaxJson(name: string): string {
 }
 
 function runGit(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS });
 }
 
 describe("compliance review entry by hand (real git)", () => {

@@ -1,7 +1,7 @@
 // Fate records on phax/records/v1: one commit per record, keyed `<runId>/finding/<id>/<NN>`,
 // read back oldest first. Real git in a temporary repository, records in-repo.
 import { Effect, Layer } from "effect";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -57,7 +57,7 @@ const deferred: FindingFateEntry = {
 };
 
 function runGit(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { cwd, boundMs: GIT_BOUND_MS });
 }
 
 describe("fate records on the records branch (real git)", () => {

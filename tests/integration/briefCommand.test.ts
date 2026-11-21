@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { execSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -18,6 +17,7 @@ import { phaseBriefRequest } from "../../src/domain/brief/request.js";
 import { readBriefRecordFile } from "../../src/schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 
 // A made-up repository with a linked phase worktree, made-up phax.json files
@@ -47,8 +47,8 @@ const phaseRequest = stampBriefRequest(
   ),
 );
 
-function git(cwd: string, args: string): void {
-  execSync(`git ${args}`, { cwd, stdio: "ignore" });
+function git(cwd: string, ...args: string[]): void {
+  boundedOutput("git", args, { cwd, boundMs: GIT_BOUND_MS });
 }
 
 beforeEach(() => {
@@ -60,14 +60,23 @@ beforeEach(() => {
   mkdirSync(mainRoot);
   mkdirSync(scripts);
   mkdirSync(home);
-  git(mainRoot, "init -q -b main");
+  git(mainRoot, "init", "-q", "-b", "main");
   writeFileSync(join(mainRoot, "README.md"), "made-up\n");
-  git(mainRoot, "add README.md");
+  git(mainRoot, "add", "README.md");
   git(
     mainRoot,
-    "-c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m init",
+    "-c",
+    "user.name=t",
+    "-c",
+    "user.email=t@example.invalid",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "-q",
+    "-m",
+    "init",
   );
-  git(mainRoot, `worktree add -q -b phase-02 ${worktree}`);
+  git(mainRoot, "worktree", "add", "-q", "-b", "phase-02", worktree);
   mkdirSync(join(worktree, ".phax-context"));
   writeFileSync(
     join(worktree, ".phax-context", "brief-request.json"),

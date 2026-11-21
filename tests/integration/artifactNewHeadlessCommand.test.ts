@@ -1,6 +1,5 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { execSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -19,6 +18,7 @@ import {
 } from "../../src/cli/definitions/artifactNew.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { inArtifactNew, runnerCall, type RunnerCallOptions } from "../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -119,13 +119,17 @@ let repoDir: string;
 let home: ReturnType<typeof isolatePhaxHome>;
 let originalCwd: string;
 
+function git(...args: string[]): string {
+  return boundedOutput("git", args, { cwd: repoDir, boundMs: GIT_BOUND_MS });
+}
+
 beforeEach(() => {
   originalCwd = process.cwd();
   repoDir = realpathSync(mkdtempSync(join(tmpdir(), "phax-headless-cmd-")));
-  execSync("git init -q", { cwd: repoDir });
+  git("init", "-q");
   disableGitAutoMaintenance(repoDir);
-  execSync('git config user.email "test@example.com"', { cwd: repoDir });
-  execSync('git config user.name "Test"', { cwd: repoDir });
+  git("config", "user.email", "test@example.com");
+  git("config", "user.name", "Test");
 
   writeFileSync(
     join(repoDir, "phax.json"),
@@ -149,8 +153,7 @@ afterEach(() => {
 });
 
 function headCommitPaths(): string[] {
-  return execSync("git diff-tree --no-commit-id --name-only -r --root HEAD", { cwd: repoDir })
-    .toString("utf8")
+  return git("diff-tree", "--no-commit-id", "--name-only", "-r", "--root", "HEAD")
     .trim()
     .split("\n")
     .filter((p) => p.length > 0)
@@ -254,10 +257,7 @@ describe("artifact new spec --headless (command)", () => {
     expect(recordLine).toMatch(/^record authoring\/\d{10}-plan-prune$/);
     const key = recordLine.slice("record ".length);
 
-    const recordFiles = execSync(`git ls-tree -r --name-only phax/records/v1`, { cwd: repoDir })
-      .toString("utf8")
-      .trim()
-      .split("\n");
+    const recordFiles = git("ls-tree", "-r", "--name-only", "phax/records/v1").trim().split("\n");
     expect(recordFiles).toEqual([
       `${key}/brief.md`,
       `${key}/document.json`,
@@ -265,10 +265,8 @@ describe("artifact new spec --headless (command)", () => {
       `${key}/record.json`,
     ]);
 
-    const manifest = JSON.parse(
-      execSync(`git show phax/records/v1:${key}/record.json`, { cwd: repoDir }).toString("utf8"),
-    );
-    const artifactCommit = execSync("git rev-parse HEAD", { cwd: repoDir }).toString("utf8").trim();
+    const manifest = JSON.parse(git("show", `phax/records/v1:${key}/record.json`));
+    const artifactCommit = git("rev-parse", "HEAD").trim();
     expect(manifest).toMatchObject({
       kind: "authoring",
       outcome: "committed",
@@ -277,7 +275,7 @@ describe("artifact new spec --headless (command)", () => {
       shape: "skeleton",
     });
     // The artifact commit's Authoring-Id trailer names the record's key.
-    const body = execSync("git log -1 --format=%B HEAD", { cwd: repoDir }).toString("utf8");
+    const body = git("log", "-1", "--format=%B", "HEAD");
     expect(body).toContain(`Authoring-Id: ${key.slice("authoring/".length)}`);
   });
 

@@ -664,7 +664,7 @@ describe("phax's own acceptance declaration", () => {
 
     const [file, ...args] = (command ?? "").split(/\s+/);
     const request = authoredRequest(git(repoRoot, ["rev-parse", "HEAD"]), [
-      "tests/integration/exampleProviders.test.ts",
+      "tests/integration/boundedSpawn.test.ts",
     ]);
     const { stdout, status } = spawnSync(file ?? "", args, {
       input: request,
