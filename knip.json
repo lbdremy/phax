@@ -34,6 +34,6 @@
   // knip gives no configuration hint in production mode, which reads only part of the repository.
   "ignoreDependencies": ["@fontsource/ibm-plex-sans", "@fontsource/ibm-plex-mono", "react"],
   "ignoreFiles": ["tests/e2e/fixtures/**"],
-  "ignoreBinaries": ["usage", "vibe"],
+  "ignoreBinaries": ["usage"],
   "treatConfigHintsAsErrors": true
 }
