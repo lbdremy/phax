@@ -25,6 +25,15 @@ The operator agreed with the change. What phax offered:
 
 The operator took the second, with a hand edit of a run file. Neither route is one phax names or records.
 
+A second run, `bounded-test-spawns` (2026-11-21, twelve phases), needed the same hand edit at its tenth phase. The
+phase moved the last test that spawned `vibe` onto the bounded spawn. knip finds the binaries a test runs only in
+`spawnSync`-style calls, so `knip.json`'s `"ignoreBinaries": ["vibe"]` became an unused entry, and with
+`treatConfigHintsAsErrors` on, `pnpm knip` failed the gate. The fix is one line removed from `knip.json`, which is
+protected. The gate ran out of attempts; the operator committed that line on the phase's branch as their own change,
+rewrote the phase's `base` in `status.json` to that commit, and resumed. The exception would have taken one resume.
+The case also shows a change a phase cannot foresee: no plan names `knip.json`, so the lint finding below would not
+have seen it.
+
 ## What phax has today, to read first
 
 - `docs/security.md`, "Protected paths"; the archived brief `docs/briefs/archive/protected-paths.md`.
