@@ -1,6 +1,6 @@
 // Acceptance criteria carry a `then` key (given/when/then) — data, never awaited.
 /* eslint-disable unicorn/no-thenable */
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import {
   mkdirSync,
   mkdtempSync,
@@ -71,7 +71,7 @@ describe("an interactive first turn answered through structured_output", () => {
   let phaseFolder: string;
 
   const git = (...args: string[]): string =>
-    execFileSync("git", args, { cwd: worktree, stdio: "pipe" }).toString();
+    boundedOutput("git", args, { boundMs: GIT_BOUND_MS, cwd: worktree });
 
   beforeEach(() => {
     worktree = join(root, "worktree");

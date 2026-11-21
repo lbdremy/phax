@@ -2,7 +2,7 @@ import { mkdtempSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execFileSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Effect, Result, Layer } from "effect";
 import { NodeGitLayer } from "../../src/infra/git.js";
@@ -28,7 +28,7 @@ const fakeGitHub = makeFakeGitHub();
 const LAYER = Layer.mergeAll(NodeFileSystemLayer, NodeGitLayer, fakeGitHub.layer);
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 function inRepoConfig(transcript: boolean): ResolvedRecordsConfig {

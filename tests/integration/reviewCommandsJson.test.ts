@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput } from "../helpers/boundedSpawn.js";
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -71,9 +71,15 @@ describe("review and publication commands", () => {
     stateRoot = join(repoRoot, ".phax-state");
     runPath = join(stateRoot, "runs", `test.${SHORT_NAME}`);
     worktreePath = join(stateRoot, "worktrees", SHORT_NAME, "phase-01");
-    execSync("git init -q", { cwd: repoRoot });
-    execSync('git config user.name "Review Test"', { cwd: repoRoot });
-    execSync("git config user.email review-test@example.com", { cwd: repoRoot });
+    boundedOutput("git", ["init", "-q"], { boundMs: GIT_BOUND_MS, cwd: repoRoot });
+    boundedOutput("git", ["config", "user.name", "Review Test"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoRoot,
+    });
+    boundedOutput("git", ["config", "user.email", "review-test@example.com"], {
+      boundMs: GIT_BOUND_MS,
+      cwd: repoRoot,
+    });
     writeFileSync(
       join(repoRoot, "phax.json"),
       JSON.stringify({

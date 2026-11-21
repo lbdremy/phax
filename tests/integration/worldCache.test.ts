@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { GIT_BOUND_MS, boundedOutput, boundedSpawn } from "../helpers/boundedSpawn.js";
 import {
   chmodSync,
   existsSync,
@@ -50,7 +50,7 @@ function uniqueName(label: string): string {
 }
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" }).trim();
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd }).trim();
 }
 
 /** A world of one plain file, an executable script and a bare repository holding one commit. */
@@ -293,10 +293,11 @@ describe("a test run's cached worlds", () => {
     env["TMPDIR"] = privateTmp;
     env["PHAX_WORLD_CACHE_PROBE_REPORT"] = report;
 
-    const child = spawnSync(
+    // 80 000 ms: the probe is a whole vitest run, the old call's own timeout, under the 90 s test timeout.
+    const child = boundedSpawn(
       process.execPath,
       [vitestEntry, "run", "--project", "integration", "worldCacheCleanupProbe"],
-      { cwd: REPO_ROOT, env, encoding: "utf8", timeout: 80_000 },
+      { boundMs: 80_000, cwd: REPO_ROOT, env },
     );
     expect(child.status, `${child.stdout}\n${child.stderr}`).toBe(0);
 

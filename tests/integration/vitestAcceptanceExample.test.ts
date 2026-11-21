@@ -1,5 +1,10 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { execFileSync, spawnSync } from "node:child_process";
+import {
+  GIT_BOUND_MS,
+  SCRIPT_BOUND_MS,
+  boundedOutput,
+  boundedSpawn,
+} from "../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
@@ -31,10 +36,10 @@ function lines(...text: readonly string[]): string {
 }
 
 function git(cwd: string, args: readonly string[]): string {
-  return execFileSync(
+  return boundedOutput(
     "git",
     ["-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "commit.gpgsign=false", ...args],
-    { cwd, encoding: "utf8" },
+    { boundMs: GIT_BOUND_MS, cwd },
   ).trim();
 }
 
@@ -71,10 +76,10 @@ function run(
   cwd: string,
   stdin: string,
 ): { stdout: string; stderr: string; status: number | null } {
-  const { stdout, stderr, status } = spawnSync(process.execPath, [mainScript], {
+  const { stdout, stderr, status } = boundedSpawn(process.execPath, [mainScript], {
+    boundMs: SCRIPT_BOUND_MS,
     input: stdin,
     cwd,
-    encoding: "utf8",
   });
   return { stdout, stderr, status };
 }
@@ -666,10 +671,10 @@ describe("phax's own acceptance declaration", () => {
     const request = authoredRequest(git(repoRoot, ["rev-parse", "HEAD"]), [
       "tests/integration/boundedSpawn.test.ts",
     ]);
-    const { stdout, status } = spawnSync(file ?? "", args, {
+    const { stdout, status } = boundedSpawn(file ?? "", args, {
+      boundMs: SCRIPT_BOUND_MS,
       input: request,
       cwd: repoRoot,
-      encoding: "utf8",
     });
     expect(answerOf(stdout)).toMatchObject({ outcome: "checked", findings: [] });
     expect(status).toBe(0);
