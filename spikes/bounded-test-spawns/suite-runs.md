@@ -55,4 +55,19 @@ worker thread (about +0.5 ms per call), did not slow the suite on this machine.
 The CI test job, run 10 times on the pull request. For each run, the job link, passed or failed,
 and any `diagnosis:` block:
 
-- (none yet)
+Workflow run 44928452545 on 2adb40a0 (the review fixes), attempt 1 from the push and attempts 2 to 10
+rerun one after another on 2026-11-21. Every attempt passed, so no test threw and no `diagnosis:` block was
+written; findings.md gains nothing.
+
+| Attempt | Job | Result | Job time |
+| --- | --- | --- | --- |
+| 1 | [136919617257](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136919617257) | passed | 16 min 35 s |
+| 2 | [136927039876](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136927039876) | passed | 10 min 45 s |
+| 3 | [136930207747](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136930207747) | passed | 10 min 48 s |
+| 4 | [136933332011](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136933332011) | passed | 16 min 51 s |
+| 5 | [136938390247](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136938390247) | passed | 13 min 51 s |
+| 6 | [136942566846](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136942566846) | passed | 12 min 18 s |
+| 7 | [136946017612](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136946017612) | passed | 10 min 46 s |
+| 8 | [136949161018](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136949161018) | passed | 12 min 22 s |
+| 9 | [136952904833](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136952904833) | passed | 10 min 55 s |
+| 10 | [136956076548](https://github.com/lbdremy/phax/actions/runs/44928452545/job/136956076548) | passed | 16 min 41 s |
