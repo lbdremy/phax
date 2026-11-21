@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   chmodSync,
   existsSync,
@@ -22,6 +21,7 @@ import { phaseReconciliationFile } from "../../helpers/reconciliationFixture.js"
 import { runnerCall } from "../../helpers/runnerCall.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../../helpers/tempGit.js";
 import { buildFateRunRepo, type FateRunRepo } from "./fateRunRepo.js";
+import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 
 // The project of the acceptance tests of a run's pull request: the run of fateRunRepo.ts plus a
 // bare repository as its `origin`, the run-folder files `phax publish-pr` needs, publish
@@ -38,7 +38,7 @@ export interface PrRunRepo extends FateRunRepo {
 }
 
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync("git", [...args], { cwd, encoding: "utf8", stdio: "pipe" });
+  return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd });
 }
 
 /**

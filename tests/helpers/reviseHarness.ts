@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -72,6 +71,7 @@ import {
 import { isolateGit } from "./isolateGit.js";
 import { isolatePhaxHome } from "./isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
+import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
 // The world of the revise acceptance suite: a real git repository in a temp dir
 // with a committer identity, a state root beside it, a fake backend, a fake
@@ -164,7 +164,7 @@ export function useReviseRepo() {
   let restoreHome: (() => void) | undefined;
 
   function git(args: readonly string[]): string {
-    return execFileSync("git", [...args], { cwd: repoDir, stdio: "pipe" }).toString();
+    return boundedOutput("git", [...args], { boundMs: GIT_BOUND_MS, cwd: repoDir });
   }
 
   beforeEach(() => {

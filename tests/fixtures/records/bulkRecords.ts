@@ -1,8 +1,8 @@
-import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { RECORDS_BRANCH_NAME } from "../../../src/app/writeRecord.js";
+import { boundedSpawn, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { removeTempDir } from "../../helpers/tempGit.js";
 
 // Writes any number of seed records on a repository's records branch through ONE `git fast-import`
@@ -100,40 +100,28 @@ function buildStream(input: BulkRecordsInput): Buffer {
 }
 
 function runFastImport(repo: string, marksFile: string, stream: Buffer): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // `fastimport.unpackLimit=0` keeps the pack whatever its size: below the default limit (100
-    // objects) fast-import would start `git unpack-objects` to loosen it, so a small world would
-    // cost one more git process than a large one.
-    const child = spawn(
-      "git",
-      [
-        "-c",
-        "fastimport.unpackLimit=0",
-        "fast-import",
-        "--quiet",
-        "--date-format=raw",
-        "--done",
-        `--export-marks=${marksFile}`,
-      ],
-      { cwd: repo, env: process.env, stdio: ["pipe", "ignore", "pipe"] },
+  // `fastimport.unpackLimit=0` keeps the pack whatever its size: below the default limit (100
+  // objects) fast-import would start `git unpack-objects` to loosen it, so a small world would
+  // cost one more git process than a large one. The stream is fully built, so it goes in as input.
+  const result = boundedSpawn(
+    "git",
+    [
+      "-c",
+      "fastimport.unpackLimit=0",
+      "fast-import",
+      "--quiet",
+      "--date-format=raw",
+      "--done",
+      `--export-marks=${marksFile}`,
+    ],
+    { boundMs: GIT_BOUND_MS, cwd: repo, env: process.env, input: stream },
+  );
+  if (result.status !== 0) {
+    return Promise.reject(
+      new Error(`git fast-import failed (exit ${result.status}) in ${repo}: ${result.stderr}`),
     );
-    const stderr: Buffer[] = [];
-    child.stderr.on("data", (chunk: Buffer) => stderr.push(chunk));
-    // A failed import closes stdin early; the exit code and stderr say why.
-    child.stdin.on("error", () => {});
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolve();
-      else {
-        reject(
-          new Error(
-            `git fast-import failed (exit ${code}) in ${repo}: ${Buffer.concat(stderr).toString("utf8")}`,
-          ),
-        );
-      }
-    });
-    child.stdin.end(stream);
-  });
+  }
+  return Promise.resolve();
 }
 
 /**
