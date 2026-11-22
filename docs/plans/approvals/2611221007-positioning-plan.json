@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611221007-positioning-plan.md",
+  "planFingerprint": "46a4017455d2d75e78c167015f314bf41fbb81ec8e4ec20f97c25810ae7afe92",
+  "approvedAt": "2026-11-22T10:21:12.504Z",
+  "baseline": "a17beb5faaa9623e2fd34820693d324bb38b755f",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611220953-positioning.md",
+    "fingerprint": "3ea25455123208962f52a9947907bb1f847e4dcbdf84845994a15236ddca5f04"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

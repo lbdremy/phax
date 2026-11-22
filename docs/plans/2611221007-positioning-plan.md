@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611220953-positioning.md
 completes-spec: true
+approved:
+  date: 2026-11-22
+  baseline: a17beb5
 ---
 # Positioning
 
