@@ -29,7 +29,7 @@ Every command above is already an entry of `security.agentCommands` (`pnpm gen:u
 - The agent detail has one shape in both places: the same five-item bullet list, item for item, directly after the pitch paragraph, on the agent page and in the phax-cli skill's "What phax is" section. One check then covers both. Loss accepted: the skill's §6 draft, which was a single paragraph, becomes a list.
 - A rejected name counts wherever it appears in a place's text: whole words, case-insensitive. Places are short sentences about phax, so any occurrence names phax. Loss accepted: a place cannot use one of those words in another sense ("test harness").
 
-## Open questions
+## Arbitrated questions
 
 ### q-skill-edits — phase-03 must rewrite `.claude/skills/phax-cli/SKILL.md` (spec §5.3–§5.5), and a phase may write a `.claude/skills` file only when the run is started with `phax run --allow-skill-edits`. Does the phase agent write the skill file, or does the operator edit it by hand?
 
@@ -37,6 +37,13 @@ Every command above is already an entry of `security.agentCommands` (`pnpm gen:u
 - operator-edits — Leave the skill file out of every phase; the operator edits it by hand and the skill's part of the repository test lands with that edit — abandons: A plan that delivers the spec on its own. The skill's places (agent pitch, agent detail, description) are edited and checked outside the run, so ac-agent, ac-agent-detail and ac-skill-trigger are proven only once the operator makes the edit, and the plan has to be revised to move those checks.
 
 Recommendation: agent-writes — The spec requires the edit, the grant covers one declared file, and the final phase stays open so the operator reviews the skill diff before anything is published. Leaving the edit to the operator moves three acceptance criteria outside the run.
+
+Decision: agent-writes — by operator (Rémy Loubradou), 2026-11-22
+Why: The spec requires the edit, the grant covers one declared file, and the final phase stays open so the operator reviews the skill diff before anything is published. Leaving the edit to the operator moves three acceptance criteria outside the run. Advocate: Editing the skill by hand keeps the one file every installing agent loads as guidance out of a headless session's reach: no phase can rewrite an instruction in it, and the operator's own edit is the only change that ever lands there. Principles: E0, C2. Reversibility: cheap. Revised: none. Phase: phase-03.
+
+## Decision log
+
+- 2026-11-22 q-skill-edits decided agent-writes — operator (Rémy Loubradou)
 
 ---
 
