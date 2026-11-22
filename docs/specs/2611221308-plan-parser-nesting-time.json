@@ -191,7 +191,8 @@
     "Replacing the Markdown parser, changing its configuration, or forking it.",
     "Changing the bounded-time property's 2-second bound, its 64 KiB cap, its fragments or their caps, or the deep pass's schedule and run count.",
     "Treating a plan as untrusted input beyond its reading time: no sandboxing, no limits on other resources.",
-    "A persisted-format change: no file phax writes gains or loses a field."
+    "A persisted-format change: no file phax writes gains or loses a field.",
+    "Reporting the nesting cost to micromark: the guard settles phax's case, and no upstream issue is opened. If phax's other Markdown readers meet the nesting cost, that is the moment to look upstream."
   ],
   "acceptanceCriteria": [
     {
@@ -283,7 +284,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-where",
       "question": "Where is the bound enforced?",
@@ -305,7 +307,28 @@
         }
       ],
       "recommendation": "guard",
-      "rationale": "The guard's loss is plans no real plan resembles: the corpus nests about 6 levels deep against a limit of 32. Leaving every plan's reading untouched, which the linear-parser option gives up, is what lets this spec promise r-unchanged. Losing control over timing, as upstream-only does, keeps a real defect live in the deep pass."
+      "rationale": "The guard's loss is plans no real plan resembles: the corpus nests about 6 levels deep against a limit of 32. Leaving every plan's reading untouched, which the linear-parser option gives up, is what lets this spec promise r-unchanged. Losing control over timing, as upstream-only does, keeps a real defect live in the deep pass.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "guard",
+        "abandoned": [
+          "linear-parser",
+          "upstream-only"
+        ],
+        "why": "The guard's loss is plans no real plan resembles: the corpus nests about 6 levels deep against a limit of 32. Leaving every plan's reading untouched, which the linear-parser option gives up, is what lets this spec promise r-unchanged. Losing control over timing, as upstream-only does, keeps a real defect live in the deep pass.",
+        "advocate": "A parse linear by construction would fix the cost for every plan and every reader at the root, with no refusal and no arbitrary limit to defend.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-limit",
@@ -328,7 +351,28 @@
         }
       ],
       "recommendation": "limit-32",
-      "rationale": "Five times the deepest committed plan is a margin no hand-written plan reaches. The bounded-time property checks the cost of a near-cap input at 32 levels on every run, so the loss is measured, not assumed."
+      "rationale": "Five times the deepest committed plan is a margin no hand-written plan reaches. The bounded-time property checks the cost of a near-cap input at 32 levels on every run, so the loss is measured, not assumed.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "limit-32",
+        "abandoned": [
+          "limit-16",
+          "limit-64"
+        ],
+        "why": "Five times the deepest committed plan is a margin no hand-written plan reaches. The bounded-time property checks the cost of a near-cap input at 32 levels on every run, so the loss is measured, not assumed.",
+        "advocate": "16 levels is still more than twice the deepest committed plan and gives the tightest time bound, with the most headroom under the 2-second limit on a slow runner.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-size",
@@ -346,7 +390,27 @@
         }
       ],
       "recommendation": "depth-only",
-      "rationale": "Once depth is bounded, the cost is linear in size, which is the goal. A size cap would add a second refusal no committed plan has been measured against, and it could break r-unchanged."
+      "rationale": "Once depth is bounded, the cost is linear in size, which is the goal. A size cap would add a second refusal no committed plan has been measured against, and it could break r-unchanged.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "depth-only",
+        "abandoned": [
+          "depth-and-size"
+        ],
+        "why": "Once depth is bounded, the cost is linear in size, which is the goal. A size cap would add a second refusal no committed plan has been measured against, and it could break r-unchanged.",
+        "advocate": "A size cap gives an absolute ceiling on reading time, so no plan, however large, can take longer than the bound the property proves.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-configurable",
@@ -364,7 +428,27 @@
         }
       ],
       "recommendation": "constant",
-      "rationale": "No real plan comes near the limit. A configurable limit would leave the bounded-time property proving only the default."
+      "rationale": "No real plan comes near the limit. A configurable limit would leave the bounded-time property proving only the default.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "constant",
+        "abandoned": [
+          "config-key"
+        ],
+        "why": "No real plan comes near the limit. A configurable limit would leave the bounded-time property proving only the default.",
+        "advocate": "A phax.json key gives a project with genuinely deep plans an escape hatch, instead of leaving it with a refusal it cannot lift.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-upstream",
@@ -382,7 +466,29 @@
         }
       ],
       "recommendation": "report",
-      "rationale": "The reproduction costs nothing extra: the deep-pass counter-example is already minimal. Reporting does not block the guard, and the slowdown is a cost, not a way in."
+      "rationale": "The reproduction costs nothing extra: the deep-pass counter-example is already minimal. Reporting does not block the guard, and the slowdown is a cost, not a way in.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "no-report",
+        "abandoned": [
+          "report"
+        ],
+        "why": "Not worth the time: the guard settles phax's case, and an upstream issue is a thread to follow for no gain to phax. If phax's other Markdown readers ever meet the nesting cost, that is the moment to look upstream.",
+        "advocate": "The reproduction already exists and is minimal, so an issue costs almost nothing and might get the nesting cost fixed for every user of the parser, including phax's other Markdown readers.",
+        "principles": [
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": [
+          "nonGoals"
+        ]
+      },
+      "history": []
     },
     {
       "id": "q-runs",
@@ -400,10 +506,29 @@
         }
       ],
       "recommendation": "keep-40",
-      "rationale": "The run count is a CI budget decision, measured on CI runs, and this spec's non-goals leave the budget as it is. The deep pass still checks 2,000 inputs a day."
+      "rationale": "The run count is a CI budget decision, measured on CI runs, and this spec's non-goals leave the budget as it is. The deep pass still checks 2,000 inputs a day.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "keep-40",
+        "abandoned": [
+          "restore-100"
+        ],
+        "why": "The run count is a CI budget decision, measured on CI runs, and this spec's non-goals leave the budget as it is. The deep pass still checks 2,000 inputs a day.",
+        "advocate": "With the slow inputs refused by the guard, 100 runs would search 60 more inputs on every pull request and catch a regression a day sooner than the deep pass.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T13:16:33.332Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The nesting limit is 32 levels of blockquotes and list items combined, a constant (pending q-limit and q-configurable).",

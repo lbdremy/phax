@@ -189,6 +189,7 @@ Summary: The plan-parser tests keep the deep pass's 61,440 `>` counter-example a
 - Changing the bounded-time property's 2-second bound, its 64 KiB cap, its fragments or their caps, or the deep pass's schedule and run count.
 - Treating a plan as untrusted input beyond its reading time: no sandboxing, no limits on other resources.
 - A persisted-format change: no file phax writes gains or loses a field.
+- Reporting the nesting cost to micromark: the guard settles phax's case, and no upstream issue is opened. If phax's other Markdown readers meet the nesting cost, that is the moment to look upstream.
 
 ## 8. Acceptance criteria
 
@@ -226,6 +227,10 @@ Given every plan under docs/plans/, archive included, when each plan reader read
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-where — Where is the bound enforced?
 
 - guard — A depth check before parsing, refusing a plan over the limit with a structure error naming the line — abandons: Plans deeper than the limit, which no human writes but a fuzzer or a broken generator does, are refused instead of read
@@ -233,6 +238,9 @@ Given every plan under docs/plans/, archive included, when each plan reader read
 - upstream-only — Get the nesting cost fixed in micromark and pin the release that has it — abandons: Control over the timing: the deep pass stays red, and every reader stays slow, until a release phax does not control ships
 
 Recommendation: guard — The guard's loss is plans no real plan resembles: the corpus nests about 6 levels deep against a limit of 32. Leaving every plan's reading untouched, which the linear-parser option gives up, is what lets this spec promise r-unchanged. Losing control over timing, as upstream-only does, keeps a real defect live in the deep pass.
+
+Decision: guard — by operator (Rémy Loubradou), 2026-11-22
+Why: The guard's loss is plans no real plan resembles: the corpus nests about 6 levels deep against a limit of 32. Leaving every plan's reading untouched, which the linear-parser option gives up, is what lets this spec promise r-unchanged. Losing control over timing, as upstream-only does, keeps a real defect live in the deep pass. Advocate: A parse linear by construction would fix the cost for every plan and every reader at the root, with no refusal and no arbitrary limit to defend. Principles: S1. Reversibility: costly. Revised: none.
 
 ### q-limit — What nesting limit?
 
@@ -242,12 +250,18 @@ Recommendation: guard — The guard's loss is plans no real plan resembles: the 
 
 Recommendation: limit-32 — Five times the deepest committed plan is a margin no hand-written plan reaches. The bounded-time property checks the cost of a near-cap input at 32 levels on every run, so the loss is measured, not assumed.
 
+Decision: limit-32 — by operator (Rémy Loubradou), 2026-11-22
+Why: Five times the deepest committed plan is a margin no hand-written plan reaches. The bounded-time property checks the cost of a near-cap input at 32 levels on every run, so the loss is measured, not assumed. Advocate: 16 levels is still more than twice the deepest committed plan and gives the tightest time bound, with the most headroom under the 2-second limit on a slow runner. Principles: S1. Reversibility: cheap. Revised: none.
+
 ### q-size — Should a maximum plan size be enforced alongside the depth limit?
 
 - depth-only — Depth limit only — abandons: An absolute ceiling on reading time: a very large plan within the depth limit still costs time in proportion to its size, beyond what the 64 KiB property proves
 - depth-and-size — Depth limit plus a maximum size — abandons: Large legitimate plans, some of which are long and were never measured against a size cap, at the risk of refusing a plan that reads today
 
 Recommendation: depth-only — Once depth is bounded, the cost is linear in size, which is the goal. A size cap would add a second refusal no committed plan has been measured against, and it could break r-unchanged.
+
+Decision: depth-only — by operator (Rémy Loubradou), 2026-11-22
+Why: Once depth is bounded, the cost is linear in size, which is the goal. A size cap would add a second refusal no committed plan has been measured against, and it could break r-unchanged. Advocate: A size cap gives an absolute ceiling on reading time, so no plan, however large, can take longer than the bound the property proves. Principles: S1. Reversibility: cheap. Revised: none.
 
 ### q-configurable — Is the nesting limit configurable?
 
@@ -256,12 +270,18 @@ Recommendation: depth-only — Once depth is bounded, the cost is linear in size
 
 Recommendation: constant — No real plan comes near the limit. A configurable limit would leave the bounded-time property proving only the default.
 
+Decision: constant — by operator (Rémy Loubradou), 2026-11-22
+Why: No real plan comes near the limit. A configurable limit would leave the bounded-time property proving only the default. Advocate: A phax.json key gives a project with genuinely deep plans an escape hatch, instead of leaving it with a refusal it cannot lift. Principles: S1. Reversibility: cheap. Revised: none.
+
 ### q-upstream — Should the nesting cost be reported to micromark?
 
 - report — Open an upstream issue with a minimal reproduction (a run of `>` and its CPU timings), whatever phax does locally — abandons: A little maintainer time, plus a public description of a slowdown in a dependency phax ships
 - no-report — Fix it locally only — abandons: A chance that the parser fixes it for every user, including phax's other Markdown readers that this spec leaves out
 
 Recommendation: report — The reproduction costs nothing extra: the deep-pass counter-example is already minimal. Reporting does not block the guard, and the slowdown is a cost, not a way in.
+
+Decision: no-report — by operator (Rémy Loubradou), 2026-11-22
+Why: Not worth the time: the guard settles phax's case, and an upstream issue is a thread to follow for no gain to phax. If phax's other Markdown readers ever meet the nesting cost, that is the moment to look upstream. Advocate: The reproduction already exists and is minimal, so an issue costs almost nothing and might get the nesting cost fixed for every user of the parser, including phax's other Markdown readers. Principles: E0. Reversibility: cheap. Revised: nonGoals.
 
 ### q-runs — Once the guard lands, does the bounded-time property go back to 100 inputs on pull requests?
 
@@ -270,9 +290,8 @@ Recommendation: report — The reproduction costs nothing extra: the deep-pass c
 
 Recommendation: keep-40 — The run count is a CI budget decision, measured on CI runs, and this spec's non-goals leave the budget as it is. The deep pass still checks 2,000 inputs a day.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: keep-40 — by operator (Rémy Loubradou), 2026-11-22
+Why: The run count is a CI budget decision, measured on CI runs, and this spec's non-goals leave the budget as it is. The deep pass still checks 2,000 inputs a day. Advocate: With the slow inputs refused by the guard, 100 runs would search 60 more inputs on every pull request and catch a regression a day sooner than the deep pass. Principles: S1. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -311,3 +330,12 @@ Example: $ phax plans lint deep-plan.md
 deep-plan.md: 1 error, 0 warnings
 error    structure    -         line 1: blockquotes and lists nest over 32 levels deep
 $? = 1
+
+## 12. Decision log
+
+- 2026-11-22 q-where decided guard — operator (Rémy Loubradou)
+- 2026-11-22 q-limit decided limit-32 — operator (Rémy Loubradou)
+- 2026-11-22 q-size decided depth-only — operator (Rémy Loubradou)
+- 2026-11-22 q-configurable decided constant — operator (Rémy Loubradou)
+- 2026-11-22 q-upstream decided no-report — operator (Rémy Loubradou) — revised 1 section
+- 2026-11-22 q-runs decided keep-40 — operator (Rémy Loubradou)
