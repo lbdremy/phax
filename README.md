@@ -8,15 +8,20 @@ phax is verified delegation for AI coding agents: hand work to Claude Code, Open
 
 **Documentation:** [docs.phax.run](https://docs.phax.run) · **npm:** [`@lbdremy/phax`](https://www.npmjs.com/package/@lbdremy/phax)
 
-You write what to build (a **spec**) and how, phase by phase (a **plan**). phax runs each phase in its own Git worktree with the agent you pick, and the phase must pass your project's gates (typecheck, tests, lint…) before the next one starts. Everything around the agent is plain code: sequencing, gates, retries, state. The agent is the only non-deterministic part.
+You hand phax a change in two documents: what to build (a **spec**) and how, phase by phase (a **plan**). phax drives the agent you pick through the plan and gives you back a change whose every step a program checked, not one a model vouches for. Sequencing, gates, retries and state are plain code; the agent is the only non-deterministic part.
 
-Every phase declares the files it means to create and edit, so phax can tell you what actually happened: planned but not done, done but not planned, deleted, renamed. The agent has to justify each deviation in its handoff. You review a change that is already framed, phase by phase, instead of a pull request full of touched files.
+- **Author.** Specs and plans carry a status and an approval. Your agent writes them with phax's skills, or phax drafts them headless from a short brief. Their open questions are decided on the record, and a plan is linted, estimated and checked for overlap with the others before it runs.
+- **Run.** Each phase runs in its own Git worktree and commits only when your project's gates (typecheck, tests, lint…) pass; a red gate goes back to the same agent session. Every phase declares the files it means to create and edit, and phax reconciles them with the diff: planned but not done, done but not planned. The agent justifies each deviation in its handoff.
+- **Review.** The run stops at review with its last phase open. A compliance review reads the change against the plan, a code review raises findings, and every finding gets a fate: fixed by a commit, dismissed with a reason, or deferred to a file. The pull request explains itself.
+- **Keep.** Every phase leaves a record on the `phax/records/v1` branch (its gates, its reconciliation, its handoff), and every run a cost ledger. `phax records explain <commit>` gives a phase's commit back its prompt, gates and handoff.
+
+The one delegating can be a person or another agent. Every command answers JSON with a schema under `--json`, so an agent that hands a change to phax reads the outcome, the compliance verdict and each finding's fate instead of trusting another agent's "done": see [Delegating from an agent](docs/delegating.md).
 
 ```
-spec ──approve──▶ plan ──lint, approve──▶ run: phase-01 ─gate─▶ phase-02 ─gate─▶ … ─gate─▶ review ──▶ pull request
+spec ──decide, approve──▶ plan ──lint, approve──▶ run: phase-01 ─gate─▶ … ─gate─▶ review: compliance, findings ──▶ pull request
 ```
 
-**How phax compares.** Spec-driven tools such as GitHub Spec Kit and OpenSpec share the spec → plan → implement idea and work with dozens of agents, but by default what checks the code there is a person's review or a model's judgment. phax is the runtime instead: it starts the agent itself, runs each phase in an isolated worktree, moves on only when your real checks exit green, and reconciles the plan file by file against the diff. It trades breadth of agents for that enforcement. The comparisons go axis by axis: [GitHub Spec Kit vs. phax](docs/comparisons/spec-kit-vs-phax.md) and [OpenSpec vs. phax](docs/comparisons/openspec-vs-phax.md).
+**How phax compares.** Spec-driven tools such as GitHub Spec Kit and OpenSpec share the spec → plan → implement idea and work with dozens of agents, but by default what checks the code there is a person's review or a model's judgment. phax is verified delegation instead: it starts the agent itself, runs each phase in an isolated worktree, moves on only when your real checks exit green, and reconciles the plan file by file against the diff. It trades breadth of agents for that enforcement. The comparisons go axis by axis: [GitHub Spec Kit vs. phax](docs/comparisons/spec-kit-vs-phax.md) and [OpenSpec vs. phax](docs/comparisons/openspec-vs-phax.md).
 
 ## Quickstart
 
@@ -26,7 +31,7 @@ Install phax and its skills, then set up your repository:
 npm install -g @lbdremy/phax
 cd my-project
 phax init                               # writes phax.json: project name, gate commands
-phax skills install --target claude     # phax-spec, phax-planning, phax-cli and the decide skills, for your agent
+phax skills install --target claude     # phax-spec, phax-planning, phax-cli, phax-review and the decide skills
 ```
 
 Write a spec, then a plan, and approve each. `artifact new` creates the file with its name and status; you fill it in with your agent, which follows the `phax-spec` and `phax-planning` skills:
@@ -58,14 +63,16 @@ phax run --plan docs/plans/2610041201-greet-plan.md
 Review it, open the pull request, and put the run away once it is merged:
 
 ```bash
+phax review-compliance greet            # check the work against the plan, phase by phase
 phax review-code greet                  # an agent session primed to review the change with you
+phax finding list greet                 # every finding of the reviews, with its fate
 phax publish-pr greet                   # push the final branch, open the pull request
 phax archive greet                      # after the merge
 ```
 
 ## Install
 
-**With npm** (recommended). The package is a small launcher that downloads the binary for your platform on first run and caches it per version under `~/.phax/bin/<version>/`:
+**With npm** (recommended). The package is a small launcher (Node 22 or later) that downloads the binary for your platform on first run and caches it per version under `~/.phax/bin/<version>/`:
 
 ```bash
 npm install -g @lbdremy/phax
@@ -79,6 +86,7 @@ npx @lbdremy/phax --help
 curl -LO https://github.com/lbdremy/phax/releases/latest/download/phax-darwin-arm64
 curl -LO https://github.com/lbdremy/phax/releases/latest/download/phax-darwin-arm64.sha256
 sha256sum --check phax-darwin-arm64.sha256
+gh attestation verify phax-darwin-arm64 --repo lbdremy/phax   # built by phax's release workflow from the tag
 chmod +x phax-darwin-arm64 && sudo mv phax-darwin-arm64 /usr/local/bin/phax
 xattr -dr com.apple.quarantine /usr/local/bin/phax   # macOS: the binary is not notarized yet
 ```
@@ -131,7 +139,7 @@ exec zsh
 
 **Handoff and reconciliation.** After its gate passes, each phase writes a handoff for the next one: what it did, what it decided, what is left. phax compares the files the phase actually changed with the files it planned, and every gap goes into the next phase's prompt and into the final review.
 
-**Review.** The last phase does not land anything. The run stops at `review_open`, with a review handoff, an optional compliance review of the work against the plan, and optionally a pull request. You take it from there.
+**Review.** The last phase does not land anything. The run stops at `review_open`, with a review handoff and, if `phax.json` turns them on, a compliance review of the work against the plan, a headless code review and a pull request. Every finding of those reviews gets an id (`C1`, `F2`) and a fate, which `phax finding fix`, `dismiss` or `defer` records. You take it from there.
 
 **Records.** If you turn them on (`phax records init`), every phase leaves a record on the `phax/records/v1` branch — its manifest, gate results, reconciliation, diff, handoff and, optionally, the agent's transcript — so a run's history outlives its worktrees.
 
@@ -139,7 +147,7 @@ exec zsh
 
 ## Set up a project
 
-`phax init` writes `phax.json` at the root of your repository, with the JSON Schemas your editor uses to check it (`phax.schema.json`, `phax.user.schema.json`). In a terminal it asks a few questions, pre-filled from your `package.json`: the project's name, its gate commands, whether to review and publish runs automatically. Elsewhere it takes the detected defaults.
+`phax init` writes `phax.json` at the root of your repository, with the JSON Schemas your editor uses to check it (`phax.schema.json`, `phax.user.schema.json`). In a terminal it asks a few questions, pre-filled from your `package.json`: the project's name, its gate commands, whether to review and publish runs automatically, and whether to keep records. Elsewhere it takes the detected defaults.
 
 ```bash
 phax init            # asks, or takes the defaults when there is no terminal
@@ -176,7 +184,7 @@ A `phax.json` looks like this:
 - **`security.profile`** sets the default security mode (`secure` unless you say otherwise) — see [Providers and security](#providers-and-security).
 - **`agent.maxFixAttempts`** is how many times a failing gate goes back to the agent (1 by default).
 - **`fileReconciliation.mode`** is `report_only` (default) or `warn`, to also log each deviation from the planned files.
-- **`records`** is written by `phax records init` — see [Records](#records).
+- **`records`** is written by `phax init` or `phax records init` — see [Records](#records).
 - **`protectedPaths`** lists the files whose change is the operator's decision: no phase may create, change, delete or rename them. The `phax.json` phax loads is protected too. It is accepted in `phax.json` only, and `phax validate` lists the protected paths.
 
 **Layers.** `phax.json` is the team's baseline. Two more files can add to it: `~/.phax/config.json` for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
@@ -296,6 +304,10 @@ A headless writer (default `claude-sonnet-5-5` at `medium`, routed to a provider
 
 **The approval lock.** `phax artifact approve` refuses, with exit 12, while a spec or plan has an open question, and names `phax artifact decide`. Hand-authored artifacts are locked too, and an artifact with no question section is approved as before.
 
+### Revise a Draft
+
+`phax artifact revise <path> --amendment amendment.md` changes a Draft that phax wrote headless, from a change request in prose (`-` reads it on stdin). One writer session returns the whole document with the amendment carried wherever it applies; phax checks that every question stays as it was, commits the artifact and its sidecar with a `Revision-Id` trailer, and leaves it Draft for you to read before approving. From a script, pass `--by operator` or `--by machine:<grant>`. See [Revising a Draft](docs/revising-drafts.md).
+
 ### Move them through their lifecycle
 
 | Command                                         | From                                                           | To                                            |
@@ -327,7 +339,7 @@ phax adjust-plan <plan> --landed <run>     # an agent session that updates a pla
 
 ```bash
 phax run --plan docs/plans/2610041201-greet-plan.md
-phax run greet --plan <plan>          # choose the run's name
+phax run greet --plan <plan>          # name the run you expect: a name other than the plan's is refused
 phax run --plan <plan> --dry-run      # show what would run, change nothing
 ```
 
@@ -339,7 +351,7 @@ phax run --plan <plan> --dry-run      # show what would run, change nothing
 | `--allow-skill-edits`       | let phases edit the `.claude/skills` files the plan declares |
 | `--refresh`                 | extract the plan again instead of using the cache            |
 
-Before naming the run, phax checks everything it can without it: the commands the plan needs, each phase's model, the MCP and records settings, a clean working tree. A refused run leaves nothing behind, and trying again gets the same name.
+A plan under `docs/plans/` must be Approved and fresh: a Draft, Stale, Completed or Abandoned plan, or one whose spec, own text or planned files changed since its approval, is refused with exit 12 before anything runs. Before naming the run, phax checks everything it can without it: the commands the plan needs, each phase's model, the MCP and records settings, a clean working tree. A refused run leaves nothing behind, and trying again gets the same name.
 
 Then, for each phase:
 
@@ -370,9 +382,9 @@ Commits written by earlier versions may also carry `Worktree:`, a `Gate-Log:` ho
 ### When a run stops
 
 ```bash
-phax resume <run>                     # continue from the next phase, or finish a committed phase's cut-short handoff
+phax resume <run> --yes               # continue from the next phase, or finish a committed phase's cut-short handoff (without --yes: a preview)
 phax resume <run> --yes --provider-priority codex-cli,claude-code
-phax reset-phase <run> [phase-id]     # throw a stuck phase's worktree away so resume starts it over
+phax reset-phase <run> [phase-id] --yes  # throw a stuck phase's worktree away so resume starts it over
 phax enter-phase <run> <phase-id>     # open that phase's agent session
 phax session-info <run>               # state, phase, worktree, agent session id
 phax unlock <run>                     # remove a stale lock left by a process that died
@@ -416,7 +428,7 @@ phax path invoice-export                 # phax shell and phax open take the sam
 
 `phax path`, `phax shell` and `phax open` target the stopped phase's worktree. While the stop's close is running, `enter-phase` refuses the phase until the close ends.
 
-To close the stop, run `phax resume invoice-export` from the main checkout. phax:
+To close the stop, run `phax resume invoice-export --yes` from the main checkout. phax:
 
 1. runs the phase's gate first. A red gate returns the phase to you (exit 4): fix the worktree, resume again;
 2. takes the handoff: your `.phax-context/correction-handoff.md` when it exists, with the sections `## What was corrected`, `## The pattern to follow from now on`, `## Guards` and `## What the next phases need to know` (one guard per correction); otherwise a read-only closing turn writes it from the diff of your corrections. A closing turn that edits the worktree is refused (exit 5): its edits are set aside in the phase's `refused-turn-NN/` folder and the worktree put back to the tree the gate passed. An answer still invalid after one corrective resume is refused too (exit 5);
@@ -445,7 +457,7 @@ For example, `phax run --plan plan.md --hold phase-02` on the invoice-export pla
 
 You review the phase by hand, with any agent, or by continuing the builder's own session, which is the default of `phax enter-phase invoice-export phase-02`. `phax enter-phase --new-session` starts a fresh read-only look instead and makes its session current. `phax ls`, `phax session-info`, `phax path`, `phax shell` and `phax open` work as at a declared stop; `session-info` names the phase `headless, committed <short sha>`.
 
-`phax resume invoice-export` closes a held stop. phax:
+`phax resume invoice-export --yes` closes a held stop. phax:
 
 1. runs the phase's gate first; a red gate returns the phase to you (exit 4);
 2. takes the correction handoff: your `.phax-context/correction-handoff.md`, or a closing turn that resumes the builder session and writes it from the diff of your corrections. The handoff lands beside the phase's own `phase-handoff.md`, which stays as the builder wrote it;
@@ -561,7 +573,7 @@ phax review-handoff <run>       # write review-handoff.md and the reconciliation
 
 `review-code` starts from the reconciliation and the compliance findings rather than a blank prompt, and follows the `phax-review` skill: it uses the change before reading its code, works from the user inward, and looks for what the run's tests cannot catch, each finding naming why they missed it. A copy at `.claude/skills/phax-review/SKILL.md` on the run's branch replaces the bundled skill. Running it again resumes the session, and `--new-session` starts over. Its model is `review.code` in `phax.json`, `claude-opus-5-5` at `high` effort by default, or `--model` and `--effort`.
 
-`phax review-code <run> --headless` runs that review without a person. It follows the same skill in a read-only session (its reading tools and read-only `git`), answers with its final message, and phax writes the findings to `code-review.json`: each with a severity, a file and line, a lens, an escape, a criterion and a suggestion. It records its session, so `phax review-code <run>` resumes it on the provider that ran it, to ask for the fixes; `--new-session` starts a new session that becomes the recorded one and detaches it from `code-review.json`, which is left as it is. A refused answer, a failed session or a session that changed the worktree (its changes are put back) leaves `code-review.json` and the recorded session as they were, and exits 1 with the retry command; the session's cost entry and transcript are still kept. To get it with every run, set `"review": { "code": { "enabled": true } }`, read the `## Review findings` section in the pull request, then run `phax review-code <run>` to fix them.
+`phax review-code <run> --headless` runs that review without a person. It follows the same skill in a read-only session (its reading tools and read-only `git`), answers with its final message, and phax writes the findings to `code-review.json`: each with a severity, a file and line, a lens, an escape, a criterion and a suggestion. It records its session, so `phax review-code <run>` resumes it on the provider that ran it, to ask for the fixes; `--new-session` starts a new session that becomes the recorded one and detaches it from `code-review.json`, which is left as it is. A refused answer, a failed session or a session that changed the worktree (its changes are put back) leaves `code-review.json` and the recorded session as they were, and exits 1 with the retry command; the session's cost entry and transcript are still kept. To get it with every run, set `"review": { "code": { "enabled": true } }`, read the `## Review findings` section in the pull request, then fix each finding with `phax finding fix <run> <id> -- <path>…`, or settle it with `dismiss` or `defer`. A fate is written on `phax/records/v1`, so it needs records on. From a script, every fate names its arbiter with `--by`, and only the operator dismisses or defers; `fix --commit <sha>` records a commit you already made.
 
 Three steps run on their own when a run reaches review, if `phax.json` turns them on, and can be run by hand. None can fail the run.
 
@@ -604,7 +616,7 @@ Every run keeps `cost-ledger.json`: each Claude invocation's own API-list cost, 
 
 ## Records
 
-A record is what a phase leaves behind for later: on a `phax/records/v1` branch, one commit per phase, holding its manifest, its gate results and the surfaces they verified, its file reconciliation, its diff, its handoff and logs, and the agent's transcript if you keep it. A headless authoring session leaves one too, and so does every `phax artifact decide` session. With records on, each compliance review a run generates is kept too, as a review entry `<runId>/compliance-review/` beside the run's phase records: its `compliance-review.json` and a `record.json`. An accepted `code-review.json` is kept as a `<runId>/code-review/` entry, as the compliance review's file is. A later review of the run replaces the file, and the earlier one stays in the branch's history. `phax records list` shows the entry, and `phax records status` lists it while it is unpushed. Worktrees come and go; the records stay, and they travel with a clone.
+A record is what a phase leaves behind for later: on a `phax/records/v1` branch, one commit per phase, holding its manifest, its gate results and the surfaces they verified, its file reconciliation, its diff, its handoff and logs, and the agent's transcript if you keep it. A headless authoring session leaves one too, and so do every `phax artifact decide` session, every `phax artifact revise` session and every finding's fate. With records on, each compliance review a run generates is kept too, as a review entry `<runId>/compliance-review/` beside the run's phase records: its `compliance-review.json` and a `record.json`. An accepted `code-review.json` is kept as a `<runId>/code-review/` entry, as the compliance review's file is. A later review of the run replaces the file, and the earlier one stays in the branch's history. `phax records list` shows the entry, and `phax records status` lists it while it is unpushed. Worktrees come and go; the records stay, and they travel with a clone.
 
 ```bash
 phax records init               # choose: keep transcripts, where the branch lives, push automatically
@@ -687,7 +699,7 @@ The agent can run your gate commands and the commands in `security.agentCommands
 
 ## Extend phax
 
-Four hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider that answers with a brief report, an architecture provider that answers with the repository's architecture for planners, and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
+Five hooks let your own tools inform a run: a gate step that prints a gate report, a brief provider that answers with a brief report, an architecture provider that answers with the repository's architecture for planners, an acceptance provider that judges an acceptance pair, and a plan auditor. A provider is a command in `phax.json`, split on spaces and run without a shell, that reads a JSON request on stdin and answers JSON on stdout. A gate step reads a request only when it declares `"input": "gate-request"` (see [Gate request](#gate-request)); otherwise its stdin is not connected.
 
 The two reports share one location, guide and finding, and phax routes each fact to whoever acts on it: findings and their guides go to the agent, review notes to the reviewer, and a refusal to you.
 
@@ -993,7 +1005,7 @@ A `part` bound names an architecture-report part by its id; a `globs` bound list
 
 Reviews a plan's shape for `phax plans lint` (never during a run). It receives every phase's planned files, `{"phases": [{"id", "files"}]}` — nothing else leaves phax — and answers `{"findings": [{"message", "phases": [...]}]}`. Its findings are warnings; a provider that fails or takes more than 30 seconds becomes one warning saying why.
 
-[`examples/hello-world/`](examples/hello-world/) has a small example of each provider except the acceptance provider, whose example is [`examples/vitest-acceptance/`](examples/vitest-acceptance/).
+[`examples/hello-world/`](examples/hello-world/) has a gate report step, a brief provider and a plan auditor; the acceptance provider's example is [`examples/vitest-acceptance/`](examples/vitest-acceptance/). The architecture provider has none yet.
 
 ## Persisted formats
 
@@ -1053,6 +1065,8 @@ Spec and plan documents carry open and arbitrated questions, and every spec surf
 
 ## Read phax files from code
 
+A command's answer reads the same way. `--json` on every command writes its answer on stdout, stamped with its `$schema`, and its messages as JSON lines on stderr; `phax --json-schema` prints the program's contracts as JSON Schema, and `phax --usage` the whole command tree. See [Machine answers](docs/json-output.md), and [Delegating from an agent](docs/delegating.md) for an agent that hands its work to phax.
+
 `@lbdremy/phax-schemas` reads all of them, with phax's own types and verdicts, without phax installed. `parseDocument` reads any file that carries `$schema`; the JSON Schema of each format is in the package, as `json/<format id>.schema.json`.
 
 ```bash
@@ -1100,7 +1114,7 @@ node read-record.mjs <runId>/phase-01
 
 A failed parse is a value, never an exception: `parsed.ok` is `false`, with a `path` and a `message`. A file stays readable as phax evolves: an older shape still parses, upgraded in memory by the format's `toLatest*` function (a fact phax did not track yet becomes `{ kind: "unknown" }`), and a file written by a newer phax asks you to upgrade the package.
 
-Each commit on `phax/records/v1` holds only its own record, so `git show phax/records/v1:<path>` sees only the newest one: find a record by its commit trailers (`Run-Id` and `Phase-Id`, or `Authoring-Id`), as above. A review entry's commit carries `Run-Id` and `Review`, and its manifest is read by `parseReviewRecordManifest` or `parseRecordManifest`. To read them all, list the branch's commits (`git log phax/records/v1 --format=%H`), read the `record.json` each one holds (`git ls-tree -r --name-only <sha>`, then `git show <sha>:<path>`) and give it to `parseRecordManifest`.
+Each commit on `phax/records/v1` holds only its own record, so `git show phax/records/v1:<path>` sees only the newest one: find a record by its commit trailers (`Run-Id` and `Phase-Id`, or `Authoring-Id`, `Decision-Id` or `Revision-Id`), as above. A review entry's commit carries `Run-Id` and `Review`, and its manifest is read by `parseReviewRecordManifest` or `parseRecordManifest`. To read them all, list the branch's commits (`git log phax/records/v1 --format=%H`), read the `record.json` each one holds (`git ls-tree -r --name-only <sha>`, then `git show <sha>:<path>`) and give it to `parseRecordManifest`, or to `parseFindingFateRecordManifest` for a finding's fate under `<runId>/finding/`.
 
 ## Exit codes
 
@@ -1129,14 +1143,14 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 
 ## Environment
 
-phax reads no environment variable for its configuration: everything is in `phax.json`, its layers and `~/.phax/`. The one variable it honours, `PHAX_E2E_RUN=1`, enables its own end-to-end tests.
+phax reads no environment variable for its configuration: everything is in `phax.json`, its layers and `~/.phax/`. It reads a few variables for their usual meaning: `GIT_COMMITTER_NAME` (who approves), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (where the providers keep their sessions), `SHELL` (`phax shell`) and `NO_COLOR`. Its own end-to-end tests run only with `PHAX_E2E_RUN=1`.
 
 ## Troubleshooting
 
 - **`claude` not found.** Install Claude Code and make sure `claude` is on your `$PATH`; `phax agent probe` lists what phax finds.
-- **A gate keeps failing.** The run pauses once the fix attempts are spent. Read the attempt logs, `~/.phax/runs/<namespace>.<name>/phase-NN/checks-attempt-NN.log`. Attempts are numbered once per phase: a resumed phase continues at the next number and never overwrites an earlier attempt's files, so the last attempt is the highest-numbered `checks-attempt-NN.log`. Fix the cause (or raise `agent.maxFixAttempts`), then `phax resume <run>`, which runs the gate again first. To start the phase over instead, `phax reset-phase <run>` before resuming.
+- **A gate keeps failing.** The run pauses once the fix attempts are spent. Read the attempt logs, `~/.phax/runs/<namespace>.<name>/phase-NN/checks-attempt-NN.log`. Attempts are numbered once per phase: a resumed phase continues at the next number and never overwrites an earlier attempt's files, so the last attempt is the highest-numbered `checks-attempt-NN.log`. Fix the cause (or raise `agent.maxFixAttempts`), then `phax resume <run> --yes`, which runs the gate again first. To start the phase over instead, `phax reset-phase <run> --yes` before resuming.
 - **Lock conflict.** Another phax is working on that run, or one died; `phax unlock <run>` clears a stale lock.
-- **The handoff is missing.** The phase ended in `handoff_failed`: `phax enter <run>` takes you back into its session.
+- **The handoff is missing.** The phase ended in `handoff_failed`: `phax enter-phase <run> <phase-id>` takes you back into its session (`phax enter` opens only the final phase's). See [When a run stops](#when-a-run-stops).
 - **A rate or usage limit.** The run stopped at exit 8 and keeps its place: `phax resume <run> --yes` when the limit resets.
 - **A failed agent session.** A command printed `✗ <provider> session failed (<kind>): …` with the files to read: the cause, `agent-error.log` and the transcript. Read [Troubleshooting a failed agent session](docs/agent-session-failures.md) to tell whether to retry, resume or fix something.
 - **Exit 14: the provider could not be reached.** The network was down. Retry the printed command once it is back; a paused run lists as `rate_limited` and continues with `phax resume <run> --yes` straight away, in a new provider session in the same worktree. A Codex session keeps waiting for the network instead of ending: interrupt it, then resume. A record refused right after it (`following the failed session`) was a consequence of the outage, and the retry writes it. See [Troubleshooting a failed agent session](docs/agent-session-failures.md).
