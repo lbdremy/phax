@@ -131,7 +131,7 @@ attempt, a relaunch, and once a release.
 - [x] **`bounded-test-spawns`** — shipped 2026-11-21. Every test child ends within a stated bound
       (`tests/helpers/boundedSpawn.ts`), a guard refuses a new unbounded spawn, and the stray 143 was
       the test's own `spawnSync` hitting Node's 1 MiB `maxBuffer` on the root `--json-schema`; 20 full
-      suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/bounded-test-spawns.md`,
+      suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/archive/bounded-test-spawns.md`,
       findings `spikes/bounded-test-spawns/findings.md`, runs `spikes/bounded-test-spawns/suite-runs.md`.
       The 10 CI runs on the pull request all pass; merged 2026-11-22 (#256).
 - [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
@@ -444,7 +444,7 @@ desktop — none is promised by the announcement.
       pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
       `pull-request-closed`); `finding post` refuses a fixed finding on such a pull request;
       `dismiss` and `defer` keep commenting.
-- [x] **Reading a plan is super-linear in its nesting.** Done (#258, 2026-11-22). Brief: `docs/briefs/plan-parser-nesting-time.md`.
+- [x] **Reading a plan is super-linear in its nesting.** Done (#258, 2026-11-22). Brief: `docs/briefs/archive/plan-parser-nesting-time.md`.
       The daily deep pass is red since 2026-11-18 (run 44320960144, seed 1253054900): a run of
       61,440 `>` (blockquotes nested once per character) costs `collectPlanStructureErrors` 4.5 s
       of CPU on CI and 3.4 s on a laptop, mostly inside `mdast-util-from-markdown`; nested lists

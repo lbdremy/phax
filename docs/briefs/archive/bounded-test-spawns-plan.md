@@ -1,7 +1,7 @@
 Write the phax plan "Bounded test spawns" for the approved spec `docs/specs/2611201446-bounded-test-spawns.md`. It
 is the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/bounded-test-spawns.md`. These are settled; do not
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/bounded-test-spawns.md`. These are settled; do not
 reopen them:
 - the three operator decisions of 2026-11-20 in §9b: q-gate-bound `separate` (no gate-step limit here; it is a
   NEXT_STEPS item of its own), q-scope `all` (every spawn under `tests/`, no exemption list), q-bound-form `per-call`

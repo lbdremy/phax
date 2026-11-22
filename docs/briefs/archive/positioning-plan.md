@@ -1,7 +1,7 @@
 Write the phax plan "Positioning" for the approved spec `docs/specs/2611220953-positioning.md`. It is the spec's only
 plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/positioning.md`. These are settled; do not reopen
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/positioning.md`. These are settled; do not reopen
 them:
 - the operator's verdicts of 2026-11-22 in §9: q-agent-page `page` (a "Delegating from an agent" page at
   `/guide/delegating`), q-llms-intro `split` (the meta description keeps the person pitch, llms.txt opens with the

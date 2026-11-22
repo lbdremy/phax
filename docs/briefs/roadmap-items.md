@@ -15,7 +15,7 @@ that rewrote a phase's `base` by hand to get past a protected path (a held run o
 `bounded-test-spawns` at its tenth). That is a better reason to rank it than a wish, and today it lives as prose. An
 agent that hits the same wall has no way to say so but to tell the operator in a conversation that ends.
 
-The roadmap is also how phax shows verified delegation (`docs/briefs/positioning.md`): an agent's vote carries the
+The roadmap is also how phax shows verified delegation (`docs/briefs/archive/positioning.md`): an agent's vote carries the
 run that showed the need, as its "done" carries the gate that passed.
 
 ## The direction (the operator's, 2026-11-22)
@@ -66,7 +66,7 @@ run that showed the need, as its "done" carries the gate that passed.
 
 - Votes from outside the repository (GitHub reactions, a shared service).
 - Ranking from votes automatically.
-- The positioning itself (`docs/briefs/positioning.md`).
+- The positioning itself (`docs/briefs/archive/positioning.md`).
 
 ## Constraints
 

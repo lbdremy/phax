@@ -1,7 +1,7 @@
 Write the phax plan "Plan parser nesting time" for the approved spec
 `docs/specs/2611221308-plan-parser-nesting-time.md`. It is the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/plan-parser-nesting-time.md`. These are settled;
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/plan-parser-nesting-time.md`. These are settled;
 do not reopen them:
 - the operator's verdicts of 2026-11-22 in §9b: q-where `guard`, q-limit `limit-32`, q-size `depth-only`,
   q-configurable `constant`, q-upstream `no-report` (no upstream issue; a non-goal now), q-runs `keep-40`;
