@@ -276,6 +276,10 @@ Given the plan's last phase, on the machine the before measures came from, when 
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-paths — A driven run holds absolute paths (worktree registrations in `.git/worktrees`, worktree and run folders in its status files). Where is a shared prefix restored?
 
 - same-path — Restore at the path the prefix was driven at: the snapshot is taken from the world's root and copied back to that root before each test of the file — abandons: Concurrency inside a file: its tests must run one after another, and every test of the file sees the same root path.
@@ -283,12 +287,18 @@ Given the plan's last phase, on the machine the before measures came from, when 
 
 Recommendation: same-path — The tests of a file already run one after another and each gets a fresh root today, so restoring at one path per file costs nothing a test relies on; nothing is rewritten, so a restore is the driven state by construction, and the restore guard still catches a path back to the snapshot.
 
+Decision: same-path — by operator (Rémy Loubradou), 2026-11-22
+Why: The tests of a file already run one after another and each gets a fresh root today, so restoring at one path per file costs nothing a test relies on; nothing is rewritten, so a restore is the driven state by construction, and the restore guard still catches a path back to the snapshot. Advocate: Relocating lets tests of a file run concurrently and gives each its own root path; the loss of same-path is that concurrency and the shared root path. Principles: S1, C4. Reversibility: cheap. Revised: none.
+
 ### q-logs — How does a restored run get the in-memory part of its driven state (backend calls, shell calls, telemetry events, closed stops)?
 
 - recorded — The fixture keeps the prefix's in-memory logs and gives each test its own copy of them — abandons: Simplicity: the copy must reproduce every log a test reads, and a log the fixture forgets to copy would differ from a fresh drive without a test failing.
 - own-prefix — Any test that reads a log the prefix wrote keeps driving its own prefix — abandons: Much of the saving: many tests count the backend calls or telemetry events of the whole run, including the prefix's, and would stay as slow as today.
 
 Recommendation: recorded — The logs are plain lists on the run object, few in number and listed in the fixture; the fresh-drive switch runs every test both ways, so a log the copy misses shows up as a test that passes one way and fails the other.
+
+Decision: recorded — by operator (Rémy Loubradou), 2026-11-22
+Why: The logs are plain lists on the run object, few in number and listed in the fixture; the fresh-drive switch runs every test both ways, so a log the copy misses shows up as a test that passes one way and fails the other. Advocate: Driving its own prefix leaves no log for the fixture to forget to copy, so a restored run can never differ from a fresh one unnoticed; the loss of recorded is that simplicity. Principles: S1, C3. Reversibility: cheap. Revised: none.
 
 ### q-scope — Which files does the change cover?
 
@@ -298,6 +308,9 @@ Recommendation: recorded — The logs are plain lists on the run object, few in 
 
 Recommendation: measured-rule — The suite is bound by its total work, so the target must reach into the 10–30 s files (648 s) as well as the slowest ones; a rule over measures puts the work where repetition is, which is the lesson of #253 sped up a file and not the suite.
 
+Decision: measured-rule — by operator (Rémy Loubradou), 2026-11-22
+Why: The suite is bound by its total work, so the target must reach into the 10–30 s files (648 s) as well as the slowest ones; a rule over measures puts the work where repetition is, which is the lesson of #253 sped up a file and not the suite. Advocate: Naming the files up front fixes the scope before the plan starts, so the plan is bounded from the first phase; the loss of measured-rule is a scope known only after measuring. Principles: S1, C3. Reversibility: cheap. Revised: none.
+
 ### q-target — What target binds the change?
 
 - covered-half — The covered files' summed file time at most half of its before value; the suite's wall time recorded, not bound — abandons: A bound on the suite itself: if the covered files turn out to be a small share of the work, the change can meet its target and leave the gate's wait nearly where it is.
@@ -306,9 +319,8 @@ Recommendation: measured-rule — The suite is bound by its total work, so the t
 
 Recommendation: covered-half — It binds what the change does, measured as a median of three runs to absorb the noise #253 saw; the suite's wall time, CPU and the gate's step time are recorded beside it, so the operator sees whether the suite moved and can open the next brief on those numbers.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: covered-half — by operator (Rémy Loubradou), 2026-11-22
+Why: It binds what the change does, measured as a median of three runs to absorb the noise #253 saw; the suite's wall time, CPU and the gate's step time are recorded beside it, so the operator sees whether the suite moved and can open the next brief on those numbers. Advocate: A bound on the suite's wall time binds the outcome the gate actually waits on; the loss of covered-half is that the suite can stay nearly where it is while the target is met. Principles: S1, C4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -341,3 +353,10 @@ Constraints:
 ## 11. Docs page
 
 None — The change is to phax's own test fixtures; no operator or user of phax sees it, so no docs page changes.
+
+## 12. Decision log
+
+- 2026-11-22 q-paths decided same-path — operator (Rémy Loubradou)
+- 2026-11-22 q-logs decided recorded — operator (Rémy Loubradou)
+- 2026-11-22 q-scope decided measured-rule — operator (Rémy Loubradou)
+- 2026-11-22 q-target decided covered-half — operator (Rémy Loubradou)

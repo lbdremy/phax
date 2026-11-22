@@ -372,7 +372,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-paths",
       "question": "A driven run holds absolute paths (worktree registrations in `.git/worktrees`, worktree and run folders in its status files). Where is a shared prefix restored?",
@@ -389,7 +390,28 @@
         }
       ],
       "recommendation": "same-path",
-      "rationale": "The tests of a file already run one after another and each gets a fresh root today, so restoring at one path per file costs nothing a test relies on; nothing is rewritten, so a restore is the driven state by construction, and the restore guard still catches a path back to the snapshot."
+      "rationale": "The tests of a file already run one after another and each gets a fresh root today, so restoring at one path per file costs nothing a test relies on; nothing is rewritten, so a restore is the driven state by construction, and the restore guard still catches a path back to the snapshot.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "same-path",
+        "abandoned": [
+          "relocate"
+        ],
+        "why": "The tests of a file already run one after another and each gets a fresh root today, so restoring at one path per file costs nothing a test relies on; nothing is rewritten, so a restore is the driven state by construction, and the restore guard still catches a path back to the snapshot.",
+        "advocate": "Relocating lets tests of a file run concurrently and gives each its own root path; the loss of same-path is that concurrency and the shared root path.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T17:40:22.581Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-logs",
@@ -407,7 +429,28 @@
         }
       ],
       "recommendation": "recorded",
-      "rationale": "The logs are plain lists on the run object, few in number and listed in the fixture; the fresh-drive switch runs every test both ways, so a log the copy misses shows up as a test that passes one way and fails the other."
+      "rationale": "The logs are plain lists on the run object, few in number and listed in the fixture; the fresh-drive switch runs every test both ways, so a log the copy misses shows up as a test that passes one way and fails the other.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "recorded",
+        "abandoned": [
+          "own-prefix"
+        ],
+        "why": "The logs are plain lists on the run object, few in number and listed in the fixture; the fresh-drive switch runs every test both ways, so a log the copy misses shows up as a test that passes one way and fails the other.",
+        "advocate": "Driving its own prefix leaves no log for the fixture to forget to copy, so a restored run can never differ from a fresh one unnoticed; the loss of recorded is that simplicity.",
+        "principles": [
+          "S1",
+          "C3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T17:40:22.581Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-scope",
@@ -430,7 +473,29 @@
         }
       ],
       "recommendation": "measured-rule",
-      "rationale": "The suite is bound by its total work, so the target must reach into the 10–30 s files (648 s) as well as the slowest ones; a rule over measures puts the work where repetition is, which is the lesson of #253 sped up a file and not the suite."
+      "rationale": "The suite is bound by its total work, so the target must reach into the 10–30 s files (648 s) as well as the slowest ones; a rule over measures puts the work where repetition is, which is the lesson of #253 sped up a file and not the suite.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "measured-rule",
+        "abandoned": [
+          "named",
+          "all-users"
+        ],
+        "why": "The suite is bound by its total work, so the target must reach into the 10–30 s files (648 s) as well as the slowest ones; a rule over measures puts the work where repetition is, which is the lesson of #253 sped up a file and not the suite.",
+        "advocate": "Naming the files up front fixes the scope before the plan starts, so the plan is bounded from the first phase; the loss of measured-rule is a scope known only after measuring.",
+        "principles": [
+          "S1",
+          "C3"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T17:40:22.581Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-target",
@@ -453,10 +518,31 @@
         }
       ],
       "recommendation": "covered-half",
-      "rationale": "It binds what the change does, measured as a median of three runs to absorb the noise #253 saw; the suite's wall time, CPU and the gate's step time are recorded beside it, so the operator sees whether the suite moved and can open the next brief on those numbers."
+      "rationale": "It binds what the change does, measured as a median of three runs to absorb the noise #253 saw; the suite's wall time, CPU and the gate's step time are recorded beside it, so the operator sees whether the suite moved and can open the next brief on those numbers.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "covered-half",
+        "abandoned": [
+          "suite-bound",
+          "report-only"
+        ],
+        "why": "It binds what the change does, measured as a median of three runs to absorb the noise #253 saw; the suite's wall time, CPU and the gate's step time are recorded beside it, so the operator sees whether the suite moved and can open the next brief on those numbers.",
+        "advocate": "A bound on the suite's wall time binds the outcome the gate actually waits on; the loss of covered-half is that the suite can stay nearly where it is while the target is met.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T17:40:22.581Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The tests check what they check today: no assertion removed, no test skipped or moved out of the gate.",
