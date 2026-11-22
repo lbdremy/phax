@@ -28,6 +28,7 @@ const SOURCE_FILES = [
   "docs/json-output.md",
   "docs/findings.md",
   "docs/code-repository.md",
+  "docs/delegating.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */

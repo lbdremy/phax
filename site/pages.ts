@@ -131,6 +131,13 @@ export default definePageMap({
         "What --json writes on stdout, the message lines on stderr, the refused and defect exit codes and what --json-schema prints, for agents and scripts.",
     },
     {
+      route: "/guide/delegating",
+      title: "Delegating from an agent",
+      source: "docs/delegating.md",
+      description:
+        "Delegate a change through phax from a coding agent: the commands to call, --json answers, --json-schema contracts, exit codes and phax --usage.",
+    },
+    {
       route: "/guide/findings",
       title: "Review findings",
       source: "docs/findings.md",

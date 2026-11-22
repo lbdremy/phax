@@ -6,13 +6,15 @@
 // logo, its nav shows the lowercase wordmark, its one canonical link is its
 // clean URL, and it names the social card as its og:image in a large-image
 // preview. Every served JSON Schema, the
-// schema index, _headers and the logos are in the output byte for byte. Pure
+// schema index, _headers and the logos are in the output byte for byte. The
+// built llms.txt opens with the agent pitch and lists the agent page. Pure
 // over maps of built files; readBuiltSite and readBuiltPublic are the only I/O.
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { extname, join, relative } from "node:path";
 import type { SiteJson } from "./generate.js";
 import type { SiteLink } from "./links.js";
 import { OG_IMAGE_URL, pageUrl } from "./og.js";
+import { AGENT_PITCH } from "./positioning.js";
 
 /** The built files a check reads, relative to the output directory → text. */
 export type BuiltFiles = ReadonlyMap<string, string>;
@@ -341,4 +343,32 @@ export function checkLinkAnchors(
     }
   }
   return findings;
+}
+
+const LLMS_LABEL = "site/doc_build/llms.txt";
+
+/**
+ * Every finding about the built llms.txt: its introduction, the first `> `
+ * line after the `# ` title, must be the agent pitch, and a line must link
+ * to the agent page's Markdown twin (a URL ending `/guide/delegating.md`).
+ * Guards the experimental Rspress renderer site/build/llms.ts plugs in.
+ */
+export function checkLlmsTxt(text: string): ReadonlyArray<string> {
+  const findings: Array<string> = [];
+  const lines = text.split("\n");
+  const title = lines.findIndex((line) => line.startsWith("# "));
+  const introduction =
+    title === -1 ? undefined : lines.slice(title + 1).find((line) => line.startsWith("> "));
+  if (introduction !== `> ${AGENT_PITCH}`) {
+    findings.push(`✗ ${LLMS_LABEL}: does not open with the agent pitch`);
+  }
+  if (!lines.some((line) => /\]\([^)\s]*\/guide\/delegating\.md\)/.test(line))) {
+    findings.push(`✗ ${LLMS_LABEL}: does not list /guide/delegating`);
+  }
+  return findings;
+}
+
+/** The built llms.txt's findings, or one finding when the build wrote none. */
+export function checkBuiltLlmsTxt(text: string | undefined): ReadonlyArray<string> {
+  return text === undefined ? [`✗ ${LLMS_LABEL}: missing`] : checkLlmsTxt(text);
 }

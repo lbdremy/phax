@@ -5,7 +5,7 @@
 //   preview  serve the built site/doc_build
 // Every finding is printed as a `✗ …` line and fails the build. Runs offline.
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import pageMap from "../pages.js";
@@ -21,6 +21,7 @@ import {
 import type { RepositoryIndex, SiteLink } from "./links.js";
 import { isFilePage, releaseNotePages } from "./pageMap.js";
 import {
+  checkBuiltLlmsTxt,
   checkBuiltSite,
   checkLinkAnchors,
   checkServedSchemas,
@@ -35,6 +36,7 @@ const REPO_ROOT = resolve(SITE_DIR, "..");
 const GENERATED_DIR = resolve(SITE_DIR, "generated");
 const OUT_DIR = resolve(SITE_DIR, "doc_build");
 const CONFIG_FILE = resolve(SITE_DIR, "rspress.config.ts");
+const LLMS_TXT = resolve(OUT_DIR, "llms.txt");
 
 const MODES = ["build", "dev", "preview"] as const;
 type Mode = (typeof MODES)[number];
@@ -167,6 +169,7 @@ function run(mode: Mode): void {
     ...checkBuiltSite(site, built),
     ...checkLinkAnchors(links, built),
     ...checkServedSchemas(publicFiles, readBuiltPublic(OUT_DIR, publicFiles.keys())),
+    ...checkBuiltLlmsTxt(existsSync(LLMS_TXT) ? readFileSync(LLMS_TXT, "utf8") : undefined),
   ];
   if (findings.length > 0) fail(findings);
   process.stdout.write("site: built site/doc_build\n");
