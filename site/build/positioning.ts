@@ -267,9 +267,19 @@ export function builtRoutes(pageMap: PageMap): ReadonlySet<string> {
   return routes;
 }
 
-/** A command of the program's tree, or a group holding more of them; typed by shape so `src/cli` is never imported. */
+/** The group a flattened command stands in, and the group that one stands in when nested. */
+export interface CommandGroup {
+  readonly name: string;
+  readonly parent?: CommandGroup;
+}
+
+/**
+ * A command of the program's tree, or a group holding more of them; typed by
+ * shape so `src/cli` is never imported. `defineProgram` flattens its groups:
+ * each command then carries its `group` chain instead of sitting in a group.
+ */
 export type CommandNode =
-  | { readonly name: string }
+  | { readonly name: string; readonly group?: CommandGroup }
   | { readonly name: string; readonly commands: ReadonlyArray<CommandNode> };
 
 export interface CommandTree {
@@ -280,11 +290,22 @@ export interface CommandTree {
 /** Every command's and group's path, `phax <word> …`. */
 export function commandPaths(tree: CommandTree): ReadonlySet<string> {
   const paths = new Set<string>();
+  // A flattened command's groups, outermost first, each one's path added.
+  const groupPrefix = (prefix: string, group: CommandGroup | undefined): string => {
+    if (group === undefined) return prefix;
+    const path = `${groupPrefix(prefix, group.parent)} ${group.name}`;
+    paths.add(path);
+    return path;
+  };
   const visit = (prefix: string, nodes: ReadonlyArray<CommandNode>): void => {
     for (const node of nodes) {
-      const path = `${prefix} ${node.name}`;
-      paths.add(path);
-      if ("commands" in node) visit(path, node.commands);
+      if ("commands" in node) {
+        const path = `${prefix} ${node.name}`;
+        paths.add(path);
+        visit(path, node.commands);
+      } else {
+        paths.add(`${groupPrefix(prefix, node.group)} ${node.name}`);
+      }
     }
   };
   visit(tree.name, tree.commands);

@@ -8,9 +8,9 @@
 ## The one-line difference
 
 **Spec Kit is a methodology + prompt/template layer, with a workflow engine on
-top, that runs your AI agent _as the worker for each step_. phax is an
-orchestration engine that runs your AI agent _inside isolated, mechanically
-gated phases_.** Same spec → plan → implement philosophy; very different
+top, that runs your AI agent _as the worker for each step_. phax is verified
+delegation: it runs your AI agent _inside isolated, mechanically gated phases_
+and hands back facts, not claims.** Same spec → plan → implement philosophy; very different
 enforcement.
 
 ## What Spec Kit is, concretely

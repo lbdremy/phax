@@ -8,9 +8,9 @@
 
 **OpenSpec is a spec layer that stops where phax starts.** It structures the
 upstream conversation — explore → propose → apply → verify → archive — and lets
-the agent execute inside its own tool; phax is a standalone orchestration engine
-that runs your AI agent _as a subprocess_ through isolated, mechanically gated
-phases. Same spec-driven philosophy; very different altitude and enforcement.
+the agent execute inside its own tool; phax is verified delegation: it runs your
+AI agent _as a subprocess_ through isolated, mechanically gated phases and hands
+back facts, not claims. Same spec-driven philosophy; very different altitude and enforcement.
 
 ## What OpenSpec is, concretely
 
