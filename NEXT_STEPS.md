@@ -459,6 +459,10 @@ desktop — none is promised by the announcement.
       parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
+- [ ] **A record commit hashes its files one git process each.** Found 2026-11-22 measuring the suite:
+      `src/infra/git.ts` runs one `git hash-object -w --stdin` per file of a record (about 20 per phase).
+      One `--stdin-paths` process does the same: about 90 ms down to 7 ms per record, about 3 s of
+      `stopRecords`' 80 s. Small; take it when the records writer is next touched.
 - [ ] **`phax-decide-review` points at a command that does not exist.** Found 2026-11-22 in the
       README pass: the skill's description says `phax review-plan` follows it, and no such command is in
       `phax.usage.kdl`. Either the command lands or the skill says what uses it today.
