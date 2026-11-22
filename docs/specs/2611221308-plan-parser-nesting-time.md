@@ -297,7 +297,7 @@ Why: The run count is a CI budget decision, measured on CI runs, and this spec's
 
 Settled:
 
-- The nesting limit is 32 levels of blockquotes and list items combined, a constant (pending q-limit and q-configurable).
+- The nesting limit is 32 levels of blockquotes and list items combined, a constant.
 - The refusal comes before any Markdown parse, in every plan reader, and the messages read 'line <n>: blockquotes and lists nest over 32 levels deep'. The JSON finding is normative.
 - phax run refuses a plan over the limit as it refuses a departing test line today: before the extraction cache and before any model call, with no fallback to the model extraction.
 - plans lint reports the nesting as a single error on the structure check, with phase null, and runs no other check that reads the Markdown structure.
