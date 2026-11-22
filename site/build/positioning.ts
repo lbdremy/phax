@@ -3,7 +3,8 @@
 // make with the docs route or phax command that proves it, and the names phax
 // is never given. `site/pages.ts` and `site/build/llms.ts` read from it; every
 // other place (README.md, both package.json files, the CLI's summary and its
-// usage spec, the phax-cli skill, the agent page and the comparison pages) is
+// usage spec, context7.json, the phax-cli skill, the agent page and the
+// comparison pages) is
 // compared with it word for word by the checks below. The module is pure:
 // callers read the files and hand their text to the readers and the checks.
 import type { Nodes } from "mdast";
@@ -167,7 +168,7 @@ export function readmeOpening(readme: string): string {
   return readmeDescription(readme);
 }
 
-/** A package.json's `description` field; empty when there is none. */
+/** A JSON file's `description` field (package.json, context7.json); empty when there is none. */
 export function packageDescription(jsonText: string): string {
   const parsed: unknown = JSON.parse(jsonText);
   if (typeof parsed !== "object" || parsed === null || !("description" in parsed)) return "";
@@ -233,6 +234,27 @@ export function sectionOpening(markdown: string, heading: string): SectionOpenin
     };
   }
   return empty;
+}
+
+/**
+ * The first paragraph of a Markdown document, at any depth (a list item's
+ * included), whose plain text starts with `prefix`, as one line; empty when
+ * there is none.
+ */
+export function paragraphStartingWith(markdown: string, prefix: string): string {
+  const found = (node: Nodes): string => {
+    if (node.type === "paragraph") {
+      const text = normalise(plainText(node));
+      return text.startsWith(prefix) ? text : "";
+    }
+    if (!("children" in node)) return "";
+    for (const child of node.children) {
+      const text = found(child);
+      if (text !== "") return text;
+    }
+    return "";
+  };
+  return found(parseMarkdown(markdown));
 }
 
 /** The `description` of a skill's frontmatter, unquoted; empty when there is none. */

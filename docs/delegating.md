@@ -15,11 +15,14 @@ The commands a coding agent calls, in order, each answering JSON:
 ```sh
 # Draft a spec from a brief read on stdin
 phax artifact new spec <slug> --headless --brief - --json
+# Write the operator's verdicts on its open questions, then approve it
+phax artifact decide <spec> --verdicts <file> --by operator --json
+phax artifact approve <spec> --by machine:<grant> --json
 # Draft its plan from a brief read on stdin
 phax artifact new plan <slug> --headless --brief - --spec <spec> --last --json
 # Lint the plan, then approve it: a run takes an Approved plan
 phax plans lint <plan> --json
-phax artifact approve <plan> --json
+phax artifact approve <plan> --by machine:<grant> --json
 # Run it, each phase in its own worktree behind your gates
 phax run --plan <plan> --json
 # Read the compliance verdict against the plan
@@ -27,6 +30,8 @@ phax review-compliance <run> --json
 # List every finding of the run's reviews and its fate
 phax finding list <run> --json
 ```
+
+An agent has no terminal, so every approval names its approver: `--by machine:<grant>` names the loop or script by a kebab-case grant, and `--by operator` names the person, as git does. A plan is approved after its spec. A verdict on an open question always comes from the operator: `phax artifact decide` takes their verdicts file with `--by operator` and refuses a machine, and with no open question it says there is nothing to decide.
 
 For example, an agent drafts a spec and its plan, lints the plan and runs it. It reads the outcome's kind and the exit code, then the compliance verdict, and each finding's fate with `phax finding list --json`, instead of trusting another agent's "done".
 

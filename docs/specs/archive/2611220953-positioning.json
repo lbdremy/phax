@@ -81,7 +81,7 @@
     },
     {
       "term": "agent pitch",
-      "definition": "The pitch for a coding agent that delegates to other coding agents. It is one sentence, short enough to be the first line of phax --help, and reads exactly: \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\""
+      "definition": "The pitch for a coding agent that delegates to other coding agents. It is one sentence, the paragraph under Usage: in phax --help (wrapped at 80 columns when the output is not a terminal, as every agent captures it), and reads exactly: \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\""
     },
     {
       "term": "agent detail",
@@ -89,7 +89,7 @@
     },
     {
       "term": "place",
-      "definition": "A spot where phax states what it is, assigned to one reader. Person places: the home page's tagline, the README's opening paragraph, the description in package.json and in npm/package.json, and the site's description. Agent places: the first line of phax --help and the usage spec's about line, the opening of the phax-cli skill's \"What phax is\" section, the llms.txt introduction, and the opening of the agent page. The comparison pages' \"The one-line difference\" paragraphs and their page descriptions are places too, but they carry the name, not a pitch."
+      "definition": "A spot where phax states what it is, assigned to one reader. Person places: the home page's tagline, the README's opening paragraph, the description in package.json and in npm/package.json, and the site's description. Agent places: the paragraph under Usage: in phax --help and the usage spec's about line, the description in context7.json, the opening of the phax-cli skill's \"What phax is\" section, the llms.txt introduction, and the opening of the agent page. The comparison pages' \"The one-line difference\" paragraphs, their key distinction's closing summary and their page descriptions are places too, but they carry the name, not a pitch."
     },
     {
       "term": "claim",
@@ -125,7 +125,7 @@
       "id": "r-agent-pitch",
       "title": "The agent pitch in the agent places",
       "pattern": "ubiquitous",
-      "statement": "The system shall carry the one-sentence agent pitch, word for word, as the first line of `phax --help` and the usage spec's about line, as the opening of the phax-cli skill's \"What phax is\" section, as the introduction of llms.txt, and as the opening of the \"Delegating from an agent\" page."
+      "statement": "The system shall carry the one-sentence agent pitch, word for word, as the paragraph under `Usage:` in `phax --help` and the usage spec's about line, as the description in context7.json, as the opening of the phax-cli skill's \"What phax is\" section, as the introduction of llms.txt, and as the opening of the \"Delegating from an agent\" page."
     },
     {
       "id": "r-agent-detail",
@@ -185,10 +185,10 @@
   "surface": [
     {
       "surface": "cli: phax --help",
-      "summary": "Running `phax --help` now opens with one line telling an agent that phax is verified delegation and that it gets back results it can verify.",
+      "summary": "Running `phax --help` now opens with one sentence telling an agent that phax is verified delegation and that it gets back results it can verify.",
       "binding": "indicative",
       "before": "Usage: phax [options] [command]\n\nDrive AI coding agents through isolated, gated phases\n\nOptions:\n  -V, --version   output the version number",
-      "after": "Usage: phax [options] [command]\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\n\nOptions:\n  -V, --version   output the version number"
+      "after": "Usage: phax [options] [command]\n\nphax is verified delegation for AI coding agents: delegate a change to another\ncoding agent and get results you can verify.\n\nOptions:\n  -V, --version   output the version number"
     },
     {
       "surface": "file: README.md",
@@ -253,9 +253,10 @@
     "Renaming any command or concept.",
     "Claims for features a brief still holds (phax do, the inbox, next steps as data, run detach). Each one adds its claim in its own pull request when it lands.",
     "The descriptions of the other six installed skills. A skill's description tells an agent when to load the skill, and only phax-cli is about what phax is.",
-    "The comparison pages' titles, axes and \"last checked\" notes. Only their one-line difference and their page description change.",
+    "The comparison pages' titles, axes and \"last checked\" notes. Only the sentences that say what phax is change: the one-line difference, the key distinction's closing summary, the composability note and the page description.",
     "Rewriting guide pages other than the new agent page, and the 1.0 announcement post.",
-    "Measuring whether the new pitch converts better than the old one."
+    "Measuring whether the new pitch converts better than the old one.",
+    "npm keywords. A keyword serves search, not naming: `agent-harness` stays beside `verified-delegation`, for those who search npm by that term."
   ],
   "acceptanceCriteria": [
     {
@@ -263,7 +264,7 @@
       "name": "Every place names verified delegation",
       "given": "the repository and the built docs site",
       "when": "each place is read",
-      "then": "each contains \"verified delegation\", including the two comparison pages' \"The one-line difference\" paragraphs and their page descriptions",
+      "then": "each contains \"verified delegation\", including the two comparison pages' \"The one-line difference\" paragraphs, their key distinction's closing summary and their page descriptions",
       "refs": [
         "r-name"
       ]
@@ -282,8 +283,8 @@
       "id": "ac-agent",
       "name": "The agent pitch is the same everywhere",
       "given": "phax built from the change and the built docs site",
-      "when": "`phax --help` runs and `phax --usage`, llms.txt, the phax-cli skill and the \"Delegating from an agent\" page are read",
-      "then": "the line under `Usage:`, the usage spec's about line, the blockquote under llms.txt's title, the first paragraph of the phax-cli skill's \"What phax is\" section and the first paragraph of the agent page are each exactly \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\"",
+      "when": "`phax --help` runs and `phax --usage`, context7.json, llms.txt, the phax-cli skill and the \"Delegating from an agent\" page are read",
+      "then": "the paragraph under `Usage:` with its wrapped lines joined by spaces, the usage spec's about line, the description in context7.json, the blockquote under llms.txt's title, the first paragraph of the phax-cli skill's \"What phax is\" section and the first paragraph of the agent page are each exactly \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\"",
       "refs": [
         "r-agent-pitch"
       ]
@@ -293,7 +294,7 @@
       "name": "The detail sits under the pitch, not in the help",
       "given": "phax built from the change and the built docs site",
       "when": "the agent page, the phax-cli skill's \"What phax is\" section and `phax --help` are read",
-      "then": "the agent page and the skill's section show, right after the pitch, the isolated Git worktree per phase, the gate commands that must exit 0, the touched files reconciled with the plan, run state that outlives the context and JSON answers with a schema; and the first line of `phax --help` is the one-sentence pitch with none of that detail",
+      "then": "the agent page and the skill's section show, right after the pitch, the isolated Git worktree per phase, the gate commands that must exit 0, the touched files reconciled with the plan, run state that outlives the context and JSON answers with a schema; and the paragraph under `Usage:` in `phax --help` is the one-sentence pitch with none of that detail",
       "refs": [
         "r-agent-detail"
       ]

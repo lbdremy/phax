@@ -65,6 +65,7 @@ describe("npm/package.json", () => {
     expect(manifest.homepage).toBe("https://docs.phax.run");
     expect(manifest.bugs?.url).toBe("https://github.com/lbdremy/phax/issues");
     // The same words as the GitHub repository's topics, so both describe phax alike.
+    // agent-harness stays for search: a keyword finds phax, it does not name it.
     expect(manifest.keywords).toEqual([
       "agent-harness",
       "agentic-coding",
@@ -75,6 +76,7 @@ describe("npm/package.json", () => {
       "mistral-vibe",
       "quality-gates",
       "spec-driven-development",
+      "verified-delegation",
     ]);
   });
 });

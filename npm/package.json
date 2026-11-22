@@ -11,7 +11,8 @@
     "git-worktree",
     "mistral-vibe",
     "quality-gates",
-    "spec-driven-development"
+    "spec-driven-development",
+    "verified-delegation"
   ],
   "homepage": "https://docs.phax.run",
   "bugs": {

@@ -25,6 +25,7 @@ import {
   commandPaths,
   llmsIntroduction,
   packageDescription,
+  paragraphStartingWith,
   readmeOpening,
   sectionOpening,
   skillDescription,
@@ -78,6 +79,22 @@ const NAME_PLACES: ReadonlyArray<Place> = [
       .paragraph,
   },
   {
+    label: "docs/comparisons/spec-kit-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/spec-kit-vs-phax.md"),
+      "So Spec Kit is closer",
+    ),
+  },
+  {
+    label: "docs/comparisons/openspec-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/openspec-vs-phax.md"),
+      "So OpenSpec is closer",
+    ),
+  },
+  {
     label: "/compare/spec-kit-vs-phax description",
     reader: "name",
     text: pageDescription("/compare/spec-kit-vs-phax"),
@@ -86,6 +103,29 @@ const NAME_PLACES: ReadonlyArray<Place> = [
     label: "/compare/openspec-vs-phax description",
     reader: "name",
     text: pageDescription("/compare/openspec-vs-phax"),
+  },
+];
+
+/**
+ * Sentences that say what phax is without naming it, so they carry no name:
+ * only the rejected-names check reads them.
+ */
+const UNNAMED_SENTENCES: ReadonlyArray<Place> = [
+  {
+    label: "docs/comparisons/spec-kit-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/spec-kit-vs-phax.md"),
+      "They are composable",
+    ),
+  },
+  {
+    label: "docs/comparisons/openspec-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/openspec-vs-phax.md"),
+      "They are composable",
+    ),
   },
 ];
 
@@ -131,6 +171,7 @@ const AGENT_PLACES: ReadonlyArray<Place> = [
   { label: "llms.txt", reader: "agent", text: llmsIntroduction(llmsTxt) },
   { label: AGENT_PAGE_PATH, reader: "agent", text: agentPageOpening.paragraph },
   { label: "phax --help", reader: "agent", text: phaxProgram.summary ?? "" },
+  { label: "context7.json", reader: "agent", text: packageDescription(read("context7.json")) },
   {
     label: "phax.usage.kdl",
     reader: "agent",
@@ -177,13 +218,15 @@ describe("the agent places", () => {
     ).toEqual([]);
   });
 
-  it("the fixture's paragraph under Usage: is only the pitch, wrapped by the command library at 80 columns", () => {
+  it("the fixture's paragraph under Usage:, its lines wrapped at 80 columns and joined, is only the pitch", () => {
     const fixture = read(HELP_FIXTURE_PATH);
     const lines = fixture.split("\n");
     expect(lines[0]).toBe("Usage: phax [options] [command]");
     expect(lines[1]).toBe("");
     const blankAfter = lines.findIndex((line, index) => index >= 2 && line === "");
-    expect(lines.slice(2, blankAfter).join(" ")).toBe(AGENT_PITCH);
+    const paragraph = lines.slice(2, blankAfter);
+    for (const line of paragraph) expect(line.length).toBeLessThanOrEqual(80);
+    expect(paragraph.join(" ")).toBe(AGENT_PITCH);
   });
 
   it("the agent-detail claims name a shipped route or command", () => {
@@ -226,15 +269,97 @@ describe("the agent page and llms.txt", () => {
     expect(agentPage).toContain("](../README.md#exit-codes)");
   });
 
-  it("llms.txt rendered over the page map's routes lists the agent page", async () => {
+  it("the llms.txt renderer links every route it is given, the agent page's included", async () => {
     const text = await renderLlmsTxt(llmsContext([...builtRoutes(pageMap)]));
     expect(text).toContain(`](${SITE_ORIGIN}${AGENT_PAGE_ROUTE}.md)`);
   });
 });
 
+/** Each command path of the usage spec, `phax <word> …`, with the long flags it declares, globals included. */
+function usageFlags(kdl: string): ReadonlyMap<string, ReadonlySet<string>> {
+  const flags = new Map<string, Set<string>>();
+  const stack: Array<string> = [];
+  const globals = new Set<string>();
+  for (const line of kdl.split("\n")) {
+    const depth = (/^ */.exec(line)?.[0].length ?? 0) / 4;
+    const command = /^\s*cmd\s+"?([a-z][a-z0-9-]*)"?/.exec(line);
+    if (command !== null) {
+      stack.length = depth;
+      stack.push(command[1] ?? "");
+      flags.set(["phax", ...stack].join(" "), new Set());
+      continue;
+    }
+    const flag = /^\s*flag\s+"?([^"\s]+(?:\s[^"\s]+)*)"?/.exec(line);
+    if (flag === null) continue;
+    const longs = (flag[1] ?? "").match(/--[a-z][a-z0-9-]*/g) ?? [];
+    const owner = depth === 0 ? globals : flags.get(["phax", ...stack.slice(0, depth)].join(" "));
+    for (const long of longs) owner?.add(long);
+  }
+  for (const set of flags.values()) for (const long of globals) set.add(long);
+  return flags;
+}
+
+/** The `phax …` lines of a Markdown document's `sh` blocks, in order, as words. */
+function shCommands(markdown: string): ReadonlyArray<ReadonlyArray<string>> {
+  const blocks = [...markdown.matchAll(/```sh\n([\s\S]*?)```/g)].map((match) => match[1] ?? "");
+  return blocks
+    .flatMap((block) => block.split("\n"))
+    .filter((line) => line.startsWith("phax "))
+    .map((line) => line.split(/\s+/));
+}
+
+describe("the agent page's delegation sequence", () => {
+  const usage = usageFlags(read("phax.usage.kdl"));
+  const commands = shCommands(agentPage);
+  const pathOf = (words: ReadonlyArray<string>): string => {
+    let path = "";
+    for (let end = words.length; end > 0 && path === ""; end -= 1) {
+      const candidate = words.slice(0, end).join(" ");
+      if (usage.has(candidate)) path = candidate;
+    }
+    return path;
+  };
+
+  it("names only commands phax has, each with flags it declares", () => {
+    expect(commands.length).toBeGreaterThan(0);
+    for (const words of commands) {
+      const path = pathOf(words);
+      expect(path, words.join(" ")).not.toBe("");
+      for (const word of words.filter((candidate) => candidate.startsWith("--"))) {
+        expect(usage.get(path)?.has(word), `${words.join(" ")}: ${word}`).toBe(true);
+      }
+    }
+  });
+
+  it("runs without a terminal: every approve and decide names its arbiter", () => {
+    for (const words of commands) {
+      const path = pathOf(words);
+      if (path === "phax artifact approve") expect(words, words.join(" ")).toContain("--by");
+      if (path === "phax artifact decide") {
+        expect(words.slice(words.indexOf("--by"), words.indexOf("--by") + 2)).toEqual([
+          "--by",
+          "operator",
+        ]);
+      }
+    }
+  });
+
+  it("approves the spec before the plan, and the plan before the run", () => {
+    const at = (path: string, argument: string): number =>
+      commands.findIndex((words) => pathOf(words) === path && words.includes(argument));
+    const spec = at("phax artifact approve", "<spec>");
+    const plan = at("phax artifact approve", "<plan>");
+    expect(spec).toBeGreaterThan(-1);
+    expect(plan).toBeGreaterThan(spec);
+    expect(at("phax run", "<plan>")).toBeGreaterThan(plan);
+  });
+});
+
 describe("every place", () => {
   it("reads something from each source", () => {
-    for (const place of PLACES) expect(place.text, place.label).not.toBe("");
+    for (const place of [...PLACES, ...UNNAMED_SENTENCES]) {
+      expect(place.text, place.label).not.toBe("");
+    }
   });
 
   it("names verified delegation", () => {
@@ -242,7 +367,7 @@ describe("every place", () => {
   });
 
   it("gives phax no rejected name", () => {
-    expect(checkRejectedNames(PLACES)).toEqual([]);
+    expect(checkRejectedNames([...PLACES, ...UNNAMED_SENTENCES])).toEqual([]);
   });
 });
 
@@ -283,7 +408,7 @@ describe("every check over every place and claim", () => {
     expect([
       ...checkPitches(PLACES),
       ...checkName(PLACES),
-      ...checkRejectedNames(PLACES),
+      ...checkRejectedNames([...PLACES, ...UNNAMED_SENTENCES]),
       ...checkAgentDetail("phax-cli skill", skillOpening.list),
       ...checkAgentDetail(AGENT_PAGE_PATH, agentPageOpening.list),
       ...checkClaims(CLAIMS, shipped, claimTexts(home?.features)),
