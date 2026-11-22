@@ -1,11 +1,21 @@
 import { describe, it, expect } from "vitest";
 import { Result } from "effect";
+import { fromMarkdown } from "mdast-util-from-markdown";
+import { PlanValidationError } from "../../src/domain/errors.js";
+import { nodeText } from "../../src/domain/plan/nodeText.js";
 import {
   extractPlanDeterministic,
   collectPlanStructureErrors,
   readPlanDeterministic,
   readPlanTestStrategies,
+  readPlanUnplannablePaths,
 } from "../../src/domain/plan/parsePlanMarkdown.js";
+import { readPhaseHeaders } from "../../src/domain/plan/phaseHeader.js";
+import {
+  locatePlanSections,
+  phaseHeadingIds,
+  phaseHeadingSources,
+} from "../../src/domain/plan/sections.js";
 import { readTestStrategyText } from "../../src/domain/plan/testLineGrammar.js";
 import { planCacheKey } from "../../src/domain/planCache/key.js";
 
@@ -998,20 +1008,108 @@ describe("plan paths, read in canonical form", () => {
 describe("a text nested deeper than the call stack", () => {
   // `mdast-util-to-string` recurses once per level, so flattening a list item that holds this many
   // nested block quotes threw a RangeError instead of answering. 30,000 levels is 60,000 bytes,
-  // under the 64 KiB the parser is meant to read.
+  // under the 64 KiB the parser is meant to read. The plan readers now refuse it before parsing
+  // (the nesting limit); the flattening still reads the parser's tree of it as its text.
   const deepQuote = `${"> ".repeat(30_000)}x`;
+  const lineOf = (md: string): number =>
+    md.split(/\r\n|\r|\n/).findIndex((line) => line.includes("> > >")) + 1;
 
-  it("reads a planned file of nested block quotes as its text", () => {
+  it("flattens the parser's tree of nested block quotes as its text", () => {
+    expect(nodeText(fromMarkdown(`- ${deepQuote}`))).toBe("x");
+  });
+
+  it("refuses a planned file of nested block quotes, naming its line", () => {
     const md = makePlan({ phases: [makePhase({ optional: `- ${deepQuote}` })] });
-    expect(collectPlanStructureErrors(md)).toEqual([]);
-    const plan = extractPlanDeterministic(md);
-    expect(Result.isSuccess(plan) && plan.success.phases[0]!.optionalFilesToEdit).toEqual(["x"]);
+    const message = `line ${lineOf(md)}: blockquotes and lists nest over 32 levels deep`;
+    expect(collectPlanStructureErrors(md)).toEqual([{ phase: null, message }]);
+    expect(failureOf(extractPlanDeterministic(md))).toEqual({ failed: message });
   });
 
-  it("reads a required command of nested block quotes as its text", () => {
+  it("refuses a required command of nested block quotes, naming its line", () => {
     const md = makePlan({ requiredCommands: `- ${deepQuote}` });
-    expect(collectPlanStructureErrors(md)).toEqual([]);
-    const plan = extractPlanDeterministic(md);
-    expect(Result.isSuccess(plan) && plan.success.run.requiredCommands).toEqual(["x"]);
+    const message = `line ${lineOf(md)}: blockquotes and lists nest over 32 levels deep`;
+    expect(collectPlanStructureErrors(md)).toEqual([{ phase: null, message }]);
   });
+});
+
+// ── The deep-pass counter-examples ───────────────────────────────────────────
+// The bounded-time property's deep pass (seed 1253054900, origin `large: character-run`) drew
+// 61,440 `>` characters, which cost the Markdown parser seconds of CPU per read. A nested list
+// over 60 KiB, built like the `nested-lists` fragment, is the other near-cap container input.
+// Every plan reader refuses both before parsing, in at most 2,000 ms of CPU, fastest of three.
+
+const TIME_BOUND_MS = 2000;
+
+// The CPU time `call` takes, user and system together, in milliseconds: never wall-clock time,
+// which a busy gate inflates.
+const cpuMs = (call: () => unknown): number => {
+  const start = process.cpuUsage();
+  call();
+  const used = process.cpuUsage(start);
+  return (used.user + used.system) / 1000;
+};
+
+const fastestOfThree = (call: () => unknown): number =>
+  Math.min(cpuMs(call), cpuMs(call), cpuMs(call));
+
+const nestedListUnder64KiB = (): string => {
+  let text = "";
+  for (let i = 0; ; i += 1) {
+    const next = `${i === 0 ? "" : "\n"}${"  ".repeat(i)}- item`;
+    if (text.length + next.length >= 64 * 1024) return text;
+    text += next;
+  }
+};
+
+const refusal = (line: number): string =>
+  `line ${line}: blockquotes and lists nest over 32 levels deep`;
+
+// An extraction's failure as its class and message: `toEqual` does not compare an error's message.
+const failureOf = (
+  read: Result.Result<unknown, PlanValidationError>,
+): { readonly failed: string } | "succeeded" | "not a PlanValidationError" =>
+  Result.isSuccess(read)
+    ? "succeeded"
+    : read.failure instanceof PlanValidationError
+      ? { failed: read.failure.message }
+      : "not a PlanValidationError";
+
+const PROBE = [{ id: "phase-01", planMarkdownAnchor: "#phase-01-probe" }] as const;
+
+const COUNTER_EXAMPLES: ReadonlyArray<readonly [string, string, number]> = [
+  ["61,440 `>` characters", ">".repeat(61_440), 1],
+  ["a nested list over 60 KiB", nestedListUnder64KiB(), 33],
+];
+
+describe("the deep-pass counter-examples", () => {
+  it("the nested list is over 60 KiB and under 64 KiB", () => {
+    const length = COUNTER_EXAMPLES[1]![1].length;
+    expect(length).toBeGreaterThan(60 * 1024);
+    expect(length).toBeLessThan(64 * 1024);
+  });
+
+  for (const [name, text, line] of COUNTER_EXAMPLES) {
+    const failure = { failed: refusal(line) };
+    const readers: ReadonlyArray<readonly [string, () => unknown, unknown]> = [
+      [
+        "collectPlanStructureErrors",
+        () => collectPlanStructureErrors(text),
+        [{ phase: null, message: refusal(line) }],
+      ],
+      ["readPlanDeterministic", () => failureOf(readPlanDeterministic(text)), failure],
+      ["extractPlanDeterministic", () => failureOf(extractPlanDeterministic(text)), failure],
+      ["readPlanUnplannablePaths", () => readPlanUnplannablePaths(text), []],
+      ["readPlanTestStrategies", () => readPlanTestStrategies(text), []],
+      ["readPhaseHeaders", () => readPhaseHeaders(text), []],
+      ["locatePlanSections", () => locatePlanSections(text, PROBE), Result.fail(["phase-01"])],
+      ["phaseHeadingIds", () => phaseHeadingIds(text), []],
+      ["phaseHeadingSources", () => phaseHeadingSources(text), []],
+    ];
+    for (const [reader, call, expected] of readers) {
+      it(`${reader} refuses ${name} on line ${line} within ${TIME_BOUND_MS} ms of CPU`, () => {
+        expect(call()).toEqual(expected);
+        expect(fastestOfThree(call)).toBeLessThanOrEqual(TIME_BOUND_MS);
+      });
+    }
+  }
 });

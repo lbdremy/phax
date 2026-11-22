@@ -480,6 +480,33 @@ describe("architectural guard: in src/, only the runner's adapter imports comman
   });
 });
 
+// ── The plan body is parsed behind the nesting limit ─────────────────────────
+// planTree.ts's readPlanTree refuses a plan nested over 32 levels before the
+// Markdown parser sees it. It is the one plan module that imports the parser,
+// so no plan reader can parse around the limit.
+
+const FROM_MARKDOWN_IMPORT = /(?:\bfrom\s+|\bimport\s*\(?\s*)["']mdast-util-from-markdown["']/;
+const PLAN_TREE = "src/domain/plan/planTree.ts";
+
+describe("architectural guard: only planTree.ts parses a plan body", () => {
+  it("no file under src/domain/plan/ but planTree.ts imports mdast-util-from-markdown", () => {
+    const importers = listTsFiles(join(srcRoot, "domain", "plan"))
+      .map((absPath) => relative(repoRoot, absPath).split("\\").join("/"))
+      .filter((rel) => FROM_MARKDOWN_IMPORT.test(readFileSync(join(repoRoot, rel), "utf8")));
+    expect(importers).toEqual([PLAN_TREE]);
+  });
+
+  it("the detector flags a static and a dynamic parser import, and not a type import of mdast", () => {
+    expect(
+      FROM_MARKDOWN_IMPORT.test(`import { fromMarkdown } from "mdast-util-from-markdown";`),
+    ).toBe(true);
+    expect(FROM_MARKDOWN_IMPORT.test(`const m = await import("mdast-util-from-markdown");`)).toBe(
+      true,
+    );
+    expect(FROM_MARKDOWN_IMPORT.test(`import type { Root } from "mdast";`)).toBe(false);
+  });
+});
+
 // ── Repo-rooted FileSystem layer ──────────────────────────────────────────────
 // The FileSystem port is rooted at config.repoRoot so phax keeps git's
 // work-from-anywhere contract. A command under src/cli/commands/ or

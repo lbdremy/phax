@@ -5,10 +5,9 @@
  * no I/O.
  */
 import { Result } from "effect";
-import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, RootContent } from "mdast";
-import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { nodeText } from "./nodeText.js";
+import { readPlanTree } from "./planTree.js";
 
 export interface LocatablePhase {
   readonly id: string;
@@ -39,6 +38,8 @@ interface ThematicBreakSpan {
 }
 
 interface RootBlocks {
+  /** The plan body after the frontmatter; the whole document when it has none. */
+  readonly body: string;
   readonly headings: readonly RootHeading[];
   /** The root thematic breaks (`---`), in source order. */
   readonly breaks: readonly ThematicBreakSpan[];
@@ -52,17 +53,16 @@ function stripHash(anchor: string): string {
   return anchor.trim().replace(/^#/, "");
 }
 
-/** The plan body after the frontmatter; the whole document when it has none. */
-function planBody(planMd: string): string {
-  return splitFrontmatter(planMd)?.body ?? planMd;
-}
-
 // Depth-2 headings at the root of the document, in source order, and the root
 // thematic breaks. mdast already ignores a `## …` line inside a fenced code block.
-function rootBlocks(body: string): RootBlocks {
+// Null for a plan nested over the limit `readPlanTree` refuses.
+function rootBlocks(planMd: string): RootBlocks | null {
+  const tree = readPlanTree(planMd);
+  if (Result.isFailure(tree)) return null;
+  const { body, root } = tree.success;
   const headings: RootHeading[] = [];
   const breaks: ThematicBreakSpan[] = [];
-  for (const node of fromMarkdown(body).children) {
+  for (const node of root.children) {
     if (node.type === "thematicBreak") {
       breaks.push({ start: node.position?.start.offset ?? 0, end: node.position?.end.offset ?? 0 });
     }
@@ -78,7 +78,7 @@ function rootBlocks(body: string): RootBlocks {
       anchor: anchorMatch ? stripHash(anchorMatch[1]!) : null,
     });
   }
-  return { headings, breaks };
+  return { body, headings, breaks };
 }
 
 // A slice ending at `end` stops before a separator `---` that only whitespace
@@ -99,14 +99,16 @@ function sliceBefore(
 /**
  * Locate each phase's heading — by its `phase-NN` id, failing that by its
  * `{#anchor}` — and slice the preamble and one verbatim section per phase.
- * Left carries the ids of the phases with no heading, in plan order.
+ * Left carries the ids of the phases with no heading, in plan order; every
+ * requested id for a plan nested over the limit `readPlanTree` refuses.
  */
 export function locatePlanSections(
   planMd: string,
   phases: readonly LocatablePhase[],
 ): Result.Result<PlanSections, readonly string[]> {
-  const body = planBody(planMd);
-  const { headings, breaks } = rootBlocks(body);
+  const blocks = rootBlocks(planMd);
+  if (blocks === null) return Result.fail(phases.map((phase) => phase.id));
+  const { body, headings, breaks } = blocks;
   const taken = new Set<RootHeading>();
   const located: { readonly id: string; readonly heading: RootHeading }[] = [];
   const missing: string[] = [];
@@ -154,7 +156,7 @@ export function phaseHeadingIds(planMd: string): readonly string[] {
 export function phaseHeadingSources(
   planMd: string,
 ): readonly { readonly phaseId: string; readonly source: string }[] {
-  return rootBlocks(planBody(planMd)).headings.flatMap(({ phaseId, source }) =>
+  return (rootBlocks(planMd)?.headings ?? []).flatMap(({ phaseId, source }) =>
     phaseId === null ? [] : [{ phaseId, source }],
   );
 }
