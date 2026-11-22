@@ -333,12 +333,19 @@ Given a place edited to call phax "an orchestration engine" or "a harness", when
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-agent-page — Does the docs site get a "Delegating from an agent" page, or does the agent pitch live only in llms.txt, phax --help and the phax-cli skill?
 
 - page — Add the page and list it in llms.txt — abandons: A smaller site. The page partly repeats /reference/json-output and the exit-codes page, and it has to be kept up to date as delegation commands land.
 - no-page — No page; the pitch stays in llms.txt, phax --help and the phax-cli skill — abandons: A URL for the agent's question. An agent that fetches docs.phax.run finds reference pages but nothing that explains why and how to delegate, and the agent pitch's claims can only point at scattered reference pages.
 
 Recommendation: page — The agent is phax's most frequent caller and has no page written for it. The overlap is acceptable because the page links to the reference pages and doesn't restate them. If no-page is chosen, r-agent-page and ac-agent-page are dropped.
+
+Decision: page — by operator (Rémy Loubradou), 2026-11-22
+Why: The agent is phax's most frequent caller and has no page written for it. The overlap is acceptable because the page links to the reference pages and doesn't restate them. If no-page is chosen, r-agent-page and ac-agent-page are dropped. Advocate: A smaller site is cheaper to keep true: the page repeats the JSON-output and exit-code pages and must be updated as each delegation command lands, while the pitch in phax --help, llms.txt and the skill already reaches an agent where it looks. Principles: S1, C5. Reversibility: cheap. Revised: none.
 
 ### q-llms-intro — Rspress uses one site description for both the meta description (a person's search result) and the llms.txt introduction (an agent's first read). Which pitch goes where?
 
@@ -347,9 +354,8 @@ Recommendation: page — The agent is phax's most frequent caller and has no pag
 
 Recommendation: split — The brief lists llms.txt as an agent place, and it is where an agent forms its first view of phax. The drift check, which compares each place with its pitch word for word, would catch a broken rewrite on the next build. If shared is chosen, llms.txt moves from the agent places to the person places in r-agent-pitch and r-person-pitch.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: split — by operator (Rémy Loubradou), 2026-11-22
+Why: The brief lists llms.txt as an agent place, and it is where an agent forms its first view of phax. The drift check, which compares each place with its pitch word for word, would catch a broken rewrite on the next build. If shared is chosen, llms.txt moves from the agent places to the person places in r-agent-pitch and r-person-pitch. Advocate: One shared description keeps Rspress's llms.txt generation untouched: no build step rewrites a generated file, so nothing breaks when Rspress changes its layout, and the single source stays simple. Principles: S1, C4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -384,3 +390,8 @@ Page: Delegating from an agent (/guide/delegating)
 Reader: A coding agent that delegates a change to another coding agent, or the person who builds such an agent
 
 Example: An agent drafts a spec and a plan headless from a brief, lints the plan, runs it with --json, reads the outcome's kind and exit code, then reads the compliance verdict and each finding's fate with phax finding list --json instead of trusting another agent's "done".
+
+## 12. Decision log
+
+- 2026-11-22 q-agent-page decided page — operator (Rémy Loubradou)
+- 2026-11-22 q-llms-intro decided split — operator (Rémy Loubradou)

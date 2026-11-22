@@ -360,7 +360,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-agent-page",
       "question": "Does the docs site get a \"Delegating from an agent\" page, or does the agent pitch live only in llms.txt, phax --help and the phax-cli skill?",
@@ -377,7 +378,28 @@
         }
       ],
       "recommendation": "page",
-      "rationale": "The agent is phax's most frequent caller and has no page written for it. The overlap is acceptable because the page links to the reference pages and doesn't restate them. If no-page is chosen, r-agent-page and ac-agent-page are dropped."
+      "rationale": "The agent is phax's most frequent caller and has no page written for it. The overlap is acceptable because the page links to the reference pages and doesn't restate them. If no-page is chosen, r-agent-page and ac-agent-page are dropped.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "page",
+        "abandoned": [
+          "no-page"
+        ],
+        "why": "The agent is phax's most frequent caller and has no page written for it. The overlap is acceptable because the page links to the reference pages and doesn't restate them. If no-page is chosen, r-agent-page and ac-agent-page are dropped.",
+        "advocate": "A smaller site is cheaper to keep true: the page repeats the JSON-output and exit-code pages and must be updated as each delegation command lands, while the pitch in phax --help, llms.txt and the skill already reaches an agent where it looks.",
+        "principles": [
+          "S1",
+          "C5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:00:44.876Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-llms-intro",
@@ -395,10 +417,30 @@
         }
       ],
       "recommendation": "split",
-      "rationale": "The brief lists llms.txt as an agent place, and it is where an agent forms its first view of phax. The drift check, which compares each place with its pitch word for word, would catch a broken rewrite on the next build. If shared is chosen, llms.txt moves from the agent places to the person places in r-agent-pitch and r-person-pitch."
+      "rationale": "The brief lists llms.txt as an agent place, and it is where an agent forms its first view of phax. The drift check, which compares each place with its pitch word for word, would catch a broken rewrite on the next build. If shared is chosen, llms.txt moves from the agent places to the person places in r-agent-pitch and r-person-pitch.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "split",
+        "abandoned": [
+          "shared"
+        ],
+        "why": "The brief lists llms.txt as an agent place, and it is where an agent forms its first view of phax. The drift check, which compares each place with its pitch word for word, would catch a broken rewrite on the next build. If shared is chosen, llms.txt moves from the agent places to the person places in r-agent-pitch and r-person-pitch.",
+        "advocate": "One shared description keeps Rspress's llms.txt generation untouched: no build step rewrites a generated file, so nothing breaks when Rspress changes its layout, and the single source stays simple.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:00:44.876Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The name is verified delegation. Harness, orchestrator, orchestration engine, control plane and software factory are rejected as names for phax in any place.",
