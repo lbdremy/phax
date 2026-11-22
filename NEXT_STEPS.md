@@ -156,10 +156,15 @@ attempt, a relaunch, and once a release.
 - [ ] **`gate-step-times`** — `docs/briefs/gate-step-times.md` (2026-11-22), spec to author. Each gate
       attempt records when each step started and how long it ran, in its gate attribution, so a phase
       record says where its gate time went; the data `machine-slots` and a later gate-step limit need.
-- [ ] **`tests-that-drive-a-run`** — `docs/briefs/tests-that-drive-a-run.md` (2026-11-20), spec to
-      author. The integration files that start, stop, close and resume a whole run (`heldStopRun`,
-      `stopRecords`, `heldStopClose`, `acceptancePairReview`, …) take a fraction of their time:
-      what `test-worlds-built-once` showed is where the suite's time actually goes. Measure first.
+- [x] **`tests-that-drive-a-run`** — stopped 2026-11-22 after its measure (spec and plan abandoned;
+      measures in `spikes/tests-that-drive-a-run/`, #259). The prefixes the run-driving tests repeat are
+      small: the three slowest files are under the 50 % rule, five fixture files hold at most about 110 s of
+      2,021 s of integration file time, and the "sequence" files overstate what a copy gives. About 5–10 % of
+      the suite was not worth nine phases.
+- [ ] **Fewer git processes per phase** — to brief. The suite's time is each test's own work, about half
+      of it git processes phax starts while the tests drive it (`heldStopRun` about 110 per test, `stopRecords`
+      about 280; `spikes/tests-that-drive-a-run/measures.md`). Count what one phase, its record and its close
+      run, and what phax could do in fewer processes; it would speed every real run as well as the suite.
 - [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
       setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
       none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`

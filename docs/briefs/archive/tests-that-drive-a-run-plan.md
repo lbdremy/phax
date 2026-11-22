@@ -1,7 +1,7 @@
 Write the phax plan "Tests that drive a run" for the approved spec `docs/specs/2611221732-tests-that-drive-a-run.md`.
 It is the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/tests-that-drive-a-run.md` (with its measures of
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/tests-that-drive-a-run.md` (with its measures of
 2026-11-20 and 2026-11-22). These are settled; do not reopen them:
 - the operator's verdicts of 2026-11-22 in §9b: q-paths `same-path`, q-logs `recorded`, q-scope `measured-rule`,
   q-target `covered-half`;
