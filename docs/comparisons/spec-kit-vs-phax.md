@@ -102,8 +102,8 @@ The difference is still **what a gate means**:
   deterministic reconciliation of plan-vs-actual.
 
 So Spec Kit is closer to a **shared SDD discipline + prompt library + process
-platform** you layer onto any agent; phax is closer to a **build system / CI
-harness for agent work**. Spec Kit standardizes the _conversation, artifacts
+platform** you layer onto any agent; phax is **verified delegation**, closer to
+a build system with CI-style gates for agent work. Spec Kit standardizes the _conversation, artifacts
 and process_; phax standardizes the _execution and verification_.
 
 ## When each fits
@@ -123,7 +123,7 @@ and process_; phax standardizes the _execution and verification_.
    phax's `phax-spec` and `phax-planning` skills (or `artifact new
    --headless`) are direct analogs of `/speckit.specify` and `/speckit.plan`.
    You could author Spec-Kit-style specs and execute them through phax's gated
-   harness — spec discipline on the front, mechanical execution on the back.
+   phases — spec discipline on the front, mechanical execution on the back.
 2. **Relative to the "review-by-trajectory" desktop idea** (see
    [`docs/ideas/desktop-app.md`](../ideas/desktop-app.md), not on the roadmap):
    Spec Kit lives at "structure the prompts, artifacts and process"; phax lives

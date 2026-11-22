@@ -3,7 +3,7 @@
   "url": "https://context7.com/lbdremy/phax",
   "public_key": "pk_4g9a6gVAwDGssFJH0I3mk",
   "projectTitle": "phax",
-  "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
+  "description": "phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.",
   "folders": [],
   "excludeFolders": [
     "docs/plans",

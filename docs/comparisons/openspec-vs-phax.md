@@ -109,7 +109,8 @@ specifies. The difference is **what a verification is made of**:
   that evidence rather than in place of it.
 
 So OpenSpec is closer to a **spec discipline with V&V tooling** you layer onto
-any agent; phax is closer to a **build system / CI harness for agent work**.
+any agent; phax is **verified delegation**, closer to a build system with
+CI-style gates for agent work.
 
 ## When each fits
 
@@ -129,7 +130,7 @@ any agent; phax is closer to a **build system / CI harness for agent work**.
    --headless`) play the role of `/opsx:propose`'s spec and task outputs —
    EARS requirements in `docs/specs/`, a phased `plan.md` in `docs/plans/`,
    with an explicit approval/staleness lifecycle on top. You could converge on
-   intent OpenSpec-style and execute through phax's gated harness — spec
+   intent OpenSpec-style and execute through phax's gated phases — spec
    discipline on the front, mechanical execution on the back.
 2. **Relative to Spec Kit** (see
    [`spec-kit-vs-phax.md`](./spec-kit-vs-phax.md)): both started at the same
