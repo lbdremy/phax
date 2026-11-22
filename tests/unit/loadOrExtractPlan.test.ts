@@ -1,6 +1,8 @@
 import { Effect, Result, Layer } from "effect";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
+import { cacheEntryPath } from "../../src/app/planCacheStore.js";
+import { planCacheKey } from "../../src/domain/planCache/key.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import type { PlanExtractionAnswer } from "../../src/schemas/planExtraction.js";
@@ -182,6 +184,46 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     if (!Result.isFailure(result)) return;
     expect(result.failure.message).toMatch(/no-extract|no cached/i);
     expect(backend.completeCalls).toHaveLength(0);
+  });
+});
+
+describe("loadOrExtractPlan — a plan nested over the limit", () => {
+  // Line 32 of the plan file holds a quote nested 33 levels deep.
+  const DEEP_PLAN = CONFORMING_PLAN.replace(
+    "Does the thing.",
+    `Does the thing.\n\n${"> ".repeat(33)}x`,
+  );
+
+  it.each([
+    { name: "without refresh", refresh: false },
+    { name: "with refresh", refresh: true },
+  ])("is refused before the cache and any model call, $name", async ({ refresh }) => {
+    const { impl: fs, layer: fsLayer } = makeFakeFileSystem();
+    const { impl: backend, layer: backendLayer } = makeFakeBackend();
+    fs.setFile(BASE_OPTS.planMdPath, DEEP_PLAN);
+    const cachePath = cacheEntryPath(
+      BASE_OPTS.stateRoot,
+      planCacheKey(DEEP_PLAN, BASE_OPTS.model, BASE_OPTS.effort),
+    );
+    fs.setFile(cachePath, "cached entry");
+    backend.addCompletionResponse({ finalText: JSON.stringify(LLM_EXTRACTED) });
+    const readText = vi.spyOn(fs, "readText");
+    const filesBefore = new Map(fs.files);
+
+    const result = await runEffect(
+      loadOrExtractPlan({ ...BASE_OPTS, refresh }).pipe(
+        Effect.provide(Layer.merge(fsLayer, backendLayer)),
+      ),
+    );
+
+    expect(Result.isFailure(result)).toBe(true);
+    if (!Result.isFailure(result)) return;
+    expect(result.failure.message).toBe(
+      "/project/plan.md: line 32: blockquotes and lists nest over 32 levels deep — run phax plans lint /project/plan.md",
+    );
+    expect(backend.completeCalls).toHaveLength(0);
+    expect(readText.mock.calls.map(([path]) => path)).toEqual([BASE_OPTS.planMdPath]);
+    expect(fs.files).toEqual(filesBefore);
   });
 });
 

@@ -10,6 +10,7 @@ import {
   readPlanTestStrategies,
   readPlanUnplannablePaths,
 } from "../domain/plan/parsePlanMarkdown.js";
+import { planNestingRefusal } from "../domain/plan/planTree.js";
 import { departureMessage } from "../domain/plan/testLineGrammar.js";
 import { extractPlanLlm, type ExtractPlanError } from "./extractPlan.js";
 import { readCacheEntry, writeCacheEntry, planMdSha256 } from "./planCacheStore.js";
@@ -38,6 +39,18 @@ export function loadOrExtractPlan(
     const fs = yield* FileSystem;
 
     const planMd = yield* fs.readText(opts.planMdPath);
+
+    // A plan nested over the limit is refused before anything parses it, the
+    // cache and any model call.
+    const nesting = planNestingRefusal(planMd);
+    if (nesting !== null) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `${opts.planMdPath}: ${nesting.message} — run phax plans lint ${opts.planMdPath}`,
+          path: opts.planMdPath,
+        }),
+      );
+    }
 
     // A departing test line is refused before the cache and before any model
     // call: the model is never asked to read a line phax found malformed.

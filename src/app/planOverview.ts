@@ -6,6 +6,7 @@ import { readPlanFrontmatter } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import { planNestingRefusal } from "../domain/plan/planTree.js";
 import {
   buildOverview,
   planFilesOf,
@@ -79,6 +80,15 @@ export function planOverview(
     // A validated artifact always decodes; a loose plan.md may have no
     // frontmatter, or a block that does not decode, and the overview says which.
     const frontmatter = readPlanFrontmatter(planMd);
+
+    // A plan nested over the limit is named before the extraction reads it.
+    const nesting = planNestingRefusal(planMd);
+    if (nesting !== null) {
+      return yield* Effect.fail({
+        kind: "unparsable",
+        line: `${reportPath}: ${nesting.message} — run phax plans lint ${reportPath}`,
+      } satisfies PlanOverviewFailure);
+    }
 
     const unparsable: PlanOverviewFailure = {
       kind: "unparsable",
