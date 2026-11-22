@@ -335,37 +335,6 @@ Given an old sha on no branch, and either no `main` commit carrying the named fi
 
 ## 9. Open questions
 
-### q-key — What makes the fate key unique on the fix commit?
-
-- finding-run — A new run trailer `Finding-Run: <run id>` beside `Short-Name` and the `Finding` trailers — abandons: a single run-id trailer name across phax's commits: readers learn one more trailer
-- run-id — `Run-Id: <run id>` on the fix commit, lifting the earlier non-goal — abandons: release notes' current reading: a fix commit alone would register its run, so a late fix in a later release warns as a run with no completed plan, and every `Run-Id` reader must learn to tell a fix commit from a phase commit
-- short-name-window — No new trailer: `Short-Name` plus `Finding`, accepted only on commits within the run's dates — abandons: an unambiguous key: two runs sharing a short name after a prune, with overlapping windows, collide silently
-
-Recommendation: finding-run — A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses.
-
-### q-store — Is a resolution only computed when a fate is read, or is it also written back?
-
-- read-time — Resolve on every read, within the search range, and write nothing; `--commit` re-records explicitly — abandons: a records history that shows the rewrite without the operator asking, and each read pays a bounded log walk
-- write-back — Write a new fixed fate record with the new sha the first time a read resolves it — abandons: read-only readers: `finding list` would commit to `phax/records/v1`, under a `by` that names nobody who decided anything
-- cache — Cache resolutions in a local file beside the run — abandons: a single source of truth: a second, machine-local answer that goes stale when the base branch moves and is missing on another clone
-
-Recommendation: read-time — Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it.
-
-### q-ambiguous — What does phax answer when several commits match the same fate?
-
-- list-all — Answer `ambiguous`, listing every match oldest first, and name none as the fix — abandons: a single link in the comment and a post on a merged pull request until the operator picks one with `--commit`
-- latest — Pick the match nearest the tip — abandons: the signal that the fix was reverted and re-applied or cherry-picked: phax would silently name a commit that may not be the one carrying the fix
-- refuse — Fail the read — abandons: `phax finding list` for the whole run over one finding's ambiguity
-
-Recommendation: list-all — Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it.
-
-### q-squash-description — What happens when the pull request was squashed with its description only, so the trailers are gone and no patch id matches?
-
-- hint — Answer `not-found`, naming the branches searched; post's refusal names the `--commit <sha>` retry, which already accepts a base-branch commit — abandons: an automatic pointer in that squash setting: the operator supplies the squash sha once
-- github-merge-commit — Ask GitHub for the pull request's merge commit and resolve to it, in `finding post` only — abandons: one resolution for every reader: `finding list` stays local and answers `not-found` while `post` answers a commit, and a squash commit is claimed to fix a finding by inference, not evidence
-
-Recommendation: hint — A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence.
-
 ### q-phase-commits — Does this spec also cover other records phax holds by sha?
 
 - follow-up — No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up — abandons: one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands
@@ -375,7 +344,48 @@ Recommendation: follow-up — Approval baselines need their own identity, and fo
 
 ## 9b. Arbitrated questions
 
-None.
+### q-key — What makes the fate key unique on the fix commit?
+
+- finding-run — A new run trailer `Finding-Run: <run id>` beside `Short-Name` and the `Finding` trailers — abandons: a single run-id trailer name across phax's commits: readers learn one more trailer
+- run-id — `Run-Id: <run id>` on the fix commit, lifting the earlier non-goal — abandons: release notes' current reading: a fix commit alone would register its run, so a late fix in a later release warns as a run with no completed plan, and every `Run-Id` reader must learn to tell a fix commit from a phase commit
+- short-name-window — No new trailer: `Short-Name` plus `Finding`, accepted only on commits within the run's dates — abandons: an unambiguous key: two runs sharing a short name after a prune, with overlapping windows, collide silently
+
+Recommendation: finding-run — A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses.
+
+Decision: finding-run — by operator (Rémy Loubradou), 2026-11-22
+Why: A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses. Advocate: The strongest case for run-id: phax would use one trailer name for a run's identity everywhere, so every reader and every `git log --grep` finds a run's commits the same way, with no second trailer to learn. Principles: S1, S2. Reversibility: costly. Revised: none.
+
+### q-store — Is a resolution only computed when a fate is read, or is it also written back?
+
+- read-time — Resolve on every read, within the search range, and write nothing; `--commit` re-records explicitly — abandons: a records history that shows the rewrite without the operator asking, and each read pays a bounded log walk
+- write-back — Write a new fixed fate record with the new sha the first time a read resolves it — abandons: read-only readers: `finding list` would commit to `phax/records/v1`, under a `by` that names nobody who decided anything
+- cache — Cache resolutions in a local file beside the run — abandons: a single source of truth: a second, machine-local answer that goes stale when the base branch moves and is missing on another clone
+
+Recommendation: read-time — Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it.
+
+Decision: read-time — by operator (Rémy Loubradou), 2026-11-22
+Why: Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it. Advocate: The strongest case for write-back: the first read that finds the rewrite would record it once, so later reads are direct, the history shows the rewrite, and no read repeats the log walk. Principles: S1, S4. Reversibility: cheap. Revised: none.
+
+### q-ambiguous — What does phax answer when several commits match the same fate?
+
+- list-all — Answer `ambiguous`, listing every match oldest first, and name none as the fix — abandons: a single link in the comment and a post on a merged pull request until the operator picks one with `--commit`
+- latest — Pick the match nearest the tip — abandons: the signal that the fix was reverted and re-applied or cherry-picked: phax would silently name a commit that may not be the one carrying the fix
+- refuse — Fail the read — abandons: `phax finding list` for the whole run over one finding's ambiguity
+
+Recommendation: list-all — Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it.
+
+Decision: list-all — by operator (Rémy Loubradou), 2026-11-22
+Why: Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it. Advocate: The strongest case for latest: the commit nearest the tip is usually the one that carries the fix now, and the comment and the post on a merged pull request get a single link without the operator doing anything. Principles: S1, S5, S6. Reversibility: cheap. Revised: none.
+
+### q-squash-description — What happens when the pull request was squashed with its description only, so the trailers are gone and no patch id matches?
+
+- hint — Answer `not-found`, naming the branches searched; post's refusal names the `--commit <sha>` retry, which already accepts a base-branch commit — abandons: an automatic pointer in that squash setting: the operator supplies the squash sha once
+- github-merge-commit — Ask GitHub for the pull request's merge commit and resolve to it, in `finding post` only — abandons: one resolution for every reader: `finding list` stays local and answers `not-found` while `post` answers a commit, and a squash commit is claimed to fix a finding by inference, not evidence
+
+Recommendation: hint — A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence.
+
+Decision: hint — by operator (Rémy Loubradou), 2026-11-22
+Why: A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence. Advocate: The strongest case for github-merge-commit: GitHub knows which commit the pull request became, so `finding post` would work after a description-only squash without the operator hunting for a sha. Principles: S1, S3, S10. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -415,3 +425,10 @@ F2  concern  fixed  tests/gate.test.ts:12  The gate drops the exit code
 
 $ phax finding fix gate-retry F2 --commit 3fa91c2 --by operator
 ✓ 3fa91c2 is on neither phax/gate-retry nor main; its rewrite 8b04d6e on main carries gate-retry-2026-11-18 F2 (by key)
+
+## 12. Decision log
+
+- 2026-11-22 q-key decided finding-run — operator (Rémy Loubradou)
+- 2026-11-22 q-store decided read-time — operator (Rémy Loubradou)
+- 2026-11-22 q-ambiguous decided list-all — operator (Rémy Loubradou)
+- 2026-11-22 q-squash-description decided hint — operator (Rémy Loubradou)

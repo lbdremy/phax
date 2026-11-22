@@ -436,6 +436,26 @@
   ],
   "openQuestions": [
     {
+      "id": "q-phase-commits",
+      "question": "Does this spec also cover other records phax holds by sha?",
+      "options": [
+        {
+          "id": "follow-up",
+          "label": "No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up",
+          "abandons": "one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands"
+        },
+        {
+          "id": "cover-baselines",
+          "label": "Yes: approval baselines resolve the same way here",
+          "abandons": "a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme"
+        }
+      ],
+      "recommendation": "follow-up",
+      "rationale": "Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost."
+    }
+  ],
+  "arbitratedQuestions": [
+    {
       "id": "q-key",
       "question": "What makes the fate key unique on the fix commit?",
       "options": [
@@ -456,7 +476,29 @@
         }
       ],
       "recommendation": "finding-run",
-      "rationale": "A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses."
+      "rationale": "A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "finding-run",
+        "abandoned": [
+          "run-id",
+          "short-name-window"
+        ],
+        "why": "A dedicated trailer makes the key exact and leaves every current `Run-Id` reader (release notes, `records explain`, close recovery) untouched. Learning one more trailer name is the cheapest of the three losses.",
+        "advocate": "The strongest case for run-id: phax would use one trailer name for a run's identity everywhere, so every reader and every `git log --grep` finds a run's commits the same way, with no second trailer to learn.",
+        "principles": [
+          "S1",
+          "S2"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:14:25.955Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-store",
@@ -479,7 +521,29 @@
         }
       ],
       "recommendation": "read-time",
-      "rationale": "Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it."
+      "rationale": "Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "read-time",
+        "abandoned": [
+          "write-back",
+          "cache"
+        ],
+        "why": "Readers stay readers. The search range keeps the cost at one bounded walk per run, and the operator who wants the rewrite in the history has `--commit` with the old sha to record it.",
+        "advocate": "The strongest case for write-back: the first read that finds the rewrite would record it once, so later reads are direct, the history shows the rewrite, and no read repeats the log walk.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:14:25.955Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-ambiguous",
@@ -502,7 +566,30 @@
         }
       ],
       "recommendation": "list-all",
-      "rationale": "Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it."
+      "rationale": "Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "list-all",
+        "abandoned": [
+          "latest",
+          "refuse"
+        ],
+        "why": "Ambiguity is rare (a cherry-pick, a revert then a re-apply), and the operator is the one who can settle it. Listing every match keeps the list usable, and a single `--commit` call ends it.",
+        "advocate": "The strongest case for latest: the commit nearest the tip is usually the one that carries the fix now, and the comment and the post on a merged pull request get a single link without the operator doing anything.",
+        "principles": [
+          "S1",
+          "S5",
+          "S6"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:14:25.955Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-squash-description",
@@ -520,28 +607,31 @@
         }
       ],
       "recommendation": "hint",
-      "rationale": "A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence."
-    },
-    {
-      "id": "q-phase-commits",
-      "question": "Does this spec also cover other records phax holds by sha?",
-      "options": [
-        {
-          "id": "follow-up",
-          "label": "No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up",
-          "abandons": "one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands"
+      "rationale": "A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "hint",
+        "abandoned": [
+          "github-merge-commit"
+        ],
+        "why": "A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence.",
+        "advocate": "The strongest case for github-merge-commit: GitHub knows which commit the pull request became, so `finding post` would work after a description-only squash without the operator hunting for a sha.",
+        "principles": [
+          "S1",
+          "S3",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
         },
-        {
-          "id": "cover-baselines",
-          "label": "Yes: approval baselines resolve the same way here",
-          "abandons": "a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme"
-        }
-      ],
-      "recommendation": "follow-up",
-      "rationale": "Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost."
+        "at": "2026-11-22T10:14:25.955Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The fate key is (run id, finding id). A commit carries it when one paragraph of its message holds both the run trailer and `Finding: <id>`; the paragraph need not be the last.",
