@@ -333,6 +333,19 @@ per-phase model and effort arbitration, never a router), and `phax.json` now dec
 test step only (lint and format run on the whole repository in under 0.3 s: nothing to narrow). Later, not briefed: letting a run amend its own plan (a phase found
 the plan wrong) with a bounded, linted and recorded amendment instead of failing, once `phase-graph` exists.
 
+### 19. Positioning and the roadmap (to place in the queue)
+
+Added 2026-11-22 from a conversation with the operator about the home page's pitch. Not yet placed; the operator
+orders them.
+
+- [ ] **`positioning`** — `docs/briefs/positioning.md`, spec to author. phax is named "verified delegation" and
+      says it to its two readers where each reads: the home page and the README for a person; `phax --help`, the
+      skills' descriptions and `llms.txt` for an agent. The pitch claims only what ships.
+- [ ] **`roadmap-items`** — `docs/briefs/roadmap-items.md`, spec to author. A brief becomes an artifact with a
+      status and a rank; the ordered briefs are the roadmap, listed by phax and shown on the site. People and agents
+      vote with evidence (a run, a phase, what blocked it) on the records branch; the operator ranks. This file's
+      queue moves into it.
+
 ## Model policy tracking
 
 Since `planning-skill-defaults`, phases default to `claude-sonnet-5-5` at `medium`, where they used
