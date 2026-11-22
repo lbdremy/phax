@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { SiteJson } from "../../../site/build/generate.js";
 import type { SiteLink } from "../../../site/build/links.js";
 import {
+  checkBuiltLlmsTxt,
   checkBuiltSite,
   checkLinkAnchors,
+  checkLlmsTxt,
   checkServedSchemas,
 } from "../../../site/build/postbuild.js";
+import { AGENT_PITCH, PERSON_PITCH } from "../../../site/build/positioning.js";
 
 const RELEASE = "https://github.com/example/tool/releases/tag/v0.17.0";
 
@@ -308,5 +311,44 @@ describe("checkServedSchemas", () => {
       "✗ site/doc_build/schemas/registry/pre-schema.json: names a snapshot that is never served",
       "✗ site/doc_build/schemas/run-status/next.json: names a snapshot that is never served",
     ]);
+  });
+});
+
+describe("checkLlmsTxt", () => {
+  const listing = [
+    "",
+    "## Guide",
+    "",
+    "- [Delegating from an agent](https://docs.phax.run/guide/delegating.md): Delegate a change.",
+    "- [Running a plan](https://docs.phax.run/guide/run.md)",
+  ];
+
+  it("finds nothing in an llms.txt that opens with the agent pitch and lists the agent page", () => {
+    expect(checkLlmsTxt(["# phax", "", `> ${AGENT_PITCH}`, ...listing].join("\n"))).toEqual([]);
+  });
+
+  it("names llms.txt when it opens with the person pitch", () => {
+    expect(checkLlmsTxt(["# phax", "", `> ${PERSON_PITCH}`, ...listing].join("\n"))).toEqual([
+      "✗ site/doc_build/llms.txt: does not open with the agent pitch",
+    ]);
+  });
+
+  it("names llms.txt when it does not list /guide/delegating", () => {
+    const text = [
+      "# phax",
+      "",
+      `> ${AGENT_PITCH}`,
+      "",
+      "## Guide",
+      "",
+      "- [Running a plan](https://docs.phax.run/guide/run.md)",
+    ].join("\n");
+    expect(checkLlmsTxt(text)).toEqual([
+      "✗ site/doc_build/llms.txt: does not list /guide/delegating",
+    ]);
+  });
+
+  it("names llms.txt when the build wrote none", () => {
+    expect(checkBuiltLlmsTxt(undefined)).toEqual(["✗ site/doc_build/llms.txt: missing"]);
   });
 });

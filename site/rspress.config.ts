@@ -5,11 +5,14 @@
 // remote resource. The identity: dark first, the theme CSS generated from
 // site/theme/tokens.ts, the logo (the dark-accent file is the favicon)
 // beside the lowercase wordmark, site/theme/index.tsx's home, and the social
-// card (site/build/og.ts) in every page's link-preview tags.
+// card (site/build/og.ts) in every page's link-preview tags. The meta
+// description is the person pitch (README.md's opening); llms.txt opens with
+// the agent pitch instead, through site/build/llms.ts's renderer.
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { defineConfig, type UserConfig } from "@rspress/core";
 import { THEME_CSS, type SiteJson } from "./build/generate.js";
+import { renderLlmsTxt } from "./build/llms.js";
 import { SITE_ORIGIN, socialHead } from "./build/og.js";
 import { DARK_MODE } from "./theme/appearance.js";
 
@@ -36,8 +39,9 @@ export default defineConfig({
   themeDir: resolve(import.meta.dirname, "theme"),
   lang: "en",
   search: { codeBlocks: true },
-  // llms.txt, llms-full.txt and a .md twin of every page, for coding agents.
-  llms: true,
+  // llms.txt, llms-full.txt and a .md twin of every page, for coding agents;
+  // llms.txt opens with the agent pitch.
+  llms: { llmsTxt: renderLlmsTxt },
   markdown: {
     // Links are emitted as the sources wrote them; site/build checks its own.
     link: { checkDeadLinks: false, checkAnchors: false },

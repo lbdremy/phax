@@ -4,14 +4,17 @@
 // one entry to the list of its reader (or a new list run by the same checks).
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import type { LlmsTxtContext } from "@rspress/core";
 import { describe, expect, it } from "vitest";
 import pageMap from "../../../site/pages.js";
 import { readmeDescription } from "../../../site/build/generate.js";
-import { OG_IMAGE_ALT } from "../../../site/build/og.js";
+import { renderLlmsTxt } from "../../../site/build/llms.js";
+import { OG_IMAGE_ALT, SITE_ORIGIN } from "../../../site/build/og.js";
 import {
   AGENT_DETAIL,
   AGENT_PITCH,
   CLAIMS,
+  PERSON_PITCH,
   builtRoutes,
   checkAgentDetail,
   checkClaims,
@@ -20,6 +23,7 @@ import {
   checkRejectedNames,
   claimTexts,
   commandPaths,
+  llmsIntroduction,
   packageDescription,
   readmeOpening,
   sectionOpening,
@@ -90,8 +94,42 @@ const HELP_FIXTURE_PATH = "tests/fixtures/help/phax-root-help.txt";
 
 const skillOpening = sectionOpening(read(SKILL_PATH), "What phax is");
 
+const AGENT_PAGE_PATH = "docs/delegating.md";
+const AGENT_PAGE_ROUTE = "/guide/delegating";
+const agentPage = read(AGENT_PAGE_PATH);
+const agentPageOpening = sectionOpening(agentPage, "Delegating from an agent");
+
+/** An llms.txt context as Rspress hands it to the renderer: one section, one page per route. */
+function llmsContext(routes: ReadonlyArray<string>): LlmsTxtContext {
+  return {
+    title: "phax",
+    description: PERSON_PITCH,
+    lang: "",
+    version: "",
+    base: "/",
+    siteOrigin: SITE_ORIGIN,
+    sections: [
+      {
+        title: "Docs",
+        pages: routes.map((route) => ({
+          routePath: route,
+          link: `${SITE_ORIGIN}${route}.md`,
+          title: route,
+          frontmatter: {},
+          lang: "",
+          version: "",
+        })),
+      },
+    ],
+  };
+}
+
+const llmsTxt = await renderLlmsTxt(llmsContext([AGENT_PAGE_ROUTE]));
+
 /** The places that speak to an agent: each carries the agent pitch word for word. */
 const AGENT_PLACES: ReadonlyArray<Place> = [
+  { label: "llms.txt", reader: "agent", text: llmsIntroduction(llmsTxt) },
+  { label: AGENT_PAGE_PATH, reader: "agent", text: agentPageOpening.paragraph },
   { label: "phax --help", reader: "agent", text: phaxProgram.summary ?? "" },
   {
     label: "phax.usage.kdl",
@@ -156,6 +194,44 @@ describe("the agent places", () => {
   });
 });
 
+describe("the agent page and llms.txt", () => {
+  it("open with the agent pitch, while the site's description keeps the person pitch", () => {
+    expect(llmsIntroduction(llmsTxt)).toBe(AGENT_PITCH);
+    expect(agentPageOpening.paragraph).toBe(AGENT_PITCH);
+    expect(readmeDescription(read("README.md"))).toBe(PERSON_PITCH);
+  });
+
+  it("show the agent detail right after the pitch on the agent page", () => {
+    expect(checkAgentDetail(AGENT_PAGE_PATH, agentPageOpening.list)).toEqual([]);
+  });
+
+  it("carry none of the agent detail in llms.txt", () => {
+    for (const item of AGENT_DETAIL) expect(llmsTxt).not.toContain(item);
+  });
+
+  it("the page map renders the agent page from docs/delegating.md on every build", () => {
+    const entry = pageMap.files.find(
+      (candidate) => "route" in candidate && candidate.route === AGENT_PAGE_ROUTE,
+    );
+    expect(entry !== undefined && "source" in entry ? entry.source : undefined).toBe(
+      AGENT_PAGE_PATH,
+    );
+    expect(builtRoutes(pageMap).has(AGENT_PAGE_ROUTE)).toBe(true);
+  });
+
+  it("the agent page shows --json, --json-schema, phax --usage and links the exit codes", () => {
+    expect(agentPage).toContain("--json");
+    expect(agentPage).toContain("--json-schema");
+    expect(agentPage).toContain("phax --usage");
+    expect(agentPage).toContain("](../README.md#exit-codes)");
+  });
+
+  it("llms.txt rendered over the page map's routes lists the agent page", async () => {
+    const text = await renderLlmsTxt(llmsContext([...builtRoutes(pageMap)]));
+    expect(text).toContain(`](${SITE_ORIGIN}${AGENT_PAGE_ROUTE}.md)`);
+  });
+});
+
 describe("every place", () => {
   it("reads something from each source", () => {
     for (const place of PLACES) expect(place.text, place.label).not.toBe("");
@@ -195,11 +271,22 @@ describe("the home page", () => {
 describe("the claims", () => {
   const shipped = { routes: builtRoutes(pageMap), commands: commandPaths(phaxProgram) };
 
-  it("of the person pitch and the home features name a shipped route or command", () => {
-    const claims = CLAIMS.filter(
-      (claim) => claim.of === "person pitch" || claim.of.startsWith("home feature "),
-    );
-    expect(claims.length).toBeGreaterThan(0);
-    expect(checkClaims(claims, shipped, claimTexts(home?.features))).toEqual([]);
+  it("each name a shipped route or command and are said by the text they back", () => {
+    expect(CLAIMS.length).toBeGreaterThan(0);
+    expect(checkClaims(CLAIMS, shipped, claimTexts(home?.features))).toEqual([]);
+  });
+});
+
+describe("every check over every place and claim", () => {
+  it("finds nothing", () => {
+    const shipped = { routes: builtRoutes(pageMap), commands: commandPaths(phaxProgram) };
+    expect([
+      ...checkPitches(PLACES),
+      ...checkName(PLACES),
+      ...checkRejectedNames(PLACES),
+      ...checkAgentDetail("phax-cli skill", skillOpening.list),
+      ...checkAgentDetail(AGENT_PAGE_PATH, agentPageOpening.list),
+      ...checkClaims(CLAIMS, shipped, claimTexts(home?.features)),
+    ]).toEqual([]);
   });
 });
