@@ -118,6 +118,7 @@ For a persisted format, fix the reader, never the format's shape or stamp. Paste
 For the plan parser, the fix goes where the bug is, with the counter-example as a hand-written case in the same commit:
 
 - a parser counter-example: fix `src/domain/plan/parsePlanMarkdown.ts`, with a case in `tests/unit/parsePlanMarkdown.test.ts`;
+- a nesting counter-example (the measure under-counted): fix `src/domain/plan/planTree.ts`, with a case in `tests/unit/parsePlanMarkdown.test.ts`;
 - a finalize counter-example: fix `src/domain/plan/finalize.ts`, with a case in `tests/unit/extractPlanFinalize.test.ts`;
 - a counter-example that only the generator made (a document or text the format never carries) is a generator fix.
 
@@ -201,6 +202,22 @@ Markdown outside the alphabet (tables, HTML blocks, link reference definitions) 
 At a third of 100 runs it still did, about one main CI run in three (2026-11-18 to 11-19). The default seed drew 38 large inputs; two of them, over 60 KiB of nested lists and quotes (paths `85` and `88`), made half the property's work, about 0.45 s of CPU per call each on a laptop. On a slow CI runner path `85` took 2,060 ms per call: at the bound, where a first timing over it has the call timed three times, and once the fastest of the three was still over, a failure of the bound on a slow machine. The property now checks 40 inputs (see [The default budget](#the-default-budget)): 16 large ones, three of them over 60 KiB, about 1.5 s on a laptop against 5.6 s before. The bound itself is unchanged, and the deep pass still draws inputs like those two.
 
 The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parser resolves emphasis in time that grows with the square of the delimiters in one paragraph or heading, so deeper nesting near 64 KiB outgrows the bound inside the parser itself: one heading 4,000 levels deep (24 KB) already takes it about 1.6 s. The bound is therefore not held against deeper emphasis, a known gap left for its own spec.
+
+The nesting limit keeps that time bounded where the parser alone does not. Every plan reader parses through `readPlanTree` (`src/domain/plan/planTree.ts`). Before parsing, it refuses any plan with a line whose blockquotes and list items nest more than 32 levels deep. The limit is a constant, not configurable. `phax plans lint` reports the refusal as one structure error, with the line counted in the plan file, frontmatter included:
+
+```text
+line 41: blockquotes and lists nest over 32 levels deep
+```
+
+`phax run`, `phax plans overview` and `phax plans estimate` name the same line and point to `phax plans lint`. The measure is one linear pass over the prefix of each line. It is exact for 2-column list nesting and `> ` quotes, and it never reads less than the parser's depth. It may read more: `>` lines inside fenced code and 4-space indented outlines count extra, and an outline indented that way reaches the limit near 16 real levels. The limit is 32 because the committed plans nest about 6 levels at most. The corpus test `tests/unit/planNestingCorpus.test.ts` reports the deepest one and fails if a committed plan would be refused.
+
+Security run 44320960144 (seed 1253054900) failed the property on 2026-11-18, on 61,440 `>` characters. That counter-example, and a nested list over 60 KiB, are now hand-written cases in `tests/unit/parsePlanMarkdown.test.ts`, timed in CPU on every pull request. To replay the seeded deep pass, run:
+
+```text
+PHAX_PROPERTY_SEED=1253054900 PHAX_PROPERTY_RUNS=2000 pnpm test:unit tests/unit/property/planParser.property.test.ts -t 'parsing finishes in bounded time'
+```
+
+Do not use `pnpm test:property:deep` for this: it sets its own random seed, so it overrides the one above.
 
 ### Structure exceptions
 
