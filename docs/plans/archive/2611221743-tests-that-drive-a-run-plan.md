@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Abandoned
 source-spec: docs/specs/2611221732-tests-that-drive-a-run.md
 completes-spec: true
 approved:
