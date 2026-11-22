@@ -138,10 +138,9 @@ attempt, a relaunch, and once a release.
       2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
       deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
       it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions.
-- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`; spec approved
-      2026-11-22 (a guard refuses a plan nested over 32 levels before parsing), plan approved, run started.
-      Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
-      daily on it).
+- [x] **`plan-parser-nesting-time`** — shipped 2026-11-22 (#258). Every plan reader parses through
+      `readPlanTree`, which refuses a plan with a line nested over 32 levels before parsing it; the
+      seeded deep pass (1253054900, 2,000 runs) passes at review.
 
 ### 7. What costs time on every run
 
@@ -445,7 +444,7 @@ desktop — none is promised by the announcement.
       pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
       `pull-request-closed`); `finding post` refuses a fixed finding on such a pull request;
       `dismiss` and `defer` keep commenting.
-- [ ] **Reading a plan is super-linear in its nesting.** Brief: `docs/briefs/plan-parser-nesting-time.md`.
+- [x] **Reading a plan is super-linear in its nesting.** Done (#258, 2026-11-22). Brief: `docs/briefs/plan-parser-nesting-time.md`.
       The daily deep pass is red since 2026-11-18 (run 44320960144, seed 1253054900): a run of
       61,440 `>` (blockquotes nested once per character) costs `collectPlanStructureErrors` 4.5 s
       of CPU on CI and 3.4 s on a laptop, mostly inside `mdast-util-from-markdown`; nested lists
