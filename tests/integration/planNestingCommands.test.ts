@@ -1,3 +1,5 @@
+import type { Nodes } from "mdast";
+import { fromMarkdown } from "mdast-util-from-markdown";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   existsSync,
@@ -55,9 +57,20 @@ function runCli(args: readonly string[]): BoundedExit {
   });
 }
 
-// A 2-space bullet list item `depth` levels deep: the measure reads its
-// 2 × (depth − 1) leading spaces and its marker as `depth` levels.
-const deepItem = (depth: number): string => `${"  ".repeat(depth - 1)}- deep item`;
+// A list item inside `depth − 1` blockquotes: CommonMark nests it exactly
+// `depth` containers deep (the first test below checks it with the parser),
+// and the measure reads it as exactly `depth`, with no over-count to lean on.
+const deepItem = (depth: number): string => `${"> ".repeat(depth - 1)}- deep item`;
+
+/** The deepest chain of blockquotes and list items in `markdown`, as the parser reads it. */
+function containerDepth(markdown: string): number {
+  const depthOf = (node: Nodes): number => {
+    const own = node.type === "blockquote" || node.type === "listItem" ? 1 : 0;
+    const children = "children" in node ? node.children : [];
+    return own + Math.max(0, ...children.map(depthOf));
+  };
+  return depthOf(fromMarkdown(markdown));
+}
 
 const PHASES = `## Required commands
 
@@ -168,6 +181,14 @@ beforeEach(() => {
 
 afterEach(() => {
   removeTempDir(base);
+});
+
+describe("the deep items these tests write", () => {
+  it("nest as many blockquotes and list items as they say, in the parser's own reading", () => {
+    for (const depth of [32, 33, 40]) {
+      expect(containerDepth(planMd(12, deepItem(depth)))).toBe(depth);
+    }
+  });
 });
 
 describe("phax plans lint on a plan nested over the limit", () => {

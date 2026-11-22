@@ -17,7 +17,7 @@ import {
   phaseHeadingIds,
   phaseHeadingSources,
 } from "../../src/domain/plan/sections.js";
-import { checkProperty } from "../helpers/property/harness.js";
+import { checkProperty, propertyTimeout } from "../helpers/property/harness.js";
 
 // A pass-through spy: every reader still parses with the real parser, and the
 // test can tell whether it was called at all.
@@ -219,26 +219,34 @@ const minimalText: fc.Arbitrary<string> = fc
   );
 
 describe("readPlanTree: the measure never under-counts", () => {
-  it("refuses every generated nesting the parser reads deeper than 32", () => {
-    let deepDrawn = 0;
-    checkProperty(nestedText, (text) => {
-      const deep = treeDepth(fromMarkdown(text)) > 32;
-      if (deep) deepDrawn += 1;
-      return !deep || Result.isFailure(readPlanTree(text));
-    });
-    // The generator reaches past the limit often enough for the property to bite.
-    expect(deepDrawn).toBeGreaterThan(10);
-  });
+  it(
+    "refuses every generated nesting the parser reads deeper than 32",
+    () => {
+      let deepDrawn = 0;
+      checkProperty(nestedText, (text) => {
+        const deep = treeDepth(fromMarkdown(text)) > 32;
+        if (deep) deepDrawn += 1;
+        return !deep || Result.isFailure(readPlanTree(text));
+      });
+      // The generator reaches past the limit often enough for the property to bite.
+      expect(deepDrawn).toBeGreaterThan(10);
+    },
+    propertyTimeout(),
+  );
 
-  it("refuses minimal-form nesting exactly when the parser reads it deeper than 32", () => {
-    let deepDrawn = 0;
-    checkProperty(minimalText, (text) => {
-      const deep = treeDepth(fromMarkdown(text)) > 32;
-      if (deep) deepDrawn += 1;
-      return deep === Result.isFailure(readPlanTree(text));
-    });
-    expect(deepDrawn).toBeGreaterThan(10);
-  });
+  it(
+    "refuses minimal-form nesting exactly when the parser reads it deeper than 32",
+    () => {
+      let deepDrawn = 0;
+      checkProperty(minimalText, (text) => {
+        const deep = treeDepth(fromMarkdown(text)) > 32;
+        if (deep) deepDrawn += 1;
+        return deep === Result.isFailure(readPlanTree(text));
+      });
+      expect(deepDrawn).toBeGreaterThan(10);
+    },
+    propertyTimeout(),
+  );
 });
 
 // ── no parse over the limit ────────────────────────────────────────────────
