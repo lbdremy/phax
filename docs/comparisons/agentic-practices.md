@@ -11,6 +11,14 @@
 approved before a run starts; each phase runs in its own worktree and must pass your gates before the next one
 starts; sequencing, gates, retries and state are plain code. The agent is the only non-deterministic part.
 
+phax calls this **verified delegation**: you hand a change to a coding agent and get back what programs checked,
+not what the agent says it did. Google DeepMind's [Intelligent AI Delegation](https://arxiv.org/abs/2602.11865)
+(February 2026) asks delegation for "verifiable task execution" and ends its lifecycle in "verifiable task
+completion"; the gates, the planned-vs-done reconciliation and the fate of every finding are phax's answer for code.
+Elsewhere, verified delegation means proving whom an agent acts for and what it may do
+([Authenticated Delegation and Authorized AI Agents](https://arxiv.org/abs/2501.09674), January 2025). In phax, what
+is verified is the result, not the mandate.
+
 Birgitta Böckeler splits a coding agent's harness into **guides**, feedforward controls that "anticipate the
 agent's behaviour and aim to steer it before it acts", and **sensors**, feedback controls that "observe after the
 agent acts and help it self-correct"; each is **computational** ("deterministic and fast, run by the CPU") or
