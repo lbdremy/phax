@@ -23,6 +23,28 @@ init one repository with one commit, about one second of `heldStopRun`'s 94 s.
   `NodeGitLayer` and `NodeShellLayer` and a fake backend: every phase worktree, branch, commit, gate command and
   record write is a real git or shell process.
 
+## Measures again (main at 3ff18b1c and later, 2026-11-22, 14 cores, vitest 5.1)
+
+- The gate, step by step (NEXT_STEPS §7): `pnpm test` is 189–192 s of a `standard` attempt, every other step
+  together about 9 s. The test step's CPU is 700–720 s user and about 515 s system: processes, git and the disk.
+- The suite per file (vitest's JSON reporter): 188.5 s of wall time for 2,158 s of file time, 11.4 files at once on
+  average on 14 cores. The longest file is 84 s, so the suite is bound by its total work, not by one file: a faster
+  slowest file alone does not shorten it. Integration is 2,002 s of the 2,158 (282 files), unit 156 s (474 files).
+- 21 files over 30 s make 939 s, 39 files of 10–30 s make 648 s; 654 files under 5 s make 301 s.
+- Over 30 s: `heldStopRun` 84 s (18 tests), `stopRecords` 80 s (9), `acceptancePairReview` 60 s (12),
+  `heldStopClose` 57 s (19), `decideVerdicts` 56 s (68), `recordsBranchSync.acceptance` 51 s (10),
+  `declaredStopClose` 43 s, `heldStopCommands` 41 s, `findingPullRequestLocal` 40 s, `boundedSpawn` 40 s (its
+  `ac-cli-hang` test waits out a 30 s bound on purpose), `decideArtifact` 39 s, `stopTranscripts` 39 s,
+  `declaredStopRun` 39 s, `recordsStatusBranch` 36 s, `stopSecurityRecord` 36 s, `structuredAnswerFlags` 35 s,
+  `recordsExplain` 34 s, `recordsExplainStop` 34 s, `runList` 34 s, `protectedPathsGate` 32 s, `findingPost` 30 s.
+- Git processes (`GIT_TRACE`): `heldStopRun` starts 2,025 (about 110 per test; `rev-parse` 381, `hash-object` 224,
+  `config` 156, `add` 148, `reset` 147), `stopRecords` 2,492 (about 280 per test; `hash-object` 750, `rev-parse` 358,
+  `show` 199).
+- Many of the `hash-object` processes are phax's own: `src/infra/git.ts` writes a record commit with one
+  `git hash-object -w --stdin` per file of the record. That cost is in every phase of every real run too, not only in
+  the tests; batching it is a change under `src/`, which settled point 3 below rules out of this spec. Whether to
+  lift that point for it, or brief it apart, is the operator's call.
+
 ## What the spec must cover
 
 - **Where the time goes, measured first**, per file and per test: git processes (count and time, `GIT_TRACE`), gate
