@@ -139,7 +139,7 @@ attempt, a relaunch, and once a release.
       deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
       it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions.
 - [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`; spec approved
-      2026-11-22 (a guard refuses a plan nested over 32 levels before parsing), plan in authoring.
+      2026-11-22 (a guard refuses a plan nested over 32 levels before parsing), plan approved, run started.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
 
@@ -453,6 +453,12 @@ desktop — none is promised by the announcement.
       parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
+- [ ] **`phax-decide-review` points at a command that does not exist.** Found 2026-11-22 in the
+      README pass: the skill's description says `phax review-plan` follows it, and no such command is in
+      `phax.usage.kdl`. Either the command lands or the skill says what uses it today.
+- [ ] **`phax open` claims an `$EDITOR` fallback it does not have.** Found 2026-11-22 in the README pass:
+      its help (`src/cli/definitions/sessions.ts`) says it falls back to `EDITOR`; `src/infra/editor.ts`
+      reads no environment variable. Fix the help or the adapter.
 - [ ] **`approve` ignores a `code` key in `phax.local.json`.** Since #241 a plan approval reads only
       the project phax.json's `code` (so an unrelated overlay error never blocks it); `validate`
       and `run` refuse `code` outside the project layer, `approve` just does not see it. Decide
