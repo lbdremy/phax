@@ -1,6 +1,6 @@
 ---
 name: phax-cli
-description: Operate the phax CLI — its concepts, run lifecycle, and the canonical init → plan → run → review → publish flow. Use when driving phax, explaining it to a developer, or scripting against it. Defers to `phax --usage` for the exact command/flag contract.
+description: Verified delegation through the phax CLI — delegate a change to another coding agent and get results you can verify; its concepts, run lifecycle and the init → plan → run → review → publish flow. Use when driving phax, explaining it to a developer, or scripting against it. Defers to `phax --usage` for the exact command/flag contract.
 ---
 
 # phax CLI skill
@@ -21,13 +21,18 @@ lifecycle, and how commands fit together.
 
 ## What phax is
 
-A deterministic, local CLI that drives an AI coding agent (Claude Code by
-default; also Mistral Vibe and OpenAI Codex) through isolated, **gated phases**.
-Each phase runs in its **own Git worktree**, executes the agent, then runs a
-**gate profile** (typecheck, tests, lint, …) with a **same-session fix loop** —
-the agent fixes gate failures in the same context before the phase may commit.
-The **final phase worktree stays open** for human review. phax pushes the branch and
-opens a PR only when `phax.json` sets `publish.auto`, or when you run `phax publish-pr`.
+phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.
+
+- Each phase runs in an isolated Git worktree.
+- Its gate commands must exit 0 before the next phase starts.
+- The files it touched are reconciled with the plan.
+- Run state outlives your context: phax resume picks up where the run stopped.
+- Every command answers JSON with a schema.
+
+On a gate failure, the agent fixes it in the same session before the phase may
+commit. The final phase worktree stays open for human review. phax pushes the
+branch and opens a PR only when `phax.json` sets `publish.auto`, or when you
+run `phax publish-pr`.
 
 ## Run lifecycle — the command you reach for depends on the state
 

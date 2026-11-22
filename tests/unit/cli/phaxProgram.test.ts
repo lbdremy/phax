@@ -15,6 +15,7 @@ import {
 } from "../../../src/cli/commandLibrary/contract/index.js";
 import { PHAX_LICENSE, phaxProgram } from "../../../src/cli/definitions/program.js";
 import { PHAX_RELEASE } from "../../../src/schemas/release.js";
+import { AGENT_PITCH } from "../../../site/build/positioning.js";
 import { call } from "../commandLibrary/commander/support/memoryIo.js";
 
 describe("phaxProgram", () => {
@@ -38,7 +39,7 @@ describe("phaxProgram", () => {
   });
 
   it("declares its summary, -V, help [command] and the phase guard", () => {
-    expect(phaxProgram.summary).toBe("Drive AI coding agents through isolated, gated phases");
+    expect(phaxProgram.summary).toBe(AGENT_PITCH);
     expect(phaxProgram.versionAlias).toBe("V");
     expect(phaxProgram.helpCommand).toBe(true);
     expect(phaxProgram.guard).toBeTypeOf("function");

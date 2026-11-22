@@ -1,6 +1,7 @@
 Usage: phax [options] [command]
 
-Drive AI coding agents through isolated, gated phases
+phax is verified delegation for AI coding agents: delegate a change to another
+coding agent and get results you can verify.
 
 Options:
   -V, --version                                  output the version number
