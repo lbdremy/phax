@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611221308-plan-parser-nesting-time.md
 completes-spec: true
 approved:
