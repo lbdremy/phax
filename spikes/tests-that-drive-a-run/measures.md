@@ -250,9 +250,26 @@ the file before declaring the prefix.
 
 <!-- END generated: verdict -->
 
-## Coverage log
+## Outcome (2026-11-22)
 
-## After
+The run stopped here: phase-01 was held for this verdict, and the operator chose to stop after it, abandoning the
+plan and the spec. Nothing beyond these measures was changed.
+
+- The shared prefixes are small. In `heldStopRun`, "held at phase-02" is 36 git processes of about 110 per test;
+  the rest is each test's own resume, close and checks. The three slowest files are not covered: `heldStopRun`
+  31.0 %, `acceptancePairReview` 6.9 %, `stopRecords` 2.4 %.
+- Five covered files use the run fixtures (`heldStopClose`, `heldStopCommands`, `runList`, `stoppedRunCommands`,
+  `enterPhaseStop`): at most about 110 s of the 2,021 s of integration file time, by time times share.
+- The 26 `sequence` files overstate what a restore could give. Their repeated head includes the git work of the
+  command each test checks (in `decideVerdicts`, the decide's own `status`, `diff` and `commit`), which no copy
+  replaces; what is shared is the repository's creation, a few tenths of a second per test. Their 422 s by time
+  times share is an upper bound far above what is reachable.
+- Expected gain of the whole plan: about 5–10 % of the suite, 10–20 s of a 190 s gate attempt, for nine more
+  phases, one of them converting 26 unlike files. Not worth it.
+
+What this leaves: the suite's time is each test's own work, about half of it git processes that phax itself starts
+while the tests drive it. A lever there is a change to how many git processes phax runs per phase, a product change
+to brief on these numbers.
 
 ## Per test
 
