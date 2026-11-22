@@ -134,10 +134,6 @@ attempt, a relaunch, and once a release.
       suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/archive/bounded-test-spawns.md`,
       findings `spikes/bounded-test-spawns/findings.md`, runs `spikes/bounded-test-spawns/suite-runs.md`.
       The 10 CI runs on the pull request all pass; merged 2026-11-22 (#256).
-- [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
-      2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
-      deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
-      it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions.
 - [x] **`plan-parser-nesting-time`** — shipped 2026-11-22 (#258). Every plan reader parses through
       `readPlanTree`, which refuses a plan with a line nested over 32 levels before parsing it; the
       seeded deep pass (1253054900, 2,000 runs) passes at review.
@@ -309,6 +305,10 @@ A batch from *Small follow-ups*, the security items that sleep there:
       status and a rank; the ordered briefs are the roadmap, listed by phax and shown on the site. People and agents
       vote with evidence (a run, a phase, what blocked it) on the records branch; the operator ranks. This file's
       queue moves into it. Placed here by the operator on 2026-11-22: not a priority.
+- [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
+      2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
+      deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
+      it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions. Moved to Later by the operator on 2026-11-22.
 - [ ] The other small follow-ups below, in batches.
 
 ### 18. Delegation from an agent (to place in the queue)
