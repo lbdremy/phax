@@ -335,12 +335,7 @@ Given an old sha on no branch, and either no `main` commit carrying the named fi
 
 ## 9. Open questions
 
-### q-phase-commits — Does this spec also cover other records phax holds by sha?
-
-- follow-up — No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up — abandons: one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands
-- cover-baselines — Yes: approval baselines resolve the same way here — abandons: a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme
-
-Recommendation: follow-up — Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost.
+None.
 
 ## 9b. Arbitrated questions
 
@@ -387,6 +382,16 @@ Recommendation: hint — A commit claimed by inference is the false confidence t
 Decision: hint — by operator (Rémy Loubradou), 2026-11-22
 Why: A commit claimed by inference is the false confidence this spec exists to remove. The squash sha is one copy away, and `--commit` records it as evidence. Advocate: The strongest case for github-merge-commit: GitHub knows which commit the pull request became, so `finding post` would work after a description-only squash without the operator hunting for a sha. Principles: S1, S3, S10. Reversibility: cheap. Revised: none.
 
+### q-phase-commits — Does this spec also cover other records phax holds by sha?
+
+- follow-up — No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up — abandons: one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands
+- cover-baselines — Yes: approval baselines resolve the same way here — abandons: a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme
+
+Recommendation: follow-up — Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost.
+
+Decision: follow-up — by operator (Rémy Loubradou), 2026-11-22
+Why: Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost. Advocate: The strongest case for cover-baselines: an approval baseline on a rewritten branch breaks the same way a fix sha does, so one fix here would close every sha phax stores instead of leaving a known gap for a later brief. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
 ## 10. Implementation-planning note
 
 Settled:
@@ -432,3 +437,4 @@ $ phax finding fix gate-retry F2 --commit 3fa91c2 --by operator
 - 2026-11-22 q-store decided read-time — operator (Rémy Loubradou)
 - 2026-11-22 q-ambiguous decided list-all — operator (Rémy Loubradou)
 - 2026-11-22 q-squash-description decided hint — operator (Rémy Loubradou)
+- 2026-11-22 q-phase-commits decided follow-up — operator (Rémy Loubradou)

@@ -434,26 +434,7 @@
       ]
     }
   ],
-  "openQuestions": [
-    {
-      "id": "q-phase-commits",
-      "question": "Does this spec also cover other records phax holds by sha?",
-      "options": [
-        {
-          "id": "follow-up",
-          "label": "No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up",
-          "abandons": "one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands"
-        },
-        {
-          "id": "cover-baselines",
-          "label": "Yes: approval baselines resolve the same way here",
-          "abandons": "a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme"
-        }
-      ],
-      "recommendation": "follow-up",
-      "rationale": "Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost."
-    }
-  ],
+  "openQuestions": [],
   "arbitratedQuestions": [
     {
       "id": "q-key",
@@ -627,6 +608,45 @@
           "name": "Rémy Loubradou"
         },
         "at": "2026-11-22T10:14:25.955Z",
+        "revised": []
+      },
+      "history": []
+    },
+    {
+      "id": "q-phase-commits",
+      "question": "Does this spec also cover other records phax holds by sha?",
+      "options": [
+        {
+          "id": "follow-up",
+          "label": "No: phase commits already resolve through their trailers, and approval baselines are named as a follow-up",
+          "abandons": "one fix for every sha phax stores: an approval baseline taken on a branch that is later rewritten still breaks until its own brief lands"
+        },
+        {
+          "id": "cover-baselines",
+          "label": "Yes: approval baselines resolve the same way here",
+          "abandons": "a bounded spec: approvals have no fate key or trailer of their own, so this spec would grow a second identity scheme"
+        }
+      ],
+      "recommendation": "follow-up",
+      "rationale": "Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "follow-up",
+        "abandoned": [
+          "cover-baselines"
+        ],
+        "why": "Approval baselines need their own identity, and folding them in would push this spec past its bounds. The non-goal names them so the follow-up is not lost.",
+        "advocate": "The strongest case for cover-baselines: an approval baseline on a rewritten branch breaks the same way a fix sha does, so one fix here would close every sha phax stores instead of leaving a known gap for a later brief.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-22T10:17:38.868Z",
         "revised": []
       },
       "history": []
