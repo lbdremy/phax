@@ -144,11 +144,15 @@ attempt, a relaunch, and once a release.
       built once per file and copied, seed records in one `git fast-import`: `recordsStatusBranch`
       64 s → 33 s, its 300-record test 37 s → 4 s. The suite did not move (210 s → 210 s): its
       other slow files spend their time in the run each test drives (`spikes/test-worlds/measures.md`).
-- [ ] **Measure the gate, step by step** — no brief yet. The `standard` profile runs format, typecheck,
-      test:type, type-aware lint, test, knip (two passes) and the architecture audit one after the other,
-      several of them type-checking the same code. The gate records hold each step's duration: measure
-      them over the last runs, then decide whether independent steps run side by side or one step does
-      another's work.
+- [x] **Measure the gate, step by step** — measured 2026-11-22 on main (M4 Pro, 14 cores, three
+      passes, wall time): `pnpm test` 189–192 s (700–720 s user, ~515 s system CPU); every other step
+      together about 9 s (lint 2.2–2.6, audit:architecture 2.0, test:type 1.6, knip 1.3–1.6, typecheck
+      0.7, the rest under 0.3). The terminal steps add about 9 s (site:build 5.0). The test step is 95 %
+      of a gate attempt, so running the other steps side by side saves 4 % at most; the small doubles
+      (`audit:architecture` is also inside `pnpm test`, `typecheck` inside `test:type`, `format:check`
+      right after `format`) are about 3 s. The time to win is in the suite: `tests-that-drive-a-run`.
+      The gate records hold no step duration (the attribution and the log carry none), so this was
+      measured by running the profile's commands.
 - [ ] **`tests-that-drive-a-run`** — `docs/briefs/tests-that-drive-a-run.md` (2026-11-20), spec to
       author. The integration files that start, stop, close and resume a whole run (`heldStopRun`,
       `stopRecords`, `heldStopClose`, `acceptancePairReview`, …) take a fraction of their time:
