@@ -1,7 +1,7 @@
 {
   "name": "phax",
   "version": "0.42.0",
-  "description": "phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.",
+  "description": "phax is verified delegation for AI coding agents: hand work to Claude Code, OpenAI Codex or Mistral Vibe and get back facts, not claims. Every phase passed your checks, every file is accounted for, every finding has a fate, and the history stays in Git.",
   "license": "Apache-2.0",
   "bin": {
     "phax": "./dist/cli/main.js"

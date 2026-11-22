@@ -235,6 +235,26 @@ describe("checkClaims", () => {
       '✗ claim "results you can verify" (agent pitch): proof /guide/later is not a route the site builds',
     ]);
   });
+
+  it("reads a flattened tree's commands through their group chains", () => {
+    const plans = { name: "plans" };
+    const tree = {
+      name: "phax",
+      commands: [
+        { name: "run" },
+        { name: "lint", group: plans },
+        { name: "show", group: { name: "ledger", parent: { name: "cost" } } },
+      ],
+    };
+    expect([...commandPaths(tree)].toSorted()).toEqual([
+      "phax cost",
+      "phax cost ledger",
+      "phax cost ledger show",
+      "phax plans",
+      "phax plans lint",
+      "phax run",
+    ]);
+  });
 });
 
 describe("readers", () => {

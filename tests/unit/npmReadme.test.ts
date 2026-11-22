@@ -57,7 +57,7 @@ describe("npm/package.json", () => {
   });
 
   it("describes phax with the README's first sentence", () => {
-    const first = readme.split("\n").find((line) => line.startsWith("phax runs"));
+    const first = readme.split("\n").find((line) => line.startsWith("phax is "));
     expect(first?.replaceAll("**", "")).toBe(manifest.description);
   });
 

@@ -7,6 +7,7 @@ import { generateSite, summaryLine, type SiteJson } from "../../../site/build/ge
 import { liveRun } from "../../../site/build/liveRun.js";
 import { parseMarkdown, plainText } from "../../../site/build/markdown.js";
 import { INTRO, definePageMap, type ReadmePage } from "../../../site/build/pageMap.js";
+import { AGENT_PITCH, PERSON_PITCH } from "../../../site/build/positioning.js";
 import { readSources } from "../../../site/build/sources.js";
 
 const README = [
@@ -362,7 +363,10 @@ describe("the committed site", () => {
       parseMarkdown(text)
         .children.filter((node): node is Paragraph => node.type === "paragraph")
         .map((node) => plainText(node).replace(/\s+/g, " ").trim())
-        .filter((paragraph) => paragraph.length >= 60),
+        .filter((paragraph) => paragraph.length >= 60)
+        // The positioning store owns the pitches; the sources carry them word
+        // for word and the positioning checks keep the two equal.
+        .filter((paragraph) => paragraph !== PERSON_PITCH && paragraph !== AGENT_PITCH),
     );
     expect(paragraphs.length).toBeGreaterThan(0);
     // The files git tracks under site/, so local renders and the ignored

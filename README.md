@@ -4,7 +4,7 @@
 [![Security](https://github.com/lbdremy/phax/actions/workflows/security.yml/badge.svg?branch=main)](https://github.com/lbdremy/phax/actions/workflows/security.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/lbdremy/phax/badge)](https://scorecard.dev/viewer/?uri=github.com/lbdremy/phax)
 
-phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of **gated phases**, and hands you a change you can review.
+phax is verified delegation for AI coding agents: hand work to Claude Code, OpenAI Codex or Mistral Vibe and get back facts, not claims. Every phase passed your checks, every file is accounted for, every finding has a fate, and the history stays in Git.
 
 **Documentation:** [docs.phax.run](https://docs.phax.run) · **npm:** [`@lbdremy/phax`](https://www.npmjs.com/package/@lbdremy/phax)
 

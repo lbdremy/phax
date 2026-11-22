@@ -3,6 +3,7 @@
 // reason. `pnpm site:build` fails naming any section or file this map misses
 // or names in vain.
 import { INTRO, definePageMap } from "./build/pageMap.js";
+import { HOME_FEATURES, PERSON_PITCH } from "./build/positioning.js";
 
 export default definePageMap({
   repository: "https://github.com/lbdremy/phax",
@@ -14,79 +15,14 @@ export default definePageMap({
       home: {
         name: "phax",
         text: "The golden path, just facts.",
-        tagline:
-          "phax runs your plan through AI coding agents one gated phase at a time, and hands you a change already checked against the plan.",
+        tagline: PERSON_PITCH,
         actions: [
           { text: "Get started", link: "/guide/install", theme: "brand" },
           { text: "How phax works", link: "/guide/concepts", theme: "alt" },
         ],
         install: "npm install -g @lbdremy/phax",
         video: { label: "Watch the 26-second tour", src: "/tour.mp4", poster: "/tour.jpg" },
-        features: [
-          {
-            key: "gates",
-            title: "Nothing moves on red",
-            details:
-              "Every phase must pass your project's gates (typecheck, tests, lint…) before the next one starts. A failure goes back to the same agent session to fix.",
-            link: "/guide/set-up",
-          },
-          {
-            key: "worktrees",
-            title: "One worktree per phase",
-            details:
-              "Each phase runs in its own Git worktree, on a branch made from the previous phase. The last one stays open for your review.",
-            link: "/guide/run",
-          },
-          {
-            key: "footprint",
-            title: "Planned vs. done",
-            details:
-              "Each phase declares the files it will create and edit. phax compares them with what it actually changed, and the agent justifies every gap in its handoff.",
-            link: "/guide/concepts",
-          },
-          {
-            key: "agents",
-            title: "Your agent",
-            details:
-              "Claude Code, OpenAI Codex or Mistral Vibe, with the model and effort chosen per phase.",
-            link: "/guide/providers-and-security",
-          },
-          {
-            key: "compliance",
-            title: "Checked against the plan",
-            details:
-              "When the run reaches review, an agent checks the work against the plan, phase by phase, and writes a verdict. It changes nothing.",
-            link: "/guide/review-and-land",
-          },
-          {
-            key: "pull request",
-            title: "A PR that explains itself",
-            details:
-              "<code>phax publish-pr</code> opens the pull request with the compliance verdict, one line per phase and what still needs your review.",
-            link: "/guide/review-and-land",
-          },
-          {
-            key: "records",
-            title: "History that outlives the worktrees",
-            details:
-              "With records on, every phase leaves a commit on <code>phax/records/v1</code>: manifest, gate results, reconciliation, diff, handoff and, if you keep it, the transcript.",
-            link: "/guide/records",
-          },
-          {
-            key: "deterministic",
-            title: "Only the agent guesses",
-            details:
-              "Sequencing, gates, retries and state are plain code. The agent is the only non-deterministic part.",
-            link: "/guide/concepts",
-          },
-          {
-            key: "lifecycle",
-            title: "Specs and plans with a status",
-            details:
-              "Draft, Approved, Stale, Completed. Every transition is committed, and an approval records what it was made against.",
-            link: "/guide/specs-and-plans",
-          },
-        ],
+        features: HOME_FEATURES,
       },
     },
     {
@@ -311,14 +247,14 @@ export default definePageMap({
       title: "OpenSpec vs. phax",
       source: "docs/comparisons/openspec-vs-phax.md",
       description:
-        "OpenSpec vs. phax, side by side: OpenSpec structures the spec conversation; phax runs the approved plan through coding agents in gated phases.",
+        "OpenSpec vs. phax, side by side: a spec layer that stops where phax starts, against verified delegation of the approved plan in gated phases.",
     },
     {
       route: "/compare/spec-kit-vs-phax",
       title: "Spec Kit vs. phax",
       source: "docs/comparisons/spec-kit-vs-phax.md",
       description:
-        "Spec Kit vs. phax, side by side: a methodology and prompt layer that runs your agent step by step, against a harness of gated, reviewable phases.",
+        "Spec Kit vs. phax, side by side: a methodology and prompt layer that runs your agent step by step, against verified delegation in gated, reviewable phases.",
     },
     {
       route: "/compare/agentic-practices",
