@@ -81,15 +81,19 @@
     },
     {
       "term": "agent pitch",
-      "definition": "The pitch for a coding agent that delegates to other coding agents: delegate a change and get results it can verify, each backed by a command it can call."
+      "definition": "The pitch for a coding agent that delegates to other coding agents. It is one sentence, short enough to be the first line of phax --help, and reads exactly: \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\""
+    },
+    {
+      "term": "agent detail",
+      "definition": "The claims that back the agent pitch's \"results you can verify\": an isolated Git worktree per phase, gate commands that must exit 0, touched files reconciled with the plan, run state that outlives the agent's context, and every command answering JSON with a schema. It sits right under the pitch on the agent page and in the body of the phax-cli skill's \"What phax is\" section, never in phax --help or llms.txt."
     },
     {
       "term": "place",
-      "definition": "A spot where phax states what it is, assigned to one reader. Person places: the home page's tagline, the README's opening paragraph, the description in package.json and in npm/package.json, and the site's description. Agent places: the first line of phax --help, the opening of the phax-cli skill's \"What phax is\" section, the llms.txt introduction, and the agent page. The comparison pages' \"The one-line difference\" paragraphs and their page descriptions are places too, but they carry the name, not a pitch."
+      "definition": "A spot where phax states what it is, assigned to one reader. Person places: the home page's tagline, the README's opening paragraph, the description in package.json and in npm/package.json, and the site's description. Agent places: the first line of phax --help and the usage spec's about line, the opening of the phax-cli skill's \"What phax is\" section, the llms.txt introduction, and the opening of the agent page. The comparison pages' \"The one-line difference\" paragraphs and their page descriptions are places too, but they carry the name, not a pitch."
     },
     {
       "term": "claim",
-      "definition": "One fact a pitch or a home feature asserts, such as \"every finding has a fate\"."
+      "definition": "One fact a pitch, the agent detail or a home feature asserts, such as \"every finding has a fate\"."
     },
     {
       "term": "proof",
@@ -121,7 +125,13 @@
       "id": "r-agent-pitch",
       "title": "The agent pitch in the agent places",
       "pattern": "ubiquitous",
-      "statement": "The system shall carry the agent pitch, word for word, as the first line of `phax --help` and the usage spec's about line, as the opening of the phax-cli skill's \"What phax is\" section, and as the introduction of llms.txt."
+      "statement": "The system shall carry the one-sentence agent pitch, word for word, as the first line of `phax --help` and the usage spec's about line, as the opening of the phax-cli skill's \"What phax is\" section, as the introduction of llms.txt, and as the opening of the \"Delegating from an agent\" page."
+    },
+    {
+      "id": "r-agent-detail",
+      "title": "The agent detail under the pitch",
+      "pattern": "ubiquitous",
+      "statement": "The system shall show the agent detail right under the agent pitch on the \"Delegating from an agent\" page and in the body of the phax-cli skill's \"What phax is\" section."
     },
     {
       "id": "r-skill-trigger",
@@ -151,7 +161,7 @@
       "id": "r-proof",
       "title": "Every claim names its proof",
       "pattern": "ubiquitous",
-      "statement": "Every claim in a pitch and in a home feature shall name its proof: a docs route or a phax command."
+      "statement": "Every claim in a pitch, in the agent detail and in a home feature shall name its proof: a docs route or a phax command."
     },
     {
       "id": "r-proof-check",
@@ -175,10 +185,10 @@
   "surface": [
     {
       "surface": "cli: phax --help",
-      "summary": "Running `phax --help` now opens by telling an agent why to delegate through phax and what it gets back.",
+      "summary": "Running `phax --help` now opens with one line telling an agent that phax is verified delegation and that it gets back results it can verify.",
       "binding": "indicative",
       "before": "Usage: phax [options] [command]\n\nDrive AI coding agents through isolated, gated phases\n\nOptions:\n  -V, --version   output the version number",
-      "after": "Usage: phax [options] [command]\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify. Each phase runs in an isolated Git worktree, its gate commands must exit 0 before the next phase starts, the files it touched are reconciled with the plan, run state outlives your context, and every command answers JSON with a schema.\n\nOptions:\n  -V, --version   output the version number"
+      "after": "Usage: phax [options] [command]\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\n\nOptions:\n  -V, --version   output the version number"
     },
     {
       "surface": "file: README.md",
@@ -203,24 +213,24 @@
     },
     {
       "surface": "file: docs.phax.run/llms.txt",
-      "summary": "An agent that reads llms.txt first now gets the agent pitch and a link to the page about delegating from an agent.",
+      "summary": "An agent that reads llms.txt first now gets the one-sentence agent pitch and a link to the page about delegating from an agent.",
       "binding": "indicative",
       "before": "# phax\n\n> phax runs a plan through AI coding agents — Claude Code, OpenAI Codex or Mistral Vibe — as a sequence of gated phases, and hands you a change you can review.\n\n- [Installation](/guide/install.md): Install the phax CLI with npm …",
-      "after": "# phax\n\n> phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify. Each phase runs in an isolated Git worktree, its gate commands must exit 0 before the next phase starts, the files it touched are reconciled with the plan, run state outlives your context, and every command answers JSON with a schema.\n\n- [Delegating from an agent](/guide/delegating.md): Delegate a change through phax from a coding agent: the commands to call, --json answers, --json-schema contracts, exit codes and phax --usage.\n- [Installation](/guide/install.md): Install the phax CLI with npm …"
+      "after": "# phax\n\n> phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\n\n- [Delegating from an agent](/guide/delegating.md): Delegate a change through phax from a coding agent: the commands to call, --json answers, --json-schema contracts, exit codes and phax --usage.\n- [Installation](/guide/install.md): Install the phax CLI with npm …"
     },
     {
       "surface": "file: docs.phax.run/guide/delegating",
-      "summary": "An agent, or the person who builds one, can read on one page how to delegate a change through phax and check what comes back.",
+      "summary": "An agent, or the person who builds one, can read on one page what results it can verify, how to delegate a change through phax and how to check what comes back.",
       "binding": "indicative",
       "before": null,
-      "after": "# Delegating from an agent\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify. …\n\n## Delegate a change\nphax artifact new spec <slug> --headless --brief - --json\nphax artifact new plan <slug> --headless --brief - --spec <spec> --last --json\nphax plans lint <plan> --json\nphax run --plan <plan> --json\nphax review-compliance <short-name> --json\nphax finding list <short-name> --json\n\n## Read the answers\n--json on every command · --json-schema for each command's contract · exit codes · phax --usage for the full command tree"
+      "after": "# Delegating from an agent\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\n\n- Each phase runs in an isolated Git worktree.\n- Its gate commands must exit 0 before the next phase starts.\n- The files it touched are reconciled with the plan.\n- Run state outlives your context: phax resume picks up where the run stopped.\n- Every command answers JSON with a schema.\n\n## Delegate a change\nphax artifact new spec <slug> --headless --brief - --json\nphax artifact new plan <slug> --headless --brief - --spec <spec> --last --json\nphax plans lint <plan> --json\nphax run --plan <plan> --json\nphax review-compliance <short-name> --json\nphax finding list <short-name> --json\n\n## Read the answers\n--json on every command · --json-schema for each command's contract · exit codes · phax --usage for the full command tree"
     },
     {
       "surface": "file: .claude/skills/phax-cli/SKILL.md",
-      "summary": "An agent choosing skills sees that phax-cli is how it delegates a change with verifiable results, and when to load it.",
+      "summary": "An agent choosing skills sees that phax-cli is how it delegates a change with verifiable results, when to load it, and what it can verify.",
       "binding": "indicative",
       "before": "description: Operate the phax CLI — its concepts, run lifecycle, and the canonical init → plan → run → review → publish flow. Use when driving phax, explaining it to a developer, or scripting against it. Defers to `phax --usage` for the exact command/flag contract.\n\n## What phax is\n\nA deterministic, local CLI that drives an AI coding agent (Claude Code by\ndefault; also Mistral Vibe and OpenAI Codex) through isolated, **gated phases**.",
-      "after": "description: Verified delegation through the phax CLI — delegate a change to another coding agent and get results you can verify; its concepts, run lifecycle and the init → plan → run → review → publish flow. Use when driving phax, explaining it to a developer, or scripting against it. Defers to `phax --usage` for the exact command/flag contract.\n\n## What phax is\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify. …"
+      "after": "description: Verified delegation through the phax CLI — delegate a change to another coding agent and get results you can verify; its concepts, run lifecycle and the init → plan → run → review → publish flow. Use when driving phax, explaining it to a developer, or scripting against it. Defers to `phax --usage` for the exact command/flag contract.\n\n## What phax is\n\nphax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\n\nEach phase runs in an isolated Git worktree, its gate commands must exit 0 before\nthe next phase starts, the files it touched are reconciled with the plan, run\nstate outlives your context, and every command answers JSON with a schema."
     },
     {
       "surface": "file: docs/comparisons/spec-kit-vs-phax.md",
@@ -234,7 +244,7 @@
       "summary": "Each claim phax makes about itself names the page or command that shows it, so a claim about an unshipped feature fails the check.",
       "binding": "indicative",
       "before": null,
-      "after": "person pitch\n  hand work to Claude Code, OpenAI Codex or Mistral Vibe  → /guide/providers-and-security\n  every phase passed your checks                         → /guide/run\n  every file is accounted for                            → /guide/concepts\n  every finding has a fate                               → /guide/findings\n  the history stays in Git                               → /guide/records\nagent pitch\n  an isolated Git worktree per phase                     → phax run\n  gate commands must exit 0                              → /guide/set-up\n  touched files reconciled with the plan                 → phax review-handoff\n  run state outlives your context                        → phax resume\n  every command answers JSON with a schema               → /reference/json-output\n\n✗ claim \"inbox of finished delegations\" names phax inbox, which the command tree does not have"
+      "after": "person pitch\n  hand work to Claude Code, OpenAI Codex or Mistral Vibe  → /guide/providers-and-security\n  every phase passed your checks                         → /guide/run\n  every file is accounted for                            → /guide/concepts\n  every finding has a fate                               → /guide/findings\n  the history stays in Git                               → /guide/records\nagent pitch\n  results you can verify                                 → /guide/delegating\nagent detail (agent page, phax-cli skill)\n  an isolated Git worktree per phase                     → phax run\n  gate commands must exit 0                              → /guide/set-up\n  touched files reconciled with the plan                 → phax review-handoff\n  run state outlives your context                        → phax resume\n  every command answers JSON with a schema               → /reference/json-output\n\n✗ claim \"inbox of finished delegations\" names phax inbox, which the command tree does not have"
     }
   ],
   "nonGoals": [
@@ -272,10 +282,20 @@
       "id": "ac-agent",
       "name": "The agent pitch is the same everywhere",
       "given": "phax built from the change and the built docs site",
-      "when": "`phax --help` runs and `phax --usage`, llms.txt and the phax-cli skill are read",
-      "then": "the line under `Usage:`, the usage spec's about line, the blockquote under llms.txt's title and the first paragraph of the phax-cli skill's \"What phax is\" section are the same agent pitch, word for word",
+      "when": "`phax --help` runs and `phax --usage`, llms.txt, the phax-cli skill and the \"Delegating from an agent\" page are read",
+      "then": "the line under `Usage:`, the usage spec's about line, the blockquote under llms.txt's title, the first paragraph of the phax-cli skill's \"What phax is\" section and the first paragraph of the agent page are each exactly \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\"",
       "refs": [
         "r-agent-pitch"
+      ]
+    },
+    {
+      "id": "ac-agent-detail",
+      "name": "The detail sits under the pitch, not in the help",
+      "given": "phax built from the change and the built docs site",
+      "when": "the agent page, the phax-cli skill's \"What phax is\" section and `phax --help` are read",
+      "then": "the agent page and the skill's section show, right after the pitch, the isolated Git worktree per phase, the gate commands that must exit 0, the touched files reconciled with the plan, run state that outlives the context and JSON answers with a schema; and the first line of `phax --help` is the one-sentence pitch with none of that detail",
+      "refs": [
+        "r-agent-detail"
       ]
     },
     {
@@ -323,7 +343,7 @@
       "name": "Every shipped claim has a proof",
       "given": "the repository as the change leaves it",
       "when": "`pnpm check:full` runs",
-      "then": "it passes, and every claim of both pitches and of the four home features names a docs route the site builds or a command the phax command tree has",
+      "then": "it passes, and every claim of both pitches, of the agent detail and of the four home features names a docs route the site builds or a command the phax command tree has",
       "refs": [
         "r-proof",
         "r-proof-check"
@@ -332,7 +352,7 @@
     {
       "id": "ac-unshipped-claim",
       "name": "A claim about an unshipped feature fails",
-      "given": "a claim added to the agent pitch whose proof is the command `phax inbox`, or a claim whose proof is the route /guide/inbox",
+      "given": "a claim added to the agent detail whose proof is the command `phax inbox`, or a claim whose proof is the route /guide/inbox",
       "when": "`pnpm check:full` runs",
       "then": "it fails and names the claim and the missing command or route",
       "refs": [
@@ -444,20 +464,21 @@
   "planningNote": {
     "settled": [
       "The name is verified delegation. Harness, orchestrator, orchestration engine, control plane and software factory are rejected as names for phax in any place.",
-      "There are two pitches under the one name. The person pitch and the agent pitch start from the operator's drafts in the brief.",
+      "There are two pitches under the one name. The person pitch starts from the operator's draft in the brief. The agent pitch is exactly one sentence, fixed by the operator on 2026-11-22: \"phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.\"",
+      "The agent detail (worktree, gates, reconciliation, state that outlives the context, JSON with a schema) sits under the pitch on the agent page and in the phax-cli skill's \"What phax is\" section, not in phax --help or llms.txt, so the help stays short as docs/briefs/agent-cli-ergonomics.md asks.",
       "The tagline \"The golden path, just facts.\", the logo, the open-graph image and its alt text are kept.",
       "The places and their readers are those listed in the terminology.",
       "The home page has four features, author, run, review and keep, linking to /guide/specs-and-plans, /guide/run, /guide/review-and-land and /guide/records.",
       "Of the installed skills, only phax-cli changes."
     ],
     "open": [
-      "The final wording of each pitch. §6 shows the drafts. The operator may polish them, and the drift check keeps every place in step with whatever wording is chosen.",
-      "Where the two pitches and their claims are stored once, and whether each place reads from that store or is compared with it.",
+      "The final wording of the person pitch and of the agent detail. §6 shows the drafts. The operator may polish them, and the drift check keeps every place in step with whatever wording is chosen.",
+      "Where the two pitches, the agent detail and their claims are stored once, and whether each place reads from that store or is compared with it.",
       "The route and the source file of the agent page, if q-agent-page chooses page.",
       "How the llms.txt introduction is replaced, if q-llms-intro chooses split."
     ],
     "constraints": [
-      "Claim only what ships. A pitch names nothing a brief still holds, and each feature that lands extends the pitch in its own pull request.",
+      "Claim only what ships. A pitch or the agent detail names nothing a brief still holds, and each feature that lands extends the agent detail in its own pull request.",
       "Use words a person and an agent read the same way, with no metaphor an agent has to decode. The tagline is the one exception, kept by the operator's decision.",
       "The checks run inside `pnpm check:full`.",
       "Changing the program's summary also changes the usage spec (`pnpm gen:usage-spec`), docs/cli/reference.md, the root-help fixture and the test that pins the summary. Regenerate them; don't hand-edit them.",
