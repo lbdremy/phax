@@ -138,7 +138,8 @@ attempt, a relaunch, and once a release.
       2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
       deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
       it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions.
-- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`, spec to author.
+- [ ] **`plan-parser-nesting-time`** — `docs/briefs/plan-parser-nesting-time.md`; spec approved
+      2026-11-22 (a guard refuses a plan nested over 32 levels before parsing), plan in authoring.
       Reading a plan in time linear in its size (see *Small follow-ups*: the deep pass is red
       daily on it).
 
@@ -341,8 +342,7 @@ the plan wrong) with a bounded, linted and recorded amendment instead of failing
 Added 2026-11-22 from a conversation with the operator about the home page's pitch. `roadmap-items` moved to
 section 17 the same day.
 
-- [ ] **`positioning`** — `docs/briefs/positioning.md`; spec and plan approved, the run is at review
-      (#257, 2026-11-22). phax is named "verified delegation" and
+- [x] **`positioning`** — shipped 2026-11-22 (#257). phax is named "verified delegation" and
       says it to its two readers where each reads: the home page and the README for a person; `phax --help`, the
       skills' descriptions and `llms.txt` for an agent. The pitch claims only what ships.
 
