@@ -1,12 +1,11 @@
 import { Result, Schema } from "effect";
-import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
 import { PlanValidationError } from "../errors.js";
 import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
-import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { nodeText as toString } from "./nodeText.js";
 import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
 import { describeUnplannable, readPlanPath } from "./planPath.js";
+import { readPlanTree } from "./planTree.js";
 import {
   departureMessage,
   readTestStrategyText,
@@ -316,11 +315,13 @@ export interface PhaseTestStrategy extends TestStrategyReading {
  * One reading per root-level `## phase-NN` heading, in document order, the
  * frontmatter skipped, recognised as `readPhaseHeaders` recognises them. Reads
  * plan.md alone: a phase with no `### Test strategy` section has no line and
- * no departure.
+ * no departure. None for a plan nested over the limit `readPlanTree` refuses.
  */
 export function readPlanTestStrategies(planMd: string): readonly PhaseTestStrategy[] {
-  const body = splitFrontmatter(planMd)?.body ?? planMd;
-  return collectPhaseBlocks(fromMarkdown(body)).map((pb) => ({
+  const tree = readPlanTree(planMd);
+  if (Result.isFailure(tree)) return [];
+  const { body, root } = tree.success;
+  return collectPhaseBlocks(root).map((pb) => ({
     phase: toString(pb.heading).trim().match(PHASE_HEADING_RE)![1]!.toLowerCase(),
     ...readBlockTestStrategy(body, pb.body),
   }));
@@ -423,11 +424,19 @@ interface PlanWalkResult {
 // skipped; every other phase runs all of its checks regardless of earlier
 // failures. `candidate` is only populated when the walk found no errors —
 // it is the shape `extractPlanDeterministic` decodes through the schema.
+// A plan nested over the limit `readPlanTree` refuses is not walked: its one
+// error is the refusal.
 function walkPlan(planMd: string): PlanWalkResult {
+  const tree = readPlanTree(planMd);
+  if (Result.isFailure(tree)) {
+    return {
+      errors: [{ phase: null, message: tree.failure.message }],
+      candidate: null,
+      strategies: [],
+    };
+  }
   const errors: RawStructureError[] = [];
-  const split = splitFrontmatter(planMd);
-  const body = split ? split.body : planMd;
-  const root = fromMarkdown(body);
+  const { body, root } = tree.success;
 
   const h1 = findFirstH1(root);
   let runTitle = "";

@@ -10,14 +10,13 @@
  * blockquote markers), case-insensitively. Its value is the rest of the line, trimmed.
  * Inline code and code blocks are prose and never declare anything.
  */
-import { fromMarkdown } from "mdast-util-from-markdown";
 import type { Heading, Paragraph, Parent, RootContent } from "mdast";
 import { Result } from "effect";
 import type { PhaseAcceptance, PhaseMode } from "../../schemas/phaxPlan.js";
 import type { ExtractionPlan } from "../../schemas/planExtraction.js";
-import { splitFrontmatter } from "../artifact/frontmatter.js";
 import { PlanValidationError } from "../errors.js";
 import { nodeText as toString } from "./nodeText.js";
+import { readPlanTree } from "./planTree.js";
 
 /** The declaration labels a phase may carry only in its header paragraph. */
 type DeclarationLabel = "Mode" | "Acceptance phase" | "Acceptance test files";
@@ -237,11 +236,13 @@ export function readPhaseBlock(
  * the frontmatter skipped. Same heading recognition as the deterministic
  * parser: a non-phase `##` heading closes the open phase; the header paragraph
  * is the first root-level paragraph of the phase block that carries
- * `Recommended model:`.
+ * `Recommended model:`. None for a plan nested over the limit `readPlanTree`
+ * refuses.
  */
 export function readPhaseHeaders(planMd: string): readonly PhaseHeader[] {
-  const body = splitFrontmatter(planMd)?.body ?? planMd;
-  const root = fromMarkdown(body);
+  const tree = readPlanTree(planMd);
+  if (Result.isFailure(tree)) return [];
+  const { body, root } = tree.success;
   const headers: PhaseHeader[] = [];
   let current: { phase: string; nodes: RootContent[] } | null = null;
   const close = (): void => {
