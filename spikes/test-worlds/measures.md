@@ -87,7 +87,7 @@ is saturated on 14 cores and the files over 30 s other than `recordsStatusBranch
 `recordsBranchSync.acceptance` do not build branch-tip worlds. The spec's goal, a suite that takes a
 fraction of its time, is not met: those files spend their time in the run each test drives, not in
 building a world, which no fixture of this change touches. Making them cheaper is a brief of its
-own: `docs/briefs/tests-that-drive-a-run.md`. What moved is the target:
+own: `docs/briefs/archive/tests-that-drive-a-run.md`. What moved is the target:
 `recordsStatusBranch` went from 92.6 s to 34 to 37 s and
 `recordsBranchSync.acceptance` from 66.2 s to 51.5 s in run 1.
 
