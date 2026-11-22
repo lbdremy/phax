@@ -6,7 +6,7 @@ bin phax
 version "0.42.0"
 license "Apache-2.0"
 min_usage_version "1.0.0"
-about "Drive AI coding agents through isolated, gated phases"
+about "phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify."
 after_long_help "Exit codes:\n  64  refused: an unknown command, an undeclared argument or option, an input that does not decode\n  70  defect: what no command declared, a bug"
 flag --usage global=#true help="Print the phax.usage.kdl CLI spec and exit"
 flag "--usage-format <format>" global=#true help="Format for --usage output: kdl (default, no external dependency) or json (requires the usage CLI)" default="kdl"

@@ -78,7 +78,10 @@ function phaseGuard(call: GuardedCall): GuardRefusal | undefined {
 export const phaxProgram = defineProgram({
   name: "phax",
   version: PHAX_RELEASE,
-  summary: "Drive AI coding agents through isolated, gated phases",
+  // Literal, not imported from site/: the binary must never import `site/`. The
+  // repository test compares this against AGENT_PITCH in site/build/positioning.ts.
+  summary:
+    "phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.",
   license: PHAX_LICENSE,
   versionAlias: "V",
   helpCommand: true,

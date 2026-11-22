@@ -2,7 +2,7 @@
 # `phax`
 - **version**: 0.42.0
 
-Drive AI coding agents through isolated, gated phases
+phax is verified delegation for AI coding agents: delegate a change to another coding agent and get results you can verify.
 
 
 - **Usage**: `phax [FLAGS] <SUBCOMMAND>`

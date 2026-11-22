@@ -135,6 +135,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
 const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   // The program's version follows package.json from release to release.
   ["", 'version "'],
+  // positioning: the root `about` is now the agent pitch from the positioning store.
+  ["", 'about "'],
   ["", "after_long_help "],
   ["", "flag --json-schema "],
   ...MIGRATED_COMMANDS.map((path) => [path, "flag --json "] as const),
@@ -174,6 +176,8 @@ const REMOVED_COMMAND = "agent setup mistral-vibe";
  *  trace flags q-local-trace-flags drops. */
 const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ["", 'version "'],
+  // positioning: the root `about` is now the agent pitch from the positioning store.
+  ["", 'about "'],
   ...DROPPED_SECURITY_FLAGS,
   ...DROPPED_LOCAL_TRACE_FLAGS,
   ...REWORDED_JSON.map((path) => [path, "flag --json "] as const),
