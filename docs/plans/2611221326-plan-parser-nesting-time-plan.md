@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611221308-plan-parser-nesting-time.md
 completes-spec: true
+approved:
+  date: 2026-11-22
+  baseline: 3ff18b1
 ---
 # Plan parser nesting time
 

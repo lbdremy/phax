@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611221326-plan-parser-nesting-time-plan.md",
+  "planFingerprint": "5f7e37fd7293708693dae979158b39c109b5396625d35d94c2233ebaece71085",
+  "approvedAt": "2026-11-22T13:53:36.828Z",
+  "baseline": "3ff18b1c071454377e27f0999c64a662633806e3",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611221308-plan-parser-nesting-time.md",
+    "fingerprint": "7aa253cc9a806ebc6533e395541a2ccb7a42c58e8429960d93a8e41be3e9aa10"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
