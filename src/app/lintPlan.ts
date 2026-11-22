@@ -11,6 +11,7 @@ import { readSourceSpec } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
 import { readPlanDeterministic, readPlanTestStrategies } from "../domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
+import { planNestingRefusal } from "../domain/plan/planTree.js";
 import {
   advisoryFindings,
   auditorFailureFinding,
@@ -103,6 +104,23 @@ export function lintPlan(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const planMd = yield* fs.readText(planMdPath);
+
+    // A plan nested over the limit gets one structure error and no other
+    // check: every other check reads the parsed plan. A repo-tracked plan is
+    // still validated first, and its failure stays the effect's error.
+    const nesting = planNestingRefusal(planMd);
+    if (nesting !== null) {
+      if (classifyArtifactPath(repoRelPath) !== null) {
+        const validated = validateArtifact(repoRelPath, planMd);
+        if (Result.isFailure(validated)) return yield* Effect.fail(validated.failure);
+      }
+      return {
+        plan: reportPath,
+        findings: [
+          { severity: "error", check: "structure", phase: null, message: nesting.message },
+        ],
+      };
+    }
 
     // The numbering gap is reported even when the deterministic parse fails.
     const findings: LintFinding[] = [...structureFindings(planMd), ...sequenceGapFindings(planMd)];

@@ -136,24 +136,49 @@ function countLineEndings(text: string): number {
   return count;
 }
 
+interface NestingRefusal {
+  readonly line: number;
+  readonly message: string;
+}
+
+// The plan body (frontmatter skipped) and, when a body line nests over the
+// limit, the refusal naming that line's 1-based number in the plan file.
+function measurePlan(planMd: string): {
+  readonly body: string;
+  readonly refusal: NestingRefusal | null;
+} {
+  const body = splitFrontmatter(planMd)?.body ?? planMd;
+  const overIndex = firstLineOverLimit(body);
+  if (overIndex === -1) return { body, refusal: null };
+  const line = countLineEndings(planMd.slice(0, planMd.length - body.length)) + overIndex + 1;
+  return {
+    body,
+    refusal: {
+      line,
+      message: `line ${line}: blockquotes and lists nest over ${NESTING_LIMIT} levels deep`,
+    },
+  };
+}
+
+/**
+ * The refusal of a plan with a body line that nests blockquotes and lists over
+ * 32 levels deep, naming that line's 1-based number in the plan file
+ * (frontmatter lines counted); null within the limit. Measures only: never
+ * parses.
+ */
+export function planNestingRefusal(planMd: string): NestingRefusal | null {
+  return measurePlan(planMd).refusal;
+}
+
 /**
  * The plan body (frontmatter skipped) and its mdast tree; or, when a body line
- * nests blockquotes and lists over 32 levels deep, a refusal naming that
- * line's 1-based number in the plan file (frontmatter lines counted), with no
- * parse.
+ * nests blockquotes and lists over 32 levels deep, the `planNestingRefusal`
+ * refusal, with no parse.
  */
 export function readPlanTree(
   planMd: string,
-): Result.Result<
-  { readonly body: string; readonly root: Root },
-  { readonly line: number; readonly message: string }
-> {
-  const body = splitFrontmatter(planMd)?.body ?? planMd;
-  const overIndex = firstLineOverLimit(body);
-  if (overIndex === -1) return Result.succeed({ body, root: fromMarkdown(body) });
-  const line = countLineEndings(planMd.slice(0, planMd.length - body.length)) + overIndex + 1;
-  return Result.fail({
-    line,
-    message: `line ${line}: blockquotes and lists nest over ${NESTING_LIMIT} levels deep`,
-  });
+): Result.Result<{ readonly body: string; readonly root: Root }, NestingRefusal> {
+  const { body, refusal } = measurePlan(planMd);
+  if (refusal !== null) return Result.fail(refusal);
+  return Result.succeed({ body, root: fromMarkdown(body) });
 }

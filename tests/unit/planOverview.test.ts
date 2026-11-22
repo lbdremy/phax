@@ -1,4 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { Effect, Layer, Result } from "effect";
+import { planOverview, type PlanOverviewFailure } from "../../src/app/planOverview.js";
+import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import { resolvedConfig } from "../helpers/stoppedRunFixture.js";
 import {
   buildOverview,
   type ArchitectureOutcome,
@@ -366,5 +371,51 @@ describe("the JSON value", () => {
   it("carries a failed architecture with its message", () => {
     const built = overview({ architecture: { kind: "failed", message: "exit 1" } });
     expect(built.architecture).toEqual({ kind: "failed", message: "exit 1" });
+  });
+});
+
+describe("the overview of a plan nested over the limit", () => {
+  const PLAN_PATH = "/repo/plan.md";
+  // A configured architecture provider, so a spawn would show in the fake shell.
+  const config = {
+    ...resolvedConfig({ root: "/", repoRoot: "/repo", stateRoot: "/state", cleanup: () => {} }),
+    architecture: { command: "acme-guard architecture" },
+  };
+
+  async function failureFor(planMd: string): Promise<PlanOverviewFailure> {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(PLAN_PATH, planMd);
+    const fakeShell = makeFakeShell();
+    const result = await Effect.runPromise(
+      planOverview({
+        planMdPath: PLAN_PATH,
+        reportPath: "plan.md",
+        repoRelPath: "plan.md",
+        config,
+      }).pipe(Effect.result, Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+    );
+    expect(fakeShell.impl.calls).toHaveLength(0);
+    if (Result.isSuccess(result)) throw new Error("expected a failure");
+    return result.failure;
+  }
+
+  // A 2-space bullet list `depth` levels deep, one item per line.
+  const nestedList = (depth: number): string =>
+    Array.from({ length: depth }, (_, i) => `${"  ".repeat(i)}- item`).join("\n");
+
+  it("names the line, the limit and phax plans lint, and spawns nothing", async () => {
+    // The list starts on line 6; its 33rd item is on line 38.
+    const planMd = `---\nstatus: Draft\n---\n# Deep\n\n${nestedList(33)}\n`;
+    expect(await failureFor(planMd)).toEqual({
+      kind: "unparsable",
+      line: "plan.md: line 38: blockquotes and lists nest over 32 levels deep — run phax plans lint plan.md",
+    });
+  });
+
+  it("keeps the generic line for a plan within the limit that does not parse", async () => {
+    expect(await failureFor(`# Shallow\n\n${nestedList(32)}\n`)).toEqual({
+      kind: "unparsable",
+      line: "plan.md: the plan does not parse — run phax plans lint plan.md",
+    });
   });
 });
