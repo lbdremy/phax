@@ -1,6 +1,6 @@
 {
   "name": "@lbdremy/phax",
-  "version": "0.42.0",
+  "version": "0.43.0",
   "description": "phax is verified delegation for AI coding agents: hand work to Claude Code, OpenAI Codex or Mistral Vibe and get back facts, not claims. Every phase passed your checks, every file is accounted for, every finding has a fate, and the history stays in Git.",
   "keywords": [
     "agent-harness",
