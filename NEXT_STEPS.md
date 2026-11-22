@@ -133,7 +133,7 @@ attempt, a relaunch, and once a release.
       the test's own `spawnSync` hitting Node's 1 MiB `maxBuffer` on the root `--json-schema`; 20 full
       suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/bounded-test-spawns.md`,
       findings `spikes/bounded-test-spawns/findings.md`, runs `spikes/bounded-test-spawns/suite-runs.md`.
-      Open at review: the 10 CI runs.
+      The 10 CI runs on the pull request all pass; merged 2026-11-22 (#256).
 - [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
       2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
       deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
