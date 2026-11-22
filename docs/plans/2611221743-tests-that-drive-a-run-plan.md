@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611221732-tests-that-drive-a-run.md
 completes-spec: true
+approved:
+  date: 2026-11-22
+  baseline: 78e02cd
 ---
 # Tests that drive a run
 
