@@ -41,9 +41,9 @@ init one repository with one commit, about one second of `heldStopRun`'s 94 s.
   `config` 156, `add` 148, `reset` 147), `stopRecords` 2,492 (about 280 per test; `hash-object` 750, `rev-parse` 358,
   `show` 199).
 - Many of the `hash-object` processes are phax's own: `src/infra/git.ts` writes a record commit with one
-  `git hash-object -w --stdin` per file of the record. That cost is in every phase of every real run too, not only in
-  the tests; batching it is a change under `src/`, which settled point 3 below rules out of this spec. Whether to
-  lift that point for it, or brief it apart, is the operator's call.
+  `git hash-object -w --stdin` per file of the record. Measured on 2026-11-22: one git process costs about 4 ms; 20
+  files hashed one process each take about 90 ms, in one `--stdin-paths` process about 7 ms. That is about 3 s of
+  `stopRecords`' 80 s, and nothing a real run would notice. It stays out of this spec (settled point 3).
 
 ## What the spec must cover
 
