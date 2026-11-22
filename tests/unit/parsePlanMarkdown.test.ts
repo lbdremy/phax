@@ -1081,6 +1081,49 @@ const COUNTER_EXAMPLES: ReadonlyArray<readonly [string, string, number]> = [
   ["a nested list over 60 KiB", nestedListUnder64KiB(), 33],
 ];
 
+// The worst texts the guard lets through: lines nested exactly 32 levels deep, repeated to
+// just under 64 KiB. q-limit rests on their reading time, which the generator rarely draws.
+const repeatedUnder64KiB = (block: string): string => {
+  let text = block;
+  while (text.length + 1 + block.length < 64 * 1024) text += `\n${block}`;
+  return text;
+};
+
+const AT_LIMIT: ReadonlyArray<readonly [string, string]> = [
+  ["`> ` quotes holding a list item, 32 deep", repeatedUnder64KiB(`${"> ".repeat(31)}- item`)],
+  [
+    "a 2-space list 32 deep",
+    repeatedUnder64KiB(Array.from({ length: 32 }, (_, i) => `${"  ".repeat(i)}- item`).join("\n")),
+  ],
+];
+
+describe("the deepest texts the limit accepts", () => {
+  for (const [name, text] of AT_LIMIT) {
+    it(`${name} is over 60 KiB, refused by no reader, and read by each within ${TIME_BOUND_MS} ms of CPU`, () => {
+      expect(text.length).toBeGreaterThan(60 * 1024);
+      expect(text.length).toBeLessThan(64 * 1024);
+      const readers: ReadonlyArray<readonly [string, () => unknown]> = [
+        ["collectPlanStructureErrors", () => collectPlanStructureErrors(text)],
+        ["readPlanDeterministic", () => readPlanDeterministic(text)],
+        ["extractPlanDeterministic", () => extractPlanDeterministic(text)],
+        ["readPlanUnplannablePaths", () => readPlanUnplannablePaths(text)],
+        ["readPlanTestStrategies", () => readPlanTestStrategies(text)],
+        ["readPhaseHeaders", () => readPhaseHeaders(text)],
+        ["locatePlanSections", () => locatePlanSections(text, PROBE)],
+        ["phaseHeadingIds", () => phaseHeadingIds(text)],
+        ["phaseHeadingSources", () => phaseHeadingSources(text)],
+      ];
+      expect(JSON.stringify(collectPlanStructureErrors(text))).not.toContain("nest over 32");
+      for (const [reader, call] of readers) {
+        // Timed again, fastest of three, only when one timing is over: as the property does.
+        const once = cpuMs(call);
+        const timing = once <= TIME_BOUND_MS ? once : fastestOfThree(call);
+        expect(timing, reader).toBeLessThanOrEqual(TIME_BOUND_MS);
+      }
+    });
+  }
+});
+
 describe("the deep-pass counter-examples", () => {
   it("the nested list is over 60 KiB and under 64 KiB", () => {
     const length = COUNTER_EXAMPLES[1]![1].length;

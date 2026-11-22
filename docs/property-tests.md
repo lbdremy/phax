@@ -203,13 +203,16 @@ At a third of 100 runs it still did, about one main CI run in three (2026-11-18 
 
 The `nested-inline` fragment stops at 400 levels of emphasis. The Markdown parser resolves emphasis in time that grows with the square of the delimiters in one paragraph or heading, so deeper nesting near 64 KiB outgrows the bound inside the parser itself: one heading 4,000 levels deep (24 KB) already takes it about 1.6 s. The bound is therefore not held against deeper emphasis, a known gap left for its own spec.
 
-The nesting limit keeps that time bounded where the parser alone does not. Every plan reader parses through `readPlanTree` (`src/domain/plan/planTree.ts`). Before parsing, it refuses any plan with a line whose blockquotes and list items nest more than 32 levels deep. The limit is a constant, not configurable. `phax plans lint` reports the refusal as one structure error, with the line counted in the plan file, frontmatter included:
+The nesting limit bounds the time blockquotes and lists cost, which the parser alone does not. Every plan reader parses through `readPlanTree` (`src/domain/plan/planTree.ts`). Before parsing, it refuses any plan with a line whose blockquotes and list items nest more than 32 levels deep. The limit is a constant, not configurable. `phax plans lint` reports the refusal as one structure error, with the line counted in the plan file, frontmatter included:
 
 ```text
-line 41: blockquotes and lists nest over 32 levels deep
+$ phax plans lint deep-plan.md
+deep-plan.md: 1 error, 0 warnings
+error    structure    -         line 1: blockquotes and lists nest over 32 levels deep
+$? = 1
 ```
 
-`phax run`, `phax plans overview` and `phax plans estimate` name the same line and point to `phax plans lint`. The measure is one linear pass over the prefix of each line. It is exact for 2-column list nesting and `> ` quotes, and it never reads less than the parser's depth. It may read more: `>` lines inside fenced code and 4-space indented outlines count extra, and an outline indented that way reaches the limit near 16 real levels. The limit is 32 because the committed plans nest about 6 levels at most. The corpus test `tests/unit/planNestingCorpus.test.ts` reports the deepest one and fails if a committed plan would be refused.
+`phax run`, `phax plans overview` and `phax plans estimate` name the same line and point to `phax plans lint`. The measure is one linear pass over the prefix of each line. It is exact for one container per line (2-space indented lists, `> ` quotes), and it never reads less than the parser's depth. It may read more: `>` lines inside fenced code, 4-space indented outlines, which reach the limit near 16 real levels, and lists nested on one line (`- - - x`), where the space after each bullet counts too. The limit is 32 because the committed plans nest about 6 levels at most. The corpus test `tests/unit/planNestingCorpus.test.ts` reports the deepest one and fails if a committed plan would be refused.
 
 Security run 44320960144 (seed 1253054900) failed the property on 2026-11-18, on 61,440 `>` characters. That counter-example, and a nested list over 60 KiB, are now hand-written cases in `tests/unit/parsePlanMarkdown.test.ts`, timed in CPU on every pull request. To replay the seeded deep pass, run:
 
