@@ -305,6 +305,10 @@ A batch from *Small follow-ups*, the security items that sleep there:
       Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
 - [ ] **`node-runtime`** — `docs/briefs/node-runtime.md` (2026-11-12): the binary stays on Deno for
       now; not urgent (operator, 2026-11-19).
+- [ ] **`roadmap-items`** — `docs/briefs/roadmap-items.md`, spec to author. A brief becomes an artifact with a
+      status and a rank; the ordered briefs are the roadmap, listed by phax and shown on the site. People and agents
+      vote with evidence (a run, a phase, what blocked it) on the records branch; the operator ranks. This file's
+      queue moves into it. Placed here by the operator on 2026-11-22: not a priority.
 - [ ] The other small follow-ups below, in batches.
 
 ### 18. Delegation from an agent (to place in the queue)
@@ -334,16 +338,13 @@ the plan wrong) with a bounded, linted and recorded amendment instead of failing
 
 ### 19. Positioning and the roadmap (to place in the queue)
 
-Added 2026-11-22 from a conversation with the operator about the home page's pitch. Not yet placed; the operator
-orders them.
+Added 2026-11-22 from a conversation with the operator about the home page's pitch. `roadmap-items` moved to
+section 17 the same day.
 
-- [ ] **`positioning`** — `docs/briefs/positioning.md`, spec to author. phax is named "verified delegation" and
+- [ ] **`positioning`** — `docs/briefs/positioning.md`; spec and plan approved, the run is at review
+      (#257, 2026-11-22). phax is named "verified delegation" and
       says it to its two readers where each reads: the home page and the README for a person; `phax --help`, the
       skills' descriptions and `llms.txt` for an agent. The pitch claims only what ships.
-- [ ] **`roadmap-items`** — `docs/briefs/roadmap-items.md`, spec to author. A brief becomes an artifact with a
-      status and a rank; the ordered briefs are the roadmap, listed by phax and shown on the site. People and agents
-      vote with evidence (a run, a phase, what blocked it) on the records branch; the operator ranks. This file's
-      queue moves into it.
 
 ## Model policy tracking
 
