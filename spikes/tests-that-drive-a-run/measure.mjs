@@ -122,12 +122,11 @@ const timedVitest = (args, env) => {
     : spawnSync(vitestBin(), args, { cwd: ROOT, env, stdio: ["ignore", "ignore", "pipe"] });
   const elapsed = (Date.now() - started) / 1000;
   const stderr = result.stderr?.toString("utf8") ?? "";
+  // The locale may print a decimal comma (`real 0,02`).
+  const hits = [...stderr.matchAll(/^(real|user|sys)\s+([0-9]+(?:[.,][0-9]+)?)\s*$/gm)];
   const last = (label) => {
-    // The locale may print a decimal comma (`real 0,02`).
-    const hits = [
-      ...stderr.matchAll(new RegExp(`^${label}\\s+([0-9]+(?:[.,][0-9]+)?)\\s*$`, "gm")),
-    ];
-    return hits.length === 0 ? undefined : hits.at(-1)[1].replace(",", ".");
+    const hit = hits.findLast((match) => match[1] === label);
+    return hit === undefined ? undefined : hit[2].replace(",", ".");
   };
   const real = last("real");
   const user = last("user");
@@ -350,12 +349,11 @@ const tmpRoots = (() => {
 })();
 const escapeRe = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const TMP_RE = new RegExp(`(?:${tmpRoots.map(escapeRe).join("|")})/[^/\\s"']+`, "g");
-const ROOT_RE = new RegExp(escapeRe(ROOT), "g");
 const OID_RE = /\b(?:[0-9a-f]{64}|[0-9a-f]{40})\b/g;
 
 /** Temporary roots to <tmp>, the repository to <repo>, 40- and 64-hex ids to <oid>. */
 const normalize = (word) =>
-  String(word).replace(TMP_RE, "<tmp>").replace(ROOT_RE, "<repo>").replace(OID_RE, "<oid>");
+  String(word).replace(TMP_RE, "<tmp>").replaceAll(ROOT, "<repo>").replace(OID_RE, "<oid>");
 
 const VALUE_OPTIONS = new Set([
   "-C",
