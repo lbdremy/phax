@@ -222,6 +222,52 @@ A batch from *Small follow-ups*, the security items that sleep there:
       (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
       and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
 
+### 10b. Security roadmap (from the 2026-11-23 audits)
+
+Two full audits of main at `e5c39afa` landed their reports on 2026-11-23:
+`docs/security/reports/2026-11-23-mistral-large-4-0-high-security-report.md`,
+`docs/security/reports/2026-11-23-opus-high-5.5-security-report.md`, and the cross-validation
+with the consolidated findings and the full roadmap:
+`docs/security/reports/2026-11-23-mistral-large-4-0-high-cross-validation.md`.
+Headline theme: single-turn confinement is well built; the weak points are agent-written files
+that phax or a provider later trusts (`.claude/**` settings and hooks, tracked git hooks, the
+worktree `.git` pointer, a `.phax-context` symlink, the review skill, `phax brief`'s config
+discovery), skeleton records that still publish transcripts, and a resume that re-reads the
+security mode from the current config.
+
+- [ ] **Phase 1 — stop trusting agent-written files** — to brief. Implicit protected set
+      (`.claude/**`, `CLAUDE.md`, `.codex/**`, `.vibe/**`, `.agents/**`, `.mcp.json`,
+      `**/phax*.json`, the hooks directory, the `.git` pointer); hardened worktree git
+      (explicit `GIT_DIR`/`GIT_WORK_TREE`, `core.fsmonitor=false`, `--no-verify` commits);
+      `lstat` `.phax-context` and refuse symlinks; review skill and brief config read from the
+      base commit or the main root (`PHAX_MAIN_ROOT`), never the phase worktree. (SEC-01,
+      SEC-03, SEC-06, SEC-07, SEC-08, SEC-09.)
+- [ ] **Phase 2 — run state tells the truth** — to brief. Persist the effective security mode
+      in `run-status.json` and rebuild it on resume (warn on drift, unsafe banner on resume
+      too); enforce or honestly mark Codex MCP (`-c mcp_servers={}` or `mcp-unenforced`);
+      record enforcement assumptions in `security.json`. (SEC-04, SEC-05, SEC-36.)
+- [ ] **Phase 3 — records privacy and publish hardening** — to brief, and consider an advisory
+      for the skeleton-record leak on public repos. Record allowlist with transcript-class
+      files (`fix-attempt-*.jsonl`, handoff streams, gate logs, `agent-error.log`); PR adoption
+      checks owner and head SHA; model text rendered as plain text in PR bodies and comments;
+      `phax report` previews and redacts. (SEC-02, SEC-10, SEC-11, SEC-21.)
+- [ ] **Phase 4 — supply chain and release pipeline** — to brief. The npm package embeds the
+      binary digests and the launcher re-verifies the cache on every run (`mkdtemp`, bounded
+      redirects, timeouts, immutable releases); release split into a read-only build job and a
+      minimal attest/publish job, protected environment for deploys, tag ruleset and ancestry
+      check. (SEC-13, SEC-14, SEC-26, SEC-27, SEC-28, SEC-29.)
+- [ ] **Phase 5 — trust gate for repo-supplied security config** — to brief. Per-repo
+      confirmation for project-layer `security` keys; project `allowWrite` scoped inside the
+      repo root; no project downgrade of `security.profile`; `mcp.allow` from operator-owned
+      paths only; gate and setup commands under the agent's confinement where possible.
+      (Report A H1; SEC-20.)
+- [ ] **Phase 6 — lock, hygiene, audit toolkit** — to brief. A lock is never stale while its
+      pid lives, owner token checked before unlink; the skill-edit hook fails closed on
+      `tool_input.file_path`; strip terminal escape sequences; fix the ReDoS and unbounded
+      buffering; `0600` state files; fix the security toolkit's fail-opens so CI can be trusted;
+      route the four direct `child_process` uses behind ports. (SEC-12, SEC-15 to SEC-19,
+      SEC-24, SEC-25; report A L1, L4, L5.)
+
 ### 11. The phase handoff is an answer
 
 - [ ] **`phase-handoff-answered`** — `docs/briefs/phase-handoff-answered.md` (2026-11-13), spec to
