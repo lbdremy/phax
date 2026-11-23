@@ -400,6 +400,59 @@ describe("writeRecord", () => {
     expect(readManifest("run-1/phase-01")["verifiedSurfaces"]).toEqual(["local", "product"]);
   });
 
+  it("carries both attempts' step records and gate-attribution.json byte for byte (ac-record-carries)", async () => {
+    // Two attempts' step records at the current stamp, written with fixed
+    // measured times as a fixed clock gives them; the phase's file is the last one's.
+    const stepRecord = (startedAt: string, result: "pass" | "fail", durationMs: number) =>
+      JSON.stringify(
+        {
+          $schema: currentSchemaUrl("gate-attribution"),
+          phase: "phase-01",
+          time: { kind: "measured", startedAt, durationMs: durationMs + 40 },
+          steps: [
+            {
+              command: "pnpm test",
+              surface: "local",
+              result,
+              time: { kind: "measured", startedAt, durationMs },
+            },
+          ],
+          protectedPaths: {
+            result: "pass",
+            changes: [],
+            time: { kind: "measured", startedAt, durationMs: 84 },
+          },
+        },
+        null,
+        2,
+      );
+    const first = stepRecord("2026-01-01T09:00:00.000Z", "fail", 191_000);
+    const second = stepRecord("2026-01-01T09:10:00.000Z", "pass", 2_400);
+    const files = {
+      "checks-attempt-01.log": "$ pnpm test\nexit 1\n",
+      "checks-attempt-01.attribution.json": first,
+      "checks-attempt-02.log": "$ pnpm test\nexit 0\n",
+      "checks-attempt-02.attribution.json": second,
+      "gate-attribution.json": second,
+    };
+    await seedPhaseFolder({ "prompt.md": "p\n", ...files });
+
+    const result = await run(writeRecord(baseInput()));
+
+    expect(result.kind).toBe("written");
+    for (const name of [
+      "checks-attempt-01.attribution.json",
+      "checks-attempt-02.attribution.json",
+      "gate-attribution.json",
+    ] as const) {
+      const blob = git(
+        ["cat-file", "blob", `${RECORDS_BRANCH_NAME}:run-1/phase-01/${name}`],
+        repoDir,
+      );
+      expect(blob).toBe(files[name]);
+    }
+  });
+
   it("writes the phase's oracle role into the manifest", async () => {
     await seedPhaseFolder({ "prompt.md": "p\n" });
 
