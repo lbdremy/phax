@@ -15,7 +15,7 @@ import {
   isDecisionRecordManifest,
   type DecisionRecordManifest,
 } from "../schemas/decisionRecord.js";
-import type { AcceptanceStepResult } from "../schemas/gateAttribution.js";
+import type { AcceptanceStepResult, GateAttribution } from "../schemas/gateAttribution.js";
 import { readGateAttributionFile, readRecordManifestFile } from "../schemas/persisted.js";
 import {
   isReviewRecordKind,
@@ -31,11 +31,25 @@ import { revisionRecordKey } from "./writeRevisionRecord.js";
 import { reviewRecordKey } from "./writeReviewRecord.js";
 import type { ResolvedRecordsConfig } from "../schemas/recordsConfig.js";
 import { parseReportName } from "../domain/gate/reportPath.js";
+import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
 
 /** The records branch as a local ref — same value in the source repo (in-repo
  * destination) or the local records clone (dedicated repo destination): both
  * receive the write directly, never only through a remote-tracking ref. */
 export const RECORDS_REF = `refs/heads/${RECORDS_BRANCH_NAME}`;
+
+/**
+ * One gate attempt of a phase record, read from its own
+ * `checks-attempt-NN.attribution.json`: `absent` when the record holds no such
+ * file, `unreadable` when it is not JSON or is refused.
+ */
+export type ExplainedGateAttempt =
+  | {
+      readonly attempt: number;
+      readonly stepRecord: "read";
+      readonly attribution: GateAttribution;
+    }
+  | { readonly attempt: number; readonly stepRecord: "absent" | "unreadable" };
 
 interface RecordDiffStat {
   readonly files: number;
@@ -60,6 +74,11 @@ export interface ExplainedRecord {
   readonly handoffPresent: boolean;
   /** The last step with surface `acceptance` in the record's own `gate-attribution.json`, or null. */
   readonly acceptanceStep: Pick<AcceptanceStepResult, "command" | "result"> | null;
+  /**
+   * Every attempt the record holds a log for, in attempt order, each read from
+   * its own step record — never from `gate-attribution.json`.
+   */
+  readonly gateAttempts: readonly ExplainedGateAttempt[];
   /** Artifact contents by file name (e.g. `"prompt.md"`), excluding `record.json`. */
   readonly artifacts: ReadonlyMap<string, Uint8Array>;
 }
@@ -148,6 +167,9 @@ export interface ExplainRecordInput {
   readonly recordsClonePath?: string | undefined;
 }
 
+/** A gate attempt's log in a phase record; its number is the attempt's. */
+const CHECKS_ATTEMPT_LOG = /^checks-attempt-(\d+)\.log$/;
+
 function decodeText(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
@@ -170,6 +192,31 @@ function lastAcceptanceStep(
     (s): s is AcceptanceStepResult => s.surface === "acceptance",
   );
   return step === undefined ? null : { command: step.command, result: step.result };
+}
+
+/** Each attempt the record holds a log for, in attempt order, with its own step record. */
+function gateAttemptsOf(artifacts: ReadonlyMap<string, Uint8Array>): ExplainedGateAttempt[] {
+  const logs = [...artifacts.keys()]
+    .flatMap((log) => {
+      const match = CHECKS_ATTEMPT_LOG.exec(log);
+      return match?.[1] === undefined ? [] : [{ log, attempt: Number(match[1]) }];
+    })
+    .toSorted((a, b) => a.attempt - b.attempt);
+  return logs.map(({ log, attempt }): ExplainedGateAttempt => {
+    const name = stepRecordPathFor(log);
+    const bytes = artifacts.get(name);
+    if (bytes === undefined) return { attempt, stepRecord: "absent" };
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(decodeText(bytes));
+    } catch {
+      return { attempt, stepRecord: "unreadable" };
+    }
+    const read = readGateAttributionFile(name, parsed);
+    return Result.isFailure(read)
+      ? { attempt, stepRecord: "unreadable" }
+      : { attempt, stepRecord: "read", attribution: read.success };
+  });
 }
 
 /**
@@ -590,7 +637,7 @@ function explainPhaseRecord(
     );
   }
   const checksAttemptCount = [...artifacts.keys()].filter((name) =>
-    /^checks-attempt-\d+\.log$/.test(name),
+    CHECKS_ATTEMPT_LOG.test(name),
   ).length;
   const promptBytes = artifacts.get("prompt.md");
   const diffBytes = artifacts.get("diff.patch");
@@ -609,6 +656,7 @@ function explainPhaseRecord(
     ...(diffBytes !== undefined ? { diffStat: parseDiffStat(decodeText(diffBytes)) } : {}),
     handoffPresent: artifacts.has("phase-handoff.md"),
     acceptanceStep: lastAcceptanceStep(artifacts),
+    gateAttempts: gateAttemptsOf(artifacts),
     artifacts,
   });
 }

@@ -35,6 +35,11 @@ import { computeRecordsPending } from "../../src/app/recordsStatus.js";
 import { writeReviewRecord } from "../../src/app/writeReviewRecord.js";
 import { encodeRunRecordManifest, type RunRecordManifest } from "../../src/schemas/runRecord.js";
 import { currentSchemaUrl, withSchemaUrl } from "../../src/schemas/persisted.js";
+import {
+  encodeGateAttributionFile,
+  type GateAttribution,
+} from "../../src/schemas/gateAttribution.js";
+import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -651,6 +656,243 @@ describe("records explain and list (real git)", () => {
         "--- checks-attempt-02.request.json ---",
         '{"attempt":2}',
       ]);
+    });
+
+    describe("gate attempt times", () => {
+      const at = (startedAt: string, durationMs: number) =>
+        ({ kind: "measured", startedAt, durationMs }) as const;
+      const timedRecord = (fields: Omit<GateAttribution, "phase">): string =>
+        JSON.stringify(
+          encodeGateAttributionFile(
+            withSchemaUrl("gate-attribution", { phase: "phase-01", ...fields }),
+          ),
+        );
+      const gatesBlock = (logs: readonly string[]): readonly string[] => {
+        const start = logs.findIndex((line) => line.startsWith("gates    "));
+        const end = logs.findIndex((line) => line.startsWith("source   "));
+        return logs.slice(start, end);
+      };
+
+      async function phaseRecord(runId: string, files: Record<string, string>) {
+        const sha = commitWithTrailers(repoDir, runId, "phase-01");
+        await writeFullRecordCommit(
+          repoDir,
+          {
+            runId,
+            phaseId: "phase-01",
+            shape: "skeleton",
+            sourceSha: sha,
+            model: "claude-sonnet-5",
+            effort: "high",
+            provider: "claude-code",
+            userConfig: "loaded",
+            outcome: "committed",
+            usage: { available: false },
+            verifiedSurfaces: ["local", "structural"],
+            acceptance: null,
+            mode: "headless",
+            stop: null,
+          },
+          files,
+        );
+        return sha;
+      }
+
+      // ac-explain
+      it("lists each attempt's duration, then its steps and protected paths, in text and --json", async () => {
+        const sha = await phaseRecord("run-times-1786800000020", {
+          "checks-attempt-01.log": "log one",
+          "checks-attempt-01.attribution.json": timedRecord({
+            time: at("2026-11-23T10:04:11.020Z", 192613),
+            steps: [
+              {
+                command: "pnpm typecheck",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:04:11.040Z", 700),
+              },
+              {
+                command: "pnpm test",
+                surface: "local",
+                result: "fail",
+                time: at("2026-11-23T10:04:11.760Z", 191344),
+              },
+            ],
+            protectedPaths: {
+              result: "fail",
+              changes: [{ path: "phax.json", kind: "edited", entry: "phax.json" }],
+              time: at("2026-11-23T10:07:23.600Z", 100),
+            },
+          }),
+          "checks-attempt-02.log": "log two",
+          "checks-attempt-02.attribution.json": timedRecord({
+            time: at("2026-11-23T10:12:00.000Z", 195000),
+            steps: [
+              {
+                command: "pnpm typecheck",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:12:00.010Z", 700),
+              },
+              {
+                command: "pnpm test",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:12:00.720Z", 190400),
+              },
+              {
+                command: "pnpm lint",
+                surface: "structural",
+                result: "pass",
+                time: at("2026-11-23T10:15:11.130Z", 2400),
+              },
+            ],
+            protectedPaths: null,
+          }),
+        });
+
+        const text = await records(["explain", sha]);
+        expect(text.code).toBe(0);
+        expect(gatesBlock(text.logs)).toEqual([
+          "gates    committed after 2 attempt(s)   surfaces  local, structural",
+          "  attempt 01   192.6 s",
+          "    pnpm typecheck     local        pass      0.7 s",
+          "    pnpm test          local        fail    191.3 s",
+          "    protected paths                 fail      0.1 s",
+          "  attempt 02   195.0 s",
+          "    pnpm typecheck     local        pass      0.7 s",
+          "    pnpm test          local        pass    190.4 s",
+          "    pnpm lint          structural   pass      2.4 s",
+        ]);
+
+        const json = await records(["explain", sha, "--json"]);
+        expect(json.code).toBe(0);
+        const value: unknown = JSON.parse(json.text);
+        expect(value).toHaveProperty("gateAttempts", [
+          {
+            attempt: 1,
+            stepRecord: "read",
+            time: at("2026-11-23T10:04:11.020Z", 192613),
+            steps: [
+              {
+                command: "pnpm typecheck",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:04:11.040Z", 700),
+              },
+              {
+                command: "pnpm test",
+                surface: "local",
+                result: "fail",
+                time: at("2026-11-23T10:04:11.760Z", 191344),
+              },
+            ],
+            protectedPaths: { result: "fail", time: at("2026-11-23T10:07:23.600Z", 100) },
+          },
+          {
+            attempt: 2,
+            stepRecord: "read",
+            time: at("2026-11-23T10:12:00.000Z", 195000),
+            steps: [
+              {
+                command: "pnpm typecheck",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:12:00.010Z", 700),
+              },
+              {
+                command: "pnpm test",
+                surface: "local",
+                result: "pass",
+                time: at("2026-11-23T10:12:00.720Z", 190400),
+              },
+              {
+                command: "pnpm lint",
+                surface: "structural",
+                result: "pass",
+                time: at("2026-11-23T10:15:11.130Z", 2400),
+              },
+            ],
+            protectedPaths: null,
+          },
+        ]);
+      });
+
+      // ac-explain-unknown
+      it("shows time unknown, not run and steps unknown, never a figure, and exits 0", async () => {
+        const untimed = (result: "pass" | "skipped") =>
+          JSON.stringify({
+            $schema: schemaUrl("gate-attribution", "0.33.0"),
+            phase: "phase-01",
+            steps: [
+              { command: "pnpm test", surface: "local", result: "pass" },
+              { command: "node tools/acceptance.mjs", surface: "acceptance", result },
+            ],
+            protectedPaths: { result: "pass", changes: [] },
+          });
+        const sha = await phaseRecord("run-untimed-1786800000021", {
+          "prompt.md": "p",
+          "checks-attempt-01.log": "log one",
+          "checks-attempt-01.attribution.json": untimed("skipped"),
+          "checks-attempt-02.log": "log two",
+          // attempt 02 has no step record; attempt 03's is not JSON.
+          "checks-attempt-03.log": "log three",
+          "checks-attempt-03.attribution.json": "{ not json",
+          // The phase's own attribution is never read in place of a missing step record.
+          "gate-attribution.json": untimed("pass"),
+        });
+
+        const text = await records(["explain", sha]);
+        expect(text.code).toBe(0);
+        expect(gatesBlock(text.logs)).toEqual([
+          "gates    committed after 3 attempt(s)   surfaces  local, structural",
+          "  attempt 01   time unknown",
+          "    pnpm test                    local        pass    time unknown",
+          "    node tools/acceptance.mjs    acceptance   skipped      not run",
+          "    protected paths                           pass    time unknown",
+          "  attempt 02   steps unknown",
+          "  attempt 03   steps unknown",
+        ]);
+        expect(text.logs).toContain(`source   ${sha} (reachable)`);
+        expect(text.logs).toContain("prompt   1 bytes   diff  absent   handoff  absent");
+
+        const json = await records(["explain", sha, "--json"]);
+        expect(json.code).toBe(0);
+        const value: unknown = JSON.parse(json.text);
+        expect(value).toHaveProperty("gateAttempts", [
+          {
+            attempt: 1,
+            stepRecord: "read",
+            time: { kind: "unknown" },
+            steps: [
+              { command: "pnpm test", surface: "local", result: "pass", time: { kind: "unknown" } },
+              {
+                command: "node tools/acceptance.mjs",
+                surface: "acceptance",
+                result: "skipped",
+                time: { kind: "not-run" },
+              },
+            ],
+            protectedPaths: { result: "pass", time: { kind: "unknown" } },
+          },
+          { attempt: 2, stepRecord: "absent" },
+          { attempt: 3, stepRecord: "unreadable" },
+        ]);
+      });
+
+      it("shows steps unknown for a step record that is not JSON, and exits 0", async () => {
+        const sha = await phaseRecord("run-notjson-1786800000022", {
+          "checks-attempt-01.log": "log one",
+          "checks-attempt-01.attribution.json": "not json at all",
+        });
+
+        const text = await records(["explain", sha]);
+        expect(text.code).toBe(0);
+        expect(gatesBlock(text.logs)).toEqual([
+          "gates    committed after 1 attempt(s)   surfaces  local, structural",
+          "  attempt 01   steps unknown",
+        ]);
+      });
     });
 
     it("names a phase's oracle role, its counterpart and its last oracle-step result", async () => {
