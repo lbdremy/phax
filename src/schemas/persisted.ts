@@ -155,6 +155,8 @@ import { decodeDecisionRecordManifestV0_28_0 } from "./history/decision-record-m
 import { decodeDecisionRecordManifestV0_30_0 } from "./history/decision-record-manifest/0.30.0.js";
 import { decodeGateAttributionV0_26_0 } from "./history/gate-attribution/0.26.0.js";
 import { decodeGateAttributionV0_31_0 } from "./history/gate-attribution/0.31.0.js";
+import { decodeGateAttributionV0_33_0 } from "./history/gate-attribution/0.33.0.js";
+import { liftUntimedGateAttribution } from "./gateTimeLift.js";
 import { decodeGateAttributionPreSchema } from "./history/gate-attribution/pre-schema.js";
 import { decodePhaseFileReconciliationV0_17_0 } from "./history/phase-file-reconciliation/0.17.0.js";
 import { decodePhaseFileReconciliationPreSchema } from "./history/phase-file-reconciliation/pre-schema.js";
@@ -1553,23 +1555,38 @@ function isPassOrFail<S extends { readonly result: string }>(
 }
 
 /**
- * Reads a phase's `gate-attribution.json`. It never carried a `version`: a
- * pre-schema attribution whose every step result is `pass` or `fail` is the
- * in-memory value, with `protectedPaths: null`; any other is refused. One
- * stamped 0.31.0 or later, below the current stamp, is read by the frozen
- * 0.31.0 decoder; one stamped earlier by the frozen 0.26.0 decoder, which
- * every earlier stamp's files also satisfy, and lifted with
- * `protectedPaths: null`. Every older shape's `oracle` step surface is lifted
- * to `acceptance`, and so is a pre-schema one's.
+ * Reads a phase's `gate-attribution.json` into the current, timed shape. It
+ * never carried a `version`. Every shape below the current stamp was untimed
+ * and is lifted by `liftUntimedGateAttribution`: every time `unknown`, a
+ * skipped acceptance step's `not-run`. In order:
+ * - stamped 0.33.0 or later, below the current stamp: the frozen 0.33.0 decoder;
+ * - stamped 0.31.0 or later, below 0.33.0: the frozen 0.31.0 decoder, its
+ *   `oracle` step surface lifted to `acceptance`;
+ * - stamped earlier: the frozen 0.26.0 decoder, which every earlier stamp's
+ *   files also satisfy, its surfaces lifted, with `protectedPaths: null`;
+ * - the current stamp: the current decoder, so a document missing a `time` is
+ *   refused with the decoder's first violation, which names it;
+ * - pre-schema: read when every step result is `pass` or `fail`, with
+ *   `protectedPaths: null`; any other is refused.
  */
 export const readGateAttributionFile: Reader<GateAttribution> = (file, input) => {
+  if (isDocumentObject(input) && isStampedAtOrAbove("gate-attribution", input, "0.33.0")) {
+    const older = decodeGateAttributionV0_33_0(input);
+    if (Result.isFailure(older)) {
+      return Result.fail(readError(file, "gate-attribution", formatFirstViolation(older.failure)));
+    }
+    const { $schema: _schema, ...attribution } = older.success;
+    return Result.succeed(liftUntimedGateAttribution(attribution));
+  }
   if (isDocumentObject(input) && isStampedAtOrAbove("gate-attribution", input, "0.31.0")) {
     const older = decodeGateAttributionV0_31_0(input);
     if (Result.isFailure(older)) {
       return Result.fail(readError(file, "gate-attribution", formatFirstViolation(older.failure)));
     }
     const { $schema: _schema, steps, ...attribution } = older.success;
-    return Result.succeed({ ...attribution, steps: steps.map(liftGateStep) });
+    return Result.succeed(
+      liftUntimedGateAttribution({ ...attribution, steps: steps.map(liftGateStep) }),
+    );
   }
   if (isDocumentObject(input) && isStampedBelowCurrent("gate-attribution", input)) {
     const older = decodeGateAttributionV0_26_0(input);
@@ -1577,7 +1594,13 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
       return Result.fail(readError(file, "gate-attribution", formatFirstViolation(older.failure)));
     }
     const { $schema: _schema, steps, ...attribution } = older.success;
-    return Result.succeed({ ...attribution, steps: steps.map(liftGateStep), protectedPaths: null });
+    return Result.succeed(
+      liftUntimedGateAttribution({
+        ...attribution,
+        steps: steps.map(liftGateStep),
+        protectedPaths: null,
+      }),
+    );
   }
   return readPersisted(input, {
     format: "gate-attribution",
@@ -1588,7 +1611,7 @@ export const readGateAttributionFile: Reader<GateAttribution> = (file, input) =>
     fromCurrent: ({ $schema: _schema, ...attribution }) => attribution,
     fromPreSchema: ({ phase, steps }) =>
       steps.every(isPassOrFail)
-        ? Result.succeed({ phase, steps, protectedPaths: null })
+        ? Result.succeed(liftUntimedGateAttribution({ phase, steps, protectedPaths: null }))
         : Result.fail({ fact: "a pass or fail result for every step" }),
   });
 };

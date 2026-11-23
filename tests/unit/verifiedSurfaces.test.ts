@@ -1,53 +1,60 @@
 import { describe, expect, it } from "vitest";
 import { runVerifiedSurfaces, verifiedSurfaces } from "../../src/domain/gate/verifiedSurfaces.js";
-import type { GateAttribution } from "../../src/schemas/gateAttribution.js";
+import type { GateAttribution, GateStepResult } from "../../src/schemas/gateAttribution.js";
+import type { RecordedSurface } from "../../src/schemas/surface.js";
 
-const withOracle = (result: "pass" | "fail" | "refused" | "skipped"): GateAttribution => ({
-  phase: "phase-02",
+type Surface = Exclude<RecordedSurface, "acceptance">;
+
+const UNKNOWN = { kind: "unknown" } as const;
+
+/** A configured step whose time is beside the point here. */
+const step = (
+  command: string,
+  surface: Surface,
+  result: "pass" | "fail" | "refused",
+): GateStepResult => ({ command, surface, result, time: UNKNOWN });
+
+/** A record of the given steps, the attempt's time unknown. */
+const record = (phase: string, steps: readonly GateStepResult[]): GateAttribution => ({
+  phase,
+  time: UNKNOWN,
+  steps,
   protectedPaths: null,
-  steps: [
-    { command: "pnpm test", surface: "structural", result: "pass" },
-    { command: "pnpm lint", surface: "local", result: "pass" },
-    { command: "oracles provider", surface: "acceptance", result },
-  ],
 });
+
+const withOracle = (result: "pass" | "fail" | "refused" | "skipped"): GateAttribution =>
+  record("phase-02", [
+    step("pnpm test", "structural", "pass"),
+    step("pnpm lint", "local", "pass"),
+    result === "skipped"
+      ? { command: "oracles provider", surface: "acceptance", result, time: { kind: "not-run" } }
+      : { command: "oracles provider", surface: "acceptance", result, time: UNKNOWN },
+  ]);
 
 describe("verifiedSurfaces", () => {
   it("marks a surface verified when every step of it passed", () => {
-    const record: GateAttribution = {
-      phase: "phase-01",
-      protectedPaths: null,
-      steps: [
-        { command: "pnpm format", surface: "local", result: "pass" },
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "pnpm build", surface: "product", result: "pass" },
-      ],
-    };
+    const attribution = record("phase-01", [
+      step("pnpm format", "local", "pass"),
+      step("pnpm test", "local", "pass"),
+      step("pnpm build", "product", "pass"),
+    ]);
 
-    expect(verifiedSurfaces(record)).toEqual(["local", "product"]);
+    expect(verifiedSurfaces(attribution)).toEqual(["local", "product"]);
   });
 
   it("excludes a surface with any failing step, even alongside passes", () => {
-    const record: GateAttribution = {
-      phase: "phase-01",
-      protectedPaths: null,
-      steps: [
-        { command: "pnpm format", surface: "local", result: "pass" },
-        { command: "pnpm test", surface: "local", result: "fail" },
-      ],
-    };
+    const attribution = record("phase-01", [
+      step("pnpm format", "local", "pass"),
+      step("pnpm test", "local", "fail"),
+    ]);
 
-    expect(verifiedSurfaces(record)).toEqual([]);
+    expect(verifiedSurfaces(attribution)).toEqual([]);
   });
 
   it("excludes a surface that never ran", () => {
-    const record: GateAttribution = {
-      phase: "phase-01",
-      protectedPaths: null,
-      steps: [{ command: "pnpm format", surface: "local", result: "pass" }],
-    };
+    const attribution = record("phase-01", [step("pnpm format", "local", "pass")]);
 
-    const result = verifiedSurfaces(record);
+    const result = verifiedSurfaces(attribution);
 
     expect(result).toContain("local");
     expect(result).not.toContain("structural");
@@ -55,22 +62,18 @@ describe("verifiedSurfaces", () => {
   });
 
   it("returns an empty array for a record with no steps", () => {
-    expect(verifiedSurfaces({ phase: "phase-01", steps: [], protectedPaths: null })).toEqual([]);
+    expect(verifiedSurfaces(record("phase-01", []))).toEqual([]);
   });
 
   it("sorts and dedupes the output", () => {
-    const record: GateAttribution = {
-      phase: "phase-01",
-      protectedPaths: null,
-      steps: [
-        { command: "pnpm build", surface: "product", result: "pass" },
-        { command: "pnpm audit:architecture", surface: "structural", result: "pass" },
-        { command: "pnpm format", surface: "local", result: "pass" },
-        { command: "pnpm test", surface: "local", result: "pass" },
-      ],
-    };
+    const attribution = record("phase-01", [
+      step("pnpm build", "product", "pass"),
+      step("pnpm audit:architecture", "structural", "pass"),
+      step("pnpm format", "local", "pass"),
+      step("pnpm test", "local", "pass"),
+    ]);
 
-    expect(verifiedSurfaces(record)).toEqual(["local", "product", "structural"]);
+    expect(verifiedSurfaces(attribution)).toEqual(["local", "product", "structural"]);
   });
 
   it("verifies the configured surfaces of a record whose oracle step was skipped, not oracle", () => {
@@ -87,16 +90,8 @@ describe("verifiedSurfaces", () => {
 describe("runVerifiedSurfaces", () => {
   it("is the sorted union of each record's verified surfaces", () => {
     const records: GateAttribution[] = [
-      {
-        phase: "phase-01",
-        protectedPaths: null,
-        steps: [{ command: "pnpm build", surface: "product", result: "pass" }],
-      },
-      {
-        phase: "phase-02",
-        protectedPaths: null,
-        steps: [{ command: "pnpm format", surface: "local", result: "pass" }],
-      },
+      record("phase-01", [step("pnpm build", "product", "pass")]),
+      record("phase-02", [step("pnpm format", "local", "pass")]),
       withOracle("pass"),
     ];
 

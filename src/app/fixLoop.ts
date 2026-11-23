@@ -51,6 +51,7 @@ import { sameCommand } from "../domain/gate/commandWords.js";
 import { readGateAttributionFile, readGateReport } from "../schemas/persisted.js";
 import { recordProtectedPaths } from "./gateAttribution.js";
 import { checkProtectedPaths } from "./protectedPathsCheck.js";
+import { timed } from "./gateTime.js";
 
 /**
  * What failed an attempt: a configured or acceptance step (with the protected
@@ -215,15 +216,20 @@ export function runGatesWithFixLoop(
   ): Effect.Effect<readonly ProtectedChange[], GitError | FsError, Git | FileSystem> {
     if (protectedPaths === null) return Effect.succeed([]);
     return Effect.gen(function* () {
-      const changes = yield* checkProtectedPaths({
-        worktree: cwd,
-        base: protectedPaths.base,
-        list: protectedPaths.list,
-      });
+      const [checked, time] = yield* timed(
+        checkProtectedPaths({
+          worktree: cwd,
+          base: protectedPaths.base,
+          list: protectedPaths.list,
+        }),
+      );
+      if (Result.isFailure(checked)) return yield* Effect.fail(checked.failure);
+      const changes = checked.success;
       yield* recordProtectedPaths({
         stepRecordPath: stepRecordPathFor(logPath(attempt)),
         attributionPath: join(phaseFolderPath, "gate-attribution.json"),
         changes,
+        time,
       });
       return changes;
     });

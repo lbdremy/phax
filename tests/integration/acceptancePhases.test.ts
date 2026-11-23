@@ -35,6 +35,14 @@ import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import type { PhaxPlan } from "../../src/schemas/phaxPlan.js";
 import { processOutput } from "../helpers/processOutput.js";
 
+/** A time phax measured: phase-02 pins it under a fixed clock. */
+const MEASURED_TIME = {
+  kind: "measured",
+  startedAt: expect.any(String),
+  durationMs: expect.any(Number),
+};
+const NOT_RUN_TIME = { kind: "not-run" };
+
 // Full runs of acme-billing's made-up refunds plans on a fake backend and fake
 // git, over a real run folder. The oracles provider is a scripted fake: it
 // records every request it reads, and answers as each test chooses.
@@ -434,9 +442,9 @@ describe("acceptance phases in a run", () => {
 
     // Recorded last, under the oracle surface.
     expect((await h.readJson("phase-02", "gate-attribution.json"))["steps"]).toEqual([
-      { command: "pnpm test", surface: "local", result: "pass" },
-      { command: "pnpm lint", surface: "structural", result: "pass" },
-      { command: ORACLES, surface: "acceptance", result: "pass" },
+      { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+      { command: "pnpm lint", surface: "structural", result: "pass", time: MEASURED_TIME },
+      { command: ORACLES, surface: "acceptance", result: "pass", time: MEASURED_TIME },
     ]);
 
     // Marker removal in the oracle files is never an unplanned edit.
@@ -500,6 +508,7 @@ describe("acceptance phases in a run", () => {
       command: ORACLES,
       surface: "acceptance",
       result: "pass",
+      time: MEASURED_TIME,
     });
   });
 
@@ -657,7 +666,12 @@ describe("acceptance phases in a run", () => {
       expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
       const attribution = await h.readJson("phase-03", "gate-attribution.json");
       const steps = attribution["steps"] as GateAttribution["steps"];
-      expect(steps.at(-1)).toEqual({ command: ORACLES, surface: "acceptance", result: "skipped" });
+      expect(steps.at(-1)).toEqual({
+        command: ORACLES,
+        surface: "acceptance",
+        result: "skipped",
+        time: NOT_RUN_TIME,
+      });
       expect(verifiedSurfaces({ phase: "phase-03", steps } as GateAttribution)).toEqual([
         "local",
         "structural",
@@ -680,9 +694,9 @@ describe("acceptance phases in a run", () => {
       expect(await h.readJson("phase-03", "status.json")).toMatchObject({ state: "review_open" });
       const steps = (await h.readJson("phase-03", "gate-attribution.json"))["steps"];
       expect(steps).toEqual([
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "pnpm lint", surface: "structural", result: "pass" },
-        { command: ORACLES, surface: "acceptance", result: "skipped" },
+        { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+        { command: "pnpm lint", surface: "structural", result: "pass", time: MEASURED_TIME },
+        { command: ORACLES, surface: "acceptance", result: "skipped", time: NOT_RUN_TIME },
       ]);
     });
 
@@ -704,6 +718,7 @@ describe("acceptance phases in a run", () => {
         command: ORACLES,
         surface: "acceptance",
         result: "skipped",
+        time: NOT_RUN_TIME,
       });
       const phase02 = await h.readJson("phase-02", "status.json");
       const later = h.providerCalls.slice(callsBefore);
@@ -787,8 +802,8 @@ describe("acceptance phases in a run", () => {
     expect(h.shellCalls.some((c) => c.command[0] === ORACLES)).toBe(false);
     for (const phase of ["phase-01", "phase-02"]) {
       expect((await h.readJson(phase, "gate-attribution.json"))["steps"]).toEqual([
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "pnpm lint", surface: "structural", result: "pass" },
+        { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+        { command: "pnpm lint", surface: "structural", result: "pass", time: MEASURED_TIME },
       ]);
       expect(existsSync(join(h.runPath, phase, "checks-attempt-01.acceptance-request.json"))).toBe(
         false,

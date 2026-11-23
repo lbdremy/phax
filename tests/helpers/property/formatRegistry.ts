@@ -120,6 +120,7 @@ import { GateAttributionV0_20_0Schema } from "../../../src/schemas/history/gate-
 import { GateAttributionV0_21_0Schema } from "../../../src/schemas/history/gate-attribution/0.21.0.js";
 import { GateAttributionV0_26_0Schema } from "../../../src/schemas/history/gate-attribution/0.26.0.js";
 import { GateAttributionV0_31_0Schema } from "../../../src/schemas/history/gate-attribution/0.31.0.js";
+import { GateAttributionV0_33_0Schema } from "../../../src/schemas/history/gate-attribution/0.33.0.js";
 import { GateAttributionPreSchemaSchema } from "../../../src/schemas/history/gate-attribution/pre-schema.js";
 import { HandDecisionAnswerV0_25_0Schema } from "../../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { InteractiveHandoffV0_26_0Schema } from "../../../src/schemas/history/interactive-handoff/0.26.0.js";
@@ -907,6 +908,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
     shape("0.21.0", GateAttributionV0_21_0Schema),
     shape("0.26.0", GateAttributionV0_26_0Schema),
     shape("0.31.0", GateAttributionV0_31_0Schema),
+    shape("0.33.0", GateAttributionV0_33_0Schema),
   ],
   "phase-file-reconciliation": [
     shape("pre-schema", PhaseFileReconciliationPreSchemaSchema),

@@ -46,7 +46,13 @@ import {
   decodeGateAttributionV0_31_0,
   type GateAttributionV0_31_0,
 } from "../../../../src/schemas/history/gate-attribution/0.31.0.js";
+import {
+  GateAttributionV0_33_0Schema,
+  decodeGateAttributionV0_33_0,
+  type GateAttributionV0_33_0,
+} from "../../../../src/schemas/history/gate-attribution/0.33.0.js";
 import { liftGateStep } from "../../../../src/schemas/acceptanceLift.js";
+import { liftUntimedGateAttribution } from "../../../../src/schemas/gateTimeLift.js";
 import {
   PhaseFileReconciliationV0_17_0Schema,
   decodePhaseFileReconciliationV0_17_0,
@@ -85,6 +91,7 @@ export type GateAttributionShapes = {
   "0.21.0": GateAttributionV0_21_0;
   "0.26.0": GateAttributionV0_26_0;
   "0.31.0": GateAttributionV0_31_0;
+  "0.33.0": GateAttributionV0_33_0;
 } & {
   [K in CurrentShapeName<"gate-attribution">]: GateAttributionFile;
 };
@@ -102,6 +109,7 @@ export const gateAttributionFormat = defineFormat<GateAttributionShapes>({
     ["0.21.0", { schema: GateAttributionV0_21_0Schema, decode: decodeGateAttributionV0_21_0 }],
     ["0.26.0", { schema: GateAttributionV0_26_0Schema, decode: decodeGateAttributionV0_26_0 }],
     ["0.31.0", { schema: GateAttributionV0_31_0Schema, decode: decodeGateAttributionV0_31_0 }],
+    ["0.33.0", { schema: GateAttributionV0_33_0Schema, decode: decodeGateAttributionV0_33_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["gate-attribution"],
@@ -118,15 +126,21 @@ export type LatestGateAttribution = GateAttribution;
 
 /**
  * Upgrades a parsed gate attribution in memory: drops `$schema`, keeps every
- * other fact. The current shape becomes the latest value, and so do the
- * 0.31.0 and 0.26.0 shapes, as phax's reader lifts them: their `oracle` step
- * surface becomes `acceptance` (`liftGateStep`), and a 0.26.0 one, which ran
- * no protected-paths check, gets `protectedPaths: null`. A shape older than
- * 0.26.0 keeps its recorded value, under its own type, and is never mapped
- * onto the latest.
+ * other fact. The current shape (the one with a top-level `time`) becomes the
+ * latest value, and so do the 0.33.0, 0.31.0 and 0.26.0 shapes, as phax's
+ * reader lifts them: an `oracle` step surface becomes `acceptance`
+ * (`liftGateStep`), a 0.26.0 one, which ran no protected-paths check, gets
+ * `protectedPaths: null`, and every time is `unknown`, a skipped acceptance
+ * step's `not-run` (`liftUntimedGateAttribution`). A shape older than 0.26.0
+ * keeps its recorded value, under its own type, and is never mapped onto the
+ * latest: its steps can be `pending`.
  */
 export function toLatestGateAttribution(
-  value: GateAttributionFile | GateAttributionV0_31_0 | GateAttributionV0_26_0,
+  value:
+    | GateAttributionFile
+    | GateAttributionV0_33_0
+    | GateAttributionV0_31_0
+    | GateAttributionV0_26_0,
 ): LatestGateAttribution;
 export function toLatestGateAttribution(value: GateAttributionPreSchema): GateAttributionPreSchema;
 export function toLatestGateAttribution(
@@ -146,6 +160,7 @@ export function toLatestGateAttribution(
     | GateAttributionV0_21_0
     | GateAttributionV0_26_0
     | GateAttributionV0_31_0
+    | GateAttributionV0_33_0
     | GateAttributionFile,
 ):
   | LatestGateAttribution
@@ -161,6 +176,7 @@ export function toLatestGateAttribution(
     | GateAttributionV0_21_0
     | GateAttributionV0_26_0
     | GateAttributionV0_31_0
+    | GateAttributionV0_33_0
     | GateAttributionFile,
 ):
   | LatestGateAttribution
@@ -169,13 +185,21 @@ export function toLatestGateAttribution(
   | Omit<GateAttributionV0_20_0, "$schema">
   | Omit<GateAttributionV0_21_0, "$schema"> {
   if (!("$schema" in value)) return value;
+  if ("time" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
   if ("protectedPaths" in value) {
     const { $schema: _schema, steps, ...recorded } = value;
-    return { ...recorded, steps: steps.map(liftGateStep) };
+    return liftUntimedGateAttribution({ ...recorded, steps: steps.map(liftGateStep) });
   }
   if (isGateAttributionV0_26_0(value)) {
     const { $schema: _schema, steps, ...recorded } = value;
-    return { ...recorded, steps: steps.map(liftGateStep), protectedPaths: null };
+    return liftUntimedGateAttribution({
+      ...recorded,
+      steps: steps.map(liftGateStep),
+      protectedPaths: null,
+    });
   }
   const { $schema: _schema, ...recorded } = value;
   return recorded;

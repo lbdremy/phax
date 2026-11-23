@@ -169,7 +169,7 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     id: "lift-format-record-timeline",
     reason: "reader or lift of an earlier shape",
     file: "packages/schemas/src/formats/recordTimeline.ts",
-    lines: [/their `oracle` step/],
+    lines: [/an `oracle` step surface/],
   },
   {
     id: "lift-format-answers",

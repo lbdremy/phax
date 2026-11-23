@@ -481,16 +481,25 @@ describe("phax's bridge and the package agree", () => {
   });
 
   // Where they part: a pre-schema gate attribution ran no protected-paths
-  // check. The package keeps it as recorded, without the field; phax lifts it
-  // with `protectedPaths: null`.
-  it("gate-attribution: a pre-schema document keeps no protectedPaths in the package, null in phax", () => {
+  // check and recorded no time. The package keeps it as recorded, without
+  // either field; phax lifts it with `protectedPaths: null` and every time
+  // `unknown`.
+  it("gate-attribution: a pre-schema document keeps no protectedPaths or times in the package, null and unknown in phax", () => {
     const document = preSchemaDocuments["gate-attribution"];
-    expect(PACKAGE_LATEST["gate-attribution"](document)).not.toHaveProperty("protectedPaths");
+    const kept = PACKAGE_LATEST["gate-attribution"](document) as {
+      readonly phase: string;
+      readonly steps: ReadonlyArray<Doc>;
+    };
+    expect(kept).not.toHaveProperty("protectedPaths");
+    expect(kept).not.toHaveProperty("time");
+    const unknown = { kind: "unknown" };
     expect(
       BRIDGE_READERS["gate-attribution"]?.("/work/example-repo/gate-attribution.json", document),
     ).toEqual(
       Result.succeed({
-        ...(PACKAGE_LATEST["gate-attribution"](document) as object),
+        phase: kept.phase,
+        time: unknown,
+        steps: kept.steps.map((step) => ({ ...step, time: unknown })),
         protectedPaths: null,
       }),
     );

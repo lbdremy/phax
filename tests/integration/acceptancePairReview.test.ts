@@ -367,6 +367,7 @@ describe("a held oracle phase", { timeout: 60_000 }, () => {
       command: ACCEPTANCE.command,
       surface: "acceptance",
       result: "pass",
+      time: { kind: "measured", startedAt: expect.any(String), durationMs: expect.any(Number) },
     });
     expect(run.closed[0]?.report).toMatchObject({ cause: "held", acceptanceStep: "authored" });
   });
@@ -783,11 +784,13 @@ describe("a held acceptance phase closed with a correction", { timeout: 60_000 }
     expect(status["stop"]).not.toHaveProperty("oracleStep");
 
     const closing = readJson(join(run.runPath, "phase-03", "review-gate", "gate-attribution.json"));
-    expect(closing["$schema"]).toBe(stamp("gate-attribution"));
+    // gate-attribution moved on with its times; its acceptance step is unchanged.
+    expect(closing["$schema"]).toBe(currentSchemaUrl("gate-attribution"));
     expect((closing["steps"] as unknown[]).at(-1)).toEqual({
       command: ACCEPTANCE.command,
       surface: "acceptance",
       result: "pass",
+      time: { kind: "measured", startedAt: expect.any(String), durationMs: expect.any(Number) },
     });
 
     const authored = recordManifestOf(run, "phase-03");

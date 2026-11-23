@@ -130,15 +130,23 @@ function oraclePlanJson(pair: boolean): string {
   return JSON.stringify(withSchemaUrl("phax-plan", plan));
 }
 
+const MEASURED = { kind: "measured", startedAt: "2026-01-01T09:00:00.000Z", durationMs: 1500 };
+
 function oracleAttribution(phaseId: string, result: "pass" | "fail" | "skipped"): string {
   return JSON.stringify(
     withSchemaUrl("gate-attribution", {
       phase: phaseId,
-      protectedPaths: null,
+      time: MEASURED,
       steps: [
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "node tools/oracles.mjs", surface: "acceptance", result },
+        { command: "pnpm test", surface: "local", result: "pass", time: MEASURED },
+        {
+          command: "node tools/oracles.mjs",
+          surface: "acceptance",
+          result,
+          time: result === "skipped" ? { kind: "not-run" } : MEASURED,
+        },
       ],
+      protectedPaths: null,
     }),
   );
 }

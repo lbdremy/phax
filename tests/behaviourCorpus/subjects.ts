@@ -88,6 +88,7 @@ import { decodeGateAttributionV0_20_0 } from "../../src/schemas/history/gate-att
 import { decodeGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import { decodeGateAttributionV0_26_0 } from "../../src/schemas/history/gate-attribution/0.26.0.js";
 import { decodeGateAttributionV0_31_0 } from "../../src/schemas/history/gate-attribution/0.31.0.js";
+import { decodeGateAttributionV0_33_0 } from "../../src/schemas/history/gate-attribution/0.33.0.js";
 import { decodeGateAttributionPreSchema } from "../../src/schemas/history/gate-attribution/pre-schema.js";
 import { decodeHandDecisionAnswerV0_25_0 } from "../../src/schemas/history/hand-decision-answer/0.25.0.js";
 import { decodeInteractiveHandoffV0_26_0 } from "../../src/schemas/history/interactive-handoff/0.26.0.js";
@@ -517,6 +518,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("gate-attribution/0.21.0", decodeGateAttributionV0_21_0, "package"),
   frozen("gate-attribution/0.26.0", decodeGateAttributionV0_26_0, "first"),
   frozen("gate-attribution/0.31.0", decodeGateAttributionV0_31_0, "first"),
+  frozen("gate-attribution/0.33.0", decodeGateAttributionV0_33_0, "first"),
   frozen("gate-attribution/pre-schema", decodeGateAttributionPreSchema, "first"),
   frozen("hand-decision-answer/0.25.0", decodeHandDecisionAnswerV0_25_0, "package"),
   frozen("interactive-handoff/0.26.0", decodeInteractiveHandoffV0_26_0, "package"),
