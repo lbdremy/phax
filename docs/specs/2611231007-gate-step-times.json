@@ -391,7 +391,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-step-shape",
       "question": "What does a measured step time hold: its start and duration, both instants, or the duration only?",
@@ -413,7 +414,29 @@
         }
       ],
       "recommendation": "start-duration",
-      "rationale": "Duration is the question every reader asks, and it follows the cost ledger's `durationMs`. The start instant keeps steps from concurrent runs comparable on a shared timeline, and the end instant is one addition away, so losing it costs nothing."
+      "rationale": "Duration is the question every reader asks, and it follows the cost ledger's `durationMs`. The start instant keeps steps from concurrent runs comparable on a shared timeline, and the end instant is one addition away, so losing it costs nothing.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "start-duration",
+        "abandoned": [
+          "both-instants",
+          "duration-only"
+        ],
+        "why": "Duration is the question every reader asks, and it follows the cost ledger's `durationMs`. The start instant keeps steps from concurrent runs comparable on a shared timeline, and the end instant is one addition away, so losing it costs nothing.",
+        "advocate": "The strongest case for both-instants: two stored instants describe the step's place on the timeline completely and let a reader see overlap with another run's steps without arithmetic, where a stored duration has to be added to the start to get an end.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-23T10:15:17.569Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-where",
@@ -431,7 +454,28 @@
         }
       ],
       "recommendation": "in-attribution",
-      "rationale": "The attribution is already per attempt, already in the record and already lists exactly the steps that started, so the time sits on the step it describes. Moving to a new format stamp is the usual cost of a persisted change, and a second file would bring a join that can break."
+      "rationale": "The attribution is already per attempt, already in the record and already lists exactly the steps that started, so the time sits on the step it describes. Moving to a new format stamp is the usual cost of a persisted change, and a second file would bring a join that can break.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "in-attribution",
+        "abandoned": [
+          "separate-file"
+        ],
+        "why": "The attribution is already per attempt, already in the record and already lists exactly the steps that started, so the time sits on the step it describes. Moving to a new format stamp is the usual cost of a persisted change, and a second file would bring a join that can break.",
+        "advocate": "The strongest case for separate-file: the attribution format stays untouched, so no reader and no `@lbdremy/phax-schemas` consumer has to move to a new stamp, and the timing data can evolve on its own.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-23T10:15:17.569Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-phax-work",
@@ -454,7 +498,29 @@
         }
       ],
       "recommendation": "attempt-and-check",
-      "rationale": "With a time on the attempt, phax's own work is the attempt time minus the sum of the steps, without inventing steps. The protected-paths check runs outside the steps and its cost grows with the repository, so it gets its own figure. Two extra fields cost less than an incomplete account or a polluted step list."
+      "rationale": "With a time on the attempt, phax's own work is the attempt time minus the sum of the steps, without inventing steps. The protected-paths check runs outside the steps and its cost grows with the repository, so it gets its own figure. Two extra fields cost less than an incomplete account or a polluted step list.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "attempt-and-check",
+        "abandoned": [
+          "steps-only",
+          "pseudo-steps"
+        ],
+        "why": "With a time on the attempt, phax's own work is the attempt time minus the sum of the steps, without inventing steps. The protected-paths check runs outside the steps and its cost grows with the repository, so it gets its own figure. Two extra fields cost less than an incomplete account or a polluted step list.",
+        "advocate": "The strongest case for steps-only: the format change stays smallest, with no new top-level field and no time on the protected-paths result, and the steps are what the 2026-11-22 measure was about.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-23T10:15:17.569Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-explain-view",
@@ -472,10 +538,30 @@
         }
       ],
       "recommendation": "default-view",
-      "rationale": "The point of the change is that a record shows where its gate time went without digging. A dozen lines per attempt is an acceptable cost, and burying the figures in `--gates` output would bring back the problem."
+      "rationale": "The point of the change is that a record shows where its gate time went without digging. A dozen lines per attempt is an acceptable cost, and burying the figures in `--gates` output would bring back the problem.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "default-view",
+        "abandoned": [
+          "gates-flag"
+        ],
+        "why": "The point of the change is that a record shows where its gate time went without digging. A dozen lines per attempt is an acceptable cost, and burying the figures in `--gates` output would bring back the problem.",
+        "advocate": "The strongest case for gates-flag: the default phase view stays short and scannable, and an operator who wants gate detail already asks for `--gates`, so the times sit beside the logs they describe.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-23T10:15:17.569Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Each step that started records a `measured` time (`startedAt` instant and `durationMs`). A skipped acceptance step records `not-run`, and older documents read as `unknown`. Steps that never started are not listed.",

@@ -311,6 +311,10 @@ Given a phase record whose attribution is stamped 0.33.0, and another whose `che
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-step-shape — What does a measured step time hold: its start and duration, both instants, or the duration only?
 
 - start-duration — `startedAt` plus `durationMs` — abandons: a stored end instant: a reader adds the duration to the start to get it
@@ -319,12 +323,18 @@ Given a phase record whose attribution is stamped 0.33.0, and another whose `che
 
 Recommendation: start-duration — Duration is the question every reader asks, and it follows the cost ledger's `durationMs`. The start instant keeps steps from concurrent runs comparable on a shared timeline, and the end instant is one addition away, so losing it costs nothing.
 
+Decision: start-duration — by operator (Rémy Loubradou), 2026-11-23
+Why: Duration is the question every reader asks, and it follows the cost ledger's `durationMs`. The start instant keeps steps from concurrent runs comparable on a shared timeline, and the end instant is one addition away, so losing it costs nothing. Advocate: The strongest case for both-instants: two stored instants describe the step's place on the timeline completely and let a reader see overlap with another run's steps without arithmetic, where a stored duration has to be added to the start to get an end. Principles: S1, S5. Reversibility: costly. Revised: none.
+
 ### q-where — Where do the times live: in each step of the attempt's gate attribution, or in a separate timing file beside it?
 
 - in-attribution — In the attribution's steps, under a new stamp — abandons: leaving the attribution format untouched: every attribution reader and `@lbdremy/phax-schemas` must move to the new shape
 - separate-file — A new `checks-attempt-NN.times.json` beside the step record — abandons: one document per attempt: a reader must join two files by step position, and a time can drift from the step it describes
 
 Recommendation: in-attribution — The attribution is already per attempt, already in the record and already lists exactly the steps that started, so the time sits on the step it describes. Moving to a new format stamp is the usual cost of a persisted change, and a second file would bring a join that can break.
+
+Decision: in-attribution — by operator (Rémy Loubradou), 2026-11-23
+Why: The attribution is already per attempt, already in the record and already lists exactly the steps that started, so the time sits on the step it describes. Moving to a new format stamp is the usual cost of a persisted change, and a second file would bring a join that can break. Advocate: The strongest case for separate-file: the attribution format stays untouched, so no reader and no `@lbdremy/phax-schemas` consumer has to move to a new stamp, and the timing data can evolve on its own. Principles: S1, S4. Reversibility: costly. Revised: none.
 
 ### q-phax-work — How are the protected-paths check and phax's own gate work accounted for?
 
@@ -334,6 +344,9 @@ Recommendation: in-attribution — The attribution is already per attempt, alrea
 
 Recommendation: attempt-and-check — With a time on the attempt, phax's own work is the attempt time minus the sum of the steps, without inventing steps. The protected-paths check runs outside the steps and its cost grows with the repository, so it gets its own figure. Two extra fields cost less than an incomplete account or a polluted step list.
 
+Decision: attempt-and-check — by operator (Rémy Loubradou), 2026-11-23
+Why: With a time on the attempt, phax's own work is the attempt time minus the sum of the steps, without inventing steps. The protected-paths check runs outside the steps and its cost grows with the repository, so it gets its own figure. Two extra fields cost less than an incomplete account or a polluted step list. Advocate: The strongest case for steps-only: the format change stays smallest, with no new top-level field and no time on the protected-paths result, and the steps are what the 2026-11-22 measure was about. Principles: S1, S5. Reversibility: costly. Revised: none.
+
 ### q-explain-view — Where does `phax records explain` show the step times: in its default phase view, or only with `--gates`?
 
 - default-view — In the default view, under the `gates` line — abandons: a short default view: it grows by one line per step per attempt
@@ -341,9 +354,8 @@ Recommendation: attempt-and-check — With a time on the attempt, phax's own wor
 
 Recommendation: default-view — The point of the change is that a record shows where its gate time went without digging. A dozen lines per attempt is an acceptable cost, and burying the figures in `--gates` output would bring back the problem.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: default-view — by operator (Rémy Loubradou), 2026-11-23
+Why: The point of the change is that a record shows where its gate time went without digging. A dozen lines per attempt is an acceptable cost, and burying the figures in `--gates` output would bring back the problem. Advocate: The strongest case for gates-flag: the default phase view stays short and scannable, and an operator who wants gate detail already asks for `--gates`, so the times sit beside the logs they describe. Principles: S1, S10. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -383,3 +395,10 @@ gates    passed after 2 attempt(s)   surfaces  local, structural
     protected paths                 pass      0.1 s
   attempt 02   195.0 s
     …
+
+## 12. Decision log
+
+- 2026-11-23 q-step-shape decided start-duration — operator (Rémy Loubradou)
+- 2026-11-23 q-where decided in-attribution — operator (Rémy Loubradou)
+- 2026-11-23 q-phax-work decided attempt-and-check — operator (Rémy Loubradou)
+- 2026-11-23 q-explain-view decided default-view — operator (Rémy Loubradou)
