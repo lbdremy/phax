@@ -55,7 +55,8 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
         `brief-NN.json`) and the Small follow-up "a phase agent commits phax's own `.gitignore`
         line" (write the rule to the worktree's `.git/info/exclude`), same function.
       Disjoint from `gate-step-times` but for the regenerated files.
-- [ ] **Lane outside `src/`: launcher and release, small pieces** — to brief. SEC-26 (the launcher's
+- [ ] **Lane outside `src/`: `launcher-release-fixes`** — `docs/briefs/launcher-release-fixes.md`
+      (2026-11-23), spec to author. SEC-26 (the launcher's
       `mkdtemp`, bounded redirects, timeouts), SEC-28 (the docs-deploy ref), SEC-29 (Deno's lock
       frozen), and the Small follow-up "the npm `phax` shim does not forward SIGINT" (a Ctrl-C
       leaves the binary running the phase), all in `npm/bin/phax`, `.github/workflows/` and
