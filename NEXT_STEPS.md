@@ -388,6 +388,10 @@ desktop — none is promised by the announcement.
       parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
+- [ ] **A stop's close gate times never reach the records.** Found 2026-11-23 reviewing `gate-step-times`
+      (#260, F3): the close gate writes measured step and attempt times under `review-gate/`, a stop artifact
+      phase records do not carry, so `phax/records/v1` and `phax records explain` never show them. Decide
+      whether a stop's record carries its close gate's attribution.
 - [x] **A record commit hashes its files one git process each.** Folded 2026-11-23 into
       `fewer-git-processes` (wave 3), which takes the whole record write.
 - [ ] **Vibe's helper processes outlive a hung `vibe-rs`.** Seen once in the `vibe-model-flags`
