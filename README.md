@@ -628,6 +628,22 @@ phax records explain <commit>   # a commit's record: prompt, diff, gates, handof
 
 The branch can live in the same repository or in a separate one. Transcripts can hold anything the agent read, so phax refuses to keep them on a public repository's own records branch, and on one it cannot tell is private (the refusal quotes `gh`'s first line: retry after a network or authentication failure, or confirm the repository is private with `records.destination.acknowledgedUnknownVisibility`). `records explain` takes `--prompt`, `--diff`, `--transcript` or `--gates` to print each part in full. A phase that stopped for a person's review, declared or held, records its stop too (mode, cause, outcome, closer and sessions, never a transcript's content): see [The record of a stop](#the-record-of-a-stop). To read records from another tool, see [Read phax files from code](#read-phax-files-from-code).
 
+The default view lists each gate attempt under the `gates` line with its duration, then each step's command, surface, result and duration, then the protected-paths check. This is where the gate time went and what each fix attempt cost. The times come from the gate attribution of each attempt, `checks-attempt-NN.attribution.json`.
+
+```
+gates    passed after 2 attempt(s)   surfaces  local, structural
+  attempt 01   192.6 s
+    pnpm typecheck     local        pass      0.7 s
+    pnpm test          local        fail    191.3 s
+    protected paths                 pass      0.1 s
+  attempt 02   195.0 s
+    pnpm typecheck     local        pass      0.7 s
+    pnpm test          local        pass    190.4 s
+    pnpm lint          structural   pass      2.4 s
+```
+
+A record written before times were recorded shows `time unknown`. A skipped acceptance step shows `not run`. An attempt with no readable step record shows `steps unknown`. With `--json`, the answer's `gateAttempts` holds the same attempts, steps and times.
+
 ### When the records branch and its remote disagree
 
 A record lands on top of the records remote's tip as phax last fetched it, so a branch that lags its remote catches up in the same step that writes the record. `phax records status` compares the local `phax/records/v1` with the remote's and reports one of seven states:
