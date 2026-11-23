@@ -142,7 +142,7 @@ before:
 after:
 
     {
-      "$schema": "https://docs.phax.run/schemas/gate-attribution/0.44.0.json",
+      "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
       "phase": "phase-02",
       "time": { "kind": "measured", "startedAt": "2026-11-23T10:04:11.020Z", "durationMs": 192113 },
       "steps": [
