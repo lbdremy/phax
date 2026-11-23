@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611231007-gate-step-times.md
 completes-spec: true
 approved:
