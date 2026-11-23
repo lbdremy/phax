@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611231021-gate-step-times-plan.md",
+  "planFingerprint": "9799e822a9b475fb054766ad4627ece91fd2939c39351001cb0d30172c11ba08",
+  "approvedAt": "2026-11-23T10:34:39.971Z",
+  "baseline": "4326900046883cd91de21abcc704611c1d34ec24",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611231007-gate-step-times.md",
+    "fingerprint": "3df742eefd8e818eaed7e0e1be1df86b2340ef1df178a9774c24458e2d88bcfd"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
