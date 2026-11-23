@@ -379,6 +379,9 @@ const authoringRecordManifest: AuthoringRecordManifestPreSchema = {
   },
 };
 
+/** A gate attribution's time no one recorded. */
+const UNKNOWN_TIME = { kind: "unknown" } as const;
+
 const gateAttribution = {
   phase: "phase-01",
   steps: [
@@ -940,9 +943,16 @@ export const EXAMPLE_SURFACE_SUMMARY = "An operator can run the example.";
  */
 export function phaxLatestPreSchema(id: PreSchemaFormatId): Doc {
   const lifted = liftPreSchema(id, SURFACE_SUMMARY_PLACEHOLDER);
-  // A pre-schema attribution ran no protected-paths check: phax's reader
-  // lifts it with `null`, the package keeps the recorded value as it is.
-  return id === "gate-attribution" ? { ...lifted, protectedPaths: null } : lifted;
+  // A pre-schema attribution ran no protected-paths check and recorded no
+  // time: phax's reader lifts it with `null` and every time `unknown`, the
+  // package keeps the recorded value as it is.
+  if (id !== "gate-attribution") return lifted;
+  return {
+    phase: gateAttribution.phase,
+    time: UNKNOWN_TIME,
+    steps: gateAttribution.steps.map((step) => ({ ...step, time: UNKNOWN_TIME })),
+    protectedPaths: null,
+  };
 }
 
 /** A latest spec document's surface elements, each with `summary` replaced. */
@@ -1064,7 +1074,14 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   ),
   "gate-attribution": encoded(
     GateAttributionFileSchema,
-    withSchemaUrl("gate-attribution", { ...gateAttribution, protectedPaths: null }),
+    // Its times `unknown`, which the current shape allows: the same value as
+    // the pre-schema document lifted (`phaxLatestPreSchema`).
+    withSchemaUrl("gate-attribution", {
+      phase: gateAttribution.phase,
+      time: UNKNOWN_TIME,
+      steps: gateAttribution.steps.map((step) => ({ ...step, time: UNKNOWN_TIME })),
+      protectedPaths: null,
+    }),
   ),
   "phase-file-reconciliation": encoded(
     PhaseFileReconciliationFileSchema,

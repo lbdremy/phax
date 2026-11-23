@@ -35,6 +35,25 @@ import { CURRENT_STAMPS, PHAX_RELEASE } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 import { SCRIPT_BOUND_MS, boundedSpawn } from "../helpers/boundedSpawn.js";
 
+/** A time phax measured: phase-02 pins it under a fixed clock. */
+const MEASURED_TIME = {
+  kind: "measured",
+  startedAt: expect.any(String),
+  durationMs: expect.any(Number),
+};
+const NOT_RUN_TIME = { kind: "not-run" };
+
+/** A parsed document with every `time` key dropped, at any depth. */
+function withoutTimes(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutTimes);
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "time")
+      .map(([key, entry]) => [key, withoutTimes(entry)]),
+  );
+}
+
 const cwd = "/fake/worktrees/my-run/phase-01";
 const logPath = "/fake/runs/my-run/phase-01/checks-attempt-01.log";
 const attributionPath = "/fake/runs/my-run/phase-01/gate-attribution.json";
@@ -284,8 +303,13 @@ describe("runGates", () => {
       expect(record).not.toHaveProperty("version");
       expect(record.phase).toBe(phaseId);
       expect(record.steps).toEqual([
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "pnpm audit:architecture", surface: "structural", result: "pass" },
+        { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+        {
+          command: "pnpm audit:architecture",
+          surface: "structural",
+          result: "pass",
+          time: MEASURED_TIME,
+        },
       ]);
     });
 
@@ -318,8 +342,8 @@ describe("runGates", () => {
       const record = JSON.parse(raw!) as GateAttribution;
       expect(record.phase).toBe(phaseId);
       expect(record.steps).toEqual([
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "pnpm lint", surface: "local", result: "fail" },
+        { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+        { command: "pnpm lint", surface: "local", result: "fail", time: MEASURED_TIME },
       ]);
     });
   });
@@ -400,6 +424,47 @@ describe("runGates", () => {
         ["node scripts/audit.mjs", "fail"],
       ]);
     });
+
+    it.each([
+      ["passes", auditLog, { exitCode: 0, stdout: "", stderr: "" }],
+      ["fails", auditLog, { exitCode: 1, stdout: "", stderr: "x" }],
+      ["is stopped by a broken step", audit, { exitCode: 1, stdout: "not json", stderr: "" }],
+    ] as const)(
+      "writes a measured time on every step and the attempt of an attempt that %s, in both files alike",
+      async (_label, second, response) => {
+        const fakeFs = makeFakeFileSystem();
+        const fakeShell = makeFakeShell();
+        fakeShell.impl.setResponse("node scripts/lint.mjs", {
+          exitCode: 0,
+          stdout: "",
+          stderr: "",
+        });
+        fakeShell.impl.setResponse("node scripts/audit.mjs", response);
+        await Effect.runPromise(
+          Effect.ignore(
+            runGates({
+              steps: [lint, second],
+              cwd,
+              attemptLogPath: logPath,
+              gateRequest,
+              attributionPath,
+              phaseId,
+            }).pipe(Effect.provide(Layer.mergeAll(fakeFs.layer, fakeShell.layer))),
+          ),
+        );
+        const read = (path: string) => {
+          const decoded = readGateAttributionFile(path, JSON.parse(fakeFs.impl.getFile(path)!));
+          if (Result.isFailure(decoded)) throw new Error(`${path} does not decode`);
+          return decoded.success;
+        };
+        const stepRecord = read(stepRecordPath);
+        expect(read(attributionPath)).toEqual(stepRecord);
+        expect(stepRecord.time).toEqual(MEASURED_TIME);
+        expect(stepRecord.steps).toHaveLength(2);
+        for (const step of stepRecord.steps) expect(step.time).toEqual(MEASURED_TIME);
+        expect(stepRecord.protectedPaths).toBeNull();
+      },
+    );
 
     it("is not written without a phase id", async () => {
       const fakeFs = makeFakeFileSystem();
@@ -558,7 +623,8 @@ describe("runGates", () => {
             exitCode: err.exitCode,
             reportFindings: err.reportFindings,
             saved: fakeFs.impl.getFile(reportPath),
-            attribution: fakeFs.impl.getFile(attributionPath),
+            // The attribution without its times: the two phases ran at different instants.
+            attribution: withoutTimes(JSON.parse(fakeFs.impl.getFile(attributionPath)!)),
           };
         }),
       );
@@ -679,8 +745,8 @@ describe("runGates", () => {
       ]);
       const record = JSON.parse(fakeFs.impl.getFile(attributionPath)!) as GateAttribution;
       expect(record.steps).toEqual([
-        { command: "pnpm lint", surface: "local", result: "pass" },
-        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+        { command: "pnpm lint", surface: "local", result: "pass", time: MEASURED_TIME },
+        { command: "node ./audit.mjs", surface: "structural", result: "fail", time: MEASURED_TIME },
       ]);
     });
   });
@@ -1135,7 +1201,12 @@ describe("runGates with a report step", () => {
         expect(err.exitCode).toBe(exitCode);
         expect(err.reportFindings).toEqual({ step: 1, findings: [greetFinding, farewellFinding] });
         expect(attribution.steps).toEqual([
-          { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+          {
+            command: "node ./audit.mjs",
+            surface: "structural",
+            result: "fail",
+            time: MEASURED_TIME,
+          },
         ]);
       });
     }
@@ -1150,7 +1221,7 @@ describe("runGates with a report step", () => {
     expect(Result.isSuccess(result)).toBe(true);
     expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
     expect(attribution.steps).toEqual([
-      { command: "node ./audit.mjs", surface: "structural", result: "pass" },
+      { command: "node ./audit.mjs", surface: "structural", result: "pass", time: MEASURED_TIME },
     ]);
   });
 
@@ -1188,7 +1259,7 @@ describe("runGates with a report step", () => {
     expect(err.message).toBe('Gate step "node ./audit.mjs" exited 2 with no finding');
     expect(fakeFs.impl.getFile(reportPath)).toBe(stdout);
     expect(attribution.steps).toEqual([
-      { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+      { command: "node ./audit.mjs", surface: "structural", result: "fail", time: MEASURED_TIME },
     ]);
   });
 
@@ -1208,7 +1279,7 @@ describe("runGates with a report step", () => {
       expect(savedReports(fakeFs)).toEqual([]);
       expect(fakeFs.impl.getFile(logPath)).toContain("provider error: ");
       expect(attribution.steps).toEqual([
-        { command: "node ./audit.mjs", surface: "structural", result: "fail" },
+        { command: "node ./audit.mjs", surface: "structural", result: "fail", time: MEASURED_TIME },
       ]);
     });
   }
@@ -1413,7 +1484,12 @@ describe("runGates with a report step", () => {
           'Gate step "node ./audit.mjs" refused to run: the checks need hw-rules 2, and 1 is installed (remedy: pnpm add -D hw-rules@2)',
         );
         expect(attribution.steps).toEqual([
-          { command: "node ./audit.mjs", surface: "structural", result: "refused" },
+          {
+            command: "node ./audit.mjs",
+            surface: "structural",
+            result: "refused",
+            time: MEASURED_TIME,
+          },
         ]);
         expect(fakeFs.impl.getFile(logPath)).toContain(
           "refused: the checks need hw-rules 2, and 1 is installed — remedy: pnpm add -D hw-rules@2",
@@ -1604,8 +1680,8 @@ describe("runGates with an acceptance step (Node shell)", () => {
     expect(seen(ws)).toBeUndefined();
     expect(existsSync(ws.oracleRequestPath)).toBe(false);
     expect(readAttribution(ws).steps).toEqual([
-      { command: "node ./check.mjs 0", surface: "local", result: "pass" },
-      { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
+      { command: "node ./check.mjs 0", surface: "local", result: "pass", time: MEASURED_TIME },
+      { command: "node ./check.mjs 1", surface: "structural", result: "fail", time: MEASURED_TIME },
     ]);
   });
 
@@ -1638,10 +1714,16 @@ describe("runGates with an acceptance step (Node shell)", () => {
         command: "node ./oracles.mjs pass",
         surface: "acceptance",
         result: "skipped",
+        time: NOT_RUN_TIME,
       };
       expect(readAttribution(ws).steps).toEqual([
-        { command: "node ./check.mjs 0", surface: "local", result: "pass" },
-        { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
+        { command: "node ./check.mjs 0", surface: "local", result: "pass", time: MEASURED_TIME },
+        {
+          command: "node ./check.mjs 0",
+          surface: "structural",
+          result: "pass",
+          time: MEASURED_TIME,
+        },
         skipped,
       ]);
       expect(readFileSync(ws.logPath, "utf8")).toContain(
@@ -1663,8 +1745,13 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
       expect(Result.isFailure(result)).toBe(true);
       expect(readAttribution(ws).steps).toEqual([
-        { command: "node ./check.mjs 0", surface: "local", result: "pass" },
-        { command: "node ./check.mjs 1", surface: "structural", result: "fail" },
+        { command: "node ./check.mjs 0", surface: "local", result: "pass", time: MEASURED_TIME },
+        {
+          command: "node ./check.mjs 1",
+          surface: "structural",
+          result: "fail",
+          time: MEASURED_TIME,
+        },
       ]);
     });
   });
@@ -1677,10 +1764,15 @@ describe("runGates with an acceptance step (Node shell)", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
     expect(readAttribution(ws).steps).toEqual([
-      { command: "node ./check.mjs 0", surface: "local", result: "pass" },
-      { command: "node ./check.mjs 0", surface: "structural", result: "pass" },
-      { command: "node ./check.mjs 0", surface: "product", result: "pass" },
-      { command: "node ./oracles.mjs pass", surface: "acceptance", result: "pass" },
+      { command: "node ./check.mjs 0", surface: "local", result: "pass", time: MEASURED_TIME },
+      { command: "node ./check.mjs 0", surface: "structural", result: "pass", time: MEASURED_TIME },
+      { command: "node ./check.mjs 0", surface: "product", result: "pass", time: MEASURED_TIME },
+      {
+        command: "node ./oracles.mjs pass",
+        surface: "acceptance",
+        result: "pass",
+        time: MEASURED_TIME,
+      },
     ]);
     // The report is saved byte for byte at position steps + 1.
     expect(readFileSync(join(ws.dir, "phase-01", "checks-attempt-01.report-04.json"), "utf8")).toBe(
@@ -1774,6 +1866,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
       command: "node ./oracles.mjs finding",
       surface: "acceptance",
       result: "fail",
+      time: MEASURED_TIME,
     });
   });
 
@@ -1794,6 +1887,7 @@ describe("runGates with an acceptance step (Node shell)", () => {
       command: "node ./oracles.mjs refused",
       surface: "acceptance",
       result: "refused",
+      time: MEASURED_TIME,
     });
   });
 

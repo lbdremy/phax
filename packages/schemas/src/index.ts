@@ -790,6 +790,10 @@ export {
   type GateAttributionV0_31_0,
 } from "../../../src/schemas/history/gate-attribution/0.31.0.js";
 export {
+  GateAttributionV0_33_0Schema,
+  type GateAttributionV0_33_0,
+} from "../../../src/schemas/history/gate-attribution/0.33.0.js";
+export {
   PhaseRecordManifestV0_17_0Schema,
   type PhaseRecordManifestV0_17_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.17.0.js";

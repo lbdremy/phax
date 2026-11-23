@@ -201,6 +201,7 @@ import type {
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
   GateAttributionV0_26_0,
+  GateAttributionV0_33_0,
   PhaseRecordManifestV0_17_0,
   PhaseRecordManifestV0_26_0,
   PhaseRecordManifestV0_33_0,
@@ -488,6 +489,7 @@ import type { CostLedgerV0_26_0 as FrozenCostLedgerV0_26_0 } from "../../src/sch
 import type { GateAttributionV0_21_0 as FrozenGateAttributionV0_21_0 } from "../../src/schemas/history/gate-attribution/0.21.0.js";
 import type { GateAttributionV0_26_0 as FrozenGateAttributionV0_26_0 } from "../../src/schemas/history/gate-attribution/0.26.0.js";
 import type { GateAttributionV0_31_0 as FrozenGateAttributionV0_31_0 } from "../../src/schemas/history/gate-attribution/0.31.0.js";
+import type { GateAttributionV0_33_0 as FrozenGateAttributionV0_33_0 } from "../../src/schemas/history/gate-attribution/0.33.0.js";
 import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phase-record-manifest/0.17.0.js";
 import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import type { PhaseRecordManifestV0_30_0 as FrozenPhaseRecordManifestV0_30_0 } from "../../src/schemas/history/phase-record-manifest/0.30.0.js";
@@ -890,6 +892,7 @@ const eachShapeId: [
     | "0.21.0"
     | "0.26.0"
     | "0.31.0"
+    | "0.33.0"
     | Current<"gate-attribution">
   >,
   Equals<
@@ -1007,6 +1010,7 @@ const parseValues: [
     | FrozenGateAttributionV0_21_0
     | FrozenGateAttributionV0_26_0
     | FrozenGateAttributionV0_31_0
+    | FrozenGateAttributionV0_33_0
     | PhaxGateAttributionFile
   >,
   Equals<
@@ -1966,6 +1970,7 @@ const toLatestParameters: [
         | FrozenGateAttributionV0_21_0
         | FrozenGateAttributionV0_26_0
         | FrozenGateAttributionV0_31_0
+        | FrozenGateAttributionV0_33_0
         | PhaxGateAttributionFile,
     ]
   >,
@@ -2210,6 +2215,9 @@ void gateAttributionV0_21_0IsFrozen;
 const gateAttributionV0_26_0IsFrozen: Equals<GateAttributionV0_26_0, FrozenGateAttributionV0_26_0> =
   true;
 void gateAttributionV0_26_0IsFrozen;
+const gateAttributionV0_33_0IsFrozen: Equals<GateAttributionV0_33_0, FrozenGateAttributionV0_33_0> =
+  true;
+void gateAttributionV0_33_0IsFrozen;
 const phaseFileReconciliationV0_17_0IsFrozen: Equals<
   PhaseFileReconciliationV0_17_0,
   FrozenPhaseFileReconciliationV0_17_0
@@ -2234,3 +2242,12 @@ void phaseRecordManifestV0_33_0IsFrozen;
 declare const phaxGateAttribution: PhaxGateAttributionFile;
 const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);
 void upgradedGateAttribution;
+// A 0.33.0 gate attribution upgrades to the latest value, its times unknown.
+declare const gateAttributionV0_33_0: GateAttributionV0_33_0;
+const upgradedGateAttributionV0_33_0 = toLatestGateAttribution(gateAttributionV0_33_0);
+const upgradedGateAttributionV0_33_0IsLatest: Equals<
+  typeof upgradedGateAttributionV0_33_0,
+  LatestGateAttribution
+> = true;
+void upgradedGateAttributionV0_33_0;
+void upgradedGateAttributionV0_33_0IsLatest;

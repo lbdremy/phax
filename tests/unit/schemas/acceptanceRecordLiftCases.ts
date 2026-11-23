@@ -10,6 +10,10 @@ export type LiftFormat =
   | "gate-attribution"
   | "phase-record-manifest";
 
+/** A gate attribution's times, as an untimed shape reads: `unknown`, a skipped step `not-run`. */
+const UNKNOWN_TIME = { kind: "unknown" } as const;
+const NOT_RUN_TIME = { kind: "not-run" } as const;
+
 const url = (format: LiftFormat, release: string): string =>
   `https://docs.phax.run/schemas/${format}/${release}.json`;
 
@@ -155,9 +159,10 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     },
     expected: {
       phase: "phase-03",
+      time: UNKNOWN_TIME,
       steps: [
-        { command: "pnpm typecheck", surface: "structural", result: "pass" },
-        { command: "oracles", surface: "acceptance", result: "pass" },
+        { command: "pnpm typecheck", surface: "structural", result: "pass", time: UNKNOWN_TIME },
+        { command: "oracles", surface: "acceptance", result: "pass", time: UNKNOWN_TIME },
       ],
       protectedPaths: null,
     },
@@ -176,9 +181,10 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     },
     expected: {
       phase: "phase-03",
+      time: UNKNOWN_TIME,
       steps: [
-        { command: "pnpm test", surface: "local", result: "fail" },
-        { command: "oracles", surface: "acceptance", result: "skipped" },
+        { command: "pnpm test", surface: "local", result: "fail", time: UNKNOWN_TIME },
+        { command: "oracles", surface: "acceptance", result: "skipped", time: NOT_RUN_TIME },
       ],
       protectedPaths: null,
     },
@@ -196,9 +202,10 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     },
     expected: {
       phase: "phase-03",
+      time: UNKNOWN_TIME,
       steps: [
-        { command: "pnpm typecheck", surface: "structural", result: "pass" },
-        { command: "oracles", surface: "acceptance", result: "fail" },
+        { command: "pnpm typecheck", surface: "structural", result: "pass", time: UNKNOWN_TIME },
+        { command: "oracles", surface: "acceptance", result: "fail", time: UNKNOWN_TIME },
       ],
       protectedPaths: null,
     },
@@ -340,9 +347,10 @@ export const stampCases: ReadonlyArray<StampCase> = [
     },
     expected: {
       phase: "phase-03",
+      time: UNKNOWN_TIME,
       steps: [
-        { command: "pnpm typecheck", surface: "structural", result: "pass" },
-        { command: "acceptance", surface: "acceptance", result: "pass" },
+        { command: "pnpm typecheck", surface: "structural", result: "pass", time: UNKNOWN_TIME },
+        { command: "acceptance", surface: "acceptance", result: "pass", time: UNKNOWN_TIME },
       ],
       protectedPaths: null,
     },

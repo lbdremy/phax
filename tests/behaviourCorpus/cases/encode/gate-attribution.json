@@ -4,18 +4,33 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
         "phase": "phase-01",
+        "time": {
+          "kind": "measured",
+          "startedAt": "2026-01-01T09:00:00.000Z",
+          "durationMs": 1500
+        },
         "steps": [
           {
             "command": "pnpm typecheck",
             "surface": "structural",
-            "result": "pass"
+            "result": "pass",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           },
           {
             "command": "pnpm test",
             "surface": "local",
-            "result": "fail"
+            "result": "fail",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           }
         ],
         "protectedPaths": null
@@ -23,34 +38,59 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
           "phase": "phase-01",
-          "protectedPaths": null,
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
+          },
           "steps": [
             {
               "command": "pnpm typecheck",
+              "surface": "structural",
               "result": "pass",
-              "surface": "structural"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             },
             {
               "command": "pnpm test",
+              "surface": "local",
               "result": "fail",
-              "surface": "local"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             }
-          ]
+          ],
+          "protectedPaths": null
         }
       }
     },
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
         "phase": "phase-01",
+        "time": {
+          "kind": "measured",
+          "startedAt": "2026-01-01T09:00:00.000Z",
+          "durationMs": 1500
+        },
         "steps": [
           {
             "command": "pnpm typecheck",
             "surface": "structural",
-            "result": "pass"
+            "result": "pass",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           }
         ],
         "protectedPaths": {
@@ -61,44 +101,74 @@
               "kind": "created",
               "entry": "text-4"
             }
-          ]
+          ],
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
+          }
         }
       },
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
           "phase": "phase-01",
-          "protectedPaths": {
-            "changes": [
-              {
-                "entry": "text-4",
-                "kind": "created",
-                "path": "text-3"
-              }
-            ],
-            "result": "fail"
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
           },
           "steps": [
             {
               "command": "pnpm typecheck",
+              "surface": "structural",
               "result": "pass",
-              "surface": "structural"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             }
-          ]
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ],
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
+          }
         }
       }
     },
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
         "phase": "phase-01",
+        "time": {
+          "kind": "measured",
+          "startedAt": "2026-01-01T09:00:00.000Z",
+          "durationMs": 1500
+        },
         "steps": [
           {
             "command": "pnpm typecheck",
             "surface": "structural",
-            "result": "pass"
+            "result": "pass",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           }
         ],
         "protectedPaths": {
@@ -109,49 +179,84 @@
               "kind": "created",
               "entry": "text-4"
             }
-          ]
+          ],
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
+          }
         }
       },
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
           "phase": "phase-01",
-          "protectedPaths": {
-            "changes": [
-              {
-                "entry": "text-4",
-                "kind": "created",
-                "path": "text-3"
-              }
-            ],
-            "result": "fail"
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
           },
           "steps": [
             {
               "command": "pnpm typecheck",
+              "surface": "structural",
               "result": "pass",
-              "surface": "structural"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             }
-          ]
+          ],
+          "protectedPaths": {
+            "result": "fail",
+            "changes": [
+              {
+                "path": "text-3",
+                "kind": "created",
+                "entry": "text-4"
+              }
+            ],
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
+          }
         }
       }
     },
     {
       "name": "accepts an unexpected key without reading it",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+        "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
         "phase": "phase-01",
+        "time": {
+          "kind": "measured",
+          "startedAt": "2026-01-01T09:00:00.000Z",
+          "durationMs": 1500
+        },
         "steps": [
           {
             "command": "pnpm typecheck",
             "surface": "structural",
-            "result": "pass"
+            "result": "pass",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           },
           {
             "command": "pnpm test",
             "surface": "local",
-            "result": "fail"
+            "result": "fail",
+            "time": {
+              "kind": "measured",
+              "startedAt": "2026-01-01T09:00:00.000Z",
+              "durationMs": 1500
+            }
           }
         ],
         "protectedPaths": null,
@@ -160,21 +265,36 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          "$schema": "https://docs.phax.run/schemas/gate-attribution/0.43.0.json",
           "phase": "phase-01",
-          "protectedPaths": null,
+          "time": {
+            "kind": "measured",
+            "startedAt": "2026-01-01T09:00:00.000Z",
+            "durationMs": 1500
+          },
           "steps": [
             {
               "command": "pnpm typecheck",
+              "surface": "structural",
               "result": "pass",
-              "surface": "structural"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             },
             {
               "command": "pnpm test",
+              "surface": "local",
               "result": "fail",
-              "surface": "local"
+              "time": {
+                "kind": "measured",
+                "startedAt": "2026-01-01T09:00:00.000Z",
+                "durationMs": 1500
+              }
             }
-          ]
+          ],
+          "protectedPaths": null
         }
       }
     }

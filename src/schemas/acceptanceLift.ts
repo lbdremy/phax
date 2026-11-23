@@ -6,7 +6,7 @@
 // was recorded.
 import { Array as Arr } from "effect";
 import type { AcceptanceRequest } from "./acceptanceRequest.js";
-import type { GateStepResult } from "./gateAttribution.js";
+import type { UntimedGateStep } from "./gateTimeLift.js";
 import type { PhaseAcceptance, PhaxPlan, PhaxPlanPhase } from "./phaxPlan.js";
 import type { PlanDocument, PlanDocumentPhase } from "./planDocument.js";
 import type { ExtractionPlan, PlanExtractionAnswer } from "./planExtraction.js";
@@ -224,17 +224,23 @@ export function liftVerifiedSurfaces(
   return surfaces.map(liftRecordedSurface).toSorted();
 }
 
-/** A gate step as a shape before 0.33.0 recorded it: the appended step on the `oracle` surface. */
+/**
+ * An untimed gate step as a shape before step times recorded it: before
+ * 0.33.0, the appended step on the `oracle` surface.
+ */
 export type GateStepToLift =
-  | GateStepResult
+  | UntimedGateStep
   | {
       readonly command: string;
       readonly surface: "oracle";
       readonly result: "pass" | "fail" | "refused" | "skipped";
     };
 
-/** A gate step with its surface lifted (`liftRecordedSurface`); its command and result kept. */
-export function liftGateStep(step: GateStepToLift): GateStepResult {
+/**
+ * An untimed gate step with its surface lifted (`liftRecordedSurface`); its
+ * command and result kept. `liftUntimedGateAttribution` then gives it a time.
+ */
+export function liftGateStep(step: GateStepToLift): UntimedGateStep {
   return step.surface === "oracle" ? { ...step, surface: "acceptance" } : step;
 }
 

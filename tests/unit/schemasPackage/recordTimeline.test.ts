@@ -14,6 +14,7 @@ import {
 import { missingSchemaMessage, newerReleaseMessage } from "../../../packages/schemas/src/shapes.js";
 import { decodeGateAttributionFile } from "../../../src/schemas/gateAttribution.js";
 import { decodeGateRequestFile } from "../../../src/schemas/gateRequest.js";
+import { currentSchemaUrl, readGateAttributionFile } from "../../../src/schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { decodePhaseFileReconciliationFile } from "../../../src/schemas/reconciliation.js";
 import {
@@ -24,6 +25,7 @@ import {
 import {
   belowOwnReleaseMessage,
   latestPreSchema,
+  phaxLatestPreSchema,
   preSchemaDocuments,
   validDocuments,
   withKey,
@@ -94,13 +96,14 @@ describe.each(FORMATS)("$id", (format) => {
     if (!pre.ok || !current.ok) throw new Error("document rejected");
     // A pre-schema document is its own latest value, but for the facts a later
     // shape added: a reconciliation written before `reviewCorrections` gets [].
-    // A gate attribution written today also records `protectedPaths`.
-    const added = format.id === "gate-attribution" ? { protectedPaths: null } : {};
+    // A gate attribution written today also records `protectedPaths` and its
+    // times: the sample's are `unknown`, as phax lifts the pre-schema one.
     expect(format.toLatest(pre.value as never)).toEqual(latestPreSchema(format.id));
-    expect(format.toLatest(current.value as never)).toEqual({
-      ...latestPreSchema(format.id),
-      ...added,
-    });
+    expect(format.toLatest(current.value as never)).toEqual(
+      format.id === "gate-attribution"
+        ? phaxLatestPreSchema("gate-attribution")
+        : latestPreSchema(format.id),
+    );
     expect(format.toLatest(current.value as never)).not.toHaveProperty("$schema");
   });
 
@@ -120,6 +123,14 @@ describe.each(FORMATS)("$id", (format) => {
     });
   });
 });
+
+const UNKNOWN_TIME = { kind: "unknown" } as const;
+const NOT_RUN = { kind: "not-run" } as const;
+const MEASURED_TIME = {
+  kind: "measured",
+  startedAt: "2026-11-23T10:00:00.000Z",
+  durationMs: 1200,
+} as const;
 
 // gate-attribution gained `refused` after 0.20.0: each stamp reads as the shape
 // its release wrote.
@@ -164,13 +175,24 @@ describe("gate-attribution's released shapes", () => {
     const parsed = parseGateAttribution(document);
     expect(parsed).toEqual({ ok: true, shape: "0.26.0", value: document });
     if (!parsed.ok || parsed.shape !== "0.26.0") return;
-    // The oracle step's surface is lifted to acceptance, and a 0.26.0 attribution
-    // ran no protected-paths check.
+    // The oracle step's surface is lifted to acceptance, a 0.26.0 attribution
+    // ran no protected-paths check, and it recorded no time.
     expect(toLatestGateAttribution(parsed.value)).toEqual({
       phase: document.phase,
+      time: UNKNOWN_TIME,
       steps: [
-        ...attributionSteps("refused"),
-        { command: "oracles provider", surface: "acceptance", result: "skipped" },
+        {
+          command: "node ./audit.mjs",
+          surface: "structural",
+          result: "refused",
+          time: UNKNOWN_TIME,
+        },
+        {
+          command: "oracles provider",
+          surface: "acceptance",
+          result: "skipped",
+          time: { kind: "not-run" },
+        },
       ],
       protectedPaths: null,
     });
@@ -178,19 +200,115 @@ describe("gate-attribution's released shapes", () => {
 
   it("refuses an attribution at the current stamp without protectedPaths", () => {
     expect(
-      parseGateAttribution(stampedAt(CURRENT_STAMPS["gate-attribution"], "refused")),
+      parseGateAttribution({
+        ...stampedAt(CURRENT_STAMPS["gate-attribution"], "refused"),
+        time: MEASURED_TIME,
+      }),
     ).toMatchObject({ ok: false });
+  });
+
+  it("refuses an attribution at the current stamp without its time", () => {
+    expect(
+      parseGateAttribution({
+        ...stampedAt(CURRENT_STAMPS["gate-attribution"], "refused"),
+        protectedPaths: null,
+      }),
+    ).toMatchObject({ ok: false, error: { path: "time" } });
   });
 
   it("reads an attribution at the current stamp, refused included, as the current shape", () => {
     const document = {
-      ...stampedAt(CURRENT_STAMPS["gate-attribution"], "refused"),
+      $schema: currentSchemaUrl("gate-attribution"),
+      phase: "phase-01",
+      time: MEASURED_TIME,
+      steps: [
+        {
+          command: "node ./audit.mjs",
+          surface: "structural",
+          result: "refused",
+          time: MEASURED_TIME,
+        },
+      ],
       protectedPaths: null,
     };
     expect(parseGateAttribution(document)).toEqual({
       ok: true,
       shape: CURRENT_SHAPES["gate-attribution"],
       value: document,
+    });
+  });
+});
+
+// ac-package: the package and phax's reader agree on a timed attribution and
+// on one stamped before times, through the one shared lift.
+describe("gate-attribution times in the package", () => {
+  const timed = {
+    $schema: currentSchemaUrl("gate-attribution"),
+    phase: "phase-02",
+    time: MEASURED_TIME,
+    steps: [
+      { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+      { command: "node oracles.mjs", surface: "acceptance", result: "skipped", time: NOT_RUN },
+    ],
+    protectedPaths: { result: "pass", changes: [], time: MEASURED_TIME },
+  };
+  const untimed = {
+    $schema: schemaUrl("gate-attribution", "0.31.0"),
+    phase: "phase-02",
+    steps: [
+      { command: "pnpm test", surface: "local", result: "pass" },
+      { command: "node oracles.mjs", surface: "oracle", result: "pass" },
+    ],
+    protectedPaths: {
+      result: "fail",
+      changes: [{ path: "phax.json", kind: "edited", entry: "phax.json" }],
+    },
+  };
+
+  it.each([
+    ["the current stamp, its times measured", timed],
+    ["0.31.0, its times unknown", untimed],
+  ])("lifts an attribution stamped %s as phax's reader reads it", (_label, document) => {
+    const parsed = parseGateAttribution(document);
+    if (!parsed.ok) throw new Error(`refused: ${parsed.error.message}`);
+    const phax = readGateAttributionFile("gate-attribution.json", document);
+    if (Result.isFailure(phax)) throw new Error(phax.failure.message);
+    expect(toLatestGateAttribution(parsed.value)).toEqual(phax.success);
+  });
+
+  it("gives the current stamp's measured times and 0.31.0's unknown times", () => {
+    const fromTimed = parseGateAttribution(timed);
+    const fromUntimed = parseGateAttribution(untimed);
+    if (!fromTimed.ok || !fromUntimed.ok) throw new Error("refused");
+    expect(toLatestGateAttribution(fromTimed.value)).toMatchObject({
+      time: MEASURED_TIME,
+      steps: [{ time: MEASURED_TIME }, { time: NOT_RUN }],
+      protectedPaths: { time: MEASURED_TIME },
+    });
+    expect(toLatestGateAttribution(fromUntimed.value)).toMatchObject({
+      time: UNKNOWN_TIME,
+      steps: [{ time: UNKNOWN_TIME }, { surface: "acceptance", time: UNKNOWN_TIME }],
+      protectedPaths: { time: UNKNOWN_TIME },
+    });
+  });
+
+  it("reads a 0.33.0 attribution as shape 0.33.0 and lifts it with unknown times", () => {
+    const document = {
+      $schema: schemaUrl("gate-attribution", "0.33.0"),
+      phase: "phase-02",
+      steps: [{ command: "node oracles.mjs", surface: "acceptance", result: "skipped" }],
+      protectedPaths: null,
+    };
+    const parsed = parseGateAttribution(document);
+    expect(parsed).toEqual({ ok: true, shape: "0.33.0", value: document });
+    if (!parsed.ok || parsed.shape !== "0.33.0") return;
+    expect(toLatestGateAttribution(parsed.value)).toEqual({
+      phase: "phase-02",
+      time: UNKNOWN_TIME,
+      steps: [
+        { command: "node oracles.mjs", surface: "acceptance", result: "skipped", time: NOT_RUN },
+      ],
+      protectedPaths: null,
     });
   });
 });

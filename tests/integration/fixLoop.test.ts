@@ -139,17 +139,29 @@ function stepRecord(
     readonly result: string;
   }>,
 ) {
+  const measured = { kind: "measured", startedAt: "2026-01-01T09:00:00.000Z", durationMs: 1500 };
   return JSON.stringify(
     {
       $schema: currentSchemaUrl("gate-attribution"),
       phase: "phase-01",
-      steps,
+      time: measured,
+      steps: steps.map((step) => ({
+        ...step,
+        time: step.result === "skipped" ? { kind: "not-run" } : measured,
+      })),
       protectedPaths: null,
     },
     null,
     2,
   );
 }
+
+/** A time phax measured: phase-02 pins it under a fixed clock. */
+const MEASURED_TIME = {
+  kind: "measured",
+  startedAt: expect.any(String),
+  durationMs: expect.any(Number),
+};
 
 /** A made-up checked report from a step, with one finding per id (no line). */
 function checkedReport(ids: readonly string[]) {
@@ -361,10 +373,19 @@ describe("runGatesWithFixLoop", () => {
         changes: [
           { path: "packages/a/steme.baseline.json", kind: "edited", entry: "protectedPaths[0]" },
         ],
+        time: MEASURED_TIME,
       });
+      // The check's rewrite keeps the attempt's and the step's times.
+      expect(record.time).toEqual(MEASURED_TIME);
+      expect(record.steps[0].time).toEqual(MEASURED_TIME);
+      // The phase's record is the last attempt's step record (two attempts, one fix).
+      expect(
+        JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-02.attribution.json`)!),
+      ).toEqual(record);
+      // The first attempt recorded the same check, at its own times.
       expect(
         JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/checks-attempt-01.attribution.json`)!),
-      ).toEqual(record);
+      ).toMatchObject({ protectedPaths: { result: "fail", time: MEASURED_TIME } });
     });
 
     it("keeps a failed step's own kind and carries the change too", async () => {
@@ -412,7 +433,7 @@ describe("runGatesWithFixLoop", () => {
 
       expect(fakeBackend.impl.resumeCalls).toHaveLength(0);
       const record = JSON.parse(fakeFs.impl.getFile(`${phaseFolderPath}/gate-attribution.json`)!);
-      expect(record.protectedPaths).toEqual({ result: "pass", changes: [] });
+      expect(record.protectedPaths).toEqual({ result: "pass", changes: [], time: MEASURED_TIME });
     });
 
     it("observes nothing when the project declares no list", async () => {
@@ -1187,7 +1208,9 @@ describe("runGatesWithFixLoop", () => {
     expect(raw).toBeDefined();
     const record = JSON.parse(raw!) as { phase: string; steps: unknown[] };
     expect(record.phase).toBe("phase-01");
-    expect(record.steps).toEqual([{ command: "pnpm test", surface: "local", result: "pass" }]);
+    expect(record.steps).toEqual([
+      { command: "pnpm test", surface: "local", result: "pass", time: MEASURED_TIME },
+    ]);
   });
 
   it("numbers a first entry's attempts from 01: checks-attempt-01, then attempt-02 after one fix", async () => {

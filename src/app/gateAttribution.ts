@@ -5,6 +5,7 @@ import { FileSystem, FsError } from "../ports/fs.js";
 import {
   encodeGateAttributionFile,
   type GateAttribution,
+  type MeasuredTime,
   type ProtectedPathsResult,
 } from "../schemas/gateAttribution.js";
 import { readGateAttributionFile, withSchemaUrl } from "../schemas/persisted.js";
@@ -51,24 +52,33 @@ export function aggregateVerifiedSurfaces(
   });
 }
 
-/** The record's form of a check's result: a pass with no change, else a fail naming each. */
-function protectedPathsResult(changes: readonly ProtectedChange[]): ProtectedPathsResult {
+/**
+ * The record's form of a check's result, with the check's time: a pass with no
+ * change, else a fail naming each.
+ */
+function protectedPathsResult(
+  changes: readonly ProtectedChange[],
+  time: MeasuredTime,
+): ProtectedPathsResult {
   const recorded = changes.map(({ path, kind, entry }) => ({ path, kind, entry }));
   return Arr.isReadonlyArrayNonEmpty(recorded)
-    ? { result: "fail", changes: recorded }
-    : { result: "pass", changes: [] };
+    ? { result: "fail", changes: recorded, time }
+    : { result: "pass", changes: [], time };
 }
 
 /**
  * Rewrites an attempt's step record and the phase's gate-attribution.json with
- * the protected-paths check's result, the steps `runGates` recorded unchanged.
- * Both files are the same document, so the step record is read and written to
- * both. A step record that cannot be read as a gate attribution is a fault.
+ * the protected-paths check's result and time, the attempt's time and the
+ * steps `runGates` recorded unchanged. Both files are the same document, so
+ * the step record is read and written to both. A step record that cannot be
+ * read as a gate attribution is a fault.
  */
 export function recordProtectedPaths(input: {
   readonly stepRecordPath: string;
   readonly attributionPath: string;
   readonly changes: readonly ProtectedChange[];
+  /** The protected-paths check's time, around `checkProtectedPaths`. */
+  readonly time: MeasuredTime;
 }): Effect.Effect<void, FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
@@ -86,8 +96,9 @@ export function recordProtectedPaths(input: {
     }
     const attribution: GateAttribution = {
       phase: record.success.phase,
+      time: record.success.time,
       steps: record.success.steps,
-      protectedPaths: protectedPathsResult(input.changes),
+      protectedPaths: protectedPathsResult(input.changes, input.time),
     };
     const document = JSON.stringify(
       encodeGateAttributionFile(withSchemaUrl("gate-attribution", attribution)),

@@ -738,7 +738,7 @@ describe("a secure codex-cli phase and an unsafe claude-code phase", () => {
 
 describe("the gate-attribution record of a failed check", () => {
   it(
-    "carries the 0.33.0 $schema and the fail result with path, kind and entry",
+    "carries the current $schema, the times and the fail result with path, kind and entry",
     { timeout: 60_000 },
     async () => {
       const observed = await runPhase({
@@ -753,13 +753,23 @@ describe("the gate-attribution record of a failed check", () => {
         $schema: string;
       };
       expect(attribution.$schema).toBe(currentSchemaUrl("gate-attribution"));
-      expect(attribution.$schema).toContain("0.33.0");
+      // The check's rewrite keeps the attempt's and the step's times, and adds its own.
+      const measured = { kind: "measured" };
       expect(attribution).toMatchObject({
         phase: "phase-01",
-        steps: [{ command: "node scripts/accept-debt.js", surface: "local", result: "pass" }],
+        time: measured,
+        steps: [
+          {
+            command: "node scripts/accept-debt.js",
+            surface: "local",
+            result: "pass",
+            time: measured,
+          },
+        ],
         protectedPaths: {
           result: "fail",
           changes: [{ path: BASELINE_A, kind: "edited", entry: "protectedPaths[0]" }],
+          time: measured,
         },
       });
       // The phase's record is the last attempt's step record, the same document.

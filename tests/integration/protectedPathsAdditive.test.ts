@@ -34,6 +34,7 @@ import {
   type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
 import type { PhaxPlan, PhaxPlanPhase } from "../../src/schemas/phaxPlan.js";
+import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../helpers/fakeProviderCli.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { disableGitAutoMaintenance, removeTempDir } from "../helpers/tempGit.js";
@@ -479,10 +480,18 @@ describe.each<ProviderName>(["claude-code", "codex-cli", "mistral-vibe"])(
           providerSkippedForSecurity: [],
           stop: null,
         });
+        const measured = {
+          kind: "measured",
+          startedAt: expect.any(String),
+          durationMs: expect.any(Number),
+        };
         expect(readJson(join(observed.phaseFolder, "gate-attribution.json"))).toEqual({
-          $schema: "https://docs.phax.run/schemas/gate-attribution/0.33.0.json",
+          $schema: currentSchemaUrl("gate-attribution"),
           phase: "phase-01",
-          steps: [{ command: "node scripts/gate.mjs", surface: "local", result: "pass" }],
+          time: measured,
+          steps: [
+            { command: "node scripts/gate.mjs", surface: "local", result: "pass", time: measured },
+          ],
           protectedPaths: null,
         });
       },

@@ -160,14 +160,21 @@ async function records(args: readonly string[]) {
 }
 
 function attribution(phase: string, result: "pass" | "fail" | "skipped"): string {
+  const measured = { kind: "measured", startedAt: "2026-01-01T09:00:00.000Z", durationMs: 1500 };
   return JSON.stringify(
     withSchemaUrl("gate-attribution", {
       phase,
-      protectedPaths: null,
+      time: measured,
       steps: [
-        { command: "pnpm test", surface: "local", result: "pass" },
-        { command: "node tools/acceptance.mjs", surface: "acceptance", result },
+        { command: "pnpm test", surface: "local", result: "pass", time: measured },
+        {
+          command: "node tools/acceptance.mjs",
+          surface: "acceptance",
+          result,
+          time: result === "skipped" ? { kind: "not-run" } : measured,
+        },
       ],
+      protectedPaths: null,
     }),
   );
 }

@@ -1,4 +1,4 @@
-import { Effect, Result } from "effect";
+import { Clock, Effect, Result } from "effect";
 import { basename, join } from "node:path";
 import type { GateStep, ResolvedConfig } from "../schemas/phaxConfig.js";
 import { GateFailedError, GateStepRefusedError } from "../domain/errors.js";
@@ -15,7 +15,12 @@ import {
 import type { GateFinding } from "../schemas/gateReport.js";
 import { reportPathFor } from "../domain/gate/reportPath.js";
 import { encodeRunStatus } from "../schemas/status.js";
-import { encodeGateAttributionFile, type GateStepResult } from "../schemas/gateAttribution.js";
+import {
+  encodeGateAttributionFile,
+  type GateStepResult,
+  type MeasuredTime,
+} from "../schemas/gateAttribution.js";
+import { measuredTime, timed } from "./gateTime.js";
 import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
 import { commandWords } from "../domain/gate/commandWords.js";
@@ -144,19 +149,27 @@ export function runGates(
     const shell = yield* Shell;
     const fs = yield* FileSystem;
 
+    // The attempt's start: before its first gate-request write.
+    const attemptStartedAt = yield* Clock.currentTimeMillis;
+
     const logLines: string[] = [];
     const stepResults: GateStepResult[] = [];
     let requestWritten = false;
 
-    /** Writes the attempt's step record beside its log and, when asked, the
-     *  phase's `gate-attribution.json`: one document, the steps that ran. */
-    function writeAttribution(): Effect.Effect<void, FsError> {
+    /** Ends the attempt, once its last step is judged: reads the attempt's end,
+     *  writes the attempt log, then the attempt's step record beside it and,
+     *  when asked, the phase's `gate-attribution.json`: one document, the
+     *  steps that ran and the attempt's time. */
+    function persistAttempt(): Effect.Effect<void, FsError> {
       return Effect.gen(function* () {
+        const attemptEndedAt = yield* Clock.currentTimeMillis;
+        yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
         if (phaseId === undefined) return;
         const document = JSON.stringify(
           encodeGateAttributionFile(
             withSchemaUrl("gate-attribution", {
               phase: phaseId,
+              time: measuredTime(attemptStartedAt, attemptEndedAt),
               steps: stepResults,
               protectedPaths: null,
             }),
@@ -184,8 +197,7 @@ export function runGates(
       readonly stderr: string;
     }): Effect.Effect<never, GateFailedError | FsError> {
       return Effect.gen(function* () {
-        yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
-        yield* writeAttribution();
+        yield* persistAttempt();
         return yield* Effect.fail(
           new GateFailedError({
             message: params.message,
@@ -211,8 +223,10 @@ export function runGates(
       readonly position: number;
       readonly result: ShellRunResult;
       readonly stdoutLine: number;
+      /** The step's command's time, around its `shell.run`. */
+      readonly time: MeasuredTime;
     }): Effect.Effect<void, GateFailedError | GateStepRefusedError | FsError> {
-      const { rawCommand, surface, position, result, stdoutLine } = params;
+      const { rawCommand, surface, position, result, stdoutLine, time } = params;
       return Effect.gen(function* () {
         // The step promised a gate report on stdout; the verdict comes from the
         // report. Anything else is a broken step: it fails with the raw log,
@@ -220,7 +234,7 @@ export function runGates(
         function unread(error: ReportError) {
           const line = describeReportError(error);
           logLines.push(`provider error: ${line}`);
-          stepResults.push({ command: rawCommand, surface, result: "fail" });
+          stepResults.push({ command: rawCommand, surface, result: "fail", time });
           return failGate({
             rawCommand,
             surface,
@@ -264,9 +278,8 @@ export function runGates(
           // A refusal stops the gate for the operator, whatever the exit code:
           // no later step runs, and the fix loop makes no attempt.
           logLines.push(`refused: ${report.reason} — remedy: ${report.remedy}`);
-          stepResults.push({ command: rawCommand, surface, result: "refused" });
-          yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
-          yield* writeAttribution();
+          stepResults.push({ command: rawCommand, surface, result: "refused", time });
+          yield* persistAttempt();
           return yield* Effect.fail(
             new GateStepRefusedError({
               message: `Gate step "${rawCommand}" refused to run: ${report.reason} (remedy: ${report.remedy})`,
@@ -285,12 +298,12 @@ export function runGates(
         if (report.findings.length === 0) {
           // Review notes never fail a step.
           if (result.exitCode === 0) {
-            stepResults.push({ command: rawCommand, surface, result: "pass" });
+            stepResults.push({ command: rawCommand, surface, result: "pass", time });
             return undefined;
           }
           const message = `Gate step "${rawCommand}" exited ${result.exitCode} with no finding`;
           logLines.push(`provider error: ${message}`);
-          stepResults.push({ command: rawCommand, surface, result: "fail" });
+          stepResults.push({ command: rawCommand, surface, result: "fail", time });
           return yield* failGate({
             rawCommand,
             surface,
@@ -303,7 +316,7 @@ export function runGates(
         // Any finding fails the step, whatever the exit code. The findings
         // keep the report's order.
         const count = report.findings.length;
-        stepResults.push({ command: rawCommand, surface, result: "fail" });
+        stepResults.push({ command: rawCommand, surface, result: "fail", time });
         return yield* failGate({
           rawCommand,
           surface,
@@ -330,17 +343,22 @@ export function runGates(
       const command = parseCommandTokens(rawCommand);
       logLines.push(`$ ${rawCommand}`);
 
-      let result: ShellRunResult;
       if (step.input === "gate-request") {
         if (!requestWritten) {
           yield* fs.writeAtomic(requestPath, gateRequest);
           requestWritten = true;
         }
         logLines.push(`stdin: ${basename(requestPath)}`);
-        result = yield* shell.run({ command, cwd, stdin: gateRequest });
-      } else {
-        result = yield* shell.run({ command, cwd });
       }
+      const [outcome, time] = yield* timed(
+        step.input === "gate-request"
+          ? shell.run({ command, cwd, stdin: gateRequest })
+          : shell.run({ command, cwd }),
+      );
+      // A configured step that fails to spawn is a fault of the run, as
+      // before: its ShellError propagates unchanged, with nothing written.
+      if (Result.isFailure(outcome)) return yield* Effect.fail(outcome.failure);
+      const result = outcome.success;
 
       const stdoutLine = logResult(result);
 
@@ -351,12 +369,13 @@ export function runGates(
           position: index + 1,
           result,
           stdoutLine,
+          time,
         });
         continue;
       }
 
       if (result.exitCode !== 0) {
-        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail" });
+        stepResults.push({ command: rawCommand, surface: step.surface, result: "fail", time });
         return yield* failGate({
           rawCommand,
           surface: step.surface,
@@ -366,7 +385,7 @@ export function runGates(
         });
       }
 
-      stepResults.push({ command: rawCommand, surface: step.surface, result: "pass" });
+      stepResults.push({ command: rawCommand, surface: step.surface, result: "pass", time });
     }
 
     if (acceptanceStep?.kind === "skipped") {
@@ -377,6 +396,7 @@ export function runGates(
         command: acceptanceStep.command,
         surface: "acceptance",
         result: "skipped",
+        time: { kind: "not-run" },
       });
     } else if (acceptanceStep !== undefined) {
       // Every configured step passed: phax appends the acceptance step, last.
@@ -386,7 +406,7 @@ export function runGates(
       yield* fs.writeAtomic(acceptanceRequestPath, acceptanceStep.request);
       logLines.push(`$ ${rawCommand}`);
       logLines.push(`stdin: ${basename(acceptanceRequestPath)}`);
-      const spawned = yield* Effect.result(
+      const [spawned, time] = yield* timed(
         shell.run({
           command: parseCommandTokens(rawCommand),
           cwd,
@@ -400,7 +420,7 @@ export function runGates(
         const error = spawned.failure;
         logLines.push(`provider error: ${error.message}`);
         logLines.push("");
-        stepResults.push({ command: rawCommand, surface: "acceptance", result: "fail" });
+        stepResults.push({ command: rawCommand, surface: "acceptance", result: "fail", time });
         return yield* failGate({
           rawCommand,
           surface: "acceptance",
@@ -416,11 +436,11 @@ export function runGates(
         position: steps.length + 1,
         result,
         stdoutLine: logResult(result),
+        time,
       });
     }
 
-    yield* fs.writeAtomic(attemptLogPath, logLines.join("\n"));
-    yield* writeAttribution();
+    yield* persistAttempt();
     return { attemptLogPath, steps: stepResults };
   });
 }
