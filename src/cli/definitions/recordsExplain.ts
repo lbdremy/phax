@@ -572,7 +572,10 @@ const RESULT_WIDTH = "refused".length;
 function timeLabel(time: GateTimeFacts): string {
   switch (time.kind) {
     case "measured":
-      return `${(time.durationMs / 1000).toFixed(1)} s`;
+      // Under a second in milliseconds, so a short check never reads `0.0 s`.
+      return time.durationMs < 1000
+        ? `${time.durationMs} ms`
+        : `${(time.durationMs / 1000).toFixed(1)} s`;
     case "unknown":
       return "time unknown";
     case "not-run":
@@ -796,7 +799,7 @@ export const recordsExplainCommand = defineCommand({
   name: "explain",
   summary:
     "Explain a commit from its record: prompt, diff, gates and verified surfaces, handoff, transcript, usage — or, for a headless artifact commit, its authoring record",
-  help: "Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. A headless artifact commit resolves through its Authoring-Id, a decide commit through its Decision-Id and a revise commit through its Revision-Id, read from the last paragraph of its message only, so an amendment line shaped like a trailer never addresses another record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
+  help: "Explains a commit from its record. For a phase, the gates line is followed by each gate attempt with its duration, then each step's command, surface, result and duration, then the protected-paths check when it ran (a duration under a second in milliseconds): `time unknown` marks a time a record written before times were kept does not hold, `not run` a skipped acceptance step, and `steps unknown` an attempt whose step record is absent or unreadable. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. A headless artifact commit resolves through its Authoring-Id, a decide commit through its Decision-Id and a revise commit through its Revision-Id, read from the last paragraph of its message only, so an amendment line shaped like a trailer never addresses another record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.\n\nA run-level review entry's own commit on phax/records/v1 (Run-Id and Review trailers) is a record, not a source commit: explain names the run and the review and prints the git show that reads the review's file, and exits 0.",
   examples: ["phax records explain 3f9c2a1", "phax records explain 3f9c2a1 --gates"],
   input: { args: reject(ExplainArgs), flags: reject(ExplainFlags) },
   output: reject(ExplainOutput),

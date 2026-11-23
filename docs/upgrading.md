@@ -26,7 +26,7 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **`gate-attribution.json` and `checks-attempt-NN.attribution.json` move to a new shape**, stamped 0.43.0, with a required `time` on the attempt, on every step and on a non-null `protectedPaths`: `measured` with `startedAt` and `durationMs`, or `not-run` for a skipped acceptance step.
 - **`phax records explain` shows these times** under its `gates` line, and `--json` adds `gateAttempts`.
 - **Older attributions still read, with their times `unknown`, and are never rewritten.**
-- **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new attributions**, so upgrade the package. Its `toLatestGateAttribution` gives 0.26.0 to 0.33.0 attributions `unknown` times.
+- **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new attributions**, so upgrade the package. Its `toLatestGateAttribution` gives 0.26.0 to 0.33.0 attributions `unknown` times. Older ones (pre-schema, 0.17.0 to 0.21.0) come back under their own types with no `time` key, since their steps can be `pending`; phax itself reads them with `unknown` times.
 
 No step is needed in a repository.
 
