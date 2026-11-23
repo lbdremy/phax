@@ -12,6 +12,7 @@ import {
   gateArtifactsInOrder,
   type ExplainedAuthoringRecord,
   type ExplainedDecisionRecord,
+  type ExplainedGateAttempt,
   type ExplainedRecord,
   type ExplainedRevisionRecord,
 } from "../../app/recordsExplain.js";
@@ -84,6 +85,41 @@ const DiffStat = Schema.Struct({
 
 const AcceptanceStep = Schema.Struct({ command: Schema.String, result: Schema.String });
 
+/** A recorded time: measured, unknown (written before times were), or not run (a skipped step). */
+const GateTime = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("measured"),
+    startedAt: Schema.String,
+    durationMs: Schema.Number,
+  }),
+  Schema.Struct({ kind: Schema.Literal("unknown") }),
+  Schema.Struct({ kind: Schema.Literal("not-run") }),
+]);
+
+/** One gate attempt, read from its own step record, or `absent` / `unreadable` when it cannot be. */
+const GateAttempt = Schema.Union([
+  Schema.Struct({
+    attempt: Schema.Number,
+    stepRecord: Schema.Literal("read"),
+    time: GateTime,
+    steps: Schema.Array(
+      Schema.Struct({
+        command: Schema.String,
+        surface: Schema.String,
+        result: Schema.String,
+        time: GateTime,
+      }),
+    ),
+    protectedPaths: Schema.NullOr(
+      Schema.Struct({ result: Schema.Literals(["pass", "fail"]), time: GateTime }),
+    ),
+  }),
+  Schema.Struct({
+    attempt: Schema.Number,
+    stepRecord: Schema.Literals(["absent", "unreadable"]),
+  }),
+]);
+
 const PhaseExplained = Schema.Struct({
   kind: Schema.Literal("phase"),
   runId: Schema.String,
@@ -103,6 +139,8 @@ const PhaseExplained = Schema.Struct({
   verifiedSurfaces: Schema.Array(Schema.String),
   acceptance: RecordAcceptanceRoleSchema,
   acceptanceStep: Schema.NullOr(AcceptanceStep),
+  /** Every gate attempt the record holds a log for, in attempt order, with its step times. */
+  gateAttempts: Schema.Array(GateAttempt),
   sourceSha: Text,
   sourceReachable: Schema.Boolean,
   promptBytes: Schema.NullOr(Schema.Number),
@@ -258,6 +296,8 @@ const ExplainFlags = Schema.Struct({
 
 type Explained = typeof ExplainOutput.Type;
 type PhaseFacts = typeof PhaseExplained.Type;
+type GateAttemptFacts = typeof GateAttempt.Type;
+type GateTimeFacts = typeof GateTime.Type;
 type AuthoringFacts = typeof AuthoringExplained.Type;
 type DecisionFacts = typeof DecisionExplained.Type;
 type RevisionFacts = typeof RevisionExplained.Type;
@@ -284,6 +324,29 @@ function requestedDocuments(
   };
 }
 
+/** An attempt's facts, without the protected-path change list (it stays in the record's file). */
+function gateAttemptFacts(attempt: ExplainedGateAttempt): GateAttemptFacts {
+  if (attempt.stepRecord !== "read") {
+    return { attempt: attempt.attempt, stepRecord: attempt.stepRecord };
+  }
+  const { attribution } = attempt;
+  return {
+    attempt: attempt.attempt,
+    stepRecord: "read",
+    time: attribution.time,
+    steps: attribution.steps.map((step) => ({
+      command: step.command,
+      surface: step.surface,
+      result: step.result,
+      time: step.time,
+    })),
+    protectedPaths:
+      attribution.protectedPaths === null
+        ? null
+        : { result: attribution.protectedPaths.result, time: attribution.protectedPaths.time },
+  };
+}
+
 function phaseFacts(record: ExplainedRecord, flags: Flags): PhaseFacts {
   const { manifest, artifacts } = record;
   const briefs = briefArtifactsInOrder(artifacts);
@@ -304,6 +367,7 @@ function phaseFacts(record: ExplainedRecord, flags: Flags): PhaseFacts {
     verifiedSurfaces: manifest.verifiedSurfaces,
     acceptance: manifest.acceptance,
     acceptanceStep: record.acceptanceStep,
+    gateAttempts: record.gateAttempts.map(gateAttemptFacts),
     sourceSha: manifest.sourceSha ?? null,
     sourceReachable: record.sourceCommitReachable === true,
     promptBytes: record.promptByteLength ?? null,
@@ -500,6 +564,73 @@ function stopLines(facts: PhaseFacts): string[] {
   return [head, ...sessions];
 }
 
+const PROTECTED_PATHS_LABEL = "protected paths";
+/** The surface column fits `structural`, the result column fits `refused`. */
+const SURFACE_WIDTH = "structural".length;
+const RESULT_WIDTH = "refused".length;
+
+function timeLabel(time: GateTimeFacts): string {
+  switch (time.kind) {
+    case "measured":
+      return `${(time.durationMs / 1000).toFixed(1)} s`;
+    case "unknown":
+      return "time unknown";
+    case "not-run":
+      return "not run";
+    default:
+      return absurd(time);
+  }
+}
+
+const attemptLabel = (attempt: number): string => `attempt ${String(attempt).padStart(2, "0")}`;
+
+/**
+ * The lines under the `gates` line: each attempt with its duration, then its
+ * steps and protected-paths check in columns aligned across the whole block.
+ * An attempt whose step record is absent or unreadable says `steps unknown`.
+ */
+function gateAttemptLines(attempts: PhaseFacts["gateAttempts"]): string[] {
+  const blocks = attempts.map((attempt) => ({
+    attempt,
+    rows:
+      attempt.stepRecord === "read"
+        ? [
+            ...attempt.steps.map((step) => ({
+              command: step.command,
+              surface: step.surface,
+              result: step.result,
+              duration: timeLabel(step.time),
+            })),
+            ...(attempt.protectedPaths === null
+              ? []
+              : [
+                  {
+                    command: PROTECTED_PATHS_LABEL,
+                    surface: "",
+                    result: attempt.protectedPaths.result,
+                    duration: timeLabel(attempt.protectedPaths.time),
+                  },
+                ]),
+          ]
+        : [],
+  }));
+  const rows = blocks.flatMap((block) => block.rows);
+  const commandWidth = Math.max(PROTECTED_PATHS_LABEL.length, ...rows.map((r) => r.command.length));
+  const durationWidth = Math.max(0, ...rows.map((r) => r.duration.length));
+
+  return blocks.flatMap(({ attempt, rows: attemptRows }) => {
+    const head = `  ${attemptLabel(attempt.attempt)}   `;
+    if (attempt.stepRecord !== "read") return [`${head}steps unknown`];
+    return [
+      `${head}${timeLabel(attempt.time)}`,
+      ...attemptRows.map(
+        (r) =>
+          `    ${r.command.padEnd(commandWidth)}    ${r.surface.padEnd(SURFACE_WIDTH)}   ${r.result.padEnd(RESULT_WIDTH)} ${r.duration.padStart(durationWidth)}`,
+      ),
+    ];
+  });
+}
+
 function renderPhase(facts: PhaseFacts): string[] {
   const { stop } = facts;
   const foundFrom =
@@ -517,6 +648,7 @@ function renderPhase(facts: PhaseFacts): string[] {
     facts.verifiedSurfaces.length > 0 ? facts.verifiedSurfaces.join(", ") : "(none)";
   lines.push(
     `gates    ${facts.outcome} after ${facts.checksAttemptCount} attempt(s)   surfaces  ${surfacesLabel}`,
+    ...gateAttemptLines(facts.gateAttempts),
   );
 
   if (facts.acceptance !== null) {
