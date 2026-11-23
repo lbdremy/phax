@@ -5,227 +5,237 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-11-10. Since the previous prune (2026-10-25), these landed and left the
-queue: the harness items `phase-prompt-names-the-gate` (#189) and `gate-step-partial-commands`
-(#191), `project-only-claude-sessions` (#190, which also answered the 1.0 check on Claude Code
-mods in phase sessions), `commit-trailers-paths` (#193), `records-branch-tip` (#194), and the
-Effect 4 migration (spec `effect-4-migration`, four plans, #195, #196, #198, #199).
+Last pruned 2026-11-23. Since the previous prune (2026-11-10), these landed and left the queue:
+`artifact-revise` (#229), `plan-path-canonical` (#230, #231), `property-tests` (#232–#236, spec
+completed 2026-11-16), `finding-ids-and-fates` (#239, #242, #244), `code-repository` (#241),
+`vibe-model-flags` (#248), `test-worlds-built-once` (#253), `bounded-test-spawns` (#256),
+`positioning` (#257), `plan-parser-nesting-time` (#258), the lint and knip baselines with their
+first clean-ups (#254, #255), and the gate measure of 2026-11-22 (`pnpm test` is 95 % of a gate
+attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and plan abandoned).
 
-## The queue, as of 2026-11-20
+## The queue, as of 2026-11-23
 
-Reordered by the operator on 2026-11-20, by what holds work back: first the gates that turn red with
-nothing to fix, then what costs time on every run (the gate, the suite, runs side by side), then
-the work a run cannot finish today (tolerances, a run's bases, the e2e home, the rest of the
-clean-ups); then the agent's command line, the security follow-ups, the handoff, the clean-up, the
-cockpit, the doctrine and the index, batch execution.
+Reordered by the operator on 2026-11-23 into waves by code footprint, so that work which does not
+touch the same files runs side by side. The rules of a wave:
 
-In order. Briefs of work done live in `docs/briefs/archive/`; `docs/briefs/` holds only the
-briefs of live or unspecced work.
+- **At most two code runs at once.** Two `pnpm test` gates together (about 700 s of CPU each on
+  14 cores) are the load that timed gates out before; parallel runs also drain the Max window
+  twice as fast, so they win only the time a run waits on its gate or its review.
+- **Plus one lane outside `src/`** (release pipeline, launcher, docs), with a light gate.
+- **Check every pair with `phax plans overlap`** before the second starts: the regenerated files
+  and `docs/upgrading.md` may overlap, any other shared file queues the second run behind the
+  first merge, and the PR that merges second is rebased and force-pushed.
+- **Cross-cutting work runs alone**: `next-steps-as-data` (about 84 files) and the lint and knip
+  clean-ups (folder by folder, in folders no open run touches).
 
-### 1. Revise a Draft artifact
+The files where items collide, which set the order below: `src/infra/git.ts` and the git port
+(SEC-06/07, `finding-fix-identity`, `fewer-git-processes`); `src/app/worktree.ts` (SEC-08,
+`run-start-and-base`, `fewer-git-processes`); `gates.ts`/`fixLoop.ts` (`gate-step-times`,
+`machine-slots`, `gate-tolerances`, `protected-path-exceptions`); `resume.ts`/`executePlan.ts`
+(security phase 2, `agent-cli-ergonomics`, `next-steps-as-data`, `phase-handoff-answered`);
+`loadConfig.ts` (SEC-03, `e2e-phax-home`, security phase 5).
 
-- [x] **`artifact-revise`** — landed in 0.38.0 (#229): `phax artifact revise` revises a Draft
-      headless spec or plan from an amendment through its kept session. Its PR also fixed the
-      release tooling for a format born in a release (the shipped-JSON check and the behaviour
-      corpus's `next` shape across a cut). First real use 2026-11-14: the `property-tests` plan.
+### Wave 1 — now
 
-### 2. One canonical form for a plan's paths
+- [ ] **`gate-step-times`** — running since 2026-11-23 (`phax.gate-step-times`, plan
+      `docs/plans/2611231021-gate-step-times-plan.md`, four phases; spec
+      `docs/specs/2611231007-gate-step-times.md`). Each gate attempt records when each step started
+      and how long it ran, in its gate attribution, and `phax records explain` shows it; the data
+      `machine-slots` and a later gate-step limit need. Its files: the gate-attribution format,
+      `gates.ts`, `gateAttribution.ts`, `fixLoop.ts`, `closeStop.ts`, `recordsExplain`.
+- [ ] **Security phase 1, the quick slice** — to brief; the second code run of the wave. The four
+      High findings of §"Security roadmap" phase 1 that are each a small change in a file of its
+      own:
+      - SEC-02: skeleton records still publish transcripts. A record allowlist with the
+        transcript-class files (`fix-attempt-*.jsonl`, handoff streams, gate logs,
+        `agent-error.log`); today `src/domain/records/assemble.ts` counts only `output.jsonl` as a
+        transcript. Weigh an advisory for public repositories.
+      - SEC-06/07: worktree git hardened in the one process helper of `src/infra/git.ts`
+        (`-c core.fsmonitor=false`, `-c core.hooksPath=/dev/null`, `--no-verify` commits); nothing
+        in `src/` sets them today. Explicit `GIT_DIR`/`GIT_WORK_TREE` per worktree is the larger
+        part and may wait.
+      - SEC-09: the review skill read from the base commit or the bundled copy, never the phase
+        worktree (`src/app/reviewCode.ts`).
+      - SEC-08: `lstat` `.phax-context` and refuse a symlink (`src/app/worktree.ts`,
+        `pushedBrief.ts`, `interactiveFiles.ts`, `pullBrief.ts`), with SEC-23 (decode
+        `brief-NN.json`) and the Small follow-up "a phase agent commits phax's own `.gitignore`
+        line" (write the rule to the worktree's `.git/info/exclude`), same function.
+      Disjoint from `gate-step-times` but for the regenerated files.
+- [ ] **Lane outside `src/`: launcher and release, small pieces** — to brief. SEC-26 (the launcher's
+      `mkdtemp`, bounded redirects, timeouts), SEC-28 (the docs-deploy ref), SEC-29 (Deno's lock
+      frozen), and the Small follow-up "the npm `phax` shim does not forward SIGINT" (a Ctrl-C
+      leaves the binary running the phase), all in `npm/bin/phax`, `.github/workflows/` and
+      `deno.json`. The maintainer reviews every release-pipeline change and cuts the release.
+- [ ] **`format-stability-promise`** — `docs/briefs/format-stability-promise.md`, spec to author.
+      Mostly docs and guard tests, disjoint from everything above; a second item for the outside
+      lane. Detail in "Road to 1.0.0".
 
-- [x] **`plan-path-canonical`** — landed in 0.38.0 (#230): a plan path is made canonical, or
-      refused, where the plan is decoded; `phax-plan`, the plan document and the extraction
-      answer moved to the 0.38.0 shape (operator, 2026-11-14: bump, since the rule reaches the
-      published JSON Schema). #231 fixed the release notes, which named a headless plan by its
-      sidecar's `run.shortName` instead of its title's slug.
+### Wave 2 — after the security slice merges
 
-### 3. Property tests over the input boundaries
+- [ ] **`finding-fix-identity`** — `docs/specs/2611220956-finding-fix-identity.md`, Approved
+      2026-11-22, no open question; plan to author. Its git port gains (ancestry, trailer search,
+      `patch-id`) edit `src/ports/git.ts` and `src/infra/git.ts`, hence after the security slice.
+- [ ] **Small fixes, one batch** — to plan straight from this list, each in its own file:
+      - Most `phax resume` hints outside network and handoff still lack `--yes`
+        (`src/app/resumeInstructions.ts`), with SEC-30 (literal pathspecs, same file).
+      - Deno relinks `node_modules` in phase worktrees past the lockfile (`deno.json`
+        `nodeModulesDir: "auto"`).
+      - `phax open` claims an `$EDITOR` fallback it does not have
+        (`src/cli/definitions/sessions.ts`).
+      - `phax-decide-review` points at a command that does not exist, and teach the reserved
+        test-line words in `phax-spec` (skill text, `--allow-skill-edits`).
+      - Codex never ends a session on network loss: a watchdog in `src/infra/providers/codexCli.ts`.
+      - `phax agent setup providers --write` re-enables every installed provider
+        (`src/app/providerSetup.ts`).
+      - Refusal labels of identifier-like leaves (`src/schemas/`).
+- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. One
+      resolution point for phax's home, a variable to move it, and each real-provider e2e in a
+      temporary phax home; the provider CLIs' sign-ins stay in the real `HOME`. With it, the two
+      Small follow-ups that are one fix ("the codex e2e suite checks a provider the router no
+      longer picks", "the real e2e's Codex and Vibe flows run on Claude": the fixture plan asks for
+      a pair no Codex model anchors), which hold back "Provider coverage on record" for 1.0, and
+      the Vibe "loose config" case the operator runs once with a key. Before security phase 5,
+      which also edits `loadConfig.ts`.
 
-- [x] **`property-tests`** — `docs/specs/archive/2611131320-property-tests.md`, Completed
-      2026-11-16 in three plans. Plan 1 (#232, #233): the persisted formats (42) and the shared
-      harness (fast-check 4.10.2, seed and replay, the bridge from `effect/Arbitrary`, a daily
-      deep pass in the Security workflow at 2,000 runs and a fresh seed); it found one reader bug
-      (a newer-stamped record manifest refused for a missing `kind`) and a `__proto__` bug in the
-      tests' own diff helper. Plan 2 (#234): the plan parser (round trip, totality, bounded time,
-      lint agreeing with extraction); it found a prose `## phase-NN` counted as an anchor, a
-      code-span commit subject read as empty, a stack overflow on deep nesting, and (in review) a
-      phase title taken from a fenced example, live in 0.38.0. Known gap, accepted (operator,
-      2026-11-16): deeply nested emphasis is quadratic inside the Markdown library, so a 64 KiB
-      plan of it can take more than 2 s. #235 added `pnpm test:property:deep`. Plan 3 (#236): the
-      run reducer and the CLI arguments; §5.14 was revised first (no-going-back: a terminal phase
-      may move to a post-commit state or the next phase's start). It found a `RunFailed` cause
-      that made `describeCause` throw, and the review made the argv property bind every exit
-      code to evidence. Agents may now run `pnpm test:unit` and `pnpm test:property:deep`
-      (`phax.json` agentCommands): `Bash(pnpm test:*)` does not cover `pnpm test:unit`. Also
-      counts for OpenSSF Scorecard's Fuzzing check. Shipped in 0.39.0 (2026-11-17).
+### Wave 3
 
-### 4. Review findings: ids and fates
+- [ ] **`fewer-git-processes`** — `docs/briefs/fewer-git-processes.md` (2026-11-23), spec to author.
+      Same records in fewer git processes (one phase is about 15 to start and commit and 23 to
+      write its record), and a test that counts one phase's. After `finding-fix-identity`
+      (`src/infra/git.ts`); meets `run-start-and-base` at the phase start, so not beside it.
+- [ ] **`run-start-and-base`** — `docs/briefs/run-start-and-base.md` (2026-11-20), spec to author.
+      `phax run` takes the commit a run starts from and the branch its pull request targets as
+      options, records and prints both. After the security slice (`src/app/worktree.ts`).
+- [ ] **Security phase 2 — run state tells the truth** — to brief, one run with two Small
+      follow-ups on the same files (`src/schemas/status.ts`, `resume.ts`, `executePlan.ts`): "a
+      refused `phax resume` should leave the run as it was" and "a run does not keep its
+      `--provider-priority`". SEC-04, SEC-05 (needs a probe of the real Codex CLI), SEC-36.
+- [ ] **Security phase 3, the rest** — to brief. SEC-10 (PR adoption checks owner and head SHA),
+      SEC-11 (model text as plain text in PR bodies and comments), SEC-21 (`phax report` previews
+      and redacts); `publishRun.ts`, `src/infra/github.ts`, `src/domain/publish/`.
+- [ ] **Security phase 6, the small fixes** — to brief, in a file each: SEC-12 (a lock is never
+      stale while its pid lives, owner token checked before unlink, `src/infra/lock.ts`), SEC-15
+      (the skill-edit hook fails closed), SEC-17 (strip terminal escapes), SEC-24 (the ReDoS
+      patterns, domain only), SEC-16 (`0600` state files), SEC-19 (the security toolkit's
+      fail-opens, scripts only). SEC-16 meets the provider adapters with SEC-25 and the retry
+      line; SEC-25 and report A L1 are larger.
 
+### Then, one at a time (they share the hot files)
 
-- [x] **`finding-ids-and-fates`** — shipped (#239, #242, #244; spec completed 2026-11-19), three plans. Review findings get
-      stable ids and a recorded fate; the operator's interactive flow first.
-      - [x] Plan 1 (#239): `F<n>`/`C<n>` ids, the answer formats split from the files, older reviews
-            lifted to `unrecorded`, `phax finding list [--json]`; a review whose record write failed
-            is kept in the run folder. #238 made the plan parser's bounded-time property measure
-            CPU time (it failed the gate under load).
-      - [x] Plan 2 (#242): `phax finding fix|dismiss|defer` and the fate records
-            (`<runId>/finding/<id>/<NN>/record.json`, outside the record-manifest union). The run
-            stopped twice: `resolveRunInfo` derived the final phase's branch instead of reading the
-            one the phase recorded (fixed in phase-05), and two of phase-06's acceptance oracles
-            were wrong (a `git show` diff on non-cumulative records commits, three `unrecorded`
-            compliance findings missing), corrected by the operator and closed with
-            `--skip-acceptance`. Review: 8 findings, 6 fixed on the branch.
-      - [x] Plan 3 (#244): the PR description's `## Review findings` section at creation (never
-            rewritten), one fate comment per finding settled once the run has a pull request and
-            `publish.auto` is on (`fix` pushes the run branch first), and `phax finding post` to
-            retry the push and comments with no new record. §5.8 was narrowed to `phax finding
-            list` before it (spec reopened and re-approved 2026-11-19). Review: 5 findings, 4
-            fixed on the branch; the page's examples are now rendered from phax's own renderers
-            in a test. An unreadable fate record still refuses the whole run (left out of
-            plan 3 on the recommendation to keep it; the operator raised no objection).
-
-### 5. Process and code in two repositories
-
-- [x] **`code-repository`** — shipped (#241, 2026-11-18): `"code": {"root"}` in the process
-      repository's phax.json links a code repository checked out inside it (ignored, untracked,
-      its own top level). Approving a linked plan records `code: {root, baseline}` and stamps
-      `approved.code`; staleness judges ground-changed in the code repository; `phax run --plan
-      ../docs/plans/…` from the code repository gates the plan as an artifact, completes nothing
-      and names nothing of the process in the PR; `plans lint` checks files against the code
-      root. A process phax.json that cannot be read refuses a run of a plan under its
-      `docs/plans/` (operator, 2026-11-18: refuse rather than run loose). Docs:
-      `docs/code-repository.md`, which says to point `records.destination` at the process
-      repository to keep the plan text private.
-
-### 5b. Vibe model and thinking level by Vibe's own flags
-
-- [x] **`vibe-model-flags`** — shipped 2026-11-19 (#248; spec and plan Completed). `docs/specs/2611180902-vibe-model-flags.md` and its only plan
-      `docs/plans/2611181024-vibe-model-flags-plan.md`, both Approved 2026-11-18. Vibe 3.1.3's
-      `--model`/`--thinking` replace the PHAX aliases in `~/.vibe/config.toml`; floor 3.1.3; the
-      `mistral-medium` family becomes `mistral-medium-3.5` (off, high); a confined turn is checked
-      for model and level (`config.models[active_model].thinking`); `phax agent setup mistral-vibe`
-      goes. Run with `--allow-skill-edits`; the operator runs the Vibe e2e at review.
-      Not in parallel with `code-repository` (operator, 2026-11-18): `phax plans overlap` shares
-      `src/domain/errors.ts`, `runOutcome.ts`, `run.test.ts` and `subjects.ts`. Plan 2 of
-      `finding-ids-and-fates` merged first (operator, 2026-11-18), so it is next. Mistral Large 4 in the catalog is a separate, later change.
-      Running since 2026-11-19 with phax 0.40.0 (plan revised and re-approved for 0.41.0 the same
-      day: the ground had moved under #241 to #245).
-      At review (PR #248), the operator's real e2e showed Vibe 3.1.3 canonicalising the alias once
-      its model catalog cache exists (`active_model` `mistral-medium-latest`, listed with
-      `mistral-medium-3.5` in `config.catalog_model_aliases`): the post-turn check now accepts
-      that canonical name, pinned by two recorded real exports.
-      The real e2e passed after that (2026-11-19); the direct model-and-level cases no longer
-      need `~/.phax/providers.json` (see `e2e-phax-home`), and a hung Vibe turn is killed after
-      240 s in that suite. Vibe's helper processes (`vibe-app-server`, `vibe-background`) outlived
-      a hung `vibe-rs` once: check them against #247's process-group kill.
-- [ ] **Follow-up: Mistral Large 4, chosen by phax** — to brief, after `vibe-model-flags` merges.
-      Vibe's catalog now recommends `mistral-large-4-0` (Pro subscription). The operator chose
-      (2026-11-19) to add it to phax's catalog and route to it explicitly, not to drop `--model`
-      and take Vibe's default: the records and the cost keep naming the model before it runs.
-      To settle: its thinking levels as the API takes them, its price, the equivalence edges
-      (which Claude ids it serves), and whether `mistral-medium-3.5` stays.
-
-### 6. Gates red without a defect
-
-Placed first by the operator on 2026-11-20: a gate or a CI run that turns red with nothing to fix costs a fix
-attempt, a relaunch, and once a release.
-
-- [x] **`bounded-test-spawns`** — shipped 2026-11-21. Every test child ends within a stated bound
-      (`tests/helpers/boundedSpawn.ts`), a guard refuses a new unbounded spawn, and the stray 143 was
-      the test's own `spawnSync` hitting Node's 1 MiB `maxBuffer` on the root `--json-schema`; 20 full
-      suites in a row pass, 193 s mean against 210 s. Spec `docs/briefs/archive/bounded-test-spawns.md`,
-      findings `spikes/bounded-test-spawns/findings.md`, runs `spikes/bounded-test-spawns/suite-runs.md`.
-      The 10 CI runs on the pull request all pass; merged 2026-11-22 (#256).
-- [x] **`plan-parser-nesting-time`** — shipped 2026-11-22 (#258). Every plan reader parses through
-      `readPlanTree`, which refuses a plan with a line nested over 32 levels before parsing it; the
-      seeded deep pass (1253054900, 2,000 runs) passes at review.
-
-### 7. What costs time on every run
-
-- [x] **`test-worlds-built-once`** — shipped 2026-11-20 (#253). `buildBranchTipWorld`'s worlds
-      built once per file and copied, seed records in one `git fast-import`: `recordsStatusBranch`
-      64 s → 33 s, its 300-record test 37 s → 4 s. The suite did not move (210 s → 210 s): its
-      other slow files spend their time in the run each test drives (`spikes/test-worlds/measures.md`).
-- [x] **Measure the gate, step by step** — measured 2026-11-22 on main (M4 Pro, 14 cores, three
-      passes, wall time): `pnpm test` 189–192 s (700–720 s user, ~515 s system CPU); every other step
-      together about 9 s (lint 2.2–2.6, audit:architecture 2.0, test:type 1.6, knip 1.3–1.6, typecheck
-      0.7, the rest under 0.3). The terminal steps add about 9 s (site:build 5.0). The test step is 95 %
-      of a gate attempt, so running the other steps side by side saves 4 % at most; the small doubles
-      (`audit:architecture` is also inside `pnpm test`, `typecheck` inside `test:type`, `format:check`
-      right after `format`) are about 3 s. The time to win is in the suite: `tests-that-drive-a-run`.
-      The gate records hold no step duration (the attribution and the log carry none), so this was
-      measured by running the profile's commands.
-- [ ] **`gate-step-times`** — `docs/specs/2611231007-gate-step-times.md`, Draft, its four questions decided
-      (2026-11-23); approve, then plan. Each gate
-      attempt records when each step started and how long it ran, in its gate attribution, so a phase
-      record says where its gate time went; the data `machine-slots` and a later gate-step limit need.
-- [x] **`tests-that-drive-a-run`** — stopped 2026-11-22 after its measure (spec and plan abandoned;
-      measures in `spikes/tests-that-drive-a-run/`, #259). The prefixes the run-driving tests repeat are
-      small: the three slowest files are under the 50 % rule, five fixture files hold at most about 110 s of
-      2,021 s of integration file time, and the "sequence" files overstate what a copy gives. About 5–10 % of
-      the suite was not worth nine phases.
-- [ ] **`fewer-git-processes`** — `docs/briefs/fewer-git-processes.md` (2026-11-23), spec to author. The
-      suite's time is each test's own work, about half of it git processes (`heldStopRun` 40.7 s of 81.0 s in
-      2,025; `spikes/tests-that-drive-a-run/measures.md`). One phase is about 15 processes to start and commit
-      and 23 to write its record (16 of them one `hash-object` per file); the tests' own setup adds a `git
-      config` per key. Same records in fewer processes, and a test that counts one phase's. The gain is the
-      suite's and the record-walking commands'; a real run saves about 1 s a phase.
-- [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
-      setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
-      none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`
-      and `do-attempts` put several gates in flight inside one run.
-
-### 8. Work a run cannot finish today
-
+- [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs
+      itself (a phase's setup, its gate) take one of a bounded number of slots shared by every run
+      of a state root; a step that finds none waits, says so, and its wait is recorded apart from
+      its duration. Reads `gate-step-times`' data; matters more once `phase-graph` and
+      `do-attempts` put several gates in flight inside one run.
 - [ ] **`gate-tolerances`** — `docs/briefs/gate-tolerances.md`, spec to author. A project's command
       that tightens the protected tolerance files inside a run, and loosens them only by what the
       approved plan declared.
-      Lets a run tighten a ratchet or a baseline it paid, and loosen it only by what was approved.
-- [ ] **`run-start-and-base`** — `docs/briefs/run-start-and-base.md` (2026-11-20), spec to author.
-      `phax run` takes the commit a run starts from and the branch its pull request targets as options,
-      records and prints both: a run stacked on another branch than the default one needs no
-      configuration edit and no switch of the main checkout.
-- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. The real
-      e2e reads the operator's own `~/.phax/providers.json` (the Vibe suite skips without
-      `mistral-vibe` enabled there), so checking a branch that changes that file's shape means
-      breaking the released phax the operator drives. One resolution point for phax's home, a
-      variable to move it, and each real-provider e2e in a temporary phax home; the provider CLIs'
-      sign-ins stay in the real `HOME`. PR #248 moved the direct Vibe adapter cases out of the
-      routed suite meanwhile.
-- [ ] **The rest of the knip and lint clean-ups** — see `knip-production` and `lint-baseline` in
-      section 12: the second lint pull request (the 68 `src/` files shared with knip's baseline), and the
-      operator's decision on the 339 knip entries only tests, scripts or the site use.
+- [ ] **The agent's command line**, in this order (from the 2026-11-19 conversation on what an
+      agent driving phax would want):
+      - [ ] **`agent-cli-ergonomics`** — `docs/briefs/agent-cli-ergonomics.md`, spec to author. A
+            preview never exits 0 (`--dry-run` previews; no terminal and no `--yes` refuses with its
+            own code), short `--help` with the long text by topic, `phax ls` scoped to the current
+            project (`--all` for the registry).
+      - [ ] **`next-steps-as-data`** — `docs/briefs/next-steps-as-data.md`, spec to author. Every
+            refusal, pause, stop and outcome that suggests a command carries it as `{ argv, why }`,
+            the text rendered from the same data. Cross-cutting: runs alone.
+      - [ ] **`inbox`** — `docs/briefs/inbox.md`, spec to author. One versioned document for the
+            current project: everything that waits, on whom, with its next steps.
+      - [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author.
+            The cockpit as a Claude Code mod: a pane and a band showing the repository's inbox,
+            specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
+            coverage level (§9 Q1). Hardly touches `src/`, so it can share a wave; refresh the
+            brief first (written against 0.31.0).
+- [ ] **`phase-handoff-answered`** — `docs/briefs/phase-handoff-answered.md` (2026-11-13), spec to
+      author. The handoff becomes a structured answer with a published schema, and every
+      file-plan deviation the reconciliation found must be justified by an entry naming it
+      (operator, 2026-11-19: the reviews keep tripping on handoffs that claim what is not so).
+- [ ] **Security, the larger phases** — see §"Security roadmap": phase 1's rest (SEC-01 the
+      implicit protected set, SEC-03 the brief's config root), phase 4's release split, phase 5's
+      trust gate for repo-supplied security config, and "allowed shell commands run unconfined on
+      Claude Code and Vibe" (its own brief). The protected-path Small follow-ups (a `**/` glob blind
+      inside a submodule, `failedStep: "protected-paths"` missing from the records, `plans lint`
+      silent on a planned edit of a protected path) and the Vibe `agent_paths` one go with SEC-01.
+- [ ] **`approval-baseline-identity`** — `docs/briefs/approval-baseline-identity.md` (2026-11-22),
+      spec to author. Plan staleness survives a rewritten approval baseline; the follow-up of
+      `finding-fix-identity`'s `q-phase-commits`, so after it.
+- [ ] **`deferred-finding-files`** — `docs/briefs/deferred-finding-files.md`, spec to author.
+      `phax finding defer` writes and commits one JSON file per deferral into a configured
+      directory. Shares `finding.ts` and `findingList` with `finding-fix-identity`, so after it.
+- [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12),
+      spec to author: the operator lets one phase change a protected path, granted when the phase
+      is resumed and recorded with it. Keep it consistent with `gate-tolerances`.
+- [ ] **The project doctrine, then the knowledge index**:
+      - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft
+            (2026-11-05), 10 open questions kept for the operator to think over (brief:
+            `docs/briefs/project-doctrine.md`): phax's bundled base of engineering practice and the
+            project's own doctrine of taste, a versioned document loaded by headless authoring and
+            every decide mode.
+      - [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A
+            local, rebuildable index (SQLite, FTS5) of what the repository and its runs hold,
+            queried in versioned JSON; after `project-doctrine`, whose entries it indexes.
+- [ ] **Delegation from an agent** (2026-11-19), in this order, each building on the one before:
+      - [ ] **`run-detach`** — `docs/briefs/run-detach.md`, spec to author. Start a run and get its
+            id back at once, follow it as versioned events read from a log in the run folder, read
+            its end as one outcome document.
+      - [ ] **`phase-graph`** — `docs/briefs/phase-graph.md`, spec to author. A plan's phases
+            declare what they depend on; disjoint independent phases run at the same time, each
+            gated in its own worktree. Shares its merge question with `batch-execution`.
+      - [ ] **`phax-do`** — `docs/briefs/phax-do.md`, spec to author. One phase without a spec or
+            plan, with the gate, the reconciliation and the records; its own command.
+      - [ ] **`do-attempts`** — `docs/briefs/do-attempts.md`, spec to author. A contract agreed
+            first, then several attempts in parallel that may not touch it; the contract and the
+            gates eliminate, declared measures rank.
+      Later, not briefed: letting a run amend its own plan with a bounded, linted and recorded
+      amendment, once `phase-graph` exists.
+- [ ] **`batch-execution-disjoint-plans`** — `docs/specs/2608091526-batch-execution-disjoint-plans.md`
+      (Approved, parked). Not needed to speed the queue now: the waves above, checked by
+      `phax plans overlap`, are its manual form.
+- [ ] **Before 1.0**: the CLI contract freeze and the persisted-format stability promise (see
+      "Road to 1.0.0").
 
-### 9. The agent's command line
+### Waiting on the operator
 
-Placed by the operator on 2026-11-19, right after the test-speed items above. From the same conversation as
-section 18: what an agent driving phax would want from its command line besides detaching a run.
+Decisions that turn the rest into mechanical work an agent can run:
 
-- [ ] **`agent-cli-ergonomics`** — `docs/briefs/agent-cli-ergonomics.md`, spec to author. Three small changes:
-      a preview never exits 0 (`--dry-run` previews; no terminal and no `--yes` refuses with its own code), short
-      `--help` with the long text by topic, `phax ls` scoped to the current project (`--all` for the registry).
-- [ ] **`next-steps-as-data`** — `docs/briefs/next-steps-as-data.md`, spec to author. Every refusal, pause, stop
-      and outcome that suggests a command carries it as `{ argv, why }`, the text rendered from the same data.
-- [ ] **`inbox`** — `docs/briefs/inbox.md`, spec to author. One versioned document for the current project:
-      everything that waits, on whom, with its next steps. The `claude-code-mod` inbox reads it too.
+- [ ] **knip** — the 339 entries used only by tests, scripts or the site, folder by folder (remove
+      with their tests, or keep with a reason): `src/domain` 125, `src/cli` 71, `src/app` 62,
+      `src/schemas` 52, `src/infra` 19, `packages/schemas` 7, `src/ports` 3. No spec; the
+      clean-up PRs follow, never in one PR with oxlint's (`docs/briefs/knip-production.md`).
+- [ ] **lint** — the 41 brand conversions such as `as RunId`: a non-validating constructor or a
+      decode. Then the rest of `src/`'s 76 occurrences, the `src/` files shared with knip's
+      baseline, then the tests (`docs/briefs/lint-baseline.md`; the baseline is protected and only
+      shrinks).
+- [ ] **Mistral Large 4, chosen by phax** — to brief. Vibe's catalog recommends
+      `mistral-large-4-0` (Pro subscription); the operator chose (2026-11-19) to add it to phax's
+      catalog and route to it explicitly. To settle: its thinking levels as the API takes them, its
+      price, the equivalence edges (which Claude ids it serves), and whether `mistral-medium-3.5`
+      stays.
+- [ ] **`approve` and a `code` key in `phax.local.json`** and **release notes that hide a run's
+      user-facing fixes** — see Small follow-ups; each needs its rule first.
+- [ ] **An opt-out for the user layer** — to brief. Project-only sources also drop the operator's
+      own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks what they
+      blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently to another
+      credential when one is available. Both are documented in `docs/security.md` (accepted by the
+      operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`) and detecting the
+      account switch.
 
-### 10. Security follow-ups
+### Later
 
-A batch from *Small follow-ups*, the security items that sleep there:
-- **Allowed shell commands run unconfined on Claude Code and Vibe** (a read-only session granted
-  `git diff` writes a file with `--output`): the largest, likely its own brief (Claude Code's native
-  Bash sandbox, Vibe's equivalent).
-- The protected-path items: a `**/` glob blind inside a submodule, `failedStep:
-  "protected-paths"` missing from the run records, `plans lint` silent on a planned edit of a
-  protected path.
-- The Vibe items: the `accept-edits` profile reached through `agent_paths`, the never-run "loose
-  config" e2e case.
-- [ ] **Follow-up: an opt-out for the user layer** — to brief. Project-only sources also drop the
-      operator's own `permissions.deny` rules and hooks, so in unsafe mode nothing else blocks
-      what they blocked; and a Bedrock, Vertex or gateway setup in user settings switches silently
-      to another credential when one is available. Both are documented in `docs/security.md`
-      (accepted by the operator 2026-11-06). The follow-up weighs a recorded opt-out (`loaded`)
-      and detecting the account switch (the spec's `q-opt-out`, kept out of the first slice).
+- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
+      without a model, where review attention belongs and gives it to the review session.
+      Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
+- [ ] **`node-runtime`** — `docs/briefs/node-runtime.md` (2026-11-12): the binary stays on Deno for
+      now; not urgent (operator, 2026-11-19).
+- [ ] **`roadmap-items`** — `docs/briefs/roadmap-items.md`, spec to author. A brief becomes an
+      artifact with a status and a rank; the ordered briefs are the roadmap. This file's queue
+      moves into it. Not a priority (operator, 2026-11-22).
+- [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns`
+      (q-gate-bound, 2026-11-20): a cap per step in `gateProfiles`; its default comes from
+      `gate-step-times`' data. Moved to Later by the operator on 2026-11-22.
+- [ ] The other Small follow-ups below, in batches.
 
-### 10b. Security roadmap (from the 2026-11-23 audits)
+## Security roadmap (from the 2026-11-23 audits)
 
 Two full audits of main at `e5c39afa` landed their reports on 2026-11-23:
 `docs/security/reports/2026-11-23-mistral-large-4-0-high-security-report.md`,
@@ -236,175 +246,40 @@ Headline theme: single-turn confinement is well built; the weak points are agent
 that phax or a provider later trusts (`.claude/**` settings and hooks, tracked git hooks, the
 worktree `.git` pointer, a `.phax-context` symlink, the review skill, `phax brief`'s config
 discovery), skeleton records that still publish transcripts, and a resume that re-reads the
-security mode from the current config.
+security mode from the current config. The phases, as the cross-validation orders them; the queue
+above places their slices.
 
-- [ ] **Phase 1 — stop trusting agent-written files** — to brief. Implicit protected set
-      (`.claude/**`, `CLAUDE.md`, `.codex/**`, `.vibe/**`, `.agents/**`, `.mcp.json`,
-      `**/phax*.json`, the hooks directory, the `.git` pointer); hardened worktree git
-      (explicit `GIT_DIR`/`GIT_WORK_TREE`, `core.fsmonitor=false`, `--no-verify` commits);
-      `lstat` `.phax-context` and refuse symlinks; review skill and brief config read from the
-      base commit or the main root (`PHAX_MAIN_ROOT`), never the phase worktree. (SEC-01,
-      SEC-03, SEC-06, SEC-07, SEC-08, SEC-09.)
-- [ ] **Phase 2 — run state tells the truth** — to brief. Persist the effective security mode
-      in `run-status.json` and rebuild it on resume (warn on drift, unsafe banner on resume
-      too); enforce or honestly mark Codex MCP (`-c mcp_servers={}` or `mcp-unenforced`);
-      record enforcement assumptions in `security.json`. (SEC-04, SEC-05, SEC-36.)
-- [ ] **Phase 3 — records privacy and publish hardening** — to brief, and consider an advisory
-      for the skeleton-record leak on public repos. Record allowlist with transcript-class
-      files (`fix-attempt-*.jsonl`, handoff streams, gate logs, `agent-error.log`); PR adoption
-      checks owner and head SHA; model text rendered as plain text in PR bodies and comments;
-      `phax report` previews and redacts. (SEC-02, SEC-10, SEC-11, SEC-21.)
-- [ ] **Phase 4 — supply chain and release pipeline** — to brief. The npm package embeds the
-      binary digests and the launcher re-verifies the cache on every run (`mkdtemp`, bounded
-      redirects, timeouts, immutable releases); release split into a read-only build job and a
-      minimal attest/publish job, protected environment for deploys, tag ruleset and ancestry
-      check. (SEC-13, SEC-14, SEC-26, SEC-27, SEC-28, SEC-29.)
-- [ ] **Phase 5 — trust gate for repo-supplied security config** — to brief. Per-repo
-      confirmation for project-layer `security` keys; project `allowWrite` scoped inside the
-      repo root; no project downgrade of `security.profile`; `mcp.allow` from operator-owned
-      paths only; gate and setup commands under the agent's confinement where possible.
-      (Report A H1; SEC-20.)
-- [ ] **Phase 6 — lock, hygiene, audit toolkit** — to brief. A lock is never stale while its
-      pid lives, owner token checked before unlink; the skill-edit hook fails closed on
-      `tool_input.file_path`; strip terminal escape sequences; fix the ReDoS and unbounded
-      buffering; `0600` state files; fix the security toolkit's fail-opens so CI can be trusted;
-      route the four direct `child_process` uses behind ports. (SEC-12, SEC-15 to SEC-19,
-      SEC-24, SEC-25; report A L1, L4, L5.)
-
-### 11. The phase handoff is an answer
-
-- [ ] **`phase-handoff-answered`** — `docs/briefs/phase-handoff-answered.md` (2026-11-13), spec to
-      author. The handoff becomes a structured answer with a published schema that phax decodes,
-      and every file-plan deviation the reconciliation found must be justified by an entry naming
-      it, instead of today's substring match on free Markdown. So the PR says which deviations are
-      real and which are explained (operator, 2026-11-19: the reviews keep tripping on handoffs
-      that claim what is not so). Replaces the "structured phase handoff" spec candidate.
-
-### 12. Clean-up
-
-- [ ] **`lint-baseline`** — `docs/briefs/lint-baseline.md` (2026-11-20, takes over the archived
-      `suppression-directives`). No spec: two PRs, the baseline then the clean-up, after knip's.
-      phax's own lint suppressions each name their rule and say why, the 26 type-aware rules run,
-      and each suppression kept is listed with its reason in a protected baseline that only
-      shrinks; a directive outside it fails the gate.
-      Baseline shipped 2026-11-20. Clean-up, first part (#255): the 83 `src/` files with no knip
-      entry, 217 of their 293 occurrences fixed (baseline 978 → 895 entries). Left: their 76
-      (41 brand conversions such as `as RunId`, which need a non-validating constructor or a
-      decode: a design decision; the command library's erased types; clack's typing), then the
-      68 `src/` files shared with knip's baseline, then the tests.
-- [ ] **`knip-production`** — `docs/briefs/knip-production.md` (2026-11-20). No spec: two PRs, the
-      baseline then the clean-up. knip starts from what phax runs and also runs
-      `--production --strict`: about 460 exports and types that nothing, or only tests, use; the
-      accepted ones in a protected baseline that only shrinks.
-      Baseline shipped 2026-11-20. Clean-up of what nothing uses (#254): 233 exports and types
-      removed or un-exported, `mdast-util-to-string` moved to devDependencies (baseline 573 → 339).
-      Left: the 339 used only by tests, scripts or the site, for the operator to decide folder by
-      folder (remove with their tests, or keep with a reason): `src/domain` 125, `src/cli` 71,
-      `src/app` 62, `src/schemas` 52, `src/infra` 19, `packages/schemas` 7, `src/ports` 3.
-### 13. The cockpit
-
-- [ ] **`claude-code-mod`** — `docs/briefs/claude-code-mod.md` (2026-11-03), spec to author. The
-      cockpit starts as a Claude Code mod: a pane and a band showing the current repository's
-      inbox, specs, plans and runs, read from phax's versioned JSON, writing nothing. It needs a
-      coverage level (§9 Q1), and can read the knowledge index once it exists.
-      Moved before the doctrine (operator, 2026-11-19): quick to build now that phax prints
-      `artifact-status` and `plan-overview` as versioned formats, and usable at once. Refresh the
-      brief first: it was written against 0.31.0.
-
-### 14. The project doctrine, then the knowledge index
-
-- [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft (2026-11-05),
-      10 open questions, kept for the operator to think over (brief:
-      `docs/briefs/project-doctrine.md`). The questions, in order: the base set, S1/S2, the pairs
-      C1–C5, how a project's document starts, whether authoring applies the entries, a routine
-      mark, what a decision record carries, `--doctrine` and skill copies, where proposals live,
-      a Markdown rendering.
-      Split the arbitration doctrine: phax's bundled base of engineering practice (the same in
-      every project) and the project's own doctrine of taste, a versioned document in the
-      repository with a CLI to add, retire and supersede entries, loaded by headless authoring
-      and every decide mode so a recommendation names the rules it rests on. Today the doctrine
-      reaches only decide, after the choice, and the operator's rules live in `AGENTS.md` and an
-      assistant's memory.
-- [ ] **`knowledge-index`** — `docs/briefs/knowledge-index.md` (2026-11-04), spec to author. A local,
-      rebuildable index (SQLite, FTS5) of what the repository and its runs hold — specs, plans,
-      questions and arbitrations, runs, gates, costs, reviews, records — queried through the
-      command line in versioned JSON instead of grep; Git stays the source of truth. Milestone 2,
-      out of its scope: a shared service mirroring a team's repositories and records, exposed as a
-      remote MCP server.
-      After `project-doctrine` (operator, 2026-11-10): the doctrine's entries are among what it
-      indexes.
-
-### 15. Batch execution
-
-- [ ] **`batch-execution-disjoint-plans`** — `docs/specs/2608091526-batch-execution-disjoint-plans.md`
-      (Approved, parked): parallel disjoint plans, published as stacked PRs. Speeds up the queue
-      once the above lands. See *Approved specs — parked*.
-
-### 16. Before 1.0
-
-- [ ] The **CLI contract freeze** and the **persisted-format stability promise** (see "Road to
-      1.0.0" below). The Effect 4 migration they waited on is done: spec `effect-4-migration`
-      completed 2026-11-10, in four plans (#195 and #196 the groundwork on Effect 3, #198 the
-      migration to Effect 4.1.2, #199 the removal of its codemod, reference, skills and
-      protections; the behaviour corpus stays as `tests/behaviourCorpus/`). The schema-guide
-      pitfalls it found went upstream as Effect-TS/effect#10525.
-
-### 17. Later
-
-- [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12), spec
-      to author: the operator lets one phase change a protected path, granted when the phase is
-      resumed and recorded with it, so a wanted change no longer means a new run or a hand edit of
-      a run's recorded base.
-- [ ] **`review-map`** — `docs/briefs/review-map.md` (2026-10-23), spec to author. phax computes,
-      without a model, where review attention belongs (criteria no test proves, skipped
-      acceptance tests, phases that needed fixes, the run's review notes) and gives it to the
-      review session. `headless-review` was abandoned 2026-11-05 in favour of this line.
-      Deprioritised 2026-11-10 (operator): wait until steme is well advanced.
-- [ ] **`node-runtime`** — `docs/briefs/node-runtime.md` (2026-11-12): the binary stays on Deno for
-      now; not urgent (operator, 2026-11-19).
-- [ ] **`roadmap-items`** — `docs/briefs/roadmap-items.md`, spec to author. A brief becomes an artifact with a
-      status and a rank; the ordered briefs are the roadmap, listed by phax and shown on the site. People and agents
-      vote with evidence (a run, a phase, what blocked it) on the records branch; the operator ranks. This file's
-      queue moves into it. Placed here by the operator on 2026-11-22: not a priority.
-- [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns` (q-gate-bound,
-      2026-11-20): a gate step that hangs for a reason other than a test's spawn (a stuck install, a
-      deadlocked tool) still holds a run for hours. A cap per step in `gateProfiles`, a step that reaches
-      it fails its attempt; its default, a value per step, and how it is recorded are the brief's questions. Moved to Later by the operator on 2026-11-22.
-- [ ] The other small follow-ups below, in batches.
-
-### 18. Delegation from an agent (to place in the queue)
-
-Added 2026-11-19 from a conversation with the operator about what would make an agent delegate to phax rather than
-to its own subagents or a cloud agent: the guarantees (worktree, gate, reconciliation, records) without the
-ceremony, the hand given back, fan-out, and a choice among attempts made by a judge that is not a model. Not yet
-placed among the items above; the operator orders them. The four build on each other, in this order:
-
-- [ ] **`run-detach`** — `docs/briefs/run-detach.md`, spec to author. Start a run and get its id back at once,
-      follow it as versioned events read from a log in the run folder, read its end as one outcome document.
-      Smallest and independent of the rest.
-- [ ] **`phase-graph`** — `docs/briefs/phase-graph.md`, spec to author. A plan's phases declare what they depend
-      on; disjoint independent phases run at the same time, each gated in its own worktree, merged where a later
-      phase depends on several. Shares its merge question with `batch-execution-disjoint-plans` (item 15).
-- [ ] **`phax-do`** — `docs/briefs/phax-do.md`, spec to author. `phax do "<intent>" --files …`: one phase without
-      a spec or plan, with the gate, the reconciliation and the records; refused beyond a bound set by the
-      operator. A command of its own (operator, 2026-11-19), the same use case as `run`.
-- [ ] **`do-attempts`** — `docs/briefs/do-attempts.md`, spec to author. A contract written and agreed first,
-      then several attempts in parallel that may not touch it; the contract and the gates eliminate, declared
-      measures rank (a measures provider like the acceptance provider), the smallest footprint breaks ties.
-
-Related, recorded the same day: `knowledge-index` gained use 8 (similar phases, a tool for the planner's
-per-phase model and effort arbitration, never a router), and `phax.json` now declares partial commands on the
-test step only (lint and format run on the whole repository in under 0.3 s: nothing to narrow). Later, not briefed: letting a run amend its own plan (a phase found
-the plan wrong) with a bounded, linted and recorded amendment instead of failing, once `phase-graph` exists.
-
-### 19. Positioning and the roadmap (to place in the queue)
-
-Added 2026-11-22 from a conversation with the operator about the home page's pitch. `roadmap-items` moved to
-section 17 the same day.
-
-- [x] **`positioning`** — shipped 2026-11-22 (#257). phax is named "verified delegation" and
-      says it to its two readers where each reads: the home page and the README for a person; `phax --help`, the
-      skills' descriptions and `llms.txt` for an agent. The pitch claims only what ships.
+- **Phase 1 — stop trusting agent-written files.** Implicit protected set (`.claude/**`,
+  `CLAUDE.md`, `.codex/**`, `.vibe/**`, `.agents/**`, `.mcp.json`, `**/phax*.json`, the hooks
+  directory, the `.git` pointer); hardened worktree git (explicit `GIT_DIR`/`GIT_WORK_TREE`,
+  `core.fsmonitor=false`, `--no-verify` commits); `lstat` `.phax-context` and refuse symlinks;
+  review skill and brief config read from the base commit or the main root (`PHAX_MAIN_ROOT`),
+  never the phase worktree. (SEC-01, SEC-03, SEC-06, SEC-07, SEC-08, SEC-09.) Quick slice in
+  wave 1, the rest later.
+- **Phase 2 — run state tells the truth.** Persist the effective security mode in
+  `run-status.json` and rebuild it on resume (warn on drift, unsafe banner on resume too); enforce
+  or honestly mark Codex MCP (`-c mcp_servers={}` or `mcp-unenforced`); record enforcement
+  assumptions in `security.json`. (SEC-04, SEC-05, SEC-36.) Wave 3.
+- **Phase 3 — records privacy and publish hardening.** Record allowlist with transcript-class
+  files; PR adoption checks owner and head SHA; model text rendered as plain text in PR bodies and
+  comments; `phax report` previews and redacts. (SEC-02, SEC-10, SEC-11, SEC-21.) SEC-02 in wave 1,
+  the rest in wave 3.
+- **Phase 4 — supply chain and release pipeline.** The npm package embeds the binary digests and
+  the launcher re-verifies the cache on every run (`mkdtemp`, bounded redirects, timeouts,
+  immutable releases); release split into a read-only build job and a minimal attest/publish job,
+  protected environment for deploys, tag ruleset and ancestry check. (SEC-13, SEC-14, SEC-26,
+  SEC-27, SEC-28, SEC-29.) Small pieces in wave 1's outside lane, the split later.
+- **Phase 5 — trust gate for repo-supplied security config.** Per-repo confirmation for
+  project-layer `security` keys; project `allowWrite` scoped inside the repo root; no project
+  downgrade of `security.profile`; `mcp.allow` from operator-owned paths only; gate and setup
+  commands under the agent's confinement where possible. (Report A H1; SEC-20.) Later, after
+  `e2e-phax-home`.
+- **Phase 6 — lock, hygiene, audit toolkit.** A lock is never stale while its pid lives, owner
+  token checked before unlink; the skill-edit hook fails closed on `tool_input.file_path`; strip
+  terminal escape sequences; fix the ReDoS and unbounded buffering; `0600` state files; fix the
+  security toolkit's fail-opens so CI can be trusted; route the four direct `child_process` uses
+  behind ports. (SEC-12, SEC-15 to SEC-19, SEC-24, SEC-25; report A L1, L4, L5.) Small fixes in
+  wave 3.
 
 ## Model policy tracking
 
@@ -514,7 +389,10 @@ desktop — none is promised by the announcement.
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
 - [x] **A record commit hashes its files one git process each.** Folded 2026-11-23 into
-      `fewer-git-processes` (§7), which takes the whole record write.
+      `fewer-git-processes` (wave 3), which takes the whole record write.
+- [ ] **Vibe's helper processes outlive a hung `vibe-rs`.** Seen once in the `vibe-model-flags`
+      e2e (2026-11-19): `vibe-app-server` and `vibe-background` kept running after the 240 s kill.
+      Check them against #247's process-group kill.
 - [ ] **`phax-decide-review` points at a command that does not exist.** Found 2026-11-22 in the
       README pass: the skill's description says `phax review-plan` follows it, and no such command is in
       `phax.usage.kdl`. Either the command lands or the skill says what uses it today.
