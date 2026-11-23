@@ -36,6 +36,7 @@ import type { GateStep } from "../../src/schemas/phaxConfig.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 import { claudeSchemaArgs, codexSchemaArgs, codexSchemaFile } from "../helpers/answerSchemaArgv.js";
 import { makeFakeProviderCli } from "../helpers/fakeProviderCli.js";
+import { clockedShellLayer, makeGateClock, type GateClock } from "../helpers/gateClock.js";
 import { phaxCall } from "../helpers/runnerCall.js";
 import {
   SHORT,
@@ -232,7 +233,15 @@ interface CloseOptions {
   /** Played by the provider when a closing turn resumes: a turn that writes, say. */
   readonly onResume?: () => void;
   readonly run?: HeldRun;
+  /** A fixed clock for the close, moved by `GATE_STEP_MS` inside each scripted gate step. */
+  readonly clock?: GateClock;
 }
+
+/** How far a fixed clock moves inside each scripted gate step. */
+const GATE_STEP_MS: Readonly<Record<string, number>> = {
+  "pnpm typecheck": 4_000,
+  "pnpm test": 9_000,
+};
 
 async function close(options: CloseOptions = {}) {
   const r = options.run ?? run;
@@ -249,19 +258,22 @@ async function close(options: CloseOptions = {}) {
     if (options.resume !== false) yield* resumeRequested(r);
     return yield* Effect.result(closeStop(closeInput(r)));
   });
-  const result = await Effect.runPromise(
-    program.pipe(
-      Effect.provide(
-        Layer.mergeAll(
-          Layer.succeed(Backend, backend),
-          NodeFileSystemLayer,
-          NodeGitLayer,
-          scriptedShell(options.failing ?? new Set(), order),
-          NoopSystemTelemetryLayer,
-        ),
+  const { clock } = options;
+  const shell = scriptedShell(options.failing ?? new Set(), order);
+  const provided = program.pipe(
+    Effect.provide(
+      Layer.mergeAll(
+        Layer.succeed(Backend, backend),
+        NodeFileSystemLayer,
+        NodeGitLayer,
+        clock === undefined
+          ? shell
+          : clockedShellLayer(clock, shell, (o) => GATE_STEP_MS[o.command.join(" ")] ?? 0),
+        NoopSystemTelemetryLayer,
       ),
     ),
   );
+  const result = await Effect.runPromise(clock === undefined ? provided : clock.provide(provided));
   return { result, order };
 }
 
@@ -410,6 +422,39 @@ describe("closing a held stop", () => {
     expect(lines.at(-1)).toBe(
       `✓ phase-02  Invoice CSV record   review commit  ${closed.reviewCommit.slice(0, 7)}  on ${c2.slice(0, 7)}  (corrected)`,
     );
+  });
+
+  it("records the close gate's step and attempt times under a fixed clock, with no protected check (ac-close-gate)", async () => {
+    correct();
+    const clock = await makeGateClock();
+    const t0 = clock.now();
+    const measured = (startedAtMs: number, durationMs: number) => ({
+      kind: "measured",
+      startedAt: clock.iso(startedAtMs),
+      durationMs,
+    });
+
+    const { result } = await close({ backend: answering(), clock });
+    report(result);
+
+    const gateFolder = join(phaseFolder(), "review-gate");
+    const stepRecord = readFileSync(join(gateFolder, "checks-attempt-01.attribution.json"), "utf8");
+    expect(readFileSync(join(gateFolder, "gate-attribution.json"), "utf8")).toBe(stepRecord);
+    expect(JSON.parse(stepRecord)).toEqual({
+      $schema: currentSchemaUrl("gate-attribution"),
+      phase: "phase-02",
+      time: measured(t0, 13_000),
+      steps: [
+        { command: "pnpm typecheck", surface: "local", result: "pass", time: measured(t0, 4_000) },
+        {
+          command: "pnpm test",
+          surface: "local",
+          result: "pass",
+          time: measured(t0 + 4_000, 9_000),
+        },
+      ],
+      protectedPaths: null,
+    });
   });
 
   it("saves review-diff.patch and reconciles the corrections against C2, never as deviations", async () => {
