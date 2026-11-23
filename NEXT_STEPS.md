@@ -161,10 +161,12 @@ attempt, a relaunch, and once a release.
       small: the three slowest files are under the 50 % rule, five fixture files hold at most about 110 s of
       2,021 s of integration file time, and the "sequence" files overstate what a copy gives. About 5–10 % of
       the suite was not worth nine phases.
-- [ ] **Fewer git processes per phase** — to brief. The suite's time is each test's own work, about half
-      of it git processes phax starts while the tests drive it (`heldStopRun` about 110 per test, `stopRecords`
-      about 280; `spikes/tests-that-drive-a-run/measures.md`). Count what one phase, its record and its close
-      run, and what phax could do in fewer processes; it would speed every real run as well as the suite.
+- [ ] **`fewer-git-processes`** — `docs/briefs/fewer-git-processes.md` (2026-11-23), spec to author. The
+      suite's time is each test's own work, about half of it git processes (`heldStopRun` 40.7 s of 81.0 s in
+      2,025; `spikes/tests-that-drive-a-run/measures.md`). One phase is about 15 processes to start and commit
+      and 23 to write its record (16 of them one `hash-object` per file); the tests' own setup adds a `git
+      config` per key. Same records in fewer processes, and a test that counts one phase's. The gain is the
+      suite's and the record-walking commands'; a real run saves about 1 s a phase.
 - [ ] **`machine-slots`** — `docs/briefs/machine-slots.md`, spec to author. The steps phax runs itself (a phase's
       setup, its gate) take one of a bounded number of slots shared by every run of a state root; a step that finds
       none waits, says so, and its wait is recorded apart from its duration. It matters more once `phase-graph`
@@ -510,10 +512,8 @@ desktop — none is promised by the announcement.
       parser, or an upstream fix. The unit tier's flake of the same property (vitest's 30 s
       timeout, 4 main CI failures 2026-11-18/19) is #246: 40 runs for that property, the bound
       and the deep pass unchanged.
-- [ ] **A record commit hashes its files one git process each.** Found 2026-11-22 measuring the suite:
-      `src/infra/git.ts` runs one `git hash-object -w --stdin` per file of a record (about 20 per phase).
-      One `--stdin-paths` process does the same: about 90 ms down to 7 ms per record, about 3 s of
-      `stopRecords`' 80 s. Small; take it when the records writer is next touched.
+- [x] **A record commit hashes its files one git process each.** Folded 2026-11-23 into
+      `fewer-git-processes` (§7), which takes the whole record write.
 - [ ] **`phax-decide-review` points at a command that does not exist.** Found 2026-11-22 in the
       README pass: the skill's description says `phax review-plan` follows it, and no such command is in
       `phax.usage.kdl`. Either the command lands or the skill says what uses it today.
