@@ -43,9 +43,9 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       and how long it ran, in its gate attribution, and `phax records explain` shows it; the data
       `machine-slots` and a later gate-step limit need. Its files: the gate-attribution format,
       `gates.ts`, `gateAttribution.ts`, `fixLoop.ts`, `closeStop.ts`, `recordsExplain`.
-- [ ] **Security phase 1, the quick slice** — to brief; the second code run of the wave. The four
-      High findings of §"Security roadmap" phase 1 that are each a small change in a file of its
-      own:
+- [ ] **`security-high-fixes`** — `docs/briefs/security-high-fixes.md` (2026-11-23), spec to
+      author; the second code run of the wave. The four High findings of §"Security roadmap"
+      phase 1 that are each a small change in a file of its own:
       - SEC-02: skeleton records still publish transcripts. A record allowlist with the
         transcript-class files (`fix-attempt-*.jsonl`, handoff streams, gate logs,
         `agent-error.log`); today `src/domain/records/assemble.ts` counts only `output.jsonl` as a
