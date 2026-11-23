@@ -21,6 +21,15 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.43.0
+
+- **`gate-attribution.json` and `checks-attempt-NN.attribution.json` move to a new shape**, stamped 0.43.0, with a required `time` on the attempt, on every step and on a non-null `protectedPaths`: `measured` with `startedAt` and `durationMs`, or `not-run` for a skipped acceptance step.
+- **`phax records explain` shows these times** under its `gates` line, and `--json` adds `gateAttempts`.
+- **Older attributions still read, with their times `unknown`, and are never rewritten.**
+- **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new attributions**, so upgrade the package. Its `toLatestGateAttribution` gives 0.26.0 to 0.33.0 attributions `unknown` times.
+
+No step is needed in a repository.
+
 ### 0.41.0
 
 - **phax picks the Vibe model with `--model` and `--thinking`** and needs mistral-vibe 3.1.3: run `uv tool upgrade mistral-vibe`.
