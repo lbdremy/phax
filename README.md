@@ -631,18 +631,19 @@ The branch can live in the same repository or in a separate one. Transcripts can
 The default view lists each gate attempt under the `gates` line with its duration, then each step's command, surface, result and duration, then the protected-paths check. This is where the gate time went and what each fix attempt cost. The times come from the gate attribution of each attempt, `checks-attempt-NN.attribution.json`.
 
 ```
-gates    passed after 2 attempt(s)   surfaces  local, structural
+gates    committed after 2 attempt(s)   surfaces  local, structural
   attempt 01   192.6 s
-    pnpm typecheck     local        pass      0.7 s
+    pnpm typecheck     local        pass     712 ms
     pnpm test          local        fail    191.3 s
-    protected paths                 pass      0.1 s
+    protected paths                 pass      84 ms
   attempt 02   195.0 s
-    pnpm typecheck     local        pass      0.7 s
+    pnpm typecheck     local        pass     705 ms
     pnpm test          local        pass    190.4 s
     pnpm lint          structural   pass      2.4 s
+    protected paths                 pass      81 ms
 ```
 
-A record written before times were recorded shows `time unknown`. A skipped acceptance step shows `not run`. An attempt with no readable step record shows `steps unknown`. With `--json`, the answer's `gateAttempts` holds the same attempts, steps and times.
+A duration under a second shows in milliseconds. A record written before times were recorded shows `time unknown`. A skipped acceptance step shows `not run`. An attempt with no readable step record shows `steps unknown`. With `--json`, the answer's `gateAttempts` holds the same attempts, steps and times.
 
 ### When the records branch and its remote disagree
 
@@ -1276,6 +1277,6 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax records sync [--replay] [--json]` — Fetch the records remote and bring the local records branch level with it
 - `phax records status [--json]` — Show pending (unpushed) records, by run and phase
 - `phax records list [--run <id>] [--json]` — List records present: phase records by run, phase, and verified surfaces; review entries by run and review; authoring and decision records by id and artifact
-- `phax records explain [FLAGS] <sha>` — Explains a commit from its record. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. A headless artifact commit resolves through its Authoring-Id, a decide commit through its Decision-Id and a revise commit through its Revision-Id, read from the last paragraph of its message only, so an amendment line shaped like a trailer never addresses another record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.
+- `phax records explain [FLAGS] <sha>` — Explains a commit from its record. For a phase, the gates line is followed by each gate attempt with its duration, then each step's command, surface, result and duration, then the protected-paths check when it ran (a duration under a second in milliseconds): `time unknown` marks a time a record written before times were kept does not hold, `not run` a skipped acceptance step, and `steps unknown` an attempt whose step record is absent or unreadable. The commit is a phase commit, a declared interactive phase's commit (Phase-Id with Interactive-Phase), or a held phase's review commit, which carries Run-Id and Held-Phase and resolves to the held phase's record. A headless artifact commit resolves through its Authoring-Id, a decide commit through its Decision-Id and a revise commit through its Revision-Id, read from the last paragraph of its message only, so an amendment line shaped like a trailer never addresses another record. The output adds the stop's lines: its mode, cause, outcome, the person who closed it, the review commit, and each recorded session with its provider, model, origin and its transcript's sha256, or the reason it is missing. A stop's record never carries the transcript itself: interactive transcripts stay in the run folder whatever records.transcript says.
 
 <!-- END GENERATED CLI REFERENCE -->

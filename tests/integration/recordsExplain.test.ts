@@ -756,11 +756,11 @@ describe("records explain and list (real git)", () => {
         expect(gatesBlock(text.logs)).toEqual([
           "gates    committed after 2 attempt(s)   surfaces  local, structural",
           "  attempt 01   192.6 s",
-          "    pnpm typecheck     local        pass      0.7 s",
+          "    pnpm typecheck     local        pass     700 ms",
           "    pnpm test          local        fail    191.3 s",
-          "    protected paths                 fail      0.1 s",
+          "    protected paths                 fail     100 ms",
           "  attempt 02   195.0 s",
-          "    pnpm typecheck     local        pass      0.7 s",
+          "    pnpm typecheck     local        pass     700 ms",
           "    pnpm test          local        pass    190.4 s",
           "    pnpm lint          structural   pass      2.4 s",
         ]);
