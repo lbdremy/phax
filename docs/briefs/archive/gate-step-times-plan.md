@@ -1,7 +1,7 @@
 Write the phax plan "Gate step times" for the approved spec `docs/specs/2611231007-gate-step-times.md`. It is
 the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/gate-step-times.md`. These are settled; do not
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/gate-step-times.md`. These are settled; do not
 reopen them:
 - the operator's verdicts of 2026-11-23 in §9b: q-step-shape `start-duration`, q-where `in-attribution`,
   q-phax-work `attempt-and-check`, q-explain-view `default-view`;

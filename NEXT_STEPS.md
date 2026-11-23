@@ -9,7 +9,7 @@ Last pruned 2026-11-23. Since the previous prune (2026-11-10), these landed and 
 `artifact-revise` (#229), `plan-path-canonical` (#230, #231), `property-tests` (#232–#236, spec
 completed 2026-11-16), `finding-ids-and-fates` (#239, #242, #244), `code-repository` (#241),
 `vibe-model-flags` (#248), `test-worlds-built-once` (#253), `bounded-test-spawns` (#256),
-`positioning` (#257), `plan-parser-nesting-time` (#258), the lint and knip baselines with their
+`positioning` (#257), `plan-parser-nesting-time` (#258), `gate-step-times` (#260), the lint and knip baselines with their
 first clean-ups (#254, #255), and the gate measure of 2026-11-22 (`pnpm test` is 95 % of a gate
 attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and plan abandoned).
 
@@ -37,12 +37,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 1 — now
 
-- [ ] **`gate-step-times`** — running since 2026-11-23 (`phax.gate-step-times`, plan
-      `docs/plans/2611231021-gate-step-times-plan.md`, four phases; spec
-      `docs/specs/2611231007-gate-step-times.md`). Each gate attempt records when each step started
-      and how long it ran, in its gate attribution, and `phax records explain` shows it; the data
-      `machine-slots` and a later gate-step limit need. Its files: the gate-attribution format,
-      `gates.ts`, `gateAttribution.ts`, `fixLoop.ts`, `closeStop.ts`, `recordsExplain`.
 - [ ] **`security-high-fixes`** — `docs/briefs/security-high-fixes.md` (2026-11-23), spec to
       author; the second code run of the wave. The four High findings of §"Security roadmap"
       phase 1 that are each a small change in a file of its own:
