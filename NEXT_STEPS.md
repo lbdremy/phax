@@ -153,7 +153,8 @@ attempt, a relaunch, and once a release.
       right after `format`) are about 3 s. The time to win is in the suite: `tests-that-drive-a-run`.
       The gate records hold no step duration (the attribution and the log carry none), so this was
       measured by running the profile's commands.
-- [ ] **`gate-step-times`** — `docs/briefs/gate-step-times.md` (2026-11-22), spec to author. Each gate
+- [ ] **`gate-step-times`** — `docs/specs/2611231007-gate-step-times.md`, Draft, its four questions decided
+      (2026-11-23); approve, then plan. Each gate
       attempt records when each step started and how long it ran, in its gate attribution, so a phase
       record says where its gate time went; the data `machine-slots` and a later gate-step limit need.
 - [x] **`tests-that-drive-a-run`** — stopped 2026-11-22 after its measure (spec and plan abandoned;
