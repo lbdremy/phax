@@ -61,9 +61,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       frozen), and the Small follow-up "the npm `phax` shim does not forward SIGINT" (a Ctrl-C
       leaves the binary running the phase), all in `npm/bin/phax`, `.github/workflows/` and
       `deno.json`. The maintainer reviews every release-pipeline change and cuts the release.
-- [ ] **`format-stability-promise`** — `docs/briefs/format-stability-promise.md`, spec to author.
-      Mostly docs and guard tests, disjoint from everything above; a second item for the outside
-      lane. Detail in "Road to 1.0.0".
 
 ### Wave 2 — after the security slice merges
 
@@ -364,6 +361,17 @@ except `isolated` mode, which the post itself disclaims. The feature surface is 
       and the newer-than-me direction (an older phax or package, mixed releases on one records
       branch) is written down. Mostly in place already. The earlier idea (freeze `version: 1` plus
       a migration) is dropped.
+      **Spec decided 2026-11-24, parked until 1.0 is scheduled:**
+      `docs/specs/2611231918-format-stability-promise.md` (Draft, no open question). Within a major
+      a shape only adds, every added field computed or `unknown` for older documents; removing or
+      renaming waits for a major; a non-blocking document upgrade may ship at any release, a
+      blocking step only at a major; a retired model is refused at any release. At the 1.0 cut
+      phax's own floor rises to 1.0.0 while `@lbdremy/phax-schemas` keeps every shape since 0.17.0
+      (a records viewer reads the 0.x history through it), so phax does not catch up on 0.x
+      shapes and `migrate-documents`/`migrate-approvals` stay as they are until then. Parked
+      because before 1.0 every minor may break, so its checks would refuse nothing yet; its
+      first 11-phase plan was abandoned. Re-read the spec against the formats of the day, approve
+      it, then plan.
       **Provider answers, decided 2026-10-08 by the author:** before 1.0, an answer in an older
       shape of a format that changed is refused by name. From 1.0 it is read through its frozen
       shape and lifted, as phax reads its own older files. At 1.0 the guard tests that hold each
