@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-24
+  baseline: 937fe5e
 ---
 # Format stability promise: the rules by which persisted shapes change
 
