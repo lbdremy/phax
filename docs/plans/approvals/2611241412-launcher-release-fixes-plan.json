@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611241412-launcher-release-fixes-plan.md",
+  "planFingerprint": "5fba069a9d425aa3f97e413328f1440dc78f25185ec59af2247501f42853e42c",
+  "approvedAt": "2026-11-24T14:33:15.865Z",
+  "baseline": "c57c65024bbbfd10a707b38a8fae35d881df38b9",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611231919-launcher-release-fixes.md",
+    "fingerprint": "383dd63ef5e44f78bc0d765e505f9262ced9297cdc868963774d2551ef59619f"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

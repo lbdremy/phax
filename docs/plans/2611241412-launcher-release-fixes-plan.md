@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611231919-launcher-release-fixes.md
 completes-spec: true
+approved:
+  date: 2026-11-24
+  baseline: c57c650
 ---
 # Launcher release fixes
 
