@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611241412-mistral-large-4.md",
+  "specFingerprint": "3250688d38b341a845c37c29f1c4e45daf3ced7f04c8b4f6743be773c4b1d1e7",
+  "approvedAt": "2026-11-24T14:36:15.266Z",
+  "baseline": "46cd341d74cb12e2ff730e69935aac8479e470ff",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

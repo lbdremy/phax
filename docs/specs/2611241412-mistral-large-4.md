@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-24
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-24
+  baseline: 46cd341
 ---
 # Mistral Large 4 in the catalog, and a disabled provider never runs
 
