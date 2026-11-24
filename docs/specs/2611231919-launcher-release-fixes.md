@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-24
+  baseline: 38627b6
 ---
 # Launcher and release-pipeline fixes: verified first run, forwarded signals, tag-only redeploy, locked Deno build
 
