@@ -39,9 +39,13 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 1 — now
 
-- [ ] **`security-high-fixes`** — `docs/briefs/security-high-fixes.md` (2026-11-23), spec to
-      author; the second code run of the wave. The four High findings of §"Security roadmap"
-      phase 1 that are each a small change in a file of its own:
+- [ ] **`security-high-fixes`** — spec `docs/specs/2611231049-security-high-fixes.md` and its only plan
+      `docs/plans/2611241432-security-high-fixes-plan.md` (five phases), both Approved 2026-11-24; to
+      run. q-git-pointer adds `-c core.fsmonitor=false` to the pointer check and names the residual
+      (the OS sandbox item, wave 2); the plan drops transcript-class files on the `records.transcript`
+      toggle, not on the record's shape. `phax plans overlap` with `launcher-release-fixes`: only
+      `docs/security.md` (two separate sections, merged by hand). The four High findings of
+      §"Security roadmap" phase 1 that are each a small change in a file of its own:
       - SEC-02: skeleton records still publish transcripts. A record allowlist with the
         transcript-class files (`fix-attempt-*.jsonl`, handoff streams, gate logs,
         `agent-error.log`); today `src/domain/records/assemble.ts` counts only `output.jsonl` as a
