@@ -488,6 +488,26 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     expect(steps.filter(isMise)).toHaveLength(0);
   });
 
+  it("validates the tag, then checks out refs/tags/<tag>, then verifies the release, then installs", () => {
+    const shape = indexOf(steps, (s) => s.run?.includes("^v[0-9]+\\.[0-9]+\\.[0-9]+$") === true);
+    const checkout = indexOf(steps, (s) => s.uses?.startsWith("actions/checkout@") === true);
+    const verify = indexOf(
+      steps,
+      (s) => s.run?.includes("package.json") === true && s.run.includes("releases.json"),
+    );
+    const install = indexOf(steps, (s) => s.run?.trim() === "pnpm install");
+    expect(shape).toBe(0);
+    expect(steps.slice(0, shape).some((s) => s.uses !== undefined)).toBe(false);
+    expect(shape).toBeLessThan(checkout);
+    expect(steps[checkout]?.with).toEqual({ ref: "refs/tags/${{ inputs.tag }}", lfs: true });
+    expect(verify).toBeGreaterThan(checkout);
+    expect(verify).toBeLessThan(install);
+    const run = steps[shape]?.run ?? "";
+    expect(run).toContain("$RELEASE_TAG");
+    expect(run).not.toContain("inputs.");
+    expect(run).not.toContain("github.event");
+  });
+
   it("refuses a tag that is not vX.Y.Z before checking anything out", () => {
     const shape = indexOf(steps, (s) => s.name === "Verify the tag's shape");
     expect(shape).toBe(0);
