@@ -57,8 +57,9 @@ From 1.0.0, phax promises the rules by which its persisted documents change, not
 1. every document is stamped;
 2. phax and `@lbdremy/phax-schemas` read every shape from a declared floor up to their own release;
 3. the floor, and any one-time step, move only at a breaking release;
-4. every shape change ships with its snapshot and an upgrading entry naming the format;
-5. whatever a reader cannot read is refused by name, with its remedy.
+4. within a breaking line a shape change only adds: removing or renaming a field, a variant or a format waits for a breaking release;
+5. every shape change ships with its snapshot and an upgrading entry naming the format;
+6. whatever a reader cannot read is refused by name, with its remedy.
 
 The promise is written on one docs page that users read, and tests and the release cut hold phax to it, so a rule cannot be broken without a red check.
 
@@ -74,6 +75,7 @@ The promise is written on one docs page that users read, and tests and the relea
 - **Stability class** — Exactly one per registered format: `durable` (phax writes it and reads it back across releases: records, approval records, spec and plan sidecars, a run's status, registry, ledgers and reviews), `published` (phax writes it for another program and never reads it back: the stamped `--json` answers such as `run-list`, `artifact-status` and `finding-list`, and the requests phax writes on a provider's stdin), or `answer` (another program writes it for phax to read: provider answers, the reports a gate step or a provider prints, decide verdicts).
 - **Lift** — Reading a document through the frozen schema of its own shape, then converting it in memory to the current shape. A fact the older shape never recorded reads as `{ "kind": "unknown" }` and is never invented. A lift is total when it succeeds on every document valid in its shape.
 - **One-time step** — A command a person must run once after an upgrade before some other command works again, such as 0.38.0's `phax artifact migrate-documents`.
+- **Non-blocking document upgrade** — A command that rewrites the repository's `durable` documents (spec and plan sidecars, approval records) to the current shape, filling what it can compute from what each document holds and writing `{ "kind": "unknown" }` for the rest. It never rewrites the records on `phax/records/v1`, and no command refuses to run, warns or asks for it when it has not been run. Unlike a one-time step, nothing waits for it.
 - **In-flight run** — A run that has started and has not finished. Its status files describe the run while it is still being driven.
 
 ## 5. Functional requirements
@@ -106,43 +108,59 @@ WHILE phax's release is 1.0.0 or later THE system SHALL read every document of a
 
 Each lift from a shape at or above the floor shall succeed on every document valid in that shape, giving `{ "kind": "unknown" }` for a fact the shape never recorded.
 
-### 5.8 No one-time step between breaking releases
+### 5.8 Within a breaking line a shape only adds
+
+WHILE two releases share a breaking line THE system SHALL give every field the newer shape gains, for a document in the older shape, a value the lift computes from what the document holds or the explicit `{ "kind": "unknown" }`, never an invented value and never an optional field.
+
+### 5.9 Removing or renaming waits for a breaking release
+
+IF a non-breaking release's new shape drops or renames a field, a variant or a format of the previous shape THEN the release cut SHALL refuse before writing anything, naming the format and the field, variant or format removed.
+
+### 5.10 No one-time step between breaking releases
 
 WHEN a command that rewrites a `durable` document meets it in an older shape at or above the floor THE system SHALL carry out the command without asking for a one-time step.
 
-### 5.9 The floor moves only at a breaking release
+### 5.11 A non-blocking document upgrade may ship at any release
+
+WHERE a release, breaking or not, ships a non-blocking document upgrade THE system SHALL name it in that release's `docs/upgrading.md` entry, and every other command SHALL give the same answer whether or not it was run.
+
+### 5.12 The floor moves only at a breaking release
 
 IF a non-breaking release would raise the floor, stop reading a shape at or above it, or retire a format whose shapes are at or above it THEN the release cut SHALL refuse before writing anything, naming the format and the shape.
 
-### 5.10 The 1.0 floor is today's floor
+### 5.13 The 1.0 floor is today's floor
 
 The floor of phax 1.0.0 and `@lbdremy/phax-schemas` 1.0.0 shall be 0.17.0, together with the `pre-schema` shape of every format written before stamps.
 
-### 5.11 A newer document is refused by name
+### 5.14 A newer document is refused by name
 
 IF a reader meets a document stamped at a release newer than its own THEN it SHALL refuse the document, naming its format, the stamp's release, the reader's release, and the remedy to upgrade that reader to the stamp's release or later.
 
-### 5.12 A document below the floor is refused by name
+### 5.15 A document below the floor is refused by name
 
 IF a reader meets a document stamped below its floor THEN it SHALL refuse the document, naming its format, the stamp's release, the floor, and the last release line that reads it.
 
-### 5.13 Mixed releases on one records branch
+### 5.16 Mixed releases on one records branch
 
 WHEN a command reading the records of `phax/records/v1` meets records stamped newer than phax THE system SHALL refuse the command, naming how many records are newer and the newest release they need.
 
-### 5.14 A run is finished by the shapes that started it
+### 5.17 A run is finished by the shapes that started it
 
 IF `phax resume` is given a run whose in-flight files are stamped in a shape older than the running release's current shape THEN the system SHALL refuse with exit 12, naming the release that started the run and the two remedies: finish it with that release, or archive it with `phax archive <run> --force` and run its plan again.
 
-### 5.15 Configuration accepted within a major stays accepted
+### 5.18 Configuration accepted within a major stays accepted
 
-WHILE the running release and an earlier release share a breaking line THE system SHALL accept every configuration file the earlier release accepted.
+WHILE the running release and an earlier release share a breaking line THE system SHALL accept every configuration file the earlier release accepted, except for a value taken from the providers' model catalog (a model id, an effort), which is not a configuration key.
 
-### 5.16 A configuration key dropped at a major is refused by name
+### 5.19 A configuration key dropped at a major is refused by name
 
 IF a configuration file holds a key that a breaking release stopped accepting THEN the system SHALL refuse it, naming the key and what to write instead.
 
-### 5.17 The promise is written where users read
+### 5.20 A retired model is refused at any release
+
+WHEN a configuration file names a model or an effort that the running release's catalog no longer lists THE system SHALL refuse it, naming the model and the model to write instead, at any release.
+
+### 5.21 The promise is written where users read
 
 The system shall publish the promise as a docs page that states its rules and lists every registered format with its stability class, linked from the README, from `docs/upgrading.md` and from the docs site's navigation.
 
@@ -161,11 +179,21 @@ Summary: Anyone adopting phax 1.0 or reading its files with `@lbdremy/phax-schem
        that last changed its shape.
     2. phax and @lbdremy/phax-schemas read every shape from the floor
        (today 0.17.0) up to their own release.
-    3. The floor moves, and a one-time step can be asked for, only at a major.
-    4. A shape change ships with its snapshot and a docs/upgrading.md entry
+    3. The floor moves, and a step that commands wait for can be asked for,
+       only at a major.
+    4. Within a major a shape only adds: a field an older document lacks reads
+       as computed from it or `unknown`. Removing or renaming waits for a major.
+    5. A shape change ships with its snapshot and a docs/upgrading.md entry
        naming the format.
-    5. A document a reader cannot read is refused by name, with the remedy.
+    6. A document a reader cannot read is refused by name, with the remedy.
        On a shared phax/records/v1, every reader must be as new as the newest writer.
+
+    A document upgrade nothing waits for may ship in any release: it rewrites
+    spec and plan sidecars and approval records to the current shape, never
+    phax/records/v1, and every command answers the same whether you ran it or not.
+
+    A model or effort a provider retired can stop being accepted in a minor
+    release, refused by name with the model to write instead.
 
     | Format                | Class     | Read by                           |
     | --------------------- | --------- | --------------------------------- |
@@ -194,13 +222,16 @@ after:
 
 ### cli: scripts/release.sh — indicative
 
-Summary: A maintainer cutting a release is stopped before anything is written when a changed format has no upgrading entry naming it, or when a non-major release would stop reading a shape at or above the floor.
+Summary: A maintainer cutting a release is stopped before anything is written when a changed format has no upgrading entry naming it, when a non-major release would stop reading a shape at or above the floor, or when a non-major release drops or renames a field.
 
     $ scripts/release.sh 1.3.0
     ✗ 1.3.0 changes the shape of gate-attribution, but the ### 1.3.0 entry of docs/upgrading.md does not name `gate-attribution`
 
     $ scripts/release.sh 1.4.0
     ✗ 1.4.0 is not a major release, yet it stops reading phase-status 1.0.0 — the floor moves only at a major
+
+    $ scripts/release.sh 1.4.0
+    ✗ 1.4.0 is not a major release, yet its phase-status shape drops the field `stop` of 1.3.0 — a field is removed or renamed only at a major
 
 ### cli: refusal of a document newer than phax — indicative
 
@@ -246,7 +277,7 @@ Summary: A person resuming a run that an older release started, across a shape c
 
 ### config: phax.json and phax.local.json — indicative
 
-Summary: A configuration file accepted by one 1.x release is accepted by every later 1.x release; a key is renamed or removed only at a major, and then refused by name with what to write instead.
+Summary: A configuration file accepted by one 1.x release is accepted by every later 1.x release; a key is renamed or removed only at a major, and a model a provider retired is refused at any release, each by name with what to write instead.
 
 before:
 
@@ -259,6 +290,8 @@ after:
     { "$schema": "./phax.schema.json", "version": 1, "name": "app", … }
     // phax 1.7.0: accepted as is
     // phax 2.0.0, if it renames a key: refused, naming the key and what to write instead
+    // any release, once a provider retired a model it names:
+    ✗ model "acme-large-2" is no longer in the catalog — write "acme-large-3" instead
 
 ## 7. Non-goals
 
@@ -276,7 +309,7 @@ after:
 
 ### Every format has a class on the page
 
-Given phax's format registry and `docs/format-stability.md`, when the format-stability test runs, then every registered format, retired ones included, has exactly one class among `durable`, `published` and `answer`, and appears in the page's table with that class. A format added without a class, or missing from the table, fails the test naming the format. (refs §5.1, §5.17)
+Given phax's format registry and `docs/format-stability.md`, when the format-stability test runs, then every registered format, retired ones included, has exactly one class among `durable`, `published` and `answer`, and appears in the page's table with that class. A format added without a class, or missing from the table, fails the test naming the format. (refs §5.1, §5.21)
 
 ### Every writer stamps
 
@@ -310,45 +343,57 @@ Given phax at release 1.0.0 or later, and a `gate-report` printed by a gate step
 
 Given generated documents valid in each frozen shape at or above the floor, for every registered format with an older shape, when each is lifted to the current shape, then none is refused, and each fact the older shape never recorded reads `{ "kind": "unknown" }`. (refs §5.7)
 
+### A non-major release that drops or renames a field stops the cut
+
+Given an opened version 1.4.0 whose new `phase-status` shape drops the field `stop` of the 1.3.0 shape, or renames it, when `scripts/release.sh 1.4.0` cuts, then it refuses before writing anything, naming `phase-status` and `stop`. The same change at an opened 2.0.0 goes ahead, and a 1.4.0 shape that only adds a required field, which the lift fills from what a 1.3.0 document holds or with `{ "kind": "unknown" }`, goes ahead too. (refs §5.8, §5.9)
+
 ### An older sidecar needs no one-time step
 
-Given a repository whose plan sidecar is stamped in an older `plan-document` shape at or above the floor, when `phax artifact approve`, `phax artifact reopen`, `phax artifact decide` or `phax artifact revise` runs on it, then the command completes without naming `phax artifact migrate-documents` or any other one-time step. (refs §5.8)
+Given a repository whose plan sidecar is stamped in an older `plan-document` shape at or above the floor, when `phax artifact approve`, `phax artifact reopen`, `phax artifact decide` or `phax artifact revise` runs on it, then the command completes without naming `phax artifact migrate-documents` or any other one-time step. (refs §5.10)
+
+### A non-blocking document upgrade changes no other answer
+
+Given a non-breaking release that ships a non-blocking document upgrade named in its `docs/upgrading.md` entry, and a repository whose spec and plan sidecars and approval records are in older shapes at or above the floor, when `phax artifact status`, `phax plans lint` and `phax records list` run before the upgrade and again after it, then each gives the same answer both times, and none refuses, warns or names the upgrade before it was run. The upgrade rewrites the sidecars and approval records to the current shape, with `{ "kind": "unknown" }` where it cannot compute a value, and `phax/records/v1` is unchanged. (refs §5.11)
 
 ### A non-major release cannot move the floor
 
-Given an opened version 1.4.0 that raises the floor, or drops the frozen shape `phase-status` 1.0.0, or retires a format with shapes at or above the floor, when `scripts/release.sh 1.4.0` cuts, then it refuses before writing anything, naming the format and the shape. The same change at an opened 2.0.0 goes ahead. (refs §5.9)
+Given an opened version 1.4.0 that raises the floor, or drops the frozen shape `phase-status` 1.0.0, or retires a format with shapes at or above the floor, when `scripts/release.sh 1.4.0` cuts, then it refuses before writing anything, naming the format and the shape. The same change at an opened 2.0.0 goes ahead. (refs §5.12)
 
 ### 1.0.0 reads what 0.x wrote
 
-Given a phase record manifest stamped 0.17.0 and a `registry` with no `$schema`, when phax 1.0.0 and `@lbdremy/phax-schemas` 1.0.0 read them, then both read them, and both report the floor as 0.17.0. (refs §5.10)
+Given a phase record manifest stamped 0.17.0 and a `registry` with no `$schema`, when phax 1.0.0 and `@lbdremy/phax-schemas` 1.0.0 read them, then both read them, and both report the floor as 0.17.0. (refs §5.13)
 
 ### A newer document is refused with its remedy
 
-Given phax and `@lbdremy/phax-schemas` at 1.3.0, and a `run-status` stamped 1.4.0, when each reads it, then each refuses it, naming `run-status`, `1.4.0`, `1.3.0` and the reader to upgrade to 1.4.0 or later: phax names phax, and the package names `@lbdremy/phax-schemas`, at `$schema`. (refs §5.11)
+Given phax and `@lbdremy/phax-schemas` at 1.3.0, and a `run-status` stamped 1.4.0, when each reads it, then each refuses it, naming `run-status`, `1.4.0`, `1.3.0` and the reader to upgrade to 1.4.0 or later: phax names phax, and the package names `@lbdremy/phax-schemas`, at `$schema`. (refs §5.14)
 
 ### A document below the floor is refused with its remedy
 
-Given a reader whose floor is set to 2.0.0, and a `phase-status` stamped 1.4.0, when it reads the document, then it refuses it, naming `phase-status`, `1.4.0`, the floor `2.0.0` and the 1.x release line as the one that reads it. (refs §5.12)
+Given a reader whose floor is set to 2.0.0, and a `phase-status` stamped 1.4.0, when it reads the document, then it refuses it, naming `phase-status`, `1.4.0`, the floor `2.0.0` and the 1.x release line as the one that reads it. (refs §5.15)
 
 ### An older phax on a shared records branch
 
-Given `phax/records/v1` holding records at shapes phax 1.3.0 reads and three records stamped 1.4.0, when phax 1.3.0 runs `phax records list`, then it exits non-zero, lists nothing, and names the three newer records and 1.4.0 as the release to upgrade to. (refs §5.13)
+Given `phax/records/v1` holding records at shapes phax 1.3.0 reads and three records stamped 1.4.0, when phax 1.3.0 runs `phax records list`, then it exits non-zero, lists nothing, and names the three newer records and 1.4.0 as the release to upgrade to. (refs §5.16)
 
 ### A run started before a shape change is not resumed
 
-Given an in-flight run whose `phase-status` is stamped in an older shape than the running release's current one, when `phax resume <run>` runs, then it exits 12, naming the release that started the run and both remedies (finish it with that release, or `phax archive <run> --force` and run its plan again). `phax ls` still lists the run. (refs §5.14, §5.4)
+Given an in-flight run whose `phase-status` is stamped in an older shape than the running release's current one, when `phax resume <run>` runs, then it exits 12, naming the release that started the run and both remedies (finish it with that release, or `phax archive <run> --force` and run its plan again). `phax ls` still lists the run. (refs §5.17, §5.4)
 
 ### A 1.x configuration stays accepted through 1.x
 
-Given the configuration files accepted by the configuration cases at 1.0.0 (`phax.json`, `phax.local.json` and the provider and model-routing files), when a later 1.x release reads each, then each is accepted. A non-breaking release that would refuse one fails a test naming the file and the key. (refs §5.15)
+Given the configuration files accepted by the configuration cases at 1.0.0 (`phax.json`, `phax.local.json` and the provider and model-routing files), when a later 1.x release reads each, then each is accepted, unless it names a model or an effort that release's catalog no longer lists. A non-breaking release that would refuse one for any other reason fails a test naming the file and the key. (refs §5.18)
 
 ### A key dropped at a major is refused by name
 
-Given a breaking release that renamed a configuration key, and a `phax.json` holding the old key, when phax reads the file, then it refuses it, naming the old key and the key to write instead. (refs §5.16)
+Given a breaking release that renamed a configuration key, and a `phax.json` holding the old key, when phax reads the file, then it refuses it, naming the old key and the key to write instead. (refs §5.19)
+
+### A retired model is refused in a minor release
+
+Given a non-breaking release whose catalog no longer lists the made-up model `acme-large-2` and lists `acme-large-3` in its place, and a `phax.json` that the previous release accepted naming `acme-large-2`, when phax reads the file, then it refuses it, naming `acme-large-2` and `acme-large-3` as the model to write instead. (refs §5.20, §5.18)
 
 ### The promise is linked where users read
 
-Given the built docs site and the repository, when the README, `docs/upgrading.md` and the site's navigation are read, then each links to the format-stability page, and the page states the five rules and lists every registered format with its class. (refs §5.17)
+Given the built docs site and the repository, when the README, `docs/upgrading.md` and the site's navigation are read, then each links to the format-stability page, and the page states the six rules, the difference between a step commands wait for and a non-blocking document upgrade, and that a model a provider retired can stop being accepted in a minor release, and lists every registered format with its class. (refs §5.21)
 
 ## 9. Open questions
 
@@ -428,6 +473,9 @@ Settled:
 - Provider answers and the reports a gate step or a provider prints are `answer` formats under the 2026-10-08 rule: read and lifted from 1.0.0, with the existing guard tests failing at an opened 1.0.0 and naming the rule, never deleted.
 - An in-flight run is finished by the shapes that started it, and resume across a shape change is refused with its remedies. Reading the run's files afterwards (`phax ls`, `phax records explain`) is covered as `durable`.
 - A refusal names the format, both releases and the remedy, and the docs page states the same remedy once.
+- Within a breaking line a shape only adds; removing or renaming a field, a variant or a format waits for a breaking release.
+- A blocking one-time step comes only at a breaking release; a non-blocking document upgrade may ship at any release, and nothing waits for it.
+- Values from the providers' model catalog (a model id, an effort) are not configuration keys: a retired one may be refused at any release, by name, with the model to write instead.
 
 Left open:
 
@@ -436,6 +484,8 @@ Left open:
 - How the cut tells which formats changed shape in the release (its renamed `next` snapshots are the natural source), and how it matches them against the upgrading entry.
 - How the below-floor refusal knows the release line that still reads a document, for example from the floor's history in the release ledger.
 - Whether the configuration cases of the behaviour corpus are the fixture that pins what each release accepts.
+- How the cut tells a dropped or renamed field, variant or format from an added one, for example by comparing the new snapshot with the previous one.
+- Whether `phax artifact migrate-documents` becomes the non-blocking document upgrade, or another command takes that role.
 
 Constraints:
 
