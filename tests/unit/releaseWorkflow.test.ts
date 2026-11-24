@@ -457,11 +457,12 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     for (const s of steps) expect(s.run ?? "").not.toContain("inputs.");
   });
 
-  it("checks out the tag with its LFS objects", () => {
+  // refs/tags/, so a branch named like the tag is never checked out.
+  it("checks out the tag's ref with its LFS objects, right after checking the tag's shape", () => {
     const checkout =
       steps[indexOf(steps, (s) => s.uses?.startsWith("actions/checkout@") === true)]!;
-    expect(checkout.with).toEqual({ ref: "${{ inputs.tag }}", lfs: true });
-    expect(steps.indexOf(checkout)).toBe(0);
+    expect(checkout.with).toEqual({ ref: "refs/tags/${{ inputs.tag }}", lfs: true });
+    expect(steps.indexOf(checkout)).toBe(1);
   });
 
   it("matches release.yml in checking out LFS objects, whose pointers the deploy guard refuses", () => {
@@ -487,11 +488,19 @@ describe("docs-deploy workflow: redeploying a released tag by hand", () => {
     expect(steps.filter(isMise)).toHaveLength(0);
   });
 
-  it("refuses a tag that is not vX.Y.Z or not package.json's version, before building", () => {
+  it("refuses a tag that is not vX.Y.Z before checking anything out", () => {
+    const shape = indexOf(steps, (s) => s.name === "Verify the tag's shape");
+    expect(shape).toBe(0);
+    expect(steps[shape]!.run).toContain("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
+  });
+
+  it("refuses a tag that is not package.json's version after checkout and before installing", () => {
     const verify = indexOf(steps, (s) => s.name === "Verify the tag is this release");
-    expect(steps[verify]!.run).toContain("^v[0-9]+\\.[0-9]+\\.[0-9]+$");
     expect(steps[verify]!.run).toContain("package.json");
-    expect(verify).toBeLessThan(indexOf(steps, runs("pnpm site:build")));
+    expect(verify).toBeGreaterThan(
+      indexOf(steps, (s) => s.uses?.startsWith("actions/checkout@") === true),
+    );
+    expect(verify).toBeLessThan(indexOf(steps, runs("pnpm install")));
   });
 
   it("refuses a tag whose release ledger does not end at it, as release.yml does", () => {
