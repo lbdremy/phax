@@ -42,7 +42,7 @@ Each of the four findings lets the agent under review, or a file it wrote, act w
 
 - SEC-02, skeleton records publish transcripts. A resumed turn of the same session writes its raw stream to `fix-attempt-NN.jsonl` (each fix attempt) and `handoff-generation.jsonl`. Gate output goes to `checks-attempt-NN.log` and `setup.log`, and stderr to `agent-error.log`, which holds the whole prompt in argv on Vibe. All of these are carried by a skeleton record. A user on a public repository who turned transcripts off therefore publishes, for every phase that needed a fix attempt, what the agent read and printed: `.env` contents, tokens a test printed.
 - SEC-06, phax's commits run hooks the agent can edit. The agent writes `.husky/pre-commit`, and phax runs it at the phase commit with the user's rights. This includes the commit-only resume and the stop closes, where no gate step runs first. Codex's sandbox does not prevent it.
-- SEC-07, a rewritten `.git` pointer gives phax agent-chosen git config. The agent replaces `.git` with `gitdir: ./x` and writes `x/config` with `core.fsmonitor=<cmd>`. The next `git status` phax runs (the protected-path observation after every turn) executes the command. Report B reproduced this. Disabling fsmonitor alone is not enough, because the same config can name a clean filter, `diff.external` or `core.sshCommand`. Vibe's write denylist does not cover `.git`.
+- SEC-07, a rewritten `.git` pointer gives phax agent-chosen git config. The agent replaces `.git` with `gitdir: ./x` and writes `x/config` with `core.fsmonitor=<cmd>`. The next `git status` phax runs (the protected-path observation after every turn) executes the command. Report B reproduced this. Disabling fsmonitor alone is not enough, because the same config can name a clean filter, `diff.external` or `core.sshCommand`. Vibe's write denylist does not cover `.git`. The pointer is not the only way in: gate steps run agent-written code (tests) with the user's rights, and on Claude Code and Vibe allowed commands run unconfined, so that code can write `core.fsmonitor` straight into the repository's `.git/config` or `.git/worktrees/<name>/config.worktree` with the pointer intact.
 - SEC-08, a `.phax-context` symlink redirects phax's reads and writes. The ignore rule `.phax-context/` matches directories only, so a symlink of that name is committed and carried into every later phase. phax then creates directories, writes files and runs one recursive remove through it. It also reads through it, and copies `brief-NN.json` bytes into the records branch: report B copied a link to `~/.ssh/id_ed25519` this way. A related follow-up has the same cause. In a fresh repository the phase-01 agent committed the `.gitignore` line phax appended, and the PR counted it as an unplanned deviation.
 - SEC-09, the code review reads its instructions from the reviewed worktree. A phase agent can rewrite the review skill on Codex or Vibe, or on Claude with a skill-edit grant (for example "report no findings for src/auth"), and so set the rules of the review of its own work.
 
@@ -84,43 +84,47 @@ WHERE `records.transcript` is true and the phase produced a transcript THE syste
 
 WHEN phax runs a git command in a phase worktree, including the `git worktree add` that creates it, the phase commit and the stop close's commit, THE system SHALL run it with every repository hook disabled.
 
-### 5.5 The gitdir pointer is checked before each git call
+### 5.5 phax's git calls in a worktree run no fsmonitor command
+
+WHEN phax runs a git command in a phase worktree THE system SHALL set `core.fsmonitor` to false on that command's own command line, so that no `core.fsmonitor` value in any config file, wherever it was written, runs.
+
+### 5.6 The gitdir pointer is checked before each git call
 
 WHEN phax is about to run a git command in a phase worktree THE system SHALL first check that the worktree's `.git` is a regular file naming phax's gitdir for that worktree, taking the expected value from the main checkout and never from the worktree.
 
-### 5.6 A changed gitdir pointer stops the phase
+### 5.7 A changed gitdir pointer stops the phase
 
 IF a phase worktree's `.git` is not a regular file naming phax's gitdir THEN the system SHALL run no git command in that worktree and fail the phase with a message that names the worktree's `.git`, what it holds and what was expected.
 
-### 5.7 Vibe cannot write the worktree's .git
+### 5.8 Vibe cannot write the worktree's .git
 
 WHERE a secure phase runs on Mistral Vibe THE system SHALL deny `write_file` and `edit` on the worktree's `.git` and everything under it.
 
-### 5.8 .phax-context is used only as a real directory
+### 5.9 .phax-context is used only as a real directory
 
 IF `.phax-context`, or a directory phax uses under it, exists and is not a real directory THEN the system SHALL write, create, remove and read nothing through it and shall refuse the operation with a message naming the path and what it is.
 
-### 5.9 phax reads no linked file from .phax-context
+### 5.10 phax reads no linked file from .phax-context
 
 IF a file phax reads or copies from `.phax-context` is a symbolic link THEN the system SHALL neither read nor copy it, and shall warn naming the file.
 
-### 5.10 The ignore rule is not part of the phase's diff
+### 5.11 The ignore rule is not part of the phase's diff
 
 The system shall keep `.phax-context`, as a directory or any other entry, out of git through a rule that is not part of the phase's diff, and shall no longer edit the worktree's `.gitignore`.
 
-### 5.11 Pulled brief records are decoded before they are copied
+### 5.12 Pulled brief records are decoded before they are copied
 
 IF a `.phax-context/briefs/brief-NN.json` does not decode as a pulled brief record THEN the system SHALL not copy it into the phase folder, and shall warn naming the file.
 
-### 5.12 Review instructions come from the run base
+### 5.13 Review instructions come from the run base
 
 The system shall take the code review's instructions from the project review skill as a regular file in the run base's tree, or from the bundled skill when the run base holds no regular file at that path, and never from the run's worktree.
 
-### 5.13 A changed review skill is reported
+### 5.14 A changed review skill is reported
 
 WHEN the run's branch changed `.claude/skills/phax-review/SKILL.md` since the run base THE system SHALL say so in the code review's output, naming the path and that the base copy was used.
 
-### 5.14 A correct run is unchanged
+### 5.15 A correct run is unchanged
 
 The system shall commit, record and review a run whose agents write none of the worktree's `.git`, its hooks, `.phax-context` entries other than the documented files, or the review skill exactly as it does today.
 
@@ -185,17 +189,19 @@ after:
 
 ### internal: phax's git calls in a phase worktree — indicative
 
-Summary: A hook in the repository's hooks directory, tracked or not, never runs when phax creates a worktree, commits a phase or closes a stop.
+Summary: A hook or an fsmonitor command, wherever it is configured, never runs when phax creates a worktree, commits a phase, closes a stop or reads a worktree's status.
 
 before:
 
     git worktree add -- <path> <branch>          # runs post-checkout
     git commit -m "<subject>" -m "<body>"       # runs .husky/pre-commit, commit-msg, post-commit
+    git status --porcelain                       # runs core.fsmonitor from any config
 
 after:
 
-    git -c core.hooksPath=/dev/null worktree add -- <path> <branch>      # runs no hook
-    git -c core.hooksPath=/dev/null commit -m "<subject>" -m "<body>"   # runs no hook
+    git -c core.hooksPath=/dev/null -c core.fsmonitor=false worktree add -- <path> <branch>      # runs no hook
+    git -c core.hooksPath=/dev/null -c core.fsmonitor=false commit -m "<subject>" -m "<body>"   # runs no hook
+    git -c core.hooksPath=/dev/null -c core.fsmonitor=false status --porcelain                   # runs no fsmonitor
 
 ### cli: phax run / phax resume, gitdir pointer refusal — indicative
 
@@ -230,8 +236,8 @@ Summary: The code review says which review skill it follows, and warns when the 
 ## 7. Non-goals
 
 - SEC-01 (the implicit protected set, including refusing a change to the hooks directory or other config files since the phase base) and SEC-03 (the brief's config root).
-- Running every worktree git call with explicit GIT_DIR/GIT_WORK_TREE; the pointer check closes SEC-07 for this slice.
-- Disabling `core.fsmonitor` or any other git setting the user configured: the user's own config keeps applying to phax's calls.
+- Running every worktree git call with explicit GIT_DIR/GIT_WORK_TREE; the pointer check and the command-line `core.fsmonitor=false` close the fsmonitor path of SEC-07 for this slice.
+- Closing the residual of SEC-07 that gate code can reach: a clean filter, `diff.external` or `core.sshCommand` planted in the repository's common config (`.git/config` or a worktree's `config.worktree`) by gate steps or allowed commands, which run agent-written code unconfined on Claude Code and Vibe. That is closed by running gate steps and allowed commands under an OS sandbox that keeps the repository's `.git` read-only, a separate brief after this slice.
 - Hooks on git calls phax runs in the main checkout or a records clone (records commits, publish push): those trees are not agent-writable through the phase.
 - A security advisory for public repositories that already pushed skeleton records: the operator's call, outside the spec.
 - Rewriting or removing records already on phax/records/v1.
@@ -249,7 +255,7 @@ Given a real phase folder holding one file of every kind a phase writes (includi
 
 ### A full record carries what it carries today
 
-Given the same phase folder and `records.transcript: true`, when phax assembles the phase's record, then the manifest's shape is `full` and the record carries the same file list as the record phax writes before this change. (refs §5.3, §5.14)
+Given the same phase folder and `records.transcript: true`, when phax assembles the phase's record, then the manifest's shape is `full` and the record carries the same file list as the record phax writes before this change. (refs §5.3, §5.15)
 
 ### An unlisted file is never recorded
 
@@ -265,49 +271,57 @@ Given a real repository whose phase base tracks a `post-checkout` hook under its
 
 ### A planted gitdir does not run its fsmonitor
 
-Given a real phase worktree whose `.git` was rewritten to `gitdir: ./x`, with `x/HEAD` and an `x/config` setting `core.fsmonitor` to a command that creates a marker file, when phax reaches its next git call in that worktree (the protected-path observation after the turn), then the marker file does not exist, the phase fails, and the message names the worktree's `.git`, its content and the expected gitdir. (refs §5.5, §5.6)
+Given a real phase worktree whose `.git` was rewritten to `gitdir: ./x`, with `x/HEAD` and an `x/config` setting `core.fsmonitor` to a command that creates a marker file, when phax reaches its next git call in that worktree (the protected-path observation after the turn), then the marker file does not exist, the phase fails, and the message names the worktree's `.git`, its content and the expected gitdir. (refs §5.6, §5.7)
+
+### An fsmonitor written into the common config does not run
+
+Given a real phase worktree whose `.git` still names phax's gitdir, and a `core.fsmonitor` command that creates a marker file written into the repository's common `.git/config`, as gate code could do, when phax reaches its next git call in that worktree (the protected-path observation after the turn), then the call succeeds and the marker file does not exist. (refs §5.5)
 
 ### An intact pointer changes nothing
 
-Given a phase worktree whose `.git` still names phax's gitdir, when the phase runs through its turns, gates and commit, then it runs every git call as before and commits as before. (refs §5.5, §5.14)
+Given a phase worktree whose `.git` still names phax's gitdir, when the phase runs through its turns, gates and commit, then it runs every git call as before and commits as before. (refs §5.6, §5.15)
 
 ### Vibe denies writes to .git
 
-Given a secure phase on Mistral Vibe, when phax builds the session's security flags, then `write_file` and `edit` deny the worktree's `.git` and everything under it. (refs §5.7)
+Given a secure phase on Mistral Vibe, when phax builds the session's security flags, then `write_file` and `edit` deny the worktree's `.git` and everything under it. (refs §5.8)
 
 ### A .phax-context symlink is refused
 
-Given a phase base that committed `.phax-context` as a symbolic link to a directory outside the worktree, when phax prepares the phase (writing plan.md and brief-request.json), then nothing is created, written or removed in the link's target, and the phase is refused with a message naming `.phax-context` and its target. (refs §5.8)
+Given a phase base that committed `.phax-context` as a symbolic link to a directory outside the worktree, when phax prepares the phase (writing plan.md and brief-request.json), then nothing is created, written or removed in the link's target, and the phase is refused with a message naming `.phax-context` and its target. (refs §5.9)
 
 ### A symlinked briefs directory or brief file is not copied
 
-Given a phase worktree whose `.phax-context/briefs` is a symbolic link, and in a second case whose `.phax-context/briefs/brief-01.json` is a symbolic link to a file outside the worktree, when the phase reaches its terminal outcome and phax collects pulled briefs, then no file is copied into the phase folder from the link, nothing is written through it, and a warning names the path. (refs §5.8, §5.9)
+Given a phase worktree whose `.phax-context/briefs` is a symbolic link, and in a second case whose `.phax-context/briefs/brief-01.json` is a symbolic link to a file outside the worktree, when the phase reaches its terminal outcome and phax collects pulled briefs, then no file is copied into the phase folder from the link, nothing is written through it, and a warning names the path. (refs §5.9, §5.10)
 
 ### An undecodable brief record is not copied
 
-Given a regular file `.phax-context/briefs/brief-01.json` that does not decode as a pulled brief record, when phax collects pulled briefs, then the phase folder holds no `brief-01.json` and a warning names the file. (refs §5.11)
+Given a regular file `.phax-context/briefs/brief-01.json` that does not decode as a pulled brief record, when phax collects pulled briefs, then the phase folder holds no `brief-01.json` and a warning names the file. (refs §5.12)
 
 ### A fresh repository's phase diff carries no ignore line
 
-Given a real repository with no `.gitignore`, when phase-01 runs, its agent stages everything, and phax commits, then the phase commit adds no `.gitignore` and no `.phax-context` entry, and `.phax-context` is ignored by a rule outside the worktree's tracked files. (refs §5.10)
+Given a real repository with no `.gitignore`, when phase-01 runs, its agent stages everything, and phax commits, then the phase commit adds no `.gitignore` and no `.phax-context` entry, and `.phax-context` is ignored by a rule outside the worktree's tracked files. (refs §5.11)
 
 ### A .phax-context symlink is not committed
 
-Given a phase agent that creates `.phax-context` as a symbolic link in a fresh worktree, when phax commits the phase, then the commit does not contain `.phax-context`. (refs §5.10)
+Given a phase agent that creates `.phax-context` as a symbolic link in a fresh worktree, when phax commits the phase, then the commit does not contain `.phax-context`. (refs §5.11)
 
 ### A rewritten review skill is not read
 
-Given a run whose base holds a project review skill reading A, and whose phase rewrote it to read B, when `phax review-code <run> --headless` runs, then the reviewer's instructions contain A and not B, and the output says the run changed `.claude/skills/phax-review/SKILL.md` and the base copy was used. (refs §5.12, §5.13)
+Given a run whose base holds a project review skill reading A, and whose phase rewrote it to read B, when `phax review-code <run> --headless` runs, then the reviewer's instructions contain A and not B, and the output says the run changed `.claude/skills/phax-review/SKILL.md` and the base copy was used. (refs §5.13, §5.14)
 
 ### A review skill added by the run is not read
 
-Given a run whose base has no project review skill, and whose phase added one, or added a symbolic link at that path, when `phax review-code <run> --headless` runs, then the reviewer follows the bundled skill and the output says the run changed the path. (refs §5.12, §5.13)
+Given a run whose base has no project review skill, and whose phase added one, or added a symbolic link at that path, when `phax review-code <run> --headless` runs, then the reviewer follows the bundled skill and the output says the run changed the path. (refs §5.13, §5.14)
 
 ### An untouched project skill is used as today
 
-Given a run whose base holds a project review skill the run did not change, when `phax review-code <run> --headless` runs, then the reviewer follows that skill with doctrine source `project`, and the output carries no change warning. (refs §5.12, §5.14)
+Given a run whose base holds a project review skill the run did not change, when `phax review-code <run> --headless` runs, then the reviewer follows that skill with doctrine source `project`, and the output carries no change warning. (refs §5.13, §5.15)
 
 ## 9. Open questions
+
+None.
+
+## 9b. Arbitrated questions
 
 ### q-skeleton-logs — Are the gate and setup logs and the agent error logs transcript-class, left out of a skeleton?
 
@@ -316,12 +330,18 @@ Given a run whose base holds a project review skill the run did not change, when
 
 Recommendation: logs-out — The user who turns transcripts off on a public repository wants nothing printed to leave the machine. Gate logs print what the project's tests print, and the gate attribution and reports keep the verdicts. Full records keep the logs.
 
+Decision: logs-out — by operator (Rémy Loubradou), 2026-11-24
+Why: The user who turns transcripts off on a public repository wants nothing printed to leave the machine. Gate logs print what the project's tests print, and the gate attribution and reports keep the verdicts. Full records keep the logs. Advocate: The strongest case for logs-in: the gate logs are what a reader of a skeleton needs to understand why a phase needed fix attempts, and `phax records explain` is much less useful without them. Principles: S1, C3. Reversibility: cheap. Revised: none.
+
 ### q-abs-paths — Do security.json and status.json keep their absolute paths in a skeleton record?
 
 - keep-paths — Keep both files as they are — abandons: hiding the home directory and username from a public skeleton record
 - relativize — Record copies with the worktree and home prefixes rewritten — abandons: recorded bytes equal to the phase folder's, and a content change to two persisted documents this slice set out not to touch
 
 Recommendation: keep-paths — A path names the user, as the commit author already does. It discloses nothing the agent read. Rewriting it belongs with the Low-severity findings, not this High slice.
+
+Decision: keep-paths — by operator (Rémy Loubradou), 2026-11-24
+Why: A path names the user, as the commit author already does. It discloses nothing the agent read. Rewriting it belongs with the Low-severity findings, not this High slice. Advocate: The strongest case for relativize: a public skeleton record would still expose the home directory and username on every phase, which a user who chose to publish less would not expect. Principles: S1. Reversibility: cheap. Revised: none.
 
 ### q-hooks-off — How does phax turn hooks off?
 
@@ -330,12 +350,18 @@ Recommendation: keep-paths — A path names the user, as the commit author alrea
 
 Recommendation: hookspath-all — `--no-verify` leaves hooks that run with the same rights. The project's checks belong in gates, which already run before the commit.
 
+Decision: hookspath-all — by operator (Rémy Loubradou), 2026-11-24
+Why: `--no-verify` leaves hooks that run with the same rights. The project's checks belong in gates, which already run before the commit. Advocate: The strongest case for no-verify-commits: it is the narrowest change, it touches only the commit calls, and it is a flag git documents for exactly this purpose. Principles: S1, C4. Reversibility: cheap. Revised: none.
+
 ### q-hooks-change — Should phax also refuse a phase that changed the hooks directory since its base?
 
 - leave-to-sec01 — No: leave it to SEC-01's implicit protected set — abandons: a warning before the user's own later `git commit` on the merged branch runs a hook the agent wrote
 - refuse-now — Yes: refuse such a phase in this slice — abandons: the slice's bounds: it designs part of SEC-01's protected set early, apart from the rest
 
 Recommendation: leave-to-sec01 — Once phax runs no hook, a changed hook threatens only the user's own git. That is exactly SEC-01's protected-file question, which should be answered in one place.
+
+Decision: leave-to-sec01 — by operator (Rémy Loubradou), 2026-11-24
+Why: Once phax runs no hook, a changed hook threatens only the user's own git. That is exactly SEC-01's protected-file question, which should be answered in one place. Advocate: The strongest case for refuse-now: the user's own next `git commit` on the merged branch runs the agent's hook with their rights, and nothing before SEC-01 lands warns them. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ### q-git-pointer — How far does the SEC-07 fix go?
 
@@ -344,12 +370,18 @@ Recommendation: leave-to-sec01 — Once phax runs no hook, a changed hook threat
 
 Recommendation: pointer-check — The agent cannot write between phax's check and phax's call in the same process step. The check also tells the operator that something was tampered with, where explicit GIT_DIR would hide it. Explicit GIT_DIR stays a later hardening.
 
+Decision: other — by operator (Rémy Loubradou), 2026-11-24
+Why: Pointer check as recommended, plus `-c core.fsmonitor=false` beside `-c core.hooksPath=/dev/null` on every git call phax runs in a phase worktree (a command-line -c wins over every config file, wherever the line was planted). Drop the non-goal that keeps the user's core.fsmonitor applying to phax's worktree calls. The pointer check alone does not close SEC-07: gate steps run agent-written code (tests) with the user's rights, and on Claude Code and Vibe allowed commands run unconfined, so that code can write core.fsmonitor straight into the repository's .git/config or .git/worktrees/<name>/config.worktree with the pointer intact. Name the residual in the spec: a clean filter, diff.external or core.sshCommand planted in the common config by gate code is not closed here; it is closed by running gate steps and allowed commands under an OS sandbox that keeps the repository's .git read-only (a separate brief, after this slice). Add an acceptance criterion: a core.fsmonitor written into the repository's common .git/config does not run at phax's next worktree git call. Advocate: The strongest case for the pointer check alone: it is the small slice the brief asked for, it tells the operator about tampering, and anything planted in the common config by gate code is a different threat that needs an OS sandbox anyway. Principles: S2, C3, C4. Reversibility: cheap. Revised: requirements, surface, nonGoals, acceptanceCriteria, problem.
+
 ### q-ignore-rule — Where does the `.phax-context` ignore rule live?
 
 - info-exclude — `/.phax-context` in the repository's `.git/info/exclude` — abandons: keeping phax's edits inside the worktree: phax writes one line into the user's repository-local exclude file, shared by every worktree and the main checkout
 - gitignore-no-slash — `/.phax-context` in the worktree's `.gitignore` — abandons: a phase diff free of phax's line: agents keep committing it and the PR keeps counting a deviation
 
 Recommendation: info-exclude — It closes SEC-08's committed-symlink path and the Small follow-up together. The line is inert in the main checkout, which has no `.phax-context`.
+
+Decision: info-exclude — by operator (Rémy Loubradou), 2026-11-24
+Why: It closes SEC-08's committed-symlink path and the Small follow-up together. The line is inert in the main checkout, which has no `.phax-context`. Advocate: The strongest case for gitignore-no-slash: phax's edits stay inside the worktree and never touch a file shared by the user's main checkout and every other worktree. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ### q-brief-decode — Is `brief-NN.json` decoded before it is copied (SEC-23)?
 
@@ -358,6 +390,9 @@ Recommendation: info-exclude — It closes SEC-08's committed-symlink path and t
 
 Recommendation: decode — It is one schema call in a function this slice already edits, and it keeps arbitrary agent bytes out of the records branch.
 
+Decision: decode — by operator (Rémy Loubradou), 2026-11-24
+Why: It is one schema call in a function this slice already edits, and it keeps arbitrary agent bytes out of the records branch. Advocate: The strongest case for raw-copy: the phase folder keeps exactly what the agent wrote, including a malformed brief a reader may need as evidence, and no decoding step can lose it. Principles: S1, C2. Reversibility: cheap. Revised: none.
+
 ### q-review-skill — Where does the code review's project skill come from?
 
 - run-base — The run base's committed copy (`git show <base>:.claude/skills/phax-review/SKILL.md`) — abandons: a review skill edited on main after the run started: the review follows the older copy
@@ -365,9 +400,8 @@ Recommendation: decode — It is one schema call in a function this slice alread
 
 Recommendation: run-base — The run base is fixed and was never writable by the run's agents. A project that changes its skill reviews the next run with it.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: run-base — by operator (Rémy Loubradou), 2026-11-24
+Why: The run base is fixed and was never writable by the run's agents. A project that changes its skill reviews the next run with it. Advocate: The strongest case for main-checkout: a project that fixes its review skill on main wants the next review to follow the fix at once, not the copy from when the run started. Principles: S1, C4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -377,20 +411,22 @@ Settled:
 - The record manifest keeps its shape (`skeleton` | `full`). If the allowlist forces a manifest change after all, it gets a new stamp and an upgrading note, with no shim.
 - The records destination rule does not change: a skeleton stays allowed in-repo on a public repository, now that it carries no transcript-class file.
 - The expected gitdir comes from the main checkout (its worktree list, or what phax recorded at `git worktree add`), never from the worktree.
+- phax sets `-c core.fsmonitor=false` beside `-c core.hooksPath=/dev/null` on every git call it runs in a phase worktree; a command-line `-c` wins over every config file.
 - Doctrine source stays `project` | `bundled`.
 
 Left open:
 
 - How the allowlist is expressed (names plus the per-attempt patterns), and how a stop's files and `.vibe-export` directories keep their current treatment.
 - Where the run base is read for the review (reviewCode already knows the first phase's base), and how a symlink blob (mode 120000) at the skill path is treated as absent.
-- Whether the gitdir check runs inside the git helper or before each port call, provided no worktree git call skips it.
+- Whether the gitdir check and the two `-c` settings run inside the git helper or before each port call, provided no worktree git call skips them.
 - The exact refusal and warning wording, and the run or phase state a refusal leaves.
 
 Constraints:
 
 - Footprint disjoint from `gate-step-times`: no edit to `gates.ts`, `gateAttribution.ts`, `fixLoop.ts`, `closeStop.ts` or `recordsExplain`. Run `phax plans overlap` before starting, and expect overlap only on regenerated files.
 - The record allowlist must list every phase-folder file `gate-step-times` adds, or a full record would lose it. Read that plan's file list first.
-- Each fix gets a test against real git or a real filesystem, not only the fakes: a husky-style pre-commit that must not run, a planted `core.fsmonitor` that must not run, a `.phax-context` symlink that is refused, a rewritten review skill that is not read. The full-record test lists a complete phase folder and names what each shape keeps.
+- Each fix gets a test against real git or a real filesystem, not only the fakes: a husky-style pre-commit that must not run, a planted `core.fsmonitor` (in a rewritten gitdir and in the common `.git/config`) that must not run, a `.phax-context` symlink that is refused, a rewritten review skill that is not read. The full-record test lists a complete phase folder and names what each shape keeps.
+- The residual of SEC-07 (a clean filter, `diff.external` or `core.sshCommand` planted in the common config by gate code) stays open after this slice and is named as such in the docs; it is closed by a separate brief that runs gate steps and allowed commands under an OS sandbox keeping the repository's `.git` read-only.
 - What a correct run does, and what it records with transcripts on, stays the same; the existing suites pass unchanged.
 - Update the sentence in docs/code-repository.md that says a record without a transcript still carries the gate logs.
 
@@ -408,3 +444,14 @@ Example: ## What phax does not take from the worktree
 - **The review skill.** `phax review-code` follows `.claude/skills/phax-review/SKILL.md` as it was at the run's base, and tells you when the run changed it.
 
 With `records.transcript: false`, a phase record carries no session stream, gate or setup log, or agent error log; it keeps prompt.md, the diff, the handoff and the gate reports.
+
+## 12. Decision log
+
+- 2026-11-24 q-skeleton-logs decided logs-out — operator (Rémy Loubradou)
+- 2026-11-24 q-abs-paths decided keep-paths — operator (Rémy Loubradou)
+- 2026-11-24 q-hooks-off decided hookspath-all — operator (Rémy Loubradou)
+- 2026-11-24 q-hooks-change decided leave-to-sec01 — operator (Rémy Loubradou)
+- 2026-11-24 q-git-pointer decided other — operator (Rémy Loubradou) — revised 5 sections
+- 2026-11-24 q-ignore-rule decided info-exclude — operator (Rémy Loubradou)
+- 2026-11-24 q-brief-decode decided decode — operator (Rémy Loubradou)
+- 2026-11-24 q-review-skill decided run-base — operator (Rémy Loubradou)
