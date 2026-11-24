@@ -197,7 +197,14 @@ To republish a released tag's site as it was at that tag, for example after a fa
 gh workflow run docs-deploy.yml -f tag=vX.Y.Z
 ```
 
-The `docs-deploy.yml` workflow checks out the tag, checks that `package.json` and the ledger's last entry name the tag's version, so a tag on an opening commit is refused, builds the site, and runs the same guard, preview upload, preview check and promotion as the release. It stages nothing on npm and creates no GitHub Release. The guard refuses the redeploy if it would drop a schema URL that docs.phax.run serves, so once a newer release is live, an older tag cannot be redeployed. A fix to the site on `main` reaches docs.phax.run only with the next release. To look at the site locally before redeploying, run `pnpm site:preview`, which serves the built site from `site/doc_build`.
+The `docs-deploy.yml` workflow runs in this order:
+
+1. It refuses a tag that is not `vX.Y.Z` before anything is checked out.
+2. It checks out `refs/tags/vX.Y.Z`, never a branch of that name.
+3. It checks that `package.json` and the ledger's last entry name the tag's version, so a tag on an opening commit is refused.
+4. Only then does it install and build the site.
+
+It then runs the same guard, preview upload, preview check and promotion as the release. It stages nothing on npm and creates no GitHub Release. The guard refuses the redeploy if it would drop a schema URL that docs.phax.run serves, so once a newer release is live, an older tag cannot be redeployed. A fix to the site on `main` reaches docs.phax.run only with the next release. To look at the site locally before redeploying, run `pnpm site:preview`, which serves the built site from `site/doc_build`.
 
 ## macOS Gatekeeper
 
