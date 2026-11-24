@@ -59,7 +59,7 @@
   "context": "phax registers 46 persisted formats. Every document of one of them carries a `$schema` stamp, `https://docs.phax.run/schemas/<format-id>/<X.Y.Z>.json`, which names the format and the release that last changed its shape, not the build that wrote it. At each release cut, every changed format's `next` snapshot is renamed to the release, so each shape a release wrote stays frozen as a snapshot. The cut then regenerates `CURRENT_SHAPES` and `FIRST_SUPPORTED_RELEASE`, which is 0.17.0 today.\n\nTwo kinds of reader read these documents:\n- `@lbdremy/phax-schemas` reads every shape at or below its own release down to the floor. It lifts older shapes to the current one in memory through its `toLatest*` functions, and a fact an older shape never recorded reads as `{ \"kind\": \"unknown\" }`. It refuses a newer stamp: `code-review 0.40.0 is newer than @lbdremy/phax-schemas 0.39.0 — upgrade the package`.\n- The phax binary refuses a newer stamp too: `<format> <release> is newer than this phax (<running>) — upgrade phax to read it`. It reads older `$schema` shapes for only some formats (phax-plan, the spec and plan documents, the approval records, run and phase status, the registry, the reviews, several record manifests). It reads the reports providers and gate steps print (`gate-report`, `brief-report`, `architecture-report`) and the provider answers only at their current shape. The 2026-10-08 rule says that from 1.0 an older answer is read through its frozen shape and lifted, and that the guard tests holding each answer reader to one shape must then fail and name that rule.\n\nConfiguration (`phax.json`, `phax.local.json`, the provider and model-routing files) carries no release stamp. `phax.json`'s `$schema` points at the local editor schema, beside `version: 1`.\n\n`docs/upgrading.md` lists, release by release, every time a reader refused an older or newer document and what to do:\n- 0.38.0 asked for a one-time `phax artifact migrate-documents` before approve, reopen, decide and revise would run again, and refused to resume a run started by 0.37.0;\n- 0.41.0 refused the old provider and model-routing files until they were rewritten;\n- 0.38.0, 0.40.0 and 0.43.0 each told package consumers that an older `@lbdremy/phax-schemas` refuses the new shapes.\n\nThe 1.0 item in `NEXT_STEPS.md` was written at 0.14.0, before stamps existed. It asked to freeze `version: 1` and the formats, with a migration for whatever moved. The operator dropped that idea on 2026-11-19.",
   "problem": "Stamps let shapes keep changing, because a reader always knows which shape it holds. But no rule says what an upgrade may stop reading, so a 1.0 user cannot foresee:\n- **Newer documents, older readers.** Two people or two machines on different releases share `phax/records/v1`, and the older one stops reading the newer one's records. Nothing written tells them this is expected, or that upgrading is the whole remedy. A consumer of the package must upgrade in step with phax, and learns it only from a refusal.\n- **The floor can move, and nothing says when.** `FIRST_SUPPORTED_RELEASE` exists, but no rule says when it moves. A minor upgrade could stop reading records already on an append-only branch, which no migration can rewrite.\n- **One-time steps can come back.** Nothing stops a minor release from asking for a one-time `migrate-documents`-like step again, blocking approve or decide until someone runs it.\n- **phax reads fewer shapes than the package.** The package reads every frozen shape. phax reads older shapes for only some formats, and answers and reports at the current shape only. Whether an older document reads depends on which reader you hold.\n- **Nothing checks that a shape change is documented.** A release can change a format's shape without its upgrading entry naming the format: the cut only warns when the entry is missing.\n- **Configuration has no promise and no stamp.** It is the file every user edits, yet 0.41.0 refused the old provider files outright.\n\nWhat 1.0 would be lying about, without this spec, is not a format that changed but a change the user could not foresee.",
   "productGoal": {
-    "statement": "From 1.0.0, phax promises the rules by which its persisted documents change, not that their shapes are frozen:\n1. every document is stamped;\n2. phax and `@lbdremy/phax-schemas` read every shape from a declared floor up to their own release;\n3. the floor, and any one-time step, move only at a breaking release;\n4. within a breaking line a shape change only adds: removing or renaming a field, a variant or a format waits for a breaking release;\n5. every shape change ships with its snapshot and an upgrading entry naming the format;\n6. whatever a reader cannot read is refused by name, with its remedy.\n\nThe promise is written on one docs page that users read, and tests and the release cut hold phax to it, so a rule cannot be broken without a red check.",
+    "statement": "From 1.0.0, phax promises the rules by which its persisted documents change, not that their shapes are frozen:\n1. every document is stamped;\n2. phax and `@lbdremy/phax-schemas` each read every shape from a declared floor up to their own release: the package's floor is 0.17.0, phax's is the shapes of 1.0.0;\n3. the floor, and any one-time step, move only at a breaking release;\n4. within a breaking line a shape change only adds: removing or renaming a field, a variant or a format waits for a breaking release;\n5. every shape change ships with its snapshot and an upgrading entry naming the format;\n6. whatever a reader cannot read is refused by name, with its remedy.\n\nThe promise is written on one docs page that users read, and tests and the release cut hold phax to it, so a rule cannot be broken without a red check.",
     "guidingRule": "A shape may change at any release; what a reader stops reading changes only at a major, and is always refused by name with its remedy."
   },
   "terminology": [
@@ -77,7 +77,7 @@
     },
     {
       "term": "Floor",
-      "definition": "The oldest shape a reader reads. Today it is 0.17.0, plus the `pre-schema` shape of each format written before stamps (`FIRST_SUPPORTED_RELEASE`). A document stamped below the floor is refused."
+      "definition": "The oldest shape a reader reads, and each reader has its own. The package's floor is 0.17.0, plus the `pre-schema` shape of each format written before stamps (`FIRST_SUPPORTED_RELEASE`). From 1.0.0, phax's floor is the shape each format has at the 1.0.0 cut: a shape that a release before 1.0.0 superseded, and the `pre-schema` shape, are below phax's floor. A document stamped below a reader's floor is refused by that reader."
     },
     {
       "term": "Breaking release",
@@ -125,27 +125,27 @@
     },
     {
       "id": "R-durable",
-      "title": "Both readers read every durable shape since the floor",
+      "title": "Both readers read every durable shape since their floor",
       "pattern": "ubiquitous",
-      "statement": "phax and `@lbdremy/phax-schemas` shall each read every document of a `durable` format stamped at any shape from the floor up to their own release, lifted to the current shape."
+      "statement": "phax and `@lbdremy/phax-schemas` shall each read every document of a `durable` format stamped at any shape from their own floor up to their own release, lifted to the current shape."
     },
     {
       "id": "R-published",
-      "title": "The package reads every published shape since the floor",
+      "title": "The package reads every published shape since its floor",
       "pattern": "ubiquitous",
-      "statement": "`@lbdremy/phax-schemas` shall read every document of a `published` format stamped at any shape from the floor up to its own release."
+      "statement": "`@lbdremy/phax-schemas` shall read every document of a `published` format stamped at any shape from its floor up to its own release."
     },
     {
       "id": "R-answer",
-      "title": "From 1.0, phax reads every answer shape since the floor",
+      "title": "From 1.0, phax reads every answer shape since its floor",
       "pattern": "state",
-      "statement": "WHILE phax's release is 1.0.0 or later THE system SHALL read every document of an `answer` format stamped at any shape from the floor up to its own release, lifted to the current shape."
+      "statement": "WHILE phax's release is 1.0.0 or later THE system SHALL read every document of an `answer` format stamped at any shape from phax's floor up to its own release, lifted to the current shape."
     },
     {
       "id": "R-lift",
       "title": "Every lift is total",
       "pattern": "ubiquitous",
-      "statement": "Each lift from a shape at or above the floor shall succeed on every document valid in that shape, giving `{ \"kind\": \"unknown\" }` for a fact the shape never recorded."
+      "statement": "Each lift from a shape at or above the reader's floor shall succeed on every document valid in that shape, giving `{ \"kind\": \"unknown\" }` for a fact the shape never recorded."
     },
     {
       "id": "R-add-only",
@@ -163,7 +163,7 @@
       "id": "R-no-step",
       "title": "No one-time step between breaking releases",
       "pattern": "event",
-      "statement": "WHEN a command that rewrites a `durable` document meets it in an older shape at or above the floor THE system SHALL carry out the command without asking for a one-time step."
+      "statement": "WHEN a command that rewrites a `durable` document meets it in an older shape at or above phax's floor THE system SHALL carry out the command without asking for a one-time step."
     },
     {
       "id": "R-doc-upgrade",
@@ -173,15 +173,15 @@
     },
     {
       "id": "R-floor-moves",
-      "title": "The floor moves only at a breaking release",
+      "title": "A floor moves only at a breaking release",
       "pattern": "unwanted",
-      "statement": "IF a non-breaking release would raise the floor, stop reading a shape at or above it, or retire a format whose shapes are at or above it THEN the release cut SHALL refuse before writing anything, naming the format and the shape."
+      "statement": "IF a non-breaking release would raise a reader's floor, stop reading a shape at or above it, or retire a format whose shapes are at or above it THEN the release cut SHALL refuse before writing anything, naming the format and the shape."
     },
     {
       "id": "R-floor-one",
-      "title": "The 1.0 floor is today's floor",
+      "title": "The floors at 1.0",
       "pattern": "ubiquitous",
-      "statement": "The floor of phax 1.0.0 and `@lbdremy/phax-schemas` 1.0.0 shall be 0.17.0, together with the `pre-schema` shape of every format written before stamps."
+      "statement": "The floor of `@lbdremy/phax-schemas` 1.0.0 shall be 0.17.0, together with the `pre-schema` shape of every format written before stamps, and the floor of phax 1.0.0 shall be the shape each format has at the 1.0.0 cut."
     },
     {
       "id": "R-newer",
@@ -193,7 +193,7 @@
       "id": "R-below",
       "title": "A document below the floor is refused by name",
       "pattern": "unwanted",
-      "statement": "IF a reader meets a document stamped below its floor THEN it SHALL refuse the document, naming its format, the stamp's release, the floor, and the last release line that reads it."
+      "statement": "IF a reader meets a document stamped below its floor THEN it SHALL refuse the document, naming its format, the stamp's release, the floor, and the last release line that reads it; and WHEN that reader is phax it SHALL name the 0.x line of phax and `@lbdremy/phax-schemas` as what still reads it."
     },
     {
       "id": "R-mixed",
@@ -238,7 +238,7 @@
       "summary": "Anyone adopting phax 1.0 or reading its files with `@lbdremy/phax-schemas` can read, on one page, what an upgrade may change in those files, what it never stops reading, and what to do when a reader refuses one.",
       "binding": "indicative",
       "before": null,
-      "after": "# Format stability\n\nFrom phax 1.0.0, a file or record phax writes may change shape at any\nrelease. These rules say how:\n\n1. Every document carries a `$schema` stamp: its format, and the release\n   that last changed its shape.\n2. phax and @lbdremy/phax-schemas read every shape from the floor\n   (today 0.17.0) up to their own release.\n3. The floor moves, and a step that commands wait for can be asked for,\n   only at a major.\n4. Within a major a shape only adds: a field an older document lacks reads\n   as computed from it or `unknown`. Removing or renaming waits for a major.\n5. A shape change ships with its snapshot and a docs/upgrading.md entry\n   naming the format.\n6. A document a reader cannot read is refused by name, with the remedy.\n   On a shared phax/records/v1, every reader must be as new as the newest writer.\n\nA document upgrade nothing waits for may ship in any release: it rewrites\nspec and plan sidecars and approval records to the current shape, never\nphax/records/v1, and every command answers the same whether you ran it or not.\n\nA model or effort a provider retired can stop being accepted in a minor\nrelease, refused by name with the model to write instead.\n\n| Format                | Class     | Read by                           |\n| --------------------- | --------- | --------------------------------- |\n| phase-record-manifest | durable   | phax and the package              |\n| run-list              | published | the package                       |\n| gate-report           | answer    | phax (every shape from 1.0.0)     |\n| …                     |           |                                   |"
+      "after": "# Format stability\n\nFrom phax 1.0.0, a file or record phax writes may change shape at any\nrelease. These rules say how:\n\n1. Every document carries a `$schema` stamp: its format, and the release\n   that last changed its shape.\n2. phax and @lbdremy/phax-schemas read every shape from their floor up to\n   their own release. The package's floor is 0.17.0. phax 1.x reads the\n   shapes of 1.0.0 and later; for an older document it names the 0.x line\n   and the package, which still read it.\n3. The floor moves, and a step that commands wait for can be asked for,\n   only at a major.\n4. Within a major a shape only adds: a field an older document lacks reads\n   as computed from it or `unknown`. Removing or renaming waits for a major.\n5. A shape change ships with its snapshot and a docs/upgrading.md entry\n   naming the format.\n6. A document a reader cannot read is refused by name, with the remedy.\n   On a shared phax/records/v1, every reader must be as new as the newest writer.\n\nA document upgrade nothing waits for may ship in any release: it rewrites\nspec and plan sidecars and approval records to the current shape, never\nphax/records/v1, and every command answers the same whether you ran it or not.\n\nA model or effort a provider retired can stop being accepted in a minor\nrelease, refused by name with the model to write instead.\n\n| Format                | Class     | Read by                           |\n| --------------------- | --------- | --------------------------------- |\n| phase-record-manifest | durable   | phax and the package              |\n| run-list              | published | the package                       |\n| gate-report           | answer    | phax (every shape from 1.0.0)     |\n| …                     |           |                                   |"
     },
     {
       "surface": "file: docs/upgrading.md",
@@ -249,7 +249,7 @@
     },
     {
       "surface": "cli: scripts/release.sh",
-      "summary": "A maintainer cutting a release is stopped before anything is written when a changed format has no upgrading entry naming it, when a non-major release would stop reading a shape at or above the floor, or when a non-major release drops or renames a field.",
+      "summary": "A maintainer cutting a release is stopped before anything is written when a changed format has no upgrading entry naming it, when a non-major release would stop reading a shape at or above a floor, or when a non-major release drops or renames a field.",
       "binding": "indicative",
       "before": null,
       "after": "$ scripts/release.sh 1.3.0\n✗ 1.3.0 changes the shape of gate-attribution, but the ### 1.3.0 entry of docs/upgrading.md does not name `gate-attribution`\n\n$ scripts/release.sh 1.4.0\n✗ 1.4.0 is not a major release, yet it stops reading phase-status 1.0.0 — the floor moves only at a major\n\n$ scripts/release.sh 1.4.0\n✗ 1.4.0 is not a major release, yet its phase-status shape drops the field `stop` of 1.3.0 — a field is removed or renamed only at a major"
@@ -262,8 +262,15 @@
       "after": "run-status 1.4.0 is newer than this phax (1.3.0) — upgrade phax to 1.4.0 or later to read it\n\n$ phax records list\n✗ 3 records on phax/records/v1 are newer than this phax (1.3.0), the newest at 1.4.0 — upgrade phax to 1.4.0 or later\n$? = 1"
     },
     {
+      "surface": "cli: refusal of a document below phax's floor",
+      "summary": "A person on phax 1.x who meets a document or record written by a 0.x release sees which one, and that the 0.x line of phax and `@lbdremy/phax-schemas` still read it.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ phax records list\n✗ phase-record-manifest 0.33.0 is below the floor of this phax (1.2.0: shapes of 1.0.0 and later) — read it with phax 0.x or @lbdremy/phax-schemas\n$? = 1"
+    },
+    {
       "surface": "package: @lbdremy/phax-schemas",
-      "summary": "A program reading phax files with the package gets every shape from the floor up, lifted to the current one, and a refusal naming the release to upgrade to, or the release line that still reads a document below the floor.",
+      "summary": "A program reading phax files with the package gets every shape from 0.17.0 up, lifted to the current one, and a refusal naming the release to upgrade to, or the release line that still reads a document below the floor.",
       "binding": "indicative",
       "before": "parsePhaseStatus(doc)\n// { ok: false, path: \"$schema\", message: \"phase-status 1.4.0 is newer than @lbdremy/phax-schemas 1.3.0 — upgrade the package\" }\n// { ok: false, path: \"$schema\", message: \"https://docs.phax.run/schemas/phase-status/0.16.0.json was written by a development build of phax before 0.17.0, the first supported release — not supported\" }",
       "after": "parsePhaseStatus(doc)\n// { ok: false, path: \"$schema\", message: \"phase-status 1.4.0 is newer than @lbdremy/phax-schemas 1.3.0 — upgrade the package to 1.4.0 or later\" }\n// after a 2.0.0 that raised the floor:\n// { ok: false, path: \"$schema\", message: \"phase-status 1.4.0 is below the floor of @lbdremy/phax-schemas 2.0.0 (2.0.0) — read it with @lbdremy/phax-schemas 1.x\" }"
@@ -338,8 +345,8 @@
     },
     {
       "id": "AC-durable-phax",
-      "name": "phax reads every durable shape since the floor",
-      "given": "a generated document of each `durable` format in every shape from the floor (`pre-schema` included where the format has one) to the current one",
+      "name": "phax reads every durable shape since its floor",
+      "given": "a generated document of each `durable` format in every shape from phax's floor (the shape each format has at the 1.0.0 cut) to the current one",
       "when": "phax reads it",
       "then": "it reads as the current shape, a fact the older shape never recorded being `{ \"kind\": \"unknown\" }`, and the file is not rewritten.",
       "refs": [
@@ -348,8 +355,8 @@
     },
     {
       "id": "AC-durable-package",
-      "name": "The package reads every durable shape since the floor",
-      "given": "the same generated `durable` documents",
+      "name": "The package reads every durable shape since 0.17.0",
+      "given": "a generated document of each `durable` format in every shape from the package's floor (`pre-schema` included where the format has one) to the current one",
       "when": "`@lbdremy/phax-schemas` parses each and lifts it with the format's `toLatest*`",
       "then": "each parses as its own shape and lifts to the current one.",
       "refs": [
@@ -358,8 +365,8 @@
     },
     {
       "id": "AC-published",
-      "name": "The package reads every published shape since the floor",
-      "given": "a generated document of each `published` format, among them `run-list`, `artifact-status` and `finding-list`, in every shape from the floor to the current one",
+      "name": "The package reads every published shape since 0.17.0",
+      "given": "a generated document of each `published` format, among them `run-list`, `artifact-status` and `finding-list`, in every shape from the package's floor to the current one",
       "when": "`@lbdremy/phax-schemas` parses it",
       "then": "it parses as its own shape.",
       "refs": [
@@ -369,9 +376,9 @@
     {
       "id": "AC-answer",
       "name": "From 1.0, an older answer is read and lifted",
-      "given": "phax at release 1.0.0 or later, and a `gate-report` printed by a gate step in an older shape at or above the floor",
+      "given": "phax at release 1.0.0 or later, and a `gate-report` printed by a gate step in an older shape at or above phax's floor",
       "when": "the gate step runs",
-      "then": "phax reads the report and lifts it to the current shape. Before 1.0.0 the guard tests still hold each answer reader to one shape, and at an opened 1.0.0 they fail, naming the 2026-10-08 provider answers rule, until each answer reader reads every shape since the floor.",
+      "then": "phax reads the report and lifts it to the current shape. Before 1.0.0 the guard tests still hold each answer reader to one shape, and at an opened 1.0.0 they fail, naming the 2026-10-08 provider answers rule, until each answer reader reads every shape since phax's floor.",
       "refs": [
         "R-answer"
       ]
@@ -379,7 +386,7 @@
     {
       "id": "AC-lift",
       "name": "Every lift is total",
-      "given": "generated documents valid in each frozen shape at or above the floor, for every registered format with an older shape",
+      "given": "generated documents valid in each frozen shape at or above the reader's floor, for every registered format with an older shape",
       "when": "each is lifted to the current shape",
       "then": "none is refused, and each fact the older shape never recorded reads `{ \"kind\": \"unknown\" }`.",
       "refs": [
@@ -400,7 +407,7 @@
     {
       "id": "AC-no-step",
       "name": "An older sidecar needs no one-time step",
-      "given": "a repository whose plan sidecar is stamped in an older `plan-document` shape at or above the floor",
+      "given": "a repository whose plan sidecar is stamped in an older `plan-document` shape at or above phax's floor",
       "when": "`phax artifact approve`, `phax artifact reopen`, `phax artifact decide` or `phax artifact revise` runs on it",
       "then": "the command completes without naming `phax artifact migrate-documents` or any other one-time step.",
       "refs": [
@@ -410,7 +417,7 @@
     {
       "id": "AC-doc-upgrade",
       "name": "A non-blocking document upgrade changes no other answer",
-      "given": "a non-breaking release that ships a non-blocking document upgrade named in its `docs/upgrading.md` entry, and a repository whose spec and plan sidecars and approval records are in older shapes at or above the floor",
+      "given": "a non-breaking release that ships a non-blocking document upgrade named in its `docs/upgrading.md` entry, and a repository whose spec and plan sidecars and approval records are in older shapes at or above phax's floor",
       "when": "`phax artifact status`, `phax plans lint` and `phax records list` run before the upgrade and again after it",
       "then": "each gives the same answer both times, and none refuses, warns or names the upgrade before it was run. The upgrade rewrites the sidecars and approval records to the current shape, with `{ \"kind\": \"unknown\" }` where it cannot compute a value, and `phax/records/v1` is unchanged.",
       "refs": [
@@ -419,8 +426,8 @@
     },
     {
       "id": "AC-floor-moves",
-      "name": "A non-major release cannot move the floor",
-      "given": "an opened version 1.4.0 that raises the floor, or drops the frozen shape `phase-status` 1.0.0, or retires a format with shapes at or above the floor",
+      "name": "A non-major release cannot move a floor",
+      "given": "an opened version 1.4.0 that raises a floor, or drops the frozen shape `phase-status` 1.0.0, or retires a format with shapes at or above a floor",
       "when": "`scripts/release.sh 1.4.0` cuts",
       "then": "it refuses before writing anything, naming the format and the shape. The same change at an opened 2.0.0 goes ahead.",
       "refs": [
@@ -429,10 +436,10 @@
     },
     {
       "id": "AC-floor-one",
-      "name": "1.0.0 reads what 0.x wrote",
+      "name": "The package reads what 0.x wrote, phax 1.0.0 reads the shapes of 1.0.0",
       "given": "a phase record manifest stamped 0.17.0 and a `registry` with no `$schema`",
-      "when": "phax 1.0.0 and `@lbdremy/phax-schemas` 1.0.0 read them",
-      "then": "both read them, and both report the floor as 0.17.0.",
+      "when": "`@lbdremy/phax-schemas` 1.0.0 and phax 1.0.0 read them",
+      "then": "the package reads both and reports its floor as 0.17.0, and phax refuses both as below its floor, which it reports as the shapes of 1.0.0.",
       "refs": [
         "R-floor-one"
       ]
@@ -450,9 +457,9 @@
     {
       "id": "AC-below",
       "name": "A document below the floor is refused with its remedy",
-      "given": "a reader whose floor is set to 2.0.0, and a `phase-status` stamped 1.4.0",
-      "when": "it reads the document",
-      "then": "it refuses it, naming `phase-status`, `1.4.0`, the floor `2.0.0` and the 1.x release line as the one that reads it.",
+      "given": "a reader whose floor is set to 2.0.0, and a `phase-status` stamped 1.4.0; and phax 1.2.0 with a `phase-record-manifest` stamped 0.33.0 that 1.0.0 superseded",
+      "when": "each reader reads its document",
+      "then": "the first refuses it, naming `phase-status`, `1.4.0`, the floor `2.0.0` and the 1.x release line as the one that reads it. phax refuses the second, naming `phase-record-manifest`, `0.33.0`, its floor, and the 0.x line of phax and `@lbdremy/phax-schemas` as what still reads it.",
       "refs": [
         "R-below"
       ]
@@ -514,7 +521,7 @@
       "name": "The promise is linked where users read",
       "given": "the built docs site and the repository",
       "when": "the README, `docs/upgrading.md` and the site's navigation are read",
-      "then": "each links to the format-stability page, and the page states the six rules, the difference between a step commands wait for and a non-blocking document upgrade, and that a model a provider retired can stop being accepted in a minor release, and lists every registered format with its class.",
+      "then": "each links to the format-stability page, and the page states the six rules, that phax 1.x reads the shapes of 1.0.0 and later while the package reads from 0.17.0, the difference between a step commands wait for and a non-blocking document upgrade, and that a model a provider retired can stop being accepted in a minor release, and lists every registered format with its class.",
       "refs": [
         "R-docs"
       ]
@@ -541,25 +548,54 @@
       "rationale": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.",
       "verdict": {
         "kind": "decided",
-        "chosen": "keep-0-17",
+        "chosen": "raise-to-1",
         "abandoned": [
-          "raise-to-1"
+          "keep-0-17"
         ],
-        "why": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.",
-        "advocate": "Raising the floor to 1.0.0 lets the project delete every 0.x frozen decoder and lift at once, so 1.x starts with a small, fully tested reader surface instead of carrying pre-release history for the whole line.",
+        "why": "The floor of phax itself rises to 1.0.0 at the 1.0 cut: phax 1.x reads only shapes from 1.0.0 on, and refuses an older document by name, naming the 0.x line and @lbdremy/phax-schemas as what still reads it. @lbdremy/phax-schemas keeps reading every shape since 0.17.0: it is the library a records viewer reads old documents through, so no record is lost. phax has one user today, so phax does not catch up with the package on 0.x shapes, and 0.x's one-time steps (migrate-documents, migrate-approvals) stay as they are until 1.0: before 1.0 every minor is breaking.",
+        "advocate": "Keeping the floor at 0.17.0 means no 0.x record or approval record on an append-only branch ever becomes unreadable by phax 1.x, and the lifts already written and tested stay in use.",
         "principles": [
-          "S1",
-          "S5"
+          "S5",
+          "S10"
         ],
         "reversibility": "costly",
         "by": {
           "kind": "operator",
           "name": "Rémy Loubradou"
         },
-        "at": "2026-11-24T14:07:30.527Z",
-        "revised": []
+        "at": "2026-11-24T14:48:04.636Z",
+        "revised": [
+          "productGoal",
+          "terminology",
+          "requirements",
+          "surface",
+          "acceptanceCriteria",
+          "planningNote",
+          "docsPage"
+        ]
       },
-      "history": []
+      "history": [
+        {
+          "kind": "decided",
+          "chosen": "keep-0-17",
+          "abandoned": [
+            "raise-to-1"
+          ],
+          "why": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.",
+          "advocate": "Raising the floor to 1.0.0 lets the project delete every 0.x frozen decoder and lift at once, so 1.x starts with a small, fully tested reader surface instead of carrying pre-release history for the whole line.",
+          "principles": [
+            "S1",
+            "S5"
+          ],
+          "reversibility": "costly",
+          "by": {
+            "kind": "operator",
+            "name": "Rémy Loubradou"
+          },
+          "at": "2026-11-24T14:07:30.527Z",
+          "revised": []
+        }
+      ]
     },
     {
       "id": "q-floor-moves",
@@ -784,11 +820,13 @@
       "A refusal names the format, both releases and the remedy, and the docs page states the same remedy once.",
       "Within a breaking line a shape only adds; removing or renaming a field, a variant or a format waits for a breaking release.",
       "A blocking one-time step comes only at a breaking release; a non-blocking document upgrade may ship at any release, and nothing waits for it.",
-      "Values from the providers' model catalog (a model id, an effort) are not configuration keys: a retired one may be refused at any release, by name, with the model to write instead."
+      "Values from the providers' model catalog (a model id, an effort) are not configuration keys: a retired one may be refused at any release, by name, with the model to write instead.",
+      "The floor of phax itself rises to 1.0.0 at the 1.0 cut: phax 1.x reads only shapes from 1.0.0 on and refuses an older document by name, naming the 0.x line and `@lbdremy/phax-schemas` as what still reads it. The package keeps reading every shape since 0.17.0: it is the library a records viewer reads old documents through, so no record is lost.",
+      "phax has one user today, so phax does not catch up with the package on 0.x shapes, and 0.x's one-time steps (`migrate-documents`, `migrate-approvals`) stay as they are until 1.0: before 1.0 every minor is breaking."
     ],
     "open": [
       "The class of each of the 46 registered formats, retired ones and the old approval ledgers included, proposed by the plan and shown on the docs page.",
-      "Which `durable` formats phax itself reads today only at their current shape, so the plan can inventory the frozen decoders and lifts phax must add to match the package.",
+      "Which shapes each format has at the 1.0.0 cut, so the plan can list the 0.x decoders and lifts phax drops at 1.0 (a format unchanged since a 0.x release keeps that stamp as its shape at the cut) and the ones the package keeps.",
       "How the cut tells which formats changed shape in the release (its renamed `next` snapshots are the natural source), and how it matches them against the upgrading entry.",
       "How the below-floor refusal knows the release line that still reads a document, for example from the floor's history in the release ledger.",
       "Whether the configuration cases of the behaviour corpus are the fixture that pins what each release accepts.",
@@ -808,6 +846,6 @@
     "kind": "page",
     "page": "docs/format-stability.md — Format stability: what an upgrade may change in the files and records phax writes, linked from the README, docs/upgrading.md and the docs site's navigation.",
     "reader": "Someone adopting phax 1.0, or reading phax's files and records with `@lbdremy/phax-schemas`, who wants to know before upgrading what the upgrade may stop reading and what to do when a reader refuses a document.",
-    "example": "Two teammates share `phax/records/v1`, one on phax 1.3.0 and one on 1.4.0, which changed `phase-record-manifest`. The page shows why 1.4.0 reads every record, why 1.3.0's `phax records list` refuses and names 1.4.0, why a script on `@lbdremy/phax-schemas` 1.3.0 is refused the same way, and that upgrading each reader to 1.4.0 is the whole remedy. Nothing needs migrating."
+    "example": "Two teammates share `phax/records/v1`, one on phax 1.3.0 and one on 1.4.0, which changed `phase-record-manifest`. The page shows why 1.4.0 reads every record, why 1.3.0's `phax records list` refuses and names 1.4.0, why a script on `@lbdremy/phax-schemas` 1.3.0 is refused the same way, and that upgrading each reader to 1.4.0 is the whole remedy. It also shows that a record written by a 0.x release is refused by phax 1.x, which names the 0.x line and the package as what still read it, and that the package reads it. Nothing needs migrating."
   }
 }
