@@ -390,12 +390,19 @@ Given a `~/.phax/providers.json` whose `mistral-vibe` entry lists only `mistral-
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-anchor — Which Claude rung anchors Large 4's efforts?
 
 - sonnet-4-6 — Claude Sonnet 4.6, straight across (`low`/`medium`/`high` → the same effort, `equivalent`), from the ECI tie and the catalog's straight-across rule — abandons: a Large 4 phase falling back to Claude runs on Sonnet 4.6, which is weaker than Sonnet 5.5 and costs more ($3/$15 against $2/$10)
 - sonnet-5-5-low — Claude Sonnet 5.5 `low` for Large 4 `high` (26 = 26 on AA v5.0.1) — abandons: explicit routing: with Vibe enabled and first in priority, every Sonnet 5.5 `low` phase would reach Large 4 as `equivalent`, against the operator's settled point 1 and r-explicit
 
 Recommendation: sonnet-4-6 — Nobody names Sonnet 4.6 any more, so the anchor keeps routing explicit in practice, and it is the rung the ECI ties Large 4 to. Falling back to Claude is the rare case, so paying Sonnet 4.6's price there is the acceptable loss.
+
+Decision: sonnet-4-6 — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for Sonnet 5.5 `low`: a Large 4 phase falling back to Claude would land on the cheaper, stronger Sonnet 5.5 rather than the older Sonnet 4.6, and AA v5.0.1 scores them equal (26 = 26). Principles: S1, C1. Reversibility: cheap. Revised: none.
 
 ### q-medium — What becomes of `mistral-medium-3.5`?
 
@@ -404,12 +411,18 @@ Recommendation: sonnet-4-6 — Nobody names Sonnet 4.6 any more, so the anchor k
 
 Recommendation: deprecate — Its `high` edge overstates it by a generation, and Large 4 serves `low`, `medium` and `high`, cheap levels included. The lost `off` → Haiku 4.5 `none` route only matters to a request that names Haiku 4.5, which only that edge kept alive. Unless the effort check finds Large 4 serves no cheap level, that is the acceptable loss.
 
+Decision: deprecate — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for keeping Medium 3.5 active: it keeps the only Mistral route for a Haiku 4.5 `none` request and a cheap `off` level, and avoids deprecating a model that still works. Principles: S1, S7. Reversibility: cheap. Revised: none.
+
 ### q-off — Does Large 4 list `off` among its efforts?
 
 - leave-out — Leave it out: efforts `low`, `medium`, `high`, as Vibe's own table lists — abandons: a cheap no-reasoning level on Large 4, which matters only if `mistral-medium-3.5` is deprecated and its `off` route to Haiku 4.5 `none` goes with it
 - list-off — List it, anchored to Claude Haiku 4.5 `none` as Medium 3.5's `off` is today — abandons: a catalog that rests only on what the publisher states: the level rests on an API leniency Mistral may close without notice, and nothing shows it disables reasoning beyond a shorter answer
 
 Recommendation: leave-out — Vibe's table, the publisher's word, omits `off`, and the only evidence for it is one call that answered with fewer tokens. The catalog's rule is efforts exactly as read from the provider's ground truth.
+
+Decision: leave-out — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for listing `off`: the API accepted it in a real call, and it would give Large 4 a cheap no-reasoning level and keep a Mistral route for Haiku 4.5 `none` after Medium 3.5 is deprecated. Principles: S1, E0. Reversibility: cheap. Revised: none.
 
 ### q-disabled — What does phax do with a request whose provider is disabled?
 
@@ -419,12 +432,18 @@ Recommendation: leave-out — Vibe's table, the publisher's word, omits `off`, a
 
 Recommendation: claude-while-enabled — It is the smallest change that makes `enabled` true for every provider, Claude included. It keeps the documented fallback for the common install. The only install that loses anything is one that disabled Claude itself, and stopping is what that operator asked for.
 
+Decision: claude-while-enabled — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for refusing whenever the requested provider is disabled: it is the strictest reading of the operator's switch, and no request ever runs on a provider other than the one it named. Principles: S1, S3. Reversibility: costly. Revised: none.
+
 ### q-family — Is Large 4 a new `mistral-large` family, or does it join `mistral-medium`?
 
 - new-family — A new family `mistral-large` — abandons: a closed family vocabulary: one more value that `model-routing.json`, `phax agent resolve` output and telemetry accept, an unknown `mistral-*` id still guessed as `mistral-medium`, and a deprecated Medium 3.5 with no same-family alternative to suggest
 - join-medium — Prepend `mistral-large-4-0` to the `mistral-medium` family — abandons: a family name that describes its models: with Large 4 first, every `mistral-medium` request by alias or unknown id lands on a different model line under the wrong name
 
 Recommendation: new-family — It is a different model line. A family's first active entry is what aliases and guessed ids resolve to, so joining would hide a model swap behind a name. Widening the family vocabulary by one value is a contained cost.
+
+Decision: new-family — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for joining `mistral-medium`: the family vocabulary stays closed, no schema value is added to `model-routing.json`, resolve output or telemetry, and a deprecated Medium 3.5 keeps a same-family active alternative. Principles: S1, E0. Reversibility: costly. Revised: none.
 
 ### q-existing-catalog — How does an install with its own `providers.json` get the new id?
 
@@ -433,9 +452,8 @@ Recommendation: new-family — It is a different model line. A family's first ac
 
 Recommendation: setup-adds — The operators this spec serves are exactly the ones with a providers.json. `--write` already rewrites the file, re-enables providers and replaces retired ids. Adding missing built-in entries is the same kind of change, and the report names what it added.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: setup-adds — by operator (Rémy Loubradou), 2026-11-24
+Why: Operator agreed with the spec and every recommendation (2026-11-24). Advocate: The strongest case for documenting it by hand: `--write` never overrides a hand-trimmed catalog, so an entry an operator deleted on purpose does not come back, and the command stays limited to enabling providers and replacing retired ids. Principles: S1, S4. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -473,3 +491,12 @@ Reader: An operator choosing a Mistral model for a plan phase or a configured jo
 Example: | `mistral-large-4-0` | `mistral-large` | `low medium high` | Vibe 3.1.3 built-in table and a real call per level, 2026-11-24 (`xhigh`, `max`: HTTP 400) | 2026-11-24 |
 
 | `mistral-large-4-0` | `claude-sonnet-4-6` (low/medium/high) | `equivalent` | ECI 154.6 (CI 151.8–157.4) vs Sonnet 4.6 152.9; AA v5.0.1 26 at `high`; AA Coding Agent Index Vibe + `high` 40.6 | 2026-11-24 |
+
+## 12. Decision log
+
+- 2026-11-24 q-anchor decided sonnet-4-6 — operator (Rémy Loubradou)
+- 2026-11-24 q-medium decided deprecate — operator (Rémy Loubradou)
+- 2026-11-24 q-off decided leave-out — operator (Rémy Loubradou)
+- 2026-11-24 q-disabled decided claude-while-enabled — operator (Rémy Loubradou)
+- 2026-11-24 q-family decided new-family — operator (Rémy Loubradou)
+- 2026-11-24 q-existing-catalog decided setup-adds — operator (Rémy Loubradou)

@@ -444,7 +444,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-anchor",
       "question": "Which Claude rung anchors Large 4's efforts?",
@@ -461,7 +462,28 @@
         }
       ],
       "recommendation": "sonnet-4-6",
-      "rationale": "Nobody names Sonnet 4.6 any more, so the anchor keeps routing explicit in practice, and it is the rung the ECI ties Large 4 to. Falling back to Claude is the rare case, so paying Sonnet 4.6's price there is the acceptable loss."
+      "rationale": "Nobody names Sonnet 4.6 any more, so the anchor keeps routing explicit in practice, and it is the rung the ECI ties Large 4 to. Falling back to Claude is the rare case, so paying Sonnet 4.6's price there is the acceptable loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "sonnet-4-6",
+        "abandoned": [
+          "sonnet-5-5-low"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for Sonnet 5.5 `low`: a Large 4 phase falling back to Claude would land on the cheaper, stronger Sonnet 5.5 rather than the older Sonnet 4.6, and AA v5.0.1 scores them equal (26 = 26).",
+        "principles": [
+          "S1",
+          "C1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-medium",
@@ -479,7 +501,28 @@
         }
       ],
       "recommendation": "deprecate",
-      "rationale": "Its `high` edge overstates it by a generation, and Large 4 serves `low`, `medium` and `high`, cheap levels included. The lost `off` → Haiku 4.5 `none` route only matters to a request that names Haiku 4.5, which only that edge kept alive. Unless the effort check finds Large 4 serves no cheap level, that is the acceptable loss."
+      "rationale": "Its `high` edge overstates it by a generation, and Large 4 serves `low`, `medium` and `high`, cheap levels included. The lost `off` → Haiku 4.5 `none` route only matters to a request that names Haiku 4.5, which only that edge kept alive. Unless the effort check finds Large 4 serves no cheap level, that is the acceptable loss.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "deprecate",
+        "abandoned": [
+          "keep-reanchored"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for keeping Medium 3.5 active: it keeps the only Mistral route for a Haiku 4.5 `none` request and a cheap `off` level, and avoids deprecating a model that still works.",
+        "principles": [
+          "S1",
+          "S7"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-off",
@@ -497,7 +540,28 @@
         }
       ],
       "recommendation": "leave-out",
-      "rationale": "Vibe's table, the publisher's word, omits `off`, and the only evidence for it is one call that answered with fewer tokens. The catalog's rule is efforts exactly as read from the provider's ground truth."
+      "rationale": "Vibe's table, the publisher's word, omits `off`, and the only evidence for it is one call that answered with fewer tokens. The catalog's rule is efforts exactly as read from the provider's ground truth.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "leave-out",
+        "abandoned": [
+          "list-off"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for listing `off`: the API accepted it in a real call, and it would give Large 4 a cheap no-reasoning level and keep a Mistral route for Haiku 4.5 `none` after Medium 3.5 is deprecated.",
+        "principles": [
+          "S1",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-disabled",
@@ -520,7 +584,29 @@
         }
       ],
       "recommendation": "claude-while-enabled",
-      "rationale": "It is the smallest change that makes `enabled` true for every provider, Claude included. It keeps the documented fallback for the common install. The only install that loses anything is one that disabled Claude itself, and stopping is what that operator asked for."
+      "rationale": "It is the smallest change that makes `enabled` true for every provider, Claude included. It keeps the documented fallback for the common install. The only install that loses anything is one that disabled Claude itself, and stopping is what that operator asked for.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "claude-while-enabled",
+        "abandoned": [
+          "refuse-requested",
+          "warn"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for refusing whenever the requested provider is disabled: it is the strictest reading of the operator's switch, and no request ever runs on a provider other than the one it named.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-family",
@@ -538,7 +624,28 @@
         }
       ],
       "recommendation": "new-family",
-      "rationale": "It is a different model line. A family's first active entry is what aliases and guessed ids resolve to, so joining would hide a model swap behind a name. Widening the family vocabulary by one value is a contained cost."
+      "rationale": "It is a different model line. A family's first active entry is what aliases and guessed ids resolve to, so joining would hide a model swap behind a name. Widening the family vocabulary by one value is a contained cost.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "new-family",
+        "abandoned": [
+          "join-medium"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for joining `mistral-medium`: the family vocabulary stays closed, no schema value is added to `model-routing.json`, resolve output or telemetry, and a deprecated Medium 3.5 keeps a same-family active alternative.",
+        "principles": [
+          "S1",
+          "E0"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-existing-catalog",
@@ -556,10 +663,30 @@
         }
       ],
       "recommendation": "setup-adds",
-      "rationale": "The operators this spec serves are exactly the ones with a providers.json. `--write` already rewrites the file, re-enables providers and replaces retired ids. Adding missing built-in entries is the same kind of change, and the report names what it added."
+      "rationale": "The operators this spec serves are exactly the ones with a providers.json. `--write` already rewrites the file, re-enables providers and replaces retired ids. Adding missing built-in entries is the same kind of change, and the report names what it added.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "setup-adds",
+        "abandoned": [
+          "by-hand"
+        ],
+        "why": "Operator agreed with the spec and every recommendation (2026-11-24).",
+        "advocate": "The strongest case for documenting it by hand: `--write` never overrides a hand-trimmed catalog, so an entry an operator deleted on purpose does not come back, and the command stays limited to enabling providers and replacing retired ids.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:33:31.629Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Operator, 2026-11-24: routing to Large 4 is explicit; its edges state its level (the Claude 4.x generation), not task equivalence; the ECI picks the anchoring Claude generation and model, AA's Intelligence Index places efforts within one read, and the Coding Agent Index checks the harness.",
