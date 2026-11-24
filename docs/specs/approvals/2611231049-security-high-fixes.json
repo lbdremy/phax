@@ -1,0 +1,11 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-approval-record/0.25.0.json",
+  "artifact": "docs/specs/2611231049-security-high-fixes.md",
+  "specFingerprint": "01e5b9475dad8f2030f3cfc90ce1c69bb856dc7c8dc3d7e6766510e3b9e81000",
+  "approvedAt": "2026-11-24T14:31:47.416Z",
+  "baseline": "88abd89445781821d288e511cceb3ffd616e0c77",
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}

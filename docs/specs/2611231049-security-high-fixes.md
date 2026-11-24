@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-23
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-24
+  baseline: 88abd89
 ---
 # Security High fixes: skeleton records, worktree git, .phax-context, review skill
 
