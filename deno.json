@@ -1,5 +1,11 @@
 {
-  "nodeModulesDir": "auto",
+  "nodeModulesDir": "manual",
+  "lock": {
+    "frozen": true
+  },
+  "compile": {
+    "exclude": ["node_modules"]
+  },
   "compilerOptions": {
     "strict": true,
     "lib": ["deno.window", "ES2023"]
@@ -14,14 +20,5 @@
     "dev": "deno run --sloppy-imports --allow-read --allow-write --allow-env --allow-sys --allow-run src/cli/main.ts",
     "check": "deno check --sloppy-imports src/cli/main.ts",
     "compile": "deno run --allow-read --allow-write --allow-run --allow-env scripts/build-binaries.ts --host"
-  },
-  "allowScripts": {
-    "allow": [
-      "npm:@parcel/watcher@2.5.6",
-      "npm:msgpackr-extract@3.0.4",
-      "npm:esbuild@0.21.5",
-      "npm:esbuild@0.28.1",
-      "npm:fsevents@2.3.3"
-    ]
   }
 }
