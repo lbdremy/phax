@@ -9,7 +9,7 @@
 // functions, each taking a config (productionConfig() in production) so tests
 // can drive them against a local server.
 
-const { spawnSync } = require("node:child_process");
+const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
 const https = require("node:https");
@@ -25,6 +25,13 @@ const BINARY_NAMES = {
 
 const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // once per day
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+// The signals forwarded to the binary, and that stop a first-run download.
+const FORWARDED_SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+const START_REASONS = {
+  EACCES: "permission denied",
+  ENOENT: "no such file or directory",
+  ENOEXEC: "exec format error",
+};
 
 // The shipped values. `main` is the only production caller; nothing here reads
 // the environment.
@@ -231,6 +238,16 @@ async function ensureBinary(config, name) {
   const versionDir = path.dirname(dest);
   fs.mkdirSync(versionDir, { recursive: true });
   const privateDir = fs.mkdtempSync(path.join(versionDir, ".download-"));
+  // A signal during the first run removes the private directory and ends the
+  // launcher by that signal; the binary is never started.
+  const guards = FORWARDED_SIGNALS.map((signal) => {
+    const guard = () => {
+      fs.rmSync(privateDir, { recursive: true, force: true });
+      dieOf(signal);
+    };
+    process.on(signal, guard);
+    return [signal, guard];
+  });
   try {
     const urls = releaseUrls(config, name);
     const privateFile = path.join(privateDir, name);
@@ -266,6 +283,7 @@ async function ensureBinary(config, name) {
     fs.renameSync(privateFile, dest);
     return dest;
   } finally {
+    for (const [signal, guard] of guards) process.removeListener(signal, guard);
     fs.rmSync(privateDir, { recursive: true, force: true });
   }
 }
@@ -334,19 +352,94 @@ function checkForUpdate(config) {
   }
 }
 
-async function main() {
-  const config = productionConfig();
+// End this process by `signal`, as the binary ended: drop every listener so the
+// default action applies, then re-raise it. A signal Node ignores by default
+// (SIGPIPE) leaves the process alive; it then exits 128 + n on the next timer turn.
+function dieOf(signal) {
+  process.removeAllListeners(signal);
+  process.kill(process.pid, signal);
+  setTimeout(() => process.exit(128 + (os.constants.signals[signal] || 0)), 0);
+}
+
+// Start the binary and resolve with how it ended: `{ code, signal }` on exit, or
+// `{ error: { code, message } }` when it could not start. While it runs, SIGINT,
+// SIGTERM and SIGHUP sent to the launcher are forwarded to it; the listeners
+// are installed before the spawn and removed once the binary has ended.
+function startBinary(binPath, args) {
+  return new Promise((resolve) => {
+    let child = null;
+    let settled = false;
+    const pending = [];
+    const forwards = FORWARDED_SIGNALS.map((signal) => {
+      const forward = () => {
+        if (settled) return;
+        if (child === null) pending.push(signal);
+        else if (child.pid !== undefined && child.exitCode === null && child.signalCode === null) {
+          child.kill(signal);
+        }
+      };
+      process.on(signal, forward);
+      return [signal, forward];
+    });
+
+    function settle(outcome) {
+      if (settled) return;
+      settled = true;
+      for (const [signal, forward] of forwards) process.removeListener(signal, forward);
+      resolve(outcome);
+    }
+
+    child = spawn(binPath, args, { stdio: "inherit" });
+    child.on("error", (err) => settle({ error: { code: err.code, message: err.message } }));
+    child.on("exit", (code, signal) => settle({ code, signal }));
+    if (child.pid !== undefined) for (const signal of pending.splice(0)) child.kill(signal);
+  });
+}
+
+// End the launcher as the binary ended: its exit code, its signal, or a start
+// error reported with the path, the code, the reason and the remedy.
+function exitLike(outcome, binPath, config) {
+  if (outcome.error) {
+    const code = outcome.error.code || "UNKNOWN";
+    const reason = START_REASONS[code] || outcome.error.message;
+    const versionDir = path.join(config.home, ".phax", "bin", config.version);
+    process.stderr.write(
+      `phax: could not start ${binPath}: ${code} (${reason})\n` +
+        `  remove ${versionDir} and run phax again to download it afresh\n`,
+    );
+    process.exit(1);
+    return;
+  }
+  if (outcome.signal) {
+    dieOf(outcome.signal);
+    return;
+  }
+  process.exit(outcome.code ?? 1);
+}
+
+// One run of the launcher: ensure the binary, start it, end as it ended.
+async function launch(config, args) {
   const name = getBinaryName(process.platform, process.arch);
 
   if (!fs.existsSync(cachePath(config, name))) {
     process.stderr.write(`phax: downloading binary from ${releaseUrls(config, name).binary}\n`);
   }
-  const binPath = await ensureBinary(config, name);
+  let binPath;
+  try {
+    binPath = await ensureBinary(config, name);
+  } catch (err) {
+    process.stderr.write(`phax: ${err.message}\n`);
+    process.exit(1);
+    return;
+  }
 
   checkForUpdate(config);
 
-  const result = spawnSync(binPath, process.argv.slice(2), { stdio: "inherit" });
-  process.exit(result.status ?? 1);
+  exitLike(await startBinary(binPath, args), binPath, config);
+}
+
+function main() {
+  return launch(productionConfig(), process.argv.slice(2));
 }
 
 module.exports = {
@@ -358,6 +451,9 @@ module.exports = {
   ensureBinary,
   refreshUpdateCache,
   checkForUpdate,
+  launch,
+  startBinary,
+  exitLike,
 };
 
 if (require.main === module) {
