@@ -242,7 +242,14 @@ async function ensureBinary(config, name) {
   // launcher by that signal; the binary is never started.
   const guards = FORWARDED_SIGNALS.map((signal) => {
     const guard = () => {
-      fs.rmSync(privateDir, { recursive: true, force: true });
+      // The download's write stream may be creating its file while this runs,
+      // so a first removal can meet a directory that is no longer empty: retry,
+      // and never let a failed removal keep the launcher from dying by `signal`.
+      try {
+        fs.rmSync(privateDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 10 });
+      } catch {
+        // Left behind: a private directory is never run, and dying by `signal` comes first.
+      }
       dieOf(signal);
     };
     process.on(signal, guard);

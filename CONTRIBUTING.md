@@ -75,7 +75,7 @@ pnpm docs:cli            # docs/cli/reference.md and the README's generated bloc
 
 ## The binary
 
-The release binary is about 74 MB. The build bundles the CLI with esbuild first (about 1.5 MB of code actually used), then runs `deno compile --include` to embed the three files read at runtime: `package.json`, `phax.usage.kdl` and `.claude/skills`. Compiling without the bundle would embed about 274 MB of `node_modules`. The compiled binary runs with an explicit Deno permission set:
+The release binary is about 74 MB. The build bundles the CLI with esbuild first (about 1.5 MB of code actually used), then runs `deno compile --include` to embed the three files read at runtime: `package.json`, `phax.usage.kdl` and `.claude/skills`. Compiling without the bundle would embed about 274 MB of `node_modules`. `deno.lock` is frozen and Deno reads the `node_modules` that pnpm installed (`pnpm install` first); after a dependency change, a Deno command stops with "The lockfile is out of date" until you update the lock on purpose with `deno install --frozen=false`. The compiled binary runs with an explicit Deno permission set:
 
 | Permission            | Status       | Why                                                                                              |
 | --------------------- | ------------ | ------------------------------------------------------------------------------------------------ |
