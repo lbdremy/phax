@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611231919-launcher-release-fixes.md
 completes-spec: true
 approved:
