@@ -67,6 +67,19 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 2 — after the security slice merges
 
+- [ ] **An OS sandbox for gate steps and allowed commands** — to brief, a spike first. Agreed with
+      the operator on 2026-11-24 while deciding `security-high-fixes`' q-git-pointer. Gate steps run
+      agent-written code (the tests) with the user's rights, and on Claude Code and Vibe an allowed
+      command runs unconfined, so either can write the repository's `.git` (a `core.fsmonitor`, a
+      clean filter, `diff.external`, `core.sshCommand`) or any file outside the worktree;
+      `chmod`/`chflags` stop nothing a process of the same user can undo. Only an OS sandbox
+      (seatbelt on macOS, bubblewrap or landlock on Linux) makes the repository's `.git` and the
+      rest of the disk read-only to them. Merges two items: security phase 5's "gate and setup
+      commands under the agent's confinement" and "allowed shell commands run unconfined on Claude
+      Code and Vibe" (the `git diff --output` of #176's review). The spike answers what the gates
+      must write (worktree, tmp, `node_modules`, pnpm and Deno caches, `~/.phax`), whether Claude
+      Code's native Bash sandbox covers the allowed commands, Vibe's equivalent, and CI on Linux.
+      Placed before security phase 2.
 - [ ] **`finding-fix-identity`** — `docs/specs/2611220956-finding-fix-identity.md`, Approved
       2026-11-22, no open question; plan to author. Its git port gains (ancestry, trailer search,
       `patch-id`) edit `src/ports/git.ts` and `src/infra/git.ts`, hence after the security slice.
@@ -146,9 +159,9 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       file-plan deviation the reconciliation found must be justified by an entry naming it
       (operator, 2026-11-19: the reviews keep tripping on handoffs that claim what is not so).
 - [ ] **Security, the larger phases** — see §"Security roadmap": phase 1's rest (SEC-01 the
-      implicit protected set, SEC-03 the brief's config root), phase 4's release split, phase 5's
-      trust gate for repo-supplied security config, and "allowed shell commands run unconfined on
-      Claude Code and Vibe" (its own brief). The protected-path Small follow-ups (a `**/` glob blind
+      implicit protected set, SEC-03 the brief's config root), phase 4's release split, and phase
+      5's trust gate for repo-supplied security config (its confinement of gate and setup commands
+      moved to the OS sandbox item of wave 2). The protected-path Small follow-ups (a `**/` glob blind
       inside a submodule, `failedStep: "protected-paths"` missing from the records, `plans lint`
       silent on a planned edit of a protected path) and the Vibe `agent_paths` one go with SEC-01.
 - [ ] **`approval-baseline-identity`** — `docs/briefs/approval-baseline-identity.md` (2026-11-22),
@@ -441,7 +454,8 @@ desktop — none is promised by the announcement.
       capture script remains (#199).
 - [ ] **Refusal labels of identifier-like leaves.** From #198: a leaf such as `decisionId` prints
       its regex in a refusal instead of a label; restore an identifier annotation.
-- [ ] **Security: allowed shell commands run unconfined on Claude Code and Vibe.** Found 2026-10-30
+- [ ] **Security: allowed shell commands run unconfined on Claude Code and Vibe.** Placed in wave 2
+      (the OS sandbox item, 2026-11-24). Found 2026-10-30
       reviewing #176. Only Codex runs a session in an OS sandbox. On Claude Code and Vibe the filesystem
       limit covers the file-editing tools; an allowed command runs with the user's rights. Reproduced:
       a read-only session granted `Bash(git diff:*)` ran `git diff --output=leak.txt` and wrote the file,
