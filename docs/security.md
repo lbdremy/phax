@@ -462,12 +462,15 @@ The controls above govern the *agent* PHAX runs. PHAX also hardens its own
 distribution and dependency surface:
 
 - **Verified binary installs.** The npm wrapper (`@lbdremy/phax`) downloads a
-  prebuilt binary from the matching GitHub release on first run. Before the
-  binary is made executable or run, the installer fetches the published
-  `<name>.sha256` sidecar, recomputes the download's SHA-256, and refuses to run
-  — deleting the file — on a fetch failure, malformed checksum, or mismatch. A
-  tampered, corrupted, or misdirected release asset can never be executed
-  silently (`npm/bin/phax`).
+  prebuilt binary from the matching GitHub release on first run, into a private
+  directory of its own under `~/.phax/bin/<version>/`. Before the binary is made
+  executable or run, the installer fetches the published `<name>.sha256`
+  sidecar, recomputes the download's SHA-256, and refuses to run — removing the
+  private directory — on a fetch failure, malformed checksum, or mismatch. Only
+  a verified binary reaches the cache path, by a single rename. Redirects are
+  bounded to 5 and kept on https and GitHub hosts, and every request has a
+  connect and an idle timeout. A tampered, corrupted, or misdirected release
+  asset can never be executed silently (`npm/bin/phax`).
 - **Reproducible release checksums.** `scripts/build-binaries.ts` writes a
   `sha256sum`-compatible `<name>.sha256` next to every release binary, and the
   release workflow publishes both. `scripts/security/release-audit.sh`

@@ -1,24 +1,48 @@
 #!/usr/bin/env node
 "use strict";
 
-const { spawnSync } = require("child_process");
-const crypto = require("crypto");
-const fs = require("fs");
-const https = require("https");
-const path = require("path");
-const os = require("os");
+// The npm launcher of phax: on a first run it downloads the release binary for
+// this platform, verifies it against its published `.sha256` sidecar and places
+// it in ~/.phax/bin/<version>/; every run then starts that binary.
+//
+// When required instead of run, the file starts nothing: it only exports its
+// functions, each taking a config (productionConfig() in production) so tests
+// can drive them against a local server.
 
-// Binary names mirror RELEASE_TARGETS in scripts/build-binaries.ts
-// and resolveBinary.mts in npm/lib/
+const { spawnSync } = require("node:child_process");
+const crypto = require("node:crypto");
+const fs = require("node:fs");
+const https = require("node:https");
+const path = require("node:path");
+const os = require("node:os");
+const { pipeline } = require("node:stream");
+
+// Binary names mirror RELEASE_TARGETS in scripts/build-binaries.ts.
 const BINARY_NAMES = {
   darwin: { arm64: "phax-darwin-arm64", x64: "phax-darwin-x64" },
   linux: { x64: "phax-linux-x64", arm64: "phax-linux-arm64" },
 };
 
-const GITHUB_REPO = "lbdremy/phax";
-const VERSION = require("../package.json").version;
-const UPDATE_CACHE = path.join(os.homedir(), ".phax", "bin", ".update-check.json");
 const UPDATE_INTERVAL_MS = 24 * 60 * 60 * 1000; // once per day
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+// The shipped values. `main` is the only production caller; nothing here reads
+// the environment.
+function productionConfig() {
+  return {
+    version: require("../package.json").version,
+    home: os.homedir(),
+    releaseBase: "https://github.com/lbdremy/phax/releases/download",
+    updateUrl: "https://api.github.com/repos/lbdremy/phax/releases/latest",
+    transport: https,
+    scheme: "https:",
+    allowedHosts: { exact: ["github.com", "api.github.com"], suffixes: ["githubusercontent.com"] },
+    maxRedirects: 5,
+    connectTimeoutMs: 10000,
+    idleTimeoutMs: 30000,
+    updateTimeoutMs: 5000,
+  };
+}
 
 function getBinaryName(platform, arch) {
   const name = BINARY_NAMES[platform] && BINARY_NAMES[platform][arch];
@@ -30,90 +54,160 @@ function getBinaryName(platform, arch) {
   return name;
 }
 
-function getReleaseUrl(version, platform, arch) {
-  const name = getBinaryName(platform, arch);
-  return `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${name}`;
-}
-
 // The release publishes a `<name>.sha256` sidecar next to every binary.
-function getChecksumUrl(version, platform, arch) {
-  return `${getReleaseUrl(version, platform, arch)}.sha256`;
+function releaseUrls(config, name) {
+  const binary = `${config.releaseBase}/v${config.version}/${name}`;
+  return { binary, checksum: `${binary}.sha256` };
 }
 
-function getCachePath(name) {
-  return path.join(os.homedir(), ".phax", "bin", VERSION, name);
+function cachePath(config, name) {
+  return path.join(config.home, ".phax", "bin", config.version, name);
 }
 
-function download(url, dest) {
+function updateCachePath(config) {
+  return path.join(config.home, ".phax", "bin", ".update-check.json");
+}
+
+// The next URL of a redirect, resolved against the redirecting URL, or a throw
+// when it leaves the scheme or the allowed hosts. A refused URL is never requested.
+function checkRedirect(config, fromUrl, location) {
+  const next = new URL(location, fromUrl);
+  if (next.protocol !== config.scheme) {
+    throw new Error(`refused redirect to ${next.href}: not ${config.scheme.replace(/:$/, "")}`);
+  }
+  const hostname = next.hostname.toLowerCase();
+  const { exact, suffixes } = config.allowedHosts;
+  if (!exact.includes(hostname) && !suffixes.some((suffix) => hostname.endsWith(`.${suffix}`))) {
+    const allowed = [...exact, ...suffixes.map((suffix) => `*.${suffix}`)].join(" or ");
+    throw new Error(`refused redirect to ${next.href}: host is not ${allowed}`);
+  }
+  return next.href;
+}
+
+function seconds(ms) {
+  return String(ms / 1000);
+}
+
+// GET `originalUrl`, following checked redirects, and hand the final 200
+// response to `consume`, which returns a Promise of the result. Every hop has a
+// connect timer and an idle timeout. On any failure the request and the
+// response are destroyed. `options.signal` aborts the request; `options.unref`
+// keeps the request from holding the process.
+function fetchUrl(config, originalUrl, consume, options = {}) {
   return new Promise((resolve, reject) => {
-    const tmp = dest + ".tmp";
-    const file = fs.createWriteStream(tmp);
+    let settled = false;
+    const current = { req: null, res: null, connectTimer: null };
 
-    function get(u) {
-      https
-        .get(u, (res) => {
-          if (res.statusCode === 301 || res.statusCode === 302) {
-            res.resume();
-            get(res.headers.location);
-            return;
-          }
-          if (res.statusCode !== 200) {
-            file.close();
-            fs.unlink(tmp, () => {});
-            reject(new Error(`Download failed: HTTP ${res.statusCode} for ${u}`));
-            return;
-          }
-          res.pipe(file);
-          file.on("finish", () => {
-            file.close(() => {
-              fs.rename(tmp, dest, (err) => {
-                if (err) reject(err);
-                else resolve();
-              });
-            });
-          });
-          file.on("error", (err) => {
-            fs.unlink(tmp, () => {});
-            reject(err);
-          });
-        })
-        .on("error", (err) => {
-          fs.unlink(tmp, () => {});
-          reject(err);
-        });
+    function fail(err) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(current.connectTimer);
+      if (current.res) current.res.destroy();
+      if (current.req) current.req.destroy();
+      reject(err);
     }
 
-    get(url);
+    function succeed(value) {
+      if (settled) return;
+      settled = true;
+      resolve(value);
+    }
+
+    function hop(url, redirects) {
+      const host = new URL(url).hostname;
+      const requestOptions = { headers: { "User-Agent": `phax/${config.version}` } };
+      if (options.signal) requestOptions.signal = options.signal;
+      const req = config.transport.get(url, requestOptions, (res) => {
+        if (current.req !== req) {
+          res.destroy();
+          return;
+        }
+        current.res = res;
+        const status = res.statusCode;
+        if (REDIRECT_STATUSES.has(status)) {
+          res.resume();
+          const location = res.headers.location;
+          if (!location) {
+            fail(new Error(`HTTP ${status} without a Location header for ${url}`));
+            return;
+          }
+          if (redirects >= config.maxRedirects) {
+            fail(new Error(`more than ${config.maxRedirects} redirects from ${originalUrl}`));
+            return;
+          }
+          let next;
+          try {
+            next = checkRedirect(config, url, location);
+          } catch (err) {
+            fail(err);
+            return;
+          }
+          hop(next, redirects + 1);
+          return;
+        }
+        if (status !== 200) {
+          res.resume();
+          fail(new Error(`HTTP ${status} for ${url}`));
+          return;
+        }
+        consume(res).then(succeed, fail);
+      });
+      current.req = req;
+      current.res = null;
+      current.connectTimer = setTimeout(() => {
+        fail(new Error(`no connection to ${host} within ${seconds(config.connectTimeoutMs)} s`));
+      }, config.connectTimeoutMs);
+      if (options.unref) current.connectTimer.unref();
+      const connectTimer = current.connectTimer;
+
+      req.on("error", (err) => {
+        if (current.req === req) fail(err);
+      });
+      req.on("timeout", () => {
+        if (current.req === req) fail(new Error(`no data from ${host} for ${seconds(config.idleTimeoutMs)} s`));
+        else req.destroy();
+      });
+      req.on("socket", (socket) => {
+        if (options.unref) socket.unref();
+        function connected() {
+          clearTimeout(connectTimer);
+          req.setTimeout(config.idleTimeoutMs);
+        }
+        if (!socket.connecting) connected();
+        else if (socket.encrypted) socket.once("secureConnect", connected);
+        else socket.once("connect", connected);
+      });
+    }
+
+    hop(originalUrl, 0);
   });
 }
 
-// Fetch a small text resource (the checksum sidecar) into a string, following
-// GitHub's redirect to the asset CDN. Kept separate from download() because the
-// sidecar is tiny and we need its contents, not a file on disk.
-function fetchText(url) {
-  return new Promise((resolve, reject) => {
-    function get(u) {
-      https
-        .get(u, { headers: { "User-Agent": `phax/${VERSION}` } }, (res) => {
-          if (res.statusCode === 301 || res.statusCode === 302) {
-            res.resume();
-            get(res.headers.location);
-            return;
-          }
-          if (res.statusCode !== 200) {
-            res.resume();
-            reject(new Error(`HTTP ${res.statusCode} for ${u}`));
-            return;
-          }
-          let data = "";
-          res.setEncoding("utf8");
-          res.on("data", (chunk) => (data += chunk));
-          res.on("end", () => resolve(data));
-        })
-        .on("error", reject);
-    }
-    get(url);
-  });
+// Write the body at `url` to `dest` through a write stream.
+function download(config, url, dest) {
+  return fetchUrl(
+    config,
+    url,
+    (res) =>
+      new Promise((resolve, reject) => {
+        pipeline(res, fs.createWriteStream(dest), (err) => (err ? reject(err) : resolve()));
+      }),
+  );
+}
+
+function fetchText(config, url) {
+  return fetchUrl(
+    config,
+    url,
+    (res) =>
+      new Promise((resolve, reject) => {
+        let data = "";
+        res.setEncoding("utf8");
+        res.on("data", (chunk) => (data += chunk));
+        res.on("end", () => resolve(data));
+        res.on("error", reject);
+      }),
+  );
 }
 
 function sha256File(filePath) {
@@ -126,105 +220,149 @@ function sha256File(filePath) {
   });
 }
 
-// Verify a freshly downloaded binary against its published SHA-256 sidecar
-// before it is ever made executable or run. On any failure the binary is
-// removed and the error propagates — we never execute an unverified artifact.
-async function verifyChecksum(binPath, checksumUrl, name) {
-  let expected;
+// The cache path of the binary, downloading and verifying it on a first run.
+// The download happens in a private mkdtemp directory; only a verified,
+// executable binary reaches the cache path, by one rename. The private
+// directory is removed on success and on failure.
+async function ensureBinary(config, name) {
+  const dest = cachePath(config, name);
+  if (fs.existsSync(dest)) return dest;
+
+  const versionDir = path.dirname(dest);
+  fs.mkdirSync(versionDir, { recursive: true });
+  const privateDir = fs.mkdtempSync(path.join(versionDir, ".download-"));
   try {
-    const text = await fetchText(checksumUrl);
+    const urls = releaseUrls(config, name);
+    const privateFile = path.join(privateDir, name);
+    try {
+      await download(config, urls.binary, privateFile);
+    } catch (err) {
+      throw new Error(`download failed: ${err.message}`);
+    }
+
+    let text;
+    try {
+      text = await fetchText(config, urls.checksum);
+    } catch (err) {
+      throw new Error(
+        `could not fetch checksum for ${name} from ${urls.checksum}: ${err.message}. ` +
+          `Refusing to run an unverified binary.`,
+      );
+    }
     // sha256sum format: "<hex>  <name>"
-    expected = text.trim().split(/\s+/)[0];
-  } catch (err) {
-    fs.unlinkSync(binPath);
-    throw new Error(
-      `could not fetch checksum for ${name} from ${checksumUrl}: ${err.message}. ` +
-        `Refusing to run an unverified binary.`,
-    );
-  }
-  if (!/^[0-9a-f]{64}$/.test(expected)) {
-    fs.unlinkSync(binPath);
-    throw new Error(`malformed checksum for ${name} at ${checksumUrl}`);
-  }
-  const actual = await sha256File(binPath);
-  if (actual !== expected) {
-    fs.unlinkSync(binPath);
-    throw new Error(
-      `checksum mismatch for ${name}: expected ${expected}, got ${actual}. ` +
-        `The downloaded binary may be corrupt or tampered with; refusing to run it.`,
-    );
+    const expected = text.trim().split(/\s+/)[0];
+    if (!/^[0-9a-f]{64}$/.test(expected)) {
+      throw new Error(`malformed checksum for ${name} at ${urls.checksum}`);
+    }
+    const actual = await sha256File(privateFile);
+    if (actual !== expected) {
+      throw new Error(
+        `checksum mismatch for ${name}: expected ${expected}, got ${actual}. ` +
+          `The downloaded binary may be corrupt or tampered with; refusing to run it.`,
+      );
+    }
+
+    fs.chmodSync(privateFile, 0o755);
+    fs.renameSync(privateFile, dest);
+    return dest;
+  } finally {
+    fs.rmSync(privateDir, { recursive: true, force: true });
   }
 }
 
+// Refresh the cached latest version. Always resolves, never prints, and never
+// holds the process: it is abandoned silently after updateTimeoutMs.
+function refreshUpdateCache(config) {
+  return new Promise((resolve) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      controller.abort();
+      resolve();
+    }, config.updateTimeoutMs);
+    timer.unref();
+    const finish = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    fetchUrl(
+      config,
+      config.updateUrl,
+      (res) =>
+        new Promise((done, reject) => {
+          let data = "";
+          res.setEncoding("utf8");
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => done(data));
+          res.on("error", reject);
+        }),
+      { signal: controller.signal, unref: true },
+    ).then((data) => {
+      try {
+        const latest = JSON.parse(data).tag_name.replace(/^v/, "");
+        const cacheFile = updateCachePath(config);
+        fs.mkdirSync(path.dirname(cacheFile), { recursive: true });
+        fs.writeFileSync(cacheFile, JSON.stringify({ latest, checkedAt: Date.now() }));
+      } catch {}
+      finish();
+    }, finish);
+  });
+}
+
 // Reads cached latest version synchronously — no network on the hot path.
-function readUpdateCache() {
+function readUpdateCache(config) {
   try {
-    return JSON.parse(fs.readFileSync(UPDATE_CACHE, "utf8"));
+    return JSON.parse(fs.readFileSync(updateCachePath(config), "utf8"));
   } catch {
     return null;
   }
 }
 
-// Fire-and-forget background refresh of the update cache.
-function refreshUpdateCache() {
-  const req = https.get(
-    `https://api.github.com/repos/${GITHUB_REPO}/releases/latest`,
-    { headers: { "User-Agent": `phax/${VERSION}` } },
-    (res) => {
-      let data = "";
-      res.on("data", (chunk) => (data += chunk));
-      res.on("end", () => {
-        try {
-          const latest = JSON.parse(data).tag_name.replace(/^v/, "");
-          fs.mkdirSync(path.dirname(UPDATE_CACHE), { recursive: true });
-          fs.writeFileSync(UPDATE_CACHE, JSON.stringify({ latest, checkedAt: Date.now() }));
-        } catch {}
-      });
-    },
-  );
-  req.on("error", () => {});
-}
-
-function checkForUpdate() {
-  const cache = readUpdateCache();
+function checkForUpdate(config) {
+  const cache = readUpdateCache(config);
 
   // Trigger a background refresh if cache is missing or stale.
   if (!cache || Date.now() - cache.checkedAt > UPDATE_INTERVAL_MS) {
-    refreshUpdateCache();
+    refreshUpdateCache(config);
   }
 
   // Show notice if the cached latest differs from current version.
-  if (cache && cache.latest && cache.latest !== VERSION) {
+  if (cache && cache.latest && cache.latest !== config.version) {
     process.stderr.write(
-      `\nphax: update available v${VERSION} → v${cache.latest}\n` +
+      `\nphax: update available v${config.version} → v${cache.latest}\n` +
         `  to update: npm update -g @lbdremy/phax\n\n`,
     );
   }
 }
 
 async function main() {
-  const platform = process.platform;
-  const arch = process.arch;
-  const name = getBinaryName(platform, arch);
-  const binPath = getCachePath(name);
+  const config = productionConfig();
+  const name = getBinaryName(process.platform, process.arch);
 
-  if (!fs.existsSync(binPath)) {
-    const url = getReleaseUrl(VERSION, platform, arch);
-    const checksumUrl = getChecksumUrl(VERSION, platform, arch);
-    process.stderr.write(`phax: downloading binary from ${url}\n`);
-    fs.mkdirSync(path.dirname(binPath), { recursive: true });
-    await download(url, binPath);
-    await verifyChecksum(binPath, checksumUrl, name);
-    fs.chmodSync(binPath, 0o755);
+  if (!fs.existsSync(cachePath(config, name))) {
+    process.stderr.write(`phax: downloading binary from ${releaseUrls(config, name).binary}\n`);
   }
+  const binPath = await ensureBinary(config, name);
 
-  checkForUpdate();
+  checkForUpdate(config);
 
   const result = spawnSync(binPath, process.argv.slice(2), { stdio: "inherit" });
   process.exit(result.status ?? 1);
 }
 
-main().catch((err) => {
-  process.stderr.write(`phax: ${err.message}\n`);
-  process.exit(1);
-});
+module.exports = {
+  productionConfig,
+  getBinaryName,
+  releaseUrls,
+  cachePath,
+  checkRedirect,
+  ensureBinary,
+  refreshUpdateCache,
+  checkForUpdate,
+};
+
+if (require.main === module) {
+  main().catch((err) => {
+    process.stderr.write(`phax: ${err.message}\n`);
+    process.exit(1);
+  });
+}
