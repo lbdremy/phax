@@ -25,6 +25,21 @@ and a provider the operator disabled is never the one that runs.
 `thinking = "high"`, input $0.70 / output $2.10 / cached input $0.07 per million tokens, context 1,048,576, auto-compact
 at 400,000, images supported. Mistral's announcement gives the same prices.
 
+**A real call per level** (2026-11-24, Vibe 3.1.3, `vibe -p "Reply with the single word OK." --model mistral-large-4-0
+--thinking <level> --max-turns 1 --output-dir …`):
+
+| `--thinking` | Exit | Answer | Export `config.models.mistral-large-4-0.thinking` | Output tokens |
+| --- | --- | --- | --- | --- |
+| `off` | 0 | OK | `"off"` | 17 |
+| `low` | 0 | OK | `"low"` | 23 |
+| `medium` | 0 | OK | `"medium"` | 23 |
+| `high` | 0 | OK | `"high"` | 23 |
+| `xhigh` | 2 | — | — | HTTP 400 `reasoning_effort xhigh is not supported for this model, supported values: [high, low, medium]` |
+| `max` | 2 | — | — | HTTP 400, same message for `max` |
+
+The API serves `low`, `medium` and `high`. It also accepts `off`, which Vibe's own table does not list. The export
+records the level phax asked for (`config.models.<alias>.thinking`), so a confined turn can check it.
+
 **Where it sits.** One question per axis, each from a single read:
 
 | Axis | What it measures | Mistral Large 4 | Claude neighbours |
@@ -71,9 +86,10 @@ BenchLM's 56.4 with AA's 59.1 / 54.5 for Claude compares two scales. Use neither
 
 ## What the spec must cover
 
-- **Efforts, from a real call per level** (the catalog's rule, §1 of `docs/model-catalog.md`). Vibe lists
-  `low medium high`; AA scored `high` and `medium`; tbench.ai labels its run `max`. Call `--thinking` at `off`, `low`,
-  `medium`, `high` and `max`. The catalog lists exactly the levels the API serves.
+- **Efforts, from the real calls above** (the catalog's rule, §1 of `docs/model-catalog.md`): `low`, `medium`, `high`.
+  `xhigh` and `max` are refused by the API. Whether `off` joins them is a §9 choice: the API accepts it, but Vibe's
+  table omits it, and nothing shows it disables reasoning beyond a shorter answer. tbench.ai's "max" label is not a
+  level the API serves.
 - **The catalog entry and its family.** Whether `mistral-large` is a new family, or Large 4 joins the existing
   `mistral-medium` one. It is a different model line, and a family's first active entry is what an alias resolves to.
 - **The edges** (see §9), stated hub-centric as today, with the numbers and read dates in `docs/model-catalog.md` §3.
@@ -114,6 +130,12 @@ BenchLM's 56.4 with AA's 59.1 / 54.5 for Claude compares two scales. Use neither
   - **Keep it active, re-anchored on the ECI** (`high` → Haiku 4.5). Loses: two Mistral spokes, and a spec that must
     say which one a hub request picks.
   - **Recommended: deprecate**, unless the effort check finds Large 4 serves no cheap level.
+- **`off` for Large 4.**
+  - **Leave it out** (recommended): Vibe's own table, the model's publisher's word, omits it. Loses: a cheap no-reasoning
+    level on Large 4, which matters only if `mistral-medium-3.5` is deprecated and its `off` route to Haiku 4.5 `none`
+    goes with it.
+  - **List it**, anchored to Haiku 4.5 `none`, as Medium 3.5's `off` is today. Loses: a level resting on an API leniency
+    that Mistral may close without notice.
 - **A disabled provider.**
   - **Claude stays the terminal fallback only while `claude-code` is enabled; with nothing enabled to serve the
     request, refuse** (recommended). Loses: an install with Claude disabled and a gap in its edges stops instead of
