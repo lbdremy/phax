@@ -201,11 +201,18 @@ Decisions that turn the rest into mechanical work an agent can run:
       decode. Then the rest of `src/`'s 76 occurrences, the `src/` files shared with knip's
       baseline, then the tests (`docs/briefs/lint-baseline.md`; the baseline is protected and only
       shrinks).
-- [ ] **Mistral Large 4, chosen by phax** — to brief. Vibe's catalog recommends
-      `mistral-large-4-0` (Pro subscription); the operator chose (2026-11-19) to add it to phax's
-      catalog and route to it explicitly. To settle: its thinking levels as the API takes them, its
-      price, the equivalence edges (which Claude ids it serves), and whether `mistral-medium-3.5`
-      stays.
+- [ ] **`mistral-large-4`** — `docs/briefs/mistral-large-4.md` (2026-11-24), spec to author.
+      Catalog entry with efforts checked by a real call, edges anchored on the Claude 4.x
+      generation (Epoch ECI 154.6, tied with Opus 4.5 / Sonnet 4.6), routed explicitly, the fate
+      of `mistral-medium-3.5`, and a disabled provider never runs (the terminal Claude fallback
+      ignores `enabled` today).
+- [ ] **`single-provider`** — `docs/briefs/single-provider.md` (2026-11-24), spec to author,
+      after `mistral-large-4`. All of phax's jobs on one provider by configuration, each honouring
+      it or refusing by name (interactive decide, extraction, Vibe sessions, cost for Vibe, the
+      planner's doctrine per provider); task floors weighed against records.
+- [ ] **Catalog refresh on AA v5.0.1** — to brief. AA re-scaled its Intelligence Index again
+      (Sonnet 5.5 36/41/47/52/56 → 26/31/42/50/55), so every anchor in `docs/model-catalog.md`
+      rests on an old scale; Claude Fable 5.2 (AA 65 at max) is not in the catalog.
 - [ ] **`approve` and a `code` key in `phax.local.json`** and **release notes that hide a run's
       user-facing fixes** — see Small follow-ups; each needs its rule first.
 - [ ] **An opt-out for the user layer** — to brief. Project-only sources also drop the operator's
