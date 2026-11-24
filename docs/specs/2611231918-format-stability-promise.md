@@ -352,12 +352,19 @@ Given the built docs site and the repository, when the README, `docs/upgrading.m
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-floor-at-one — At 1.0.0, where does the floor sit?
 
 - keep-0-17 — Keep today's floor, 0.17.0 plus the `pre-schema` shapes, through every 1.x release — abandons: Every 0.x frozen decoder and lift is carried for the whole 1.x line.
 - raise-to-1 — Raise the floor to 1.0.0 at the 1.0 cut — abandons: Every 0.x record on `phax/records/v1` and every 0.x approval record becomes unreadable by 1.x, and an append-only records branch cannot be migrated.
 
 Recommendation: keep-0-17 — Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.
+
+Decision: keep-0-17 — by operator (Rémy Loubradou), 2026-11-24
+Why: Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation. Advocate: Raising the floor to 1.0.0 lets the project delete every 0.x frozen decoder and lift at once, so 1.x starts with a small, fully tested reader surface instead of carrying pre-release history for the whole line. Principles: S1, S5. Reversibility: costly. Revised: none.
 
 ### q-floor-moves — After 1.0, when may the floor move?
 
@@ -367,6 +374,9 @@ Recommendation: keep-0-17 — Records are append-only history that no step can r
 
 Recommendation: major-only — A major is the one release a user already expects to read notes for, and the refusal below the floor names the release line that still reads the document, so no document is lost: it needs the older reader. A window would make an ordinary minor upgrade strand records. R-floor-moves and R-below are written to this recommendation.
 
+Decision: major-only — by operator (Rémy Loubradou), 2026-11-24
+Why: A major is the one release a user already expects to read notes for, and the refusal below the floor names the release line that still reads the document, so no document is lost: it needs the older reader. A window would make an ordinary minor upgrade strand records. R-floor-moves and R-below are written to this recommendation. Advocate: A window of the last N minors bounds the code carried for old shapes continuously, without waiting for a major, so the reader surface never grows past what a recent upgrader needs. Principles: S1, S3. Reversibility: costly. Revised: none.
+
 ### q-newer — What does a reader do with a document stamped newer than itself?
 
 - refuse — Refuse it by name with the remedy to upgrade, as today — abandons: An older reader gets nothing out of a newer document, not even the fields it knows, so people sharing a records branch must upgrade in step.
@@ -374,12 +384,18 @@ Recommendation: major-only — A major is the one release a user already expects
 
 Recommendation: refuse — Reading only known fields would make every decoder permissive, against the no-shim rule, and turns a visible refusal into silent data loss on the next write. A stamp names the release that last changed the shape, so an older reader is refused only across a real shape change, and upgrading is always a complete remedy. R-newer is written to this recommendation.
 
+Decision: refuse — by operator (Rémy Loubradou), 2026-11-24
+Why: Reading only known fields would make every decoder permissive, against the no-shim rule, and turns a visible refusal into silent data loss on the next write. A stamp names the release that last changed the shape, so an older reader is refused only across a real shape change, and upgrading is always a complete remedy. R-newer is written to this recommendation. Advocate: Reading the known fields keeps an older teammate or script useful on a shared records branch instead of locking them out until they upgrade. Principles: S1, S3. Reversibility: costly. Revised: none.
+
 ### q-mixed — When a command reading many records meets some stamped newer than phax, what does it do?
 
 - refuse-command — Refuse the whole command, naming how many records are newer and the release they need — abandons: An older teammate cannot list or explain anything on the branch until they upgrade.
 - skip-and-name — Show what it reads and name each record it skipped — abandons: A complete answer: a person or script acts on a history missing its newest records (finding fates, decisions, revisions) after reading past a warning.
 
 Recommendation: refuse-command — The remedy is single and cheap (upgrade), and the docs state that every reader of a shared branch must be as new as its newest writer. A partial history that looks complete is worse than a refusal, especially for `--json` consumers who do not read stderr. R-mixed is written to this recommendation.
+
+Decision: refuse-command — by operator (Rémy Loubradou), 2026-11-24
+Why: The remedy is single and cheap (upgrade), and the docs state that every reader of a shared branch must be as new as its newest writer. A partial history that looks complete is worse than a refusal, especially for `--json` consumers who do not read stderr. R-mixed is written to this recommendation. Advocate: Showing what can be read and naming each skipped record lets an older teammate keep working with most of the history instead of being blocked entirely. Principles: S3, S1. Reversibility: cheap. Revised: none.
 
 ### q-one-time-step — After 1.0, may a one-time step like `phax artifact migrate-documents` come back?
 
@@ -389,6 +405,9 @@ Recommendation: refuse-command — The remedy is single and cheap (upgrade), and
 
 Recommendation: breaking-only — Total lifts plus R-no-step remove every reason for a step within a major, and a major is where users already expect to act. `never` would forbid changes the project may genuinely need. R-no-step and R-lift are written to this recommendation.
 
+Decision: breaking-only — by operator (Rémy Loubradou), 2026-11-24
+Why: Only a blocking step (one that commands refuse to run without, as 0.38.0's migrate-documents) waits for a major. A non-blocking step may ship at any release, named in its upgrading entry: every command works without it, reading what it would fill as computed or unknown, and it only rewrites repository documents (spec and plan sidecars, approval records) to the current shape, never the records on phax/records/v1. Advocate: Allowing a named step at any release lets a change that only a person can complete ship in a minor, instead of waiting for the next major. Principles: S1, S3. Reversibility: costly. Revised: none.
+
 ### q-config — What does the promise say about configuration, which carries no release stamp?
 
 - config-breaking-only — Stay unstamped; within a major a configuration accepted by an earlier release stays accepted, and a key is renamed or removed only at a major, refused by name — abandons: A minor release can never rename or tighten a configuration key: 0.41.0's model id rename would have waited for 2.0.
@@ -397,9 +416,8 @@ Recommendation: breaking-only — Total lifts plus R-no-step remove every reason
 
 Recommendation: config-breaking-only — Configuration is written by people, and their editors validate it against the local `phax.schema.json`. Stamping it would trade that for a release URL and impose a step at 1.0. Accepting a whole major's configurations gives users the same foreseeability without a new key, and the configuration cases already pin what each release accepts. R-config-accept and R-config-refuse are written to this recommendation.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: config-breaking-only — by operator (Rémy Loubradou), 2026-11-24
+Why: Values taken from the providers' model catalog (a model id, an effort) are not configuration keys: when a provider retires a model, any release may stop accepting it, refused by name with the model to write instead. Advocate: Stamping configuration with a release `$schema` would let minor releases rename or tighten keys safely, reading older configuration through its frozen shape like every other persisted format. Principles: S1, S10. Reversibility: costly. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -435,3 +453,12 @@ Page: docs/format-stability.md — Format stability: what an upgrade may change 
 Reader: Someone adopting phax 1.0, or reading phax's files and records with `@lbdremy/phax-schemas`, who wants to know before upgrading what the upgrade may stop reading and what to do when a reader refuses a document.
 
 Example: Two teammates share `phax/records/v1`, one on phax 1.3.0 and one on 1.4.0, which changed `phase-record-manifest`. The page shows why 1.4.0 reads every record, why 1.3.0's `phax records list` refuses and names 1.4.0, why a script on `@lbdremy/phax-schemas` 1.3.0 is refused the same way, and that upgrading each reader to 1.4.0 is the whole remedy. Nothing needs migrating.
+
+## 12. Decision log
+
+- 2026-11-24 q-floor-at-one decided keep-0-17 — operator (Rémy Loubradou)
+- 2026-11-24 q-floor-moves decided major-only — operator (Rémy Loubradou)
+- 2026-11-24 q-newer decided refuse — operator (Rémy Loubradou)
+- 2026-11-24 q-mixed decided refuse-command — operator (Rémy Loubradou)
+- 2026-11-24 q-one-time-step decided breaking-only — operator (Rémy Loubradou)
+- 2026-11-24 q-config decided config-breaking-only — operator (Rémy Loubradou)

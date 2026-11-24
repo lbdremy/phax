@@ -460,7 +460,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-floor-at-one",
       "question": "At 1.0.0, where does the floor sit?",
@@ -477,7 +478,28 @@
         }
       ],
       "recommendation": "keep-0-17",
-      "rationale": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation."
+      "rationale": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "keep-0-17",
+        "abandoned": [
+          "raise-to-1"
+        ],
+        "why": "Records are append-only history that no step can rewrite, so raising the floor at 1.0 would strand them for good. Carrying the 0.x lifts costs code that already exists and is already tested by `reads every frozen shape`. R-floor-one is written to this recommendation.",
+        "advocate": "Raising the floor to 1.0.0 lets the project delete every 0.x frozen decoder and lift at once, so 1.x starts with a small, fully tested reader surface instead of carrying pre-release history for the whole line.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-floor-moves",
@@ -500,7 +522,29 @@
         }
       ],
       "recommendation": "major-only",
-      "rationale": "A major is the one release a user already expects to read notes for, and the refusal below the floor names the release line that still reads the document, so no document is lost: it needs the older reader. A window would make an ordinary minor upgrade strand records. R-floor-moves and R-below are written to this recommendation."
+      "rationale": "A major is the one release a user already expects to read notes for, and the refusal below the floor names the release line that still reads the document, so no document is lost: it needs the older reader. A window would make an ordinary minor upgrade strand records. R-floor-moves and R-below are written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "major-only",
+        "abandoned": [
+          "window",
+          "never"
+        ],
+        "why": "A major is the one release a user already expects to read notes for, and the refusal below the floor names the release line that still reads the document, so no document is lost: it needs the older reader. A window would make an ordinary minor upgrade strand records. R-floor-moves and R-below are written to this recommendation.",
+        "advocate": "A window of the last N minors bounds the code carried for old shapes continuously, without waiting for a major, so the reader surface never grows past what a recent upgrader needs.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-newer",
@@ -518,7 +562,28 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "Reading only known fields would make every decoder permissive, against the no-shim rule, and turns a visible refusal into silent data loss on the next write. A stamp names the release that last changed the shape, so an older reader is refused only across a real shape change, and upgrading is always a complete remedy. R-newer is written to this recommendation."
+      "rationale": "Reading only known fields would make every decoder permissive, against the no-shim rule, and turns a visible refusal into silent data loss on the next write. A stamp names the release that last changed the shape, so an older reader is refused only across a real shape change, and upgrading is always a complete remedy. R-newer is written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse",
+        "abandoned": [
+          "read-known"
+        ],
+        "why": "Reading only known fields would make every decoder permissive, against the no-shim rule, and turns a visible refusal into silent data loss on the next write. A stamp names the release that last changed the shape, so an older reader is refused only across a real shape change, and upgrading is always a complete remedy. R-newer is written to this recommendation.",
+        "advocate": "Reading the known fields keeps an older teammate or script useful on a shared records branch instead of locking them out until they upgrade.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-mixed",
@@ -536,7 +601,28 @@
         }
       ],
       "recommendation": "refuse-command",
-      "rationale": "The remedy is single and cheap (upgrade), and the docs state that every reader of a shared branch must be as new as its newest writer. A partial history that looks complete is worse than a refusal, especially for `--json` consumers who do not read stderr. R-mixed is written to this recommendation."
+      "rationale": "The remedy is single and cheap (upgrade), and the docs state that every reader of a shared branch must be as new as its newest writer. A partial history that looks complete is worse than a refusal, especially for `--json` consumers who do not read stderr. R-mixed is written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse-command",
+        "abandoned": [
+          "skip-and-name"
+        ],
+        "why": "The remedy is single and cheap (upgrade), and the docs state that every reader of a shared branch must be as new as its newest writer. A partial history that looks complete is worse than a refusal, especially for `--json` consumers who do not read stderr. R-mixed is written to this recommendation.",
+        "advocate": "Showing what can be read and naming each skipped record lets an older teammate keep working with most of the history instead of being blocked entirely.",
+        "principles": [
+          "S3",
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-one-time-step",
@@ -559,7 +645,29 @@
         }
       ],
       "recommendation": "breaking-only",
-      "rationale": "Total lifts plus R-no-step remove every reason for a step within a major, and a major is where users already expect to act. `never` would forbid changes the project may genuinely need. R-no-step and R-lift are written to this recommendation."
+      "rationale": "Total lifts plus R-no-step remove every reason for a step within a major, and a major is where users already expect to act. `never` would forbid changes the project may genuinely need. R-no-step and R-lift are written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "breaking-only",
+        "abandoned": [
+          "never",
+          "any-with-note"
+        ],
+        "why": "Only a blocking step (one that commands refuse to run without, as 0.38.0's migrate-documents) waits for a major. A non-blocking step may ship at any release, named in its upgrading entry: every command works without it, reading what it would fill as computed or unknown, and it only rewrites repository documents (spec and plan sidecars, approval records) to the current shape, never the records on phax/records/v1.",
+        "advocate": "Allowing a named step at any release lets a change that only a person can complete ship in a minor, instead of waiting for the next major.",
+        "principles": [
+          "S1",
+          "S3"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-config",
@@ -582,10 +690,31 @@
         }
       ],
       "recommendation": "config-breaking-only",
-      "rationale": "Configuration is written by people, and their editors validate it against the local `phax.schema.json`. Stamping it would trade that for a release URL and impose a step at 1.0. Accepting a whole major's configurations gives users the same foreseeability without a new key, and the configuration cases already pin what each release accepts. R-config-accept and R-config-refuse are written to this recommendation."
+      "rationale": "Configuration is written by people, and their editors validate it against the local `phax.schema.json`. Stamping it would trade that for a release URL and impose a step at 1.0. Accepting a whole major's configurations gives users the same foreseeability without a new key, and the configuration cases already pin what each release accepts. R-config-accept and R-config-refuse are written to this recommendation.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "config-breaking-only",
+        "abandoned": [
+          "config-stamped",
+          "config-out"
+        ],
+        "why": "Values taken from the providers' model catalog (a model id, an effort) are not configuration keys: when a provider retires a model, any release may stop accepting it, refused by name with the model to write instead.",
+        "advocate": "Stamping configuration with a release `$schema` would let minor releases rename or tighten keys safely, reading older configuration through its frozen shape like every other persisted format.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T14:07:30.527Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "Shapes are not frozen. The promise is the rules of change, from 1.0.0. Before 1.0.0 every minor release counts as breaking, so today's behaviour already keeps the rules, and the checks can land now.",
