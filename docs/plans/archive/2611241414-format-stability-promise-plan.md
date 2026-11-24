@@ -1,5 +1,5 @@
 ---
-status: Draft
+status: Abandoned
 source-spec: docs/specs/2611231918-format-stability-promise.md
 completes-spec: true
 ---
