@@ -543,7 +543,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-cache-trust",
       "question": "Is a binary already at the cache path run as is, or is its digest kept beside it and checked on every run?",
@@ -560,7 +561,28 @@
         }
       ],
       "recommendation": "trust-path",
-      "rationale": "The interrupted-run hole closes structurally once nothing unverified can reach the cache path, and the per-version cache means the first fixed release starts empty. A digest stored beside the binary is writable by whoever can write the binary, so it buys little; real re-verification needs a digest from outside the cache, which is SEC-13."
+      "rationale": "The interrupted-run hole closes structurally once nothing unverified can reach the cache path, and the per-version cache means the first fixed release starts empty. A digest stored beside the binary is writable by whoever can write the binary, so it buys little; real re-verification needs a digest from outside the cache, which is SEC-13.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "trust-path",
+        "abandoned": [
+          "digest-beside"
+        ],
+        "why": "The interrupted-run hole closes structurally once nothing unverified can reach the cache path, and the per-version cache means the first fixed release starts empty. A digest stored beside the binary is writable by whoever can write the binary, so it buys little; real re-verification needs a digest from outside the cache, which is SEC-13.",
+        "advocate": "Re-hashing before every run catches a binary altered after placement, whether by a local tamper or a disk fault, and does not depend on how the file got there.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-redirect-hosts",
@@ -583,7 +605,29 @@
         }
       ],
       "recommendation": "github-suffix",
-      "rationale": "A published launcher can never be fixed, so an exact list breaks old versions on GitHub's next rename. The suffix survives renames inside GitHub's asset domain while still refusing a redirect to anywhere else. Any https also lets the release audit's host-validation finding stand."
+      "rationale": "A published launcher can never be fixed, so an exact list breaks old versions on GitHub's next rename. The suffix survives renames inside GitHub's asset domain while still refusing a redirect to anywhere else. Any https also lets the release audit's host-validation finding stand.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "github-suffix",
+        "abandoned": [
+          "exact-hosts",
+          "any-https"
+        ],
+        "why": "A published launcher can never be fixed, so an exact list breaks old versions on GitHub's next rename. The suffix survives renames inside GitHub's asset domain while still refusing a redirect to anywhere else. Any https also lets the release audit's host-validation finding stand.",
+        "advocate": "An exact list is the strictest allow-list: it admits only hosts known today, so a takeover or a new subdomain under githubusercontent.com is never followed.",
+        "principles": [
+          "S1",
+          "S2"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-launcher-tests",
@@ -611,7 +655,30 @@
         }
       ],
       "recommendation": "bin-exports",
-      "rationale": "It tests the exact file npm ships, keeps it one dependency-free file the release audit already reads, and adds no environment override. The resolveBinary.mts mirror and its test can then be retired in favour of tests of the real file."
+      "rationale": "It tests the exact file npm ships, keeps it one dependency-free file the release audit already reads, and adds no environment override. The resolveBinary.mts mirror and its test can then be retired in favour of tests of the real file.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "bin-exports",
+        "abandoned": [
+          "lib-module",
+          "subprocess-env",
+          "mirror"
+        ],
+        "why": "It tests the exact file npm ships, keeps it one dependency-free file the release audit already reads, and adds no environment override. The resolveBinary.mts mirror and its test can then be retired in favour of tests of the real file.",
+        "advocate": "Moving the logic into a lib module gives tests a clean import with no export-when-required seam in the shipped entry file, the same pattern resolveBinary.mts already follows.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-workflow-edit",
@@ -629,7 +696,28 @@
         }
       ],
       "recommendation": "maintainer-first",
-      "rationale": "The change is fully written in §6, so the maintainer's commit is a copy, not a design, and landing it first lets the run's guard test go green in its own gate."
+      "rationale": "The change is fully written in §6, so the maintainer's commit is a copy, not a design, and landing it first lets the run's guard test go green in its own gate.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "maintainer-first",
+        "abandoned": [
+          "pr-body"
+        ],
+        "why": "The change is fully written in §6, so the maintainer's commit is a copy, not a design, and landing it first lets the run's guard test go green in its own gate.",
+        "advocate": "Keeping the whole change inside the run and its PR means one reviewable unit, with no manual commit that must land in the right order before the run starts.",
+        "principles": [
+          "S1",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-frozen-where",
@@ -647,7 +735,29 @@
         }
       ],
       "recommendation": "config-frozen",
-      "rationale": "release.yml runs deno:smoke right before the build, so freezing only the build leaves the step that already relinked node_modules once unguarded. The friction surfaces drift in the gate, which is where it should surface. Before choosing, the plan checks whether deno compile of the esbuild bundle resolves anything through deno.lock at all; if it does not, frozen still guards deno run of the build script and deno:smoke."
+      "rationale": "release.yml runs deno:smoke right before the build, so freezing only the build leaves the step that already relinked node_modules once unguarded. The friction surfaces drift in the gate, which is where it should surface. Before choosing, the plan checks whether deno compile of the esbuild bundle resolves anything through deno.lock at all; if it does not, frozen still guards deno run of the build script and deno:smoke.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "config-frozen",
+        "abandoned": [
+          "flag-on-build"
+        ],
+        "why": "release.yml runs deno:smoke right before the build, so freezing only the build leaves the step that already relinked node_modules once unguarded. The friction surfaces drift in the gate, which is where it should surface. Before choosing, the plan checks whether deno compile of the esbuild bundle resolves anything through deno.lock at all; if it does not, frozen still guards deno run of the build script and deno:smoke.",
+        "advocate": "A flag on the build commands only leaves day-to-day dependency changes frictionless: pnpm add and upgrade do not turn deno:smoke red, and the release build, the one place that matters, is still frozen.",
+        "principles": [
+          "S1",
+          "C2",
+          "C4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-node-modules",
@@ -665,10 +775,30 @@
         }
       ],
       "recommendation": "rides-here",
-      "rationale": "The release job's deno:smoke runs right before the bundle step, so a Deno relink of node_modules is the very path by which an unpinned version reaches the binary; it is the same line of the same file, and every path that runs Deno already runs pnpm install first."
+      "rationale": "The release job's deno:smoke runs right before the bundle step, so a Deno relink of node_modules is the very path by which an unpinned version reaches the binary; it is the same line of the same file, and every path that runs Deno already runs pnpm install first.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "rides-here",
+        "abandoned": [
+          "wave-2"
+        ],
+        "why": "The release job's deno:smoke runs right before the bundle step, so a Deno relink of node_modules is the very path by which an unpinned version reaches the binary; it is the same line of the same file, and every path that runs Deno already runs pnpm install first.",
+        "advocate": "Leaving it in wave 2 keeps this spec a single-purpose, security-only change that the maintainer can review as such, and does not make deno:smoke and deno task dev depend on a prior pnpm install.",
+        "principles": [
+          "S1",
+          "S8"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-24T13:39:39.700Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The download goes into a private download directory created inside ~/.phax/bin/<version>/ (same filesystem as the cache), is verified there, made executable, then renamed onto the cache path in one step; a second concurrent rename replaces a verified file with a verified file and is harmless.",

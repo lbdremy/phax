@@ -459,12 +459,19 @@ Given deno.json, pnpm-lock.yaml and deno.lock, when a test compares each allowSc
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-cache-trust — Is a binary already at the cache path run as is, or is its digest kept beside it and checked on every run?
 
 - trust-path — Run it as is: only a verified, executable file can reach the cache path, by one rename — abandons: Detection of a cached binary altered after placement (a local tamper, a disk fault), which stays SEC-13's to solve
 - digest-beside — Keep the expected digest in a file beside the binary and re-hash the binary before each run — abandons: Start-up time on every invocation (hashing about 74 MB each run), for a digest that sits in the same writable directory as the file it guards
 
 Recommendation: trust-path — The interrupted-run hole closes structurally once nothing unverified can reach the cache path, and the per-version cache means the first fixed release starts empty. A digest stored beside the binary is writable by whoever can write the binary, so it buys little; real re-verification needs a digest from outside the cache, which is SEC-13.
+
+Decision: trust-path — by operator (Rémy Loubradou), 2026-11-24
+Why: The interrupted-run hole closes structurally once nothing unverified can reach the cache path, and the per-version cache means the first fixed release starts empty. A digest stored beside the binary is writable by whoever can write the binary, so it buys little; real re-verification needs a digest from outside the cache, which is SEC-13. Advocate: Re-hashing before every run catches a binary altered after placement, whether by a local tamper or a disk fault, and does not depend on how the file got there. Principles: S1, C4. Reversibility: cheap. Revised: none.
 
 ### q-redirect-hosts — Which hosts may the launcher follow a redirect to?
 
@@ -473,6 +480,9 @@ Recommendation: trust-path — The interrupted-run hole closes structurally once
 - any-https — Any https host, bounded to 5 redirects — abandons: Any host check at all: a redirect to a foreign host is followed, with the sidecar as the only defence
 
 Recommendation: github-suffix — A published launcher can never be fixed, so an exact list breaks old versions on GitHub's next rename. The suffix survives renames inside GitHub's asset domain while still refusing a redirect to anywhere else. Any https also lets the release audit's host-validation finding stand.
+
+Decision: github-suffix — by operator (Rémy Loubradou), 2026-11-24
+Why: A published launcher can never be fixed, so an exact list breaks old versions on GitHub's next rename. The suffix survives renames inside GitHub's asset domain while still refusing a redirect to anywhere else. Any https also lets the release audit's host-validation finding stand. Advocate: An exact list is the strictest allow-list: it admits only hosts known today, so a takeover or a new subdomain under githubusercontent.com is never followed. Principles: S1, S2. Reversibility: costly. Revised: none.
 
 ### q-launcher-tests — How do the tests exercise the launcher?
 
@@ -483,12 +493,18 @@ Recommendation: github-suffix — A published launcher can never be fixed, so an
 
 Recommendation: bin-exports — It tests the exact file npm ships, keeps it one dependency-free file the release audit already reads, and adds no environment override. The resolveBinary.mts mirror and its test can then be retired in favour of tests of the real file.
 
+Decision: bin-exports — by operator (Rémy Loubradou), 2026-11-24
+Why: It tests the exact file npm ships, keeps it one dependency-free file the release audit already reads, and adds no environment override. The resolveBinary.mts mirror and its test can then be retired in favour of tests of the real file. Advocate: Moving the logic into a lib module gives tests a clean import with no export-when-required seam in the shipped entry file, the same pattern resolveBinary.mts already follows. Principles: S1, S4. Reversibility: cheap. Revised: none.
+
 ### q-workflow-edit — docs-deploy.yml is a protected path a phax run cannot edit: who writes its change?
 
 - maintainer-first — The maintainer commits the normative §6 block to docs-deploy.yml before the run starts; the run adds the guard test that pins it — abandons: Having the whole spec delivered by one run: one manual commit precedes it
 - pr-body — The run writes the change into its PR body and the maintainer applies it on the branch before merge — abandons: A green gate inside the run for the redeploy criteria: the guard test cannot pass until the maintainer's later commit, so either it lands red or it is deferred out of the run
 
 Recommendation: maintainer-first — The change is fully written in §6, so the maintainer's commit is a copy, not a design, and landing it first lets the run's guard test go green in its own gate.
+
+Decision: maintainer-first — by operator (Rémy Loubradou), 2026-11-24
+Why: The change is fully written in §6, so the maintainer's commit is a copy, not a design, and landing it first lets the run's guard test go green in its own gate. Advocate: Keeping the whole change inside the run and its PR means one reviewable unit, with no manual commit that must land in the right order before the run starts. Principles: S1, C4. Reversibility: cheap. Revised: none.
 
 ### q-frozen-where — Where is the Deno lock frozen?
 
@@ -497,6 +513,9 @@ Recommendation: maintainer-first — The change is fully written in §6, so the 
 
 Recommendation: config-frozen — release.yml runs deno:smoke right before the build, so freezing only the build leaves the step that already relinked node_modules once unguarded. The friction surfaces drift in the gate, which is where it should surface. Before choosing, the plan checks whether deno compile of the esbuild bundle resolves anything through deno.lock at all; if it does not, frozen still guards deno run of the build script and deno:smoke.
 
+Decision: config-frozen — by operator (Rémy Loubradou), 2026-11-24
+Why: release.yml runs deno:smoke right before the build, so freezing only the build leaves the step that already relinked node_modules once unguarded. The friction surfaces drift in the gate, which is where it should surface. Before choosing, the plan checks whether deno compile of the esbuild bundle resolves anything through deno.lock at all; if it does not, frozen still guards deno run of the build script and deno:smoke. Advocate: A flag on the build commands only leaves day-to-day dependency changes frictionless: pnpm add and upgrade do not turn deno:smoke red, and the release build, the one place that matters, is still frozen. Principles: S1, C2, C4. Reversibility: cheap. Revised: none.
+
 ### q-node-modules — Does the wave 2 fix 'Deno relinks node_modules past the lockfile' (nodeModulesDir) ride in this spec?
 
 - rides-here — Yes: Deno stops writing node_modules (nodeModulesDir manual, or the value the plan's check shows does it) in this spec — abandons: A small, single-purpose SEC-29 change: deno:smoke and deno task dev now depend on pnpm having installed node_modules
@@ -504,9 +523,8 @@ Recommendation: config-frozen — release.yml runs deno:smoke right before the b
 
 Recommendation: rides-here — The release job's deno:smoke runs right before the bundle step, so a Deno relink of node_modules is the very path by which an unpinned version reaches the binary; it is the same line of the same file, and every path that runs Deno already runs pnpm install first.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: rides-here — by operator (Rémy Loubradou), 2026-11-24
+Why: The release job's deno:smoke runs right before the bundle step, so a Deno relink of node_modules is the very path by which an unpinned version reaches the binary; it is the same line of the same file, and every path that runs Deno already runs pnpm install first. Advocate: Leaving it in wave 2 keeps this spec a single-purpose, security-only change that the maintainer can review as such, and does not make deno:smoke and deno task dev depend on a prior pnpm install. Principles: S1, S8. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -543,3 +561,12 @@ Page: docs/release.md, section 'Redeploying the docs site by hand'
 Reader: The maintainer redeploying docs.phax.run from a released tag
 
 Example: gh workflow run docs-deploy.yml -f tag=vX.Y.Z — the workflow first refuses a tag that is not vX.Y.Z, then checks out refs/tags/vX.Y.Z (never a branch of that name), checks package.json and the ledger against it, and only then installs and builds.
+
+## 12. Decision log
+
+- 2026-11-24 q-cache-trust decided trust-path — operator (Rémy Loubradou)
+- 2026-11-24 q-redirect-hosts decided github-suffix — operator (Rémy Loubradou)
+- 2026-11-24 q-launcher-tests decided bin-exports — operator (Rémy Loubradou)
+- 2026-11-24 q-workflow-edit decided maintainer-first — operator (Rémy Loubradou)
+- 2026-11-24 q-frozen-where decided config-frozen — operator (Rémy Loubradou)
+- 2026-11-24 q-node-modules decided rides-here — operator (Rémy Loubradou)
