@@ -2,8 +2,8 @@
   "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
   "artifact": "docs/plans/2611241432-security-high-fixes-plan.md",
   "planFingerprint": "ed9b28e46d6f4712ace6e273db1a894b9b9f13148f619b810820ef1d01ec1654",
-  "approvedAt": "2026-11-24T14:53:52.103Z",
-  "baseline": "340790c76d5329d3ad4568024093d4d19a3d1c0b",
+  "approvedAt": "2026-11-25T11:47:56.606Z",
+  "baseline": "a1230bd8efdb6ac5ffd1e9596303b1cde3f5535d",
   "code": null,
   "sourceSpec": {
     "path": "docs/specs/2611231049-security-high-fixes.md",

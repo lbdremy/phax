@@ -3,8 +3,8 @@ status: Approved
 source-spec: docs/specs/2611231049-security-high-fixes.md
 completes-spec: true
 approved:
-  date: 2026-11-24
-  baseline: 340790c
+  date: 2026-11-25
+  baseline: a1230bd
 ---
 # Security high fixes
 
