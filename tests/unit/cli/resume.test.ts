@@ -87,7 +87,11 @@ function makeOutput() {
 
 function makeConfig(stateRoot: string): ResolvedConfig {
   return {
-    raw: { gateProfiles: { full: {} } } as never,
+    raw: {
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
+    } as never,
     namespace: "test-ns",
     stateRoot,
     repoRoot: stateRoot,
@@ -156,6 +160,7 @@ function writeRunStatus(
       createdAt: now,
       updatedAt: now,
       phasesCount: 2,
+      gateProfileId: "full",
       hold,
     }),
   );

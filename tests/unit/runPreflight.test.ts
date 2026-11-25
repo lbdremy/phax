@@ -13,6 +13,7 @@ import { checkCleanWorkingTree } from "../../src/app/worktree.js";
 import {
   AssignmentPreflightError,
   ConfigValidationError,
+  GateProfileUndefinedError,
   InteractivePreflightError,
   ModelPreflightError,
   AcceptancePreflightError,
@@ -260,8 +261,8 @@ interface RefusalCase {
 const REFUSALS = {
   "gate-profile": {
     input: makeInput({ gateProfileId: "nope" }),
-    errorClass: UnsafeGitStateError,
-    message: 'Gate profile "nope" not found or empty',
+    errorClass: GateProfileUndefinedError,
+    message: 'gate profile "nope" is not defined in phax.json (defined: standard)',
   },
   "required-commands": {
     input: makeInput({ plan: makePlan(undefined, ["pnpm lint"]) }),

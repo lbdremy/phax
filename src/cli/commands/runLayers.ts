@@ -62,6 +62,7 @@ import {
   AcceptanceCommitMissingError,
   AcceptancePreflightError,
   PlanSectionsPreflightError,
+  GateProfileUndefinedError,
   AssignmentPreflightError,
   PlanStaleError,
   PlanValidationError,
@@ -219,7 +220,12 @@ export function exitCodeForError(err: unknown): number {
   if (err instanceof FailureWithFollowUpsError) return exitCodeForError(err.cause);
   // A refused close carries its own code: 4, 5, 1, 8 or 14.
   if (err instanceof StopCloseRefusedError) return err.lastClose.exitCode;
-  if (err instanceof PlanValidationError || err instanceof ConfigValidationError) return 2;
+  if (
+    err instanceof PlanValidationError ||
+    err instanceof ConfigValidationError ||
+    err instanceof GateProfileUndefinedError
+  )
+    return 2;
   if (err instanceof UnsafeGitStateError) return 3;
   if (
     err instanceof GateFailedError ||

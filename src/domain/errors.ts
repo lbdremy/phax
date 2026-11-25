@@ -531,6 +531,13 @@ export class ModelPreflightError extends Data.TaggedError("ModelPreflightError")
   }[];
 }> {}
 
+// The run's gate profile is not one phax.json defines; `defined` lists every id it does.
+export class GateProfileUndefinedError extends Data.TaggedError("GateProfileUndefinedError")<{
+  id: string;
+  defined: readonly string[];
+  message: string;
+}> {}
+
 // A plan phase has no section in plan.md that `locatePlanSections` can find.
 export class PlanSectionsPreflightError extends Data.TaggedError("PlanSectionsPreflightError")<{
   message: string;

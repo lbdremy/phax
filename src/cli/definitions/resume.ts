@@ -28,6 +28,10 @@ import {
   acceptanceSkipRefusal,
   stopSkipAcceptanceRefusal,
 } from "../../domain/plan/acceptancePairs.js";
+import {
+  resolveGateProfileById,
+  undefinedGateProfileMessage,
+} from "../../domain/gate/gateProfile.js";
 import { DEFAULT_MODEL_ROUTING, DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import {
   applyProviderPriorityOverride,
@@ -286,9 +290,22 @@ function runResumeCommand(
     if (Result.isFailure(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
     const runId = runIdResult.success;
 
-    const profiles = config.raw.gateProfiles;
-    const gateProfileId = runStatus.gateProfileId ?? Object.keys(profiles)[0] ?? null;
-    if (gateProfileId === null) return yield* refuse(2, "No gate profiles configured in phax.json");
+    // Resume gates with the profile the run recorded, never one from the plan
+    // or the first one phax.json lists.
+    const gateProfileId = runStatus.gateProfileId;
+    if (gateProfileId === undefined) {
+      return yield* refuse(
+        2,
+        `the run recorded no gate profile — an older phax started it. Finish it with the phax release that started it, or archive it with \`phax archive ${qualifiedName} --force\` and run its plan again.`,
+      );
+    }
+    const recordedProfile = resolveGateProfileById(config.raw, gateProfileId, undefined);
+    if (Result.isFailure(recordedProfile)) {
+      return yield* refuse(2, [
+        undefinedGateProfileMessage(recordedProfile.failure),
+        `  the run recorded it when it started; restore it in phax.json, or archive the run with \`phax archive ${qualifiedName} --force\``,
+      ]);
+    }
 
     const routingResult = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),

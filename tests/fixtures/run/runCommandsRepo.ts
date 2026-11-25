@@ -219,7 +219,11 @@ export async function makeRunCommandsRepo(): Promise<RunCommandsRepo> {
   );
   const runStatusPath = join(runPath, "run-status.json");
   const runStatus = JSON.parse(readFileSync(runStatusPath, "utf8")) as Record<string, unknown>;
-  writeFileSync(runStatusPath, JSON.stringify({ ...runStatus, state: "interrupted" }, null, 2));
+  // `phax run` records the profile it gates with; resume gates with that one.
+  writeFileSync(
+    runStatusPath,
+    JSON.stringify({ ...runStatus, state: "interrupted", gateProfileId: "fast" }, null, 2),
+  );
   await Effect.runPromise(
     setRunStatus(stateRoot, NAMESPACE, shortName, { state: "interrupted" }).pipe(
       Effect.provide(NodeFileSystemLayer),
