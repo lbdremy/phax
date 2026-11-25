@@ -699,8 +699,6 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ### Approved plan with no active spec
 
-- [ ] The smolvm isolation spike (`docs/plans/2606291247-smolvm-isolation-spike-plan.md`) was
-      re-approved 2026-09-08, and its PR #60 is still open at phase 05. Resume it or abandon it.
 
 ### Housekeeping
 
@@ -711,21 +709,29 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Longer horizon (unspecced, revisit deliberately)
 
-- [ ] **`isolated` mode in a microVM — postponed (operator, 2026-11-25).** The deciding loss: an agent CLI in
-      a VM signs in with API keys, not the coding agents' paid plans (Claude Max's OAuth lives in the macOS
-      Keychain, which phax must never read). `secure` mode is strengthened with `srt` instead
-      (`secure-mode-sandbox`). If it comes back, the candidate is smol machines
-      (https://github.com/smol-machines/smolvm, the `smol` CLI and `smolmachines` SDK, Apache-2.0, v1.37.x on
-      2026-11-25): libkrun microVMs on Hypervisor.framework or KVM, network off by default with `--allow-host`
-      (the June spike confirmed it blocks a hard-coded IP), hypervisor-enforced read-only mounts, credentials as
-      placeholders the guest cannot read, long-lived machines with `machine exec`. The agent, its commands and the
-      gate would all run in the guest, with a Linux `node_modules` on the guest's disk over the mounted worktree
-      and a pnpm store kept across phases. Two leads to check then. `claude setup-token` makes a one-year token
-      billed to the subscription, read from `CLAUDE_CODE_OAUTH_TOKEN` and documented for CI and scripts; it could
-      sit behind a credential placeholder (its header and hosts are not documented, and the usage terms reserve
-      subscription OAuth to "ordinary use", so check them). Or the agent CLI stays on the host and only its Bash
-      commands go into the VM through `CLAUDE_CODE_SHELL_PREFIX` (documented for logging and auditing; it also
-      wraps shell hooks and stdio MCP startup, and the file tools stay on the host).
+- [ ] **`isolated` mode in a microVM — a spike, to brief (operator, 2026-11-25).** The agent CLI, its commands
+      and the gate run in a smol machines VM (https://github.com/smol-machines/smolvm, the `smol` CLI and
+      `smolmachines` SDK, Apache-2.0, v1.37.x on 2026-11-25): libkrun microVMs on Hypervisor.framework or KVM,
+      network off by default with `--allow-host` (the June spike, plan abandoned 2026-11-25, confirmed it blocks a
+      hard-coded IP), hypervisor-enforced read-only mounts, credentials as placeholders the guest cannot read,
+      long-lived machines with `machine exec`. A Linux `node_modules` on the guest's disk over the mounted worktree,
+      a pnpm store kept across phases. Requirement: the coding agents' paid plans keep working, Codex Plus and Pro
+      included. The spike's three credential questions come first:
+      - **Claude**: `claude setup-token` (a one-year token billed to the subscription, read from
+        `CLAUDE_CODE_OAUTH_TOKEN`, documented for CI and scripts) behind a credential placeholder: does
+        `claude -p` in the VM make a real request on the subscription? (Its header and hosts are not documented;
+        the usage terms reserve subscription OAuth to "ordinary use".)
+      - **Vibe**: its API key is the paid plan (Mistral: "the same key works … with a paid plan"), behind a
+        placeholder.
+      - **Codex Plus and Pro**: Codex access tokens exist only for Business and Enterprise, so the path is
+        `codex login --device-auth` once in the VM, its tokens on a volume kept per machine, refreshed and written
+        back by Codex inside the guest. For the spec: (A) that, accepting a token readable inside the VM (egress
+        limited to OpenAI's hosts), or (B) Codex stays in `secure` on the host under its own Seatbelt sandbox, the
+        only provider without the VM. Never mount the host's `~/.codex`.
+      Also: shim transparency (argv, stream-json, exit codes, signals, TTY), the image with the CLIs baked in and
+      whether it now composes with `--allow-host` (it did not in 1.3.2), and a full gate's time in the guest.
+      A lead kept aside: the agent CLI on the host with only its Bash commands sent into the VM through
+      `CLAUDE_CODE_SHELL_PREFIX` (documented for logging; it also wraps shell hooks and stdio MCP startup).
 - [ ] **A Claude Code plugin for phax, after the 1.0 freeze.** Raised 2026-10-08. Ship phax's
       skills (`phax-planning`, `phax-spec`, the `phax-decide-*` skills) as one plugin instead of
       copies under `~/.claude/skills/`, with a small mod for the operator's interactive session:
