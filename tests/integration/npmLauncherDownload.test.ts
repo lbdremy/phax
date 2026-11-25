@@ -9,6 +9,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import { EventEmitter } from "node:events";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -23,9 +24,11 @@ type Server = Awaited<ReturnType<typeof startFixtureServer>>;
 
 const servers: Server[] = [];
 const homes: string[] = [];
+const stubTimers: NodeJS.Timeout[] = [];
 
 afterEach(async () => {
   vi.restoreAllMocks();
+  for (const timer of stubTimers.splice(0)) clearTimeout(timer);
   await Promise.all(servers.splice(0).map((server) => server.close()));
   for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true });
 });
@@ -49,6 +52,55 @@ async function setup(overrides: Parameters<typeof testConfig>[2] = {}) {
     checksumPath,
     cache,
     versionDir: dirname(cache),
+  };
+}
+
+/** A request from {@link stubTransport}: it never answers, and its idle timer emits `timeout`. */
+class StubRequest extends EventEmitter {
+  destroyed = false;
+  private idle: NodeJS.Timeout | undefined;
+
+  setTimeout(ms: number): this {
+    clearTimeout(this.idle);
+    this.idle = setTimeout(() => this.emit("timeout"), ms);
+    return this;
+  }
+
+  destroy(): this {
+    this.destroyed = true;
+    clearTimeout(this.idle);
+    return this;
+  }
+}
+
+/**
+ * A transport whose sockets start out connecting and complete (`connect`, or `secureConnect`
+ * when `encrypted`) after `connectsAfterMs`, or never when it is null. No request is answered.
+ */
+function stubTransport(options: { encrypted: boolean; connectsAfterMs: number | null }) {
+  const requests: StubRequest[] = [];
+  return {
+    requests,
+    get(_url: string, _options: unknown, _onResponse: unknown): StubRequest {
+      const req = new StubRequest();
+      requests.push(req);
+      const socket = Object.assign(new EventEmitter(), {
+        connecting: true,
+        encrypted: options.encrypted,
+        unref: () => socket,
+      });
+      setImmediate(() => {
+        req.emit("socket", socket);
+        if (options.connectsAfterMs === null) return;
+        stubTimers.push(
+          setTimeout(() => {
+            socket.connecting = false;
+            socket.emit(options.encrypted ? "secureConnect" : "connect");
+          }, options.connectsAfterMs),
+        );
+      });
+      return req;
+    },
   };
 }
 
@@ -202,6 +254,51 @@ describe("npm launcher timeouts", () => {
 
     await expect(launcher.ensureBinary(t.config, NAME)).rejects.toThrow(
       "download failed: no data from 127.0.0.1 for 0.2 s",
+    );
+    expect(listing(t.versionDir)).toEqual([]);
+  });
+
+  it("abandons a download whose body stops partway, naming the host, and leaves nothing", async () => {
+    const t = await setup({ idleTimeoutMs: 200 });
+    t.server.route(t.binaryPath, { kind: "partial", body: BINARY.subarray(0, 512) });
+
+    await expect(launcher.ensureBinary(t.config, NAME)).rejects.toThrow(
+      "download failed: no data from 127.0.0.1 for 0.2 s",
+    );
+    expect(listing(t.versionDir)).toEqual([]);
+  });
+
+  it("lets a slow but live download run past the connect timeout", async () => {
+    const t = await setup({ connectTimeoutMs: 100, idleTimeoutMs: 2000 });
+    t.server.route(t.binaryPath, { kind: "trickle", body: BINARY, chunks: 8, intervalMs: 40 });
+    t.server.route(t.checksumPath, { kind: "bytes", body: sidecar(DIGEST) });
+
+    await expect(launcher.ensureBinary(t.config, NAME)).resolves.toBe(t.cache);
+    expectVerified(t.cache, t.versionDir);
+  });
+
+  it("abandons a connection that never completes, naming the host, and leaves nothing", async () => {
+    const t = await setup({ connectTimeoutMs: 100 });
+    const transport = stubTransport({ encrypted: false, connectsAfterMs: null });
+
+    await expect(launcher.ensureBinary({ ...t.config, transport }, NAME)).rejects.toThrow(
+      "download failed: no connection to 127.0.0.1 within 0.1 s",
+    );
+    expect(transport.requests).toHaveLength(1);
+    expect(transport.requests[0]?.destroyed).toBe(true);
+    expect(listing(t.versionDir)).toEqual([]);
+  });
+
+  it.each([
+    { label: "a plain", encrypted: false },
+    { label: "a TLS", encrypted: true },
+  ])("stops the connect timer once $label connection completes", async ({ encrypted }) => {
+    const t = await setup({ connectTimeoutMs: 100, idleTimeoutMs: 300 });
+    const transport = stubTransport({ encrypted, connectsAfterMs: 20 });
+
+    // Connected at 20 ms and silent after: the idle timeout ends it, not the connect timer.
+    await expect(launcher.ensureBinary({ ...t.config, transport }, NAME)).rejects.toThrow(
+      "download failed: no data from 127.0.0.1 for 0.3 s",
     );
     expect(listing(t.versionDir)).toEqual([]);
   });

@@ -49,6 +49,13 @@ interface Launcher {
   cachePath(config: LauncherConfig, name: string): string;
   checkRedirect(config: LauncherConfig, fromUrl: string, location: string): string;
   ensureBinary(config: LauncherConfig, name: string): Promise<string>;
+  startBinary(
+    binPath: string,
+    args: readonly string[],
+  ): Promise<
+    | { readonly code: number | null; readonly signal: string | null }
+    | { readonly error: { readonly code: string; readonly message: string } }
+  >;
   refreshUpdateCache(config: LauncherConfig): Promise<void>;
 }
 
@@ -67,6 +74,15 @@ type Route =
   | { readonly kind: "status"; readonly status: number }
   /** Accept the request and never answer. */
   | { readonly kind: "hold" }
+  /** Send the headers and `body`, announcing more bytes, then never send them. */
+  | { readonly kind: "partial"; readonly body: string | Buffer }
+  /** Send `body` in `chunks` pieces, one every `intervalMs`. */
+  | {
+      readonly kind: "trickle";
+      readonly body: string | Buffer;
+      readonly chunks: number;
+      readonly intervalMs: number;
+    }
   /** Hold every request on the path until `count` have arrived, then serve them all. */
   | { readonly kind: "barrier"; readonly count: number; readonly body: string | Buffer };
 
@@ -114,6 +130,33 @@ export async function startFixtureServer(): Promise<FixtureServer> {
         held.add(req);
         req.on("close", () => held.delete(req));
         return;
+      case "partial": {
+        const body = Buffer.from(route.body);
+        held.add(req);
+        req.on("close", () => held.delete(req));
+        res.writeHead(200, {
+          "Content-Type": "application/octet-stream",
+          "Content-Length": body.length + 1024,
+        });
+        res.write(body);
+        return;
+      }
+      case "trickle": {
+        const body = Buffer.from(route.body);
+        const size = Math.ceil(body.length / route.chunks);
+        res.writeHead(200, { "Content-Type": "application/octet-stream" });
+        let sent = 0;
+        const timer = setInterval(() => {
+          res.write(body.subarray(sent, sent + size));
+          sent += size;
+          if (sent >= body.length) {
+            clearInterval(timer);
+            res.end();
+          }
+        }, route.intervalMs);
+        res.on("close", () => clearInterval(timer));
+        return;
+      }
       case "barrier": {
         const queue = waiting.get(path) ?? [];
         queue.push(res);
