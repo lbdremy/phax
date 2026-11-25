@@ -407,7 +407,8 @@ function runNewSessionTurn(
       return { refusal: refused(`Phase "${input.phaseId}" has no worktree recorded.`) };
     }
     const { provider, model } = facts.model;
-    const result = yield* runFirstTurn({
+    // A `.phax-context` that is not a real directory refuses the new session.
+    const turned = yield* runFirstTurn({
       runId: fresh.runId as RunId,
       runPath: fresh.runPath,
       phaseFolder,
@@ -418,7 +419,13 @@ function runNewSessionTurn(
       effort: facts.effort,
       policy: facts.posture.policy,
       origin: "new-session",
-    });
+    }).pipe(
+      Effect.catchTag("PhaxContextRefusedError", (e) =>
+        Effect.succeed({ refusal: refused(e.message) } as const),
+      ),
+    );
+    if ("refusal" in turned) return turned;
+    const result = turned;
 
     if (result.turn.outcome === "answered" && result.session.current !== null) {
       const { current } = result.session;

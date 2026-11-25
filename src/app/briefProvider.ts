@@ -3,6 +3,7 @@ import type { Shell } from "../ports/shell.js";
 import {
   encodeBriefRecordFile,
   encodeBriefRequestFile,
+  type BriefRecord,
   type BriefRequest,
   type BriefRequestFile,
 } from "../schemas/brief.js";
@@ -93,18 +94,22 @@ export function serializeBriefRecord(
   request: BriefRequestFile,
   outcome: BriefOutcome,
 ): string {
-  return JSON.stringify(
-    encodeBriefRecordFile(
-      withSchemaUrl("brief-record", {
-        moment,
-        request,
-        outcome:
-          outcome.kind === "answered"
-            ? { kind: "answered" as const, answer: outcome.answer as Record<string, unknown> }
-            : { kind: "failed" as const, reason: outcome.reason },
-      }),
-    ),
-    null,
-    2,
-  );
+  return serializeDecodedBriefRecord({
+    moment,
+    request,
+    outcome:
+      outcome.kind === "answered"
+        ? { kind: "answered" as const, answer: outcome.answer as Record<string, unknown> }
+        : { kind: "failed" as const, reason: outcome.reason },
+  });
+}
+
+/**
+ * The bytes of a brief record: for a record decoded from a `brief-NN.json`
+ * phax wrote, exactly the bytes `serializeBriefRecord` wrote for it. A pulled
+ * record waiting in the worktree is copied this way, from what decoded and
+ * never as the agent-writable bytes it was read from.
+ */
+export function serializeDecodedBriefRecord(record: BriefRecord): string {
+  return JSON.stringify(encodeBriefRecordFile(withSchemaUrl("brief-record", record)), null, 2);
 }

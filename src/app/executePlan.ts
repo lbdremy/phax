@@ -29,6 +29,7 @@ import {
   HoldPointPausedError,
   ModelPreflightError,
   PhaseHadNoChangesError,
+  type PhaxContextRefusedError,
   type AssignmentPreflightError,
   InteractivePreflightError,
   type InvalidTransitionError,
@@ -313,15 +314,16 @@ export interface ClosedStop {
 }
 
 // The phase request file `phax brief` reads its phase from (spec §5.13). A
-// write failure is a warning: a brief never blocks the phase.
+// write failure is a warning: a brief never blocks the phase. A `.phax-context`
+// that is not a real directory is no write failure: it fails the phase.
 function writeBriefRequestOrWarn(
   output: OutputPort,
   worktreePath: string,
   phaseId: string,
   request: BriefRequestFile,
-): Effect.Effect<void, never, FileSystem> {
+): Effect.Effect<void, PhaxContextRefusedError, FileSystem> {
   return writePhaseBriefRequest(worktreePath, request).pipe(
-    Effect.catch((e) =>
+    Effect.catchTag("FsError", (e) =>
       Effect.sync(() => {
         output.warn(
           `[phax] Warning: phase "${phaseId}" — failed to write ${PHASE_BRIEF_REQUEST_FILE} (${e.message}).`,
@@ -394,6 +396,7 @@ export type ExecutePlanError =
   | GitError
   | UnsafeGitStateError
   | WorktreeCreationError
+  | PhaxContextRefusedError
   | SetupCommandFailedError
   | AgentInvocationError
   | AgentSessionFailedError

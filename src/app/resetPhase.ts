@@ -37,6 +37,7 @@ import {
 import type { PhaseStatus, RunStatus } from "../schemas/status.js";
 import { dispatch } from "./dispatcher.js";
 import { withRunLock } from "./lock.js";
+import { readPhaxContextFile } from "./phaxContext.js";
 import { composePhaxState } from "./phaxState.js";
 import { resolveRun } from "./resolveRunInfo.js";
 
@@ -307,8 +308,13 @@ export function previewResetPhase(
     const snapshot = yield* git.snapshotWorktree(worktree);
     const corrections =
       snapshot === head ? [] : yield* git.changedPathsBetween(worktree, head, snapshot);
-    const handoffPath = join(worktree, PERSON_HANDOFF_PATH);
-    const personHandoff = (yield* fs.exists(handoffPath)) ? handoffPath : null;
+    // Through the `.phax-context` guard, which never fails the preview: a reset
+    // is how a refused `.phax-context` is recovered. A linked handoff file, or
+    // one under a `.phax-context` that is not a real directory, is not shown.
+    const handoff = yield* readPhaxContextFile(worktree, PERSON_HANDOFF_PATH).pipe(
+      Effect.catchTag("PhaxContextRefusedError", () => Effect.succeed({ kind: "absent" } as const)),
+    );
+    const personHandoff = handoff.kind === "file" ? join(worktree, PERSON_HANDOFF_PATH) : null;
     return {
       phaseId: target.phaseId,
       atStop: true,

@@ -1,4 +1,4 @@
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Predicate } from "effect";
 import {
   open,
   mkdir,
@@ -10,12 +10,13 @@ import {
   appendFile,
   readdir,
   lstat,
+  readlink,
   stat,
   chmod,
 } from "node:fs/promises";
 import { dirname, isAbsolute, join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { FileSystem, type FileSystemOps, FsError } from "../ports/fs.js";
+import { type EntryKind, FileSystem, type FileSystemOps, FsError } from "../ports/fs.js";
 
 function wrapFsError(cause: unknown): FsError {
   return new FsError({
@@ -53,6 +54,22 @@ async function fileSizeOf(path: string): Promise<number> {
     if (code === "ENOENT" || code === "ENOTDIR") return 0;
     throw err;
   }
+}
+
+// What lstat finds at a path; a symlink's target is read, never followed.
+async function entryKindOf(path: string): Promise<EntryKind> {
+  let stats;
+  try {
+    stats = await lstat(path);
+  } catch (err) {
+    const code = Predicate.hasProperty(err, "code") ? err.code : undefined;
+    if (code === "ENOENT" || code === "ENOTDIR") return { kind: "absent" };
+    throw err;
+  }
+  if (stats.isSymbolicLink()) return { kind: "symlink", target: await readlink(path) };
+  if (stats.isDirectory()) return { kind: "directory" };
+  if (stats.isFile()) return { kind: "file" };
+  return { kind: "other" };
 }
 
 // Write through a temporary sibling renamed into place. A given mode is set on
@@ -144,6 +161,12 @@ function makeNodeFileSystemOps(resolvePath: (path: string) => string): FileSyste
           access(resolvePath(path))
             .then(() => true)
             .catch(() => false),
+        catch: wrapFsError,
+      }),
+
+    entryKind: (path) =>
+      Effect.tryPromise({
+        try: () => entryKindOf(resolvePath(path)),
         catch: wrapFsError,
       }),
 

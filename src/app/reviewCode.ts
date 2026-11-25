@@ -65,6 +65,7 @@ import { toCodeReviewAttentionPoints } from "../domain/review/codeReviewWorklist
 import { decodePhaseAgentBinding } from "../schemas/phaseAgentBinding.js";
 import { getSessionAdapter } from "../domain/session/index.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
+import { PHAX_CONTEXT_DIR, writePhaxContextFile } from "./phaxContext.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { RunId } from "../domain/branded.js";
 import {
@@ -77,7 +78,6 @@ const GLOBAL_RECONCILIATION_FILENAME = "global-file-reconciliation.json";
 const COMPLIANCE_REVIEW_JSON_FILENAME = "compliance-review.json";
 const CODE_REVIEW_SESSION_FILENAME = "code-review-session.json";
 const CODE_REVIEW_STREAM_FILENAME = "code-review.session.jsonl";
-const PHAX_CONTEXT_DIR = ".phax-context";
 
 export interface PrepareCodeReviewResultReady {
   readonly kind: "ready";
@@ -259,8 +259,7 @@ export function prepareCodeReviewSession(
     const worklist = yield* loadCodeReviewWorklist(info, opts.bundledReviewSkill);
     const promptContent = buildCodeReviewPrompt({ worktreePath, ...worklist });
 
-    const phaxContextPath = join(worktreePath, PHAX_CONTEXT_DIR);
-    const promptFilePath = join(phaxContextPath, CODE_REVIEW_PROMPT_FILENAME);
+    const promptFilePath = join(worktreePath, PHAX_CONTEXT_DIR, CODE_REVIEW_PROMPT_FILENAME);
     const positionalPrompt = buildCodeReviewPositionalPrompt(promptFilePath);
 
     // Resolve the invocation before writing anything: an unsupported provider
@@ -289,8 +288,19 @@ export function prepareCodeReviewSession(
       } satisfies PrepareCodeReviewResult;
     }
 
-    yield* fs.mkdirp(phaxContextPath);
-    yield* fs.writeAtomic(promptFilePath, promptContent);
+    // Through the `.phax-context` guard: a `.phax-context` that is not a real
+    // directory refuses the review, with nothing written through it.
+    const refusal = yield* writePhaxContextFile(
+      worktreePath,
+      join(PHAX_CONTEXT_DIR, CODE_REVIEW_PROMPT_FILENAME),
+      promptContent,
+    ).pipe(
+      Effect.as(undefined),
+      Effect.catchTag("PhaxContextRefusedError", (e) => Effect.succeed(e.message)),
+    );
+    if (refusal !== undefined) {
+      return { kind: "refused", message: refusal } satisfies PrepareCodeReviewResult;
+    }
 
     yield* telemetry.recordEvent(
       makeArtifactGeneratedTelemetryEvent({

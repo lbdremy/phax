@@ -7,6 +7,7 @@
 import { Effect, Result, Schema } from "effect";
 import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
+import type { PhaxContextRefusedError } from "../domain/errors.js";
 import { PERSON_HANDOFF_PATH } from "../domain/interactive/worktreeChange.js";
 import { policyFromPosture } from "../domain/security/postureToPolicy.js";
 import type { SecurityPolicy } from "../domain/security/types.js";
@@ -28,6 +29,11 @@ import {
   withSchemaUrl,
 } from "../schemas/persisted.js";
 import { encodeReviewStopFile, type ReviewStop } from "../schemas/reviewStop.js";
+import {
+  readPhaxContextFile,
+  removePhaxContextEntry,
+  writePhaxContextFile,
+} from "./phaxContext.js";
 
 /** The seed inside the phase worktree, relative to it. */
 export const SEED_WORKTREE_PATH = ".phax-context/interactive-review.md";
@@ -39,14 +45,20 @@ const FIRST_READING_FILE = "first-reading.md";
 const REVIEW_STOP_FILE = "review-stop.json";
 const PARKED_REVIEW_STOP_FILE = "review-stop.closing.json";
 
-/** The two copies of a stop's seed: the worktree's and the run folder's. */
+/**
+ * The two copies of a stop's seed: the worktree's and the run folder's.
+ * `worktreeRoot` is the phase worktree the first lies in, which the
+ * `.phax-context` guard checks before it is written.
+ */
 export interface SeedPaths {
+  readonly worktreeRoot: string;
   readonly worktree: string;
   readonly runFolder: string;
 }
 
 export function seedPaths(worktree: string, phaseFolder: string): SeedPaths {
   return {
+    worktreeRoot: worktree,
     worktree: join(worktree, SEED_WORKTREE_PATH),
     runFolder: join(phaseFolder, SEED_RUN_FILE),
   };
@@ -56,12 +68,11 @@ export function seedPaths(worktree: string, phaseFolder: string): SeedPaths {
 export function writeSeed(
   paths: SeedPaths,
   markdown: string,
-): Effect.Effect<void, FsError, FileSystem> {
+): Effect.Effect<void, PhaxContextRefusedError | FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     yield* fs.writeAtomic(paths.runFolder, markdown);
-    yield* fs.mkdirp(dirname(paths.worktree));
-    yield* fs.writeAtomic(paths.worktree, markdown);
+    yield* writePhaxContextFile(paths.worktreeRoot, SEED_WORKTREE_PATH, markdown);
   });
 }
 
@@ -69,12 +80,13 @@ export function writeSeed(
  * Rewrite the worktree's seed from its run-folder copy, after every phax turn:
  * a turn can reach `.phax-context/`, which no snapshot compares.
  */
-export function restoreWorktreeSeed(paths: SeedPaths): Effect.Effect<void, FsError, FileSystem> {
+export function restoreWorktreeSeed(
+  paths: SeedPaths,
+): Effect.Effect<void, PhaxContextRefusedError | FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const markdown = yield* fs.readText(paths.runFolder);
-    yield* fs.mkdirp(dirname(paths.worktree));
-    yield* fs.writeAtomic(paths.worktree, markdown);
+    yield* writePhaxContextFile(paths.worktreeRoot, SEED_WORKTREE_PATH, markdown);
   });
 }
 
@@ -138,16 +150,23 @@ export interface PersonHandoffFingerprint {
   readonly text: string;
 }
 
-/** The person's handoff file's fingerprint and text, or null when it is absent. */
+/**
+ * The person's handoff file's fingerprint and text, or null when it is absent.
+ * Read through the `.phax-context` guard: a symbolic link is never read and
+ * counts as no file.
+ */
 export function fingerprintPersonHandoff(
   worktree: string,
-): Effect.Effect<PersonHandoffFingerprint | null, FsError, FileSystem> {
+): Effect.Effect<PersonHandoffFingerprint | null, PhaxContextRefusedError | FsError, FileSystem> {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(worktree, PERSON_HANDOFF_PATH);
-    if (!(yield* fs.exists(path))) return null;
-    const text = yield* fs.readText(path);
-    return { sha256: createHash("sha256").update(text).digest("hex"), text };
+    const read = yield* readPhaxContextFile(worktree, PERSON_HANDOFF_PATH);
+    if (read.kind === "linked") {
+      yield* Effect.logWarning(
+        `[phax] ${PERSON_HANDOFF_PATH} is a symbolic link (→ ${read.target}); not read.`,
+      );
+    }
+    if (read.kind !== "file") return null;
+    return { sha256: createHash("sha256").update(read.text).digest("hex"), text: read.text };
   });
 }
 
@@ -185,17 +204,15 @@ export function restorePersonHandoff(
   worktree: string,
   phaseFolder: string,
   turnLabel: string,
-): Effect.Effect<void, FsError, FileSystem> {
+): Effect.Effect<void, PhaxContextRefusedError | FsError, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const copy = personHandoffCopyPath(phaseFolder, turnLabel);
-    const target = join(worktree, PERSON_HANDOFF_PATH);
     if (yield* fs.exists(copy)) {
-      yield* fs.mkdirp(dirname(target));
-      yield* fs.writeAtomic(target, yield* fs.readText(copy));
+      yield* writePhaxContextFile(worktree, PERSON_HANDOFF_PATH, yield* fs.readText(copy));
       yield* fs.remove(copy);
-    } else if (yield* fs.exists(target)) {
-      yield* fs.remove(target);
+    } else {
+      yield* removePhaxContextEntry(worktree, PERSON_HANDOFF_PATH);
     }
   });
 }

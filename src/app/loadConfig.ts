@@ -16,7 +16,7 @@ import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { describePartialRefusal, parsePartialCommand } from "../domain/gate/partialCommand.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
 import { protectedList, submoduleConflict } from "../domain/security/protectedPaths.js";
-import { PHAX_CONTEXT_DIR } from "./worktree.js";
+import { PHAX_CONTEXT_DIR } from "./phaxContext.js";
 import {
   type ResolvedConfig,
   type PhaxUserOverlay,

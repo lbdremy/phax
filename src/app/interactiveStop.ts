@@ -17,6 +17,7 @@ import {
   type DeclaredStopReport,
   type FirstTurnProblem,
   type HeldStopReport,
+  type PhaxContextRefusedError,
   type RegistryCorruptionError,
   type SetupCommandFailedError,
 } from "../domain/errors.js";
@@ -279,7 +280,7 @@ function settleTurn(
   base: InteractiveSession,
   inProgress: FirstTurnInProgress,
   attempt: TurnAttempt,
-): Effect.Effect<Settled, FsError | GitError, FileSystem | Git> {
+): Effect.Effect<Settled, PhaxContextRefusedError | FsError | GitError, FileSystem | Git> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const label = turnLabel(inProgress.turn);
@@ -369,7 +370,7 @@ function settleLeftoverClosingTurn(
   input: FirstTurnInput,
   session: InteractiveSession,
   leftOver: TurnInProgress,
-): Effect.Effect<LeftoverSettlement, FsError, FileSystem> {
+): Effect.Effect<LeftoverSettlement, PhaxContextRefusedError | FsError, FileSystem> {
   return Effect.gen(function* () {
     yield* dropPersonHandoffCopy(input.phaseFolder, closingTurnLabel(leftOver.turn));
     yield* restoreWorktreeSeed(seedPaths(input.worktree, input.phaseFolder));
@@ -387,7 +388,11 @@ function settleLeftoverClosingTurn(
  */
 export function settleLeftoverTurn(
   input: FirstTurnInput,
-): Effect.Effect<LeftoverSettlement, FsError | GitError, FileSystem | Git> {
+): Effect.Effect<
+  LeftoverSettlement,
+  PhaxContextRefusedError | FsError | GitError,
+  FileSystem | Git
+> {
   return Effect.gen(function* () {
     const stored = yield* readInteractiveSession(input.phaseFolder);
     const leftOver = stored?.turnInProgress ?? null;
@@ -443,7 +448,7 @@ export function runFirstTurn(
   input: FirstTurnInput,
 ): Effect.Effect<
   FirstTurnResult,
-  FsError | GitError,
+  PhaxContextRefusedError | FsError | GitError,
   Backend | FileSystem | Git | SystemTelemetry
 > {
   return Effect.gen(function* () {
@@ -681,6 +686,7 @@ export function stopAtDeclaredPhase(
   input: DeclaredStopInput,
 ): Effect.Effect<
   DeclaredStopReport,
+  | PhaxContextRefusedError
   | FsError
   | GitError
   | ShellError
@@ -817,6 +823,7 @@ export function stopAtHeldPhase(
   input: HeldStopInput,
 ): Effect.Effect<
   HeldStopReport,
+  | PhaxContextRefusedError
   | FsError
   | GitError
   | ShellError

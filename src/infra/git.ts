@@ -2,7 +2,18 @@ import { Context, Effect, Layer, Predicate, absurd } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
-import { lstat, mkdtemp, readlink, realpath, rm, rmdir } from "node:fs/promises";
+import {
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  realpath,
+  rename,
+  rm,
+  rmdir,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
 import { Git, GitError, type GitOps, type GitTreeEntry, type CommitFiles } from "../ports/git.js";
@@ -349,6 +360,34 @@ function withTempIndex<A>(
 }
 
 const PHAX_CONTEXT_DIR = ".phax-context";
+
+// Append `line` to the exclude file at `path` unless a line equals it exactly,
+// creating `info/` and the file when missing. The new content goes through a
+// temporary sibling renamed into place, so a reader never sees half a file.
+function appendInfoExclude(path: string, line: string): Effect.Effect<boolean, GitError> {
+  return Effect.tryPromise({
+    try: async () => {
+      let existing = "";
+      try {
+        existing = await readFile(path, "utf8");
+      } catch (err) {
+        if (!Predicate.hasProperty(err, "code") || err.code !== "ENOENT") throw err;
+      }
+      if (existing.split(/\r?\n/).some((each) => each === line)) return false;
+      const separator = existing === "" || existing.endsWith("\n") ? "" : "\n";
+      await mkdir(dirname(path), { recursive: true });
+      const tmp = `${path}.tmp.${process.pid}.${Date.now()}`;
+      await writeFile(tmp, `${existing}${separator}${line}\n`, "utf8");
+      await rename(tmp, path);
+      return true;
+    },
+    catch: (err) =>
+      new GitError({
+        message: `Could not add "${line}" to ${path}: ${String(err)}`,
+        command: "info/exclude",
+      }),
+  });
+}
 
 function parseTreeId(stdout: string, command: string): Effect.Effect<string, GitError> {
   const tree = stdout.trim();
@@ -972,6 +1011,13 @@ const nodeGitOps: GitOps = {
       Effect.map(({ stdout }) => stdout !== ""),
     ),
 
+  ensureInfoExclude: (repo, line) =>
+    gitRun(["rev-parse", "--path-format=absolute", "--git-common-dir"], repo).pipe(
+      Effect.flatMap(({ stdout }) =>
+        appendInfoExclude(join(stdout.trim(), "info", "exclude"), line),
+      ),
+    ),
+
   deleteBranch: (name, force, repo) =>
     gitRun(["branch", force ? "-D" : "-d", "--", name], repo).pipe(Effect.asVoid),
 
@@ -991,9 +1037,10 @@ const nodeGitOps: GitOps = {
   },
 
   // Stage everything then commit; in a phase worktree of a rooted layer the
-  // commit runs no hook. `.gitignore` in the worktree excludes
-  // `.phax-context/` (phax metadata), so this leaves handoff/summary out of
-  // the commit while still capturing new and modified source files.
+  // commit runs no hook. The repository's info/exclude holds `/.phax-context`
+  // (phax metadata, a link of that name included), so this leaves
+  // handoff/summary out of the commit while still capturing new and modified
+  // source files.
   commit: (repo, subject, body) =>
     gitRun(["add", "-A"], repo).pipe(
       Effect.flatMap(() => gitRun(["commit", "-m", subject, "-m", body], repo)),

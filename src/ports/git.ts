@@ -98,6 +98,15 @@ export interface GitOps {
    * `git add`). `git ls-files --cached` on the literal path; an ignore rule does not hide it.
    */
   isTracked(repo: string, path: string): Effect.Effect<boolean, GitError>;
+  /**
+   * Appends `line` to the repository's `info/exclude`, which every worktree of
+   * the repository reads, unless a line of it already equals `line` exactly.
+   * The file is found through the common git dir, resolved in `repo` (the
+   * main checkout: `git rev-parse --path-format=absolute --git-common-dir`),
+   * created with its `info/` folder when missing, and rewritten atomically.
+   * Says whether it appended.
+   */
+  ensureInfoExclude(repo: string, line: string): Effect.Effect<boolean, GitError>;
   deleteBranch(name: BranchName, force: boolean, repo: string): Effect.Effect<void, GitError>;
   addWorktree(branch: BranchName, path: WorktreePath, repo: string): Effect.Effect<void, GitError>;
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError>;
