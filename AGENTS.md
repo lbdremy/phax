@@ -26,7 +26,9 @@ phax gate profiles both invoke `pnpm`. Don't use `npm`/`yarn` or commit a
 - `pnpm test:type` — typechecks the whole test suite (`tests/**`, including the type-level
   tests in `tests/type/`) against `src/` (`tsconfig.test.json`). The main `tsconfig.json`
   excludes `tests/`, so this is the only thing that keeps fixtures in step with the types.
-- `pnpm audit:architecture` — enforces the layer boundaries below as a test.
+- `pnpm audit:architecture` — enforces the layer boundaries below as a test. The guards
+  (`tests/unit/architecturalGuards*.test.ts`) are the operator's (protected): a boundary that
+  fails is fixed in the code, and a new or changed guard is the operator's to write.
 - `pnpm lint` / `lint:fix` — **oxlint** (not eslint); `pnpm lint` runs it type-aware and checks it against `lint-baseline.json`.
   A lint error is fixed in the code; a new disable directive needs the operator's entry in
   `lint-baseline.json` (protected); `pnpm lint --prune` / `--init` are the operator's.

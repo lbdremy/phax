@@ -14,6 +14,7 @@
     "packages/schemas/tsconfig.build.json",
     "vitest.config.ts",
     "vitest.e2e.config.ts",
+    "tests/unit/architecturalGuards*.test.ts",
     ".github/workflows/**",
     ".github/rulesets/**"
   ],
