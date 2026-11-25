@@ -140,7 +140,7 @@ Give phax one pure rule that says which gate profiles phax.json defines, and tha
   (a) When `runStatus.gateProfileId` is absent, refuse with exit 2 and one line: `the run recorded no gate profile — an older phax started it. Finish it with the phax release that started it, or archive it with \`phax archive <run> --force\` and run its plan again.` Here `<run>` is the qualified name.
   (b) Resolve the recorded id through `resolveGateProfileById`, with `workspaceId` undefined as today. When it is undefined, refuse with exit 2 and two lines: `undefinedGateProfileMessage(...)`, then `  the run recorded it when it started; restore it in phax.json, or archive the run with \`phax archive <run> --force\``.
   Resume never reads a profile from the plan.
-- Write the tests. Unit tests go in `tests/unit/gateProfile.test.ts`. Resume's integration tests go in `tests/integration/resumeGateProfile.test.ts`, built on the held-run harness (`tests/helpers/heldRunFixture.ts`, or the one `tests/integration/resume.test.ts` uses).
+- Write the tests. `tests/unit/gateProfile.test.ts` already exists on main and tests `resolveGateProfile` in `src/app/gates.ts`: add this phase's unit cases to it and keep its current cases. Resume's integration tests go in `tests/integration/resumeGateProfile.test.ts`, built on the held-run harness (`tests/helpers/heldRunFixture.ts`, or the one `tests/integration/resume.test.ts` uses).
   The fixture's phax.json lists `light` first. `light` has a step that writes a marker file. `standard` comes second, with a step that always fails (for example `node -e "process.exit(1)"`). Its plan.md already carries a `## Gate profile` section holding `` `light` ``, placed before `## Required commands`. The parser ignores that section until phase-05, and phase-06 makes run read it, so the test keeps working after both.
   Run with `--hold phase-02`, so the run stops awaiting review before phase-02's gate. Then rewrite phax.json:
   - with `standard` first, for the keeps case;
@@ -151,7 +151,6 @@ Give phax one pure rule that says which gate profiles phax.json defines, and tha
 ### Planned files to create
 
 - `src/domain/gate/gateProfile.ts`
-- `tests/unit/gateProfile.test.ts`
 - `tests/integration/resumeGateProfile.test.ts`
 
 ### Planned files to edit
@@ -161,6 +160,7 @@ Give phax one pure rule that says which gate profiles phax.json defines, and tha
 - `src/cli/definitions/resume.ts`
 - `src/domain/errors.ts`
 - `src/cli/commands/runLayers.ts`
+- `tests/unit/gateProfile.test.ts`
 
 ### Optional files that may be edited
 

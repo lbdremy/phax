@@ -216,12 +216,11 @@
         "Make `resolveGateProfile` in `src/app/gates.ts` delegate to `resolveGateProfileById`. It keeps its signature and still throws, and its thrown message becomes `undefinedGateProfileMessage`. The dry run and lint still call it; phase-06 reworks them.",
         "Add a tagged `GateProfileUndefinedError` (fields `id`, `defined`, `message`) to `src/domain/errors.ts`, and map it to exit 2 in `exitCodeForError`. `resolveGateSteps` in `src/app/runPreflight.ts` fails with it rather than wrapping the thrown message in `UnsafeGitStateError`. Add it to `RunPreflightRefusal`.",
         "Resume, in `src/cli/definitions/resume.ts`, replaces the first-key fallback, at the same place before `executePlan` so no phase's gate runs:\n(a) When `runStatus.gateProfileId` is absent, refuse with exit 2 and one line: `the run recorded no gate profile — an older phax started it. Finish it with the phax release that started it, or archive it with \\`phax archive <run> --force\\` and run its plan again.` Here `<run>` is the qualified name.\n(b) Resolve the recorded id through `resolveGateProfileById`, with `workspaceId` undefined as today. When it is undefined, refuse with exit 2 and two lines: `undefinedGateProfileMessage(...)`, then `  the run recorded it when it started; restore it in phax.json, or archive the run with \\`phax archive <run> --force\\``.\nResume never reads a profile from the plan.",
-        "Write the tests. Unit tests go in `tests/unit/gateProfile.test.ts`. Resume's integration tests go in `tests/integration/resumeGateProfile.test.ts`, built on the held-run harness (`tests/helpers/heldRunFixture.ts`, or the one `tests/integration/resume.test.ts` uses).\nThe fixture's phax.json lists `light` first. `light` has a step that writes a marker file. `standard` comes second, with a step that always fails (for example `node -e \"process.exit(1)\"`). Its plan.md already carries a `## Gate profile` section holding `` `light` ``, placed before `## Required commands`. The parser ignores that section until phase-05, and phase-06 makes run read it, so the test keeps working after both.\nRun with `--hold phase-02`, so the run stops awaiting review before phase-02's gate. Then rewrite phax.json:\n- with `standard` first, for the keeps case;\n- without `light`, for the refusal case.\nThen resume with `--yes`.\nGive each test its own temporary repository. Spawn every child through `tests/helpers/boundedSpawn.ts`. Never read `~/.phax`, a real provider home, the global git config or the network."
+        "Write the tests. `tests/unit/gateProfile.test.ts` already exists on main and tests `resolveGateProfile` in `src/app/gates.ts`: add this phase's unit cases to it and keep its current cases. Resume's integration tests go in `tests/integration/resumeGateProfile.test.ts`, built on the held-run harness (`tests/helpers/heldRunFixture.ts`, or the one `tests/integration/resume.test.ts` uses).\nThe fixture's phax.json lists `light` first. `light` has a step that writes a marker file. `standard` comes second, with a step that always fails (for example `node -e \"process.exit(1)\"`). Its plan.md already carries a `## Gate profile` section holding `` `light` ``, placed before `## Required commands`. The parser ignores that section until phase-05, and phase-06 makes run read it, so the test keeps working after both.\nRun with `--hold phase-02`, so the run stops awaiting review before phase-02's gate. Then rewrite phax.json:\n- with `standard` first, for the keeps case;\n- without `light`, for the refusal case.\nThen resume with `--yes`.\nGive each test its own temporary repository. Spawn every child through `tests/helpers/boundedSpawn.ts`. Never read `~/.phax`, a real provider home, the global git config or the network."
       ],
       "planMarkdownAnchor": "#phase-01-gate-profile-resolution",
       "plannedFilesToCreate": [
         "src/domain/gate/gateProfile.ts",
-        "tests/unit/gateProfile.test.ts",
         "tests/integration/resumeGateProfile.test.ts"
       ],
       "plannedFilesToEdit": [
@@ -229,7 +228,8 @@
         "src/app/runPreflight.ts",
         "src/cli/definitions/resume.ts",
         "src/domain/errors.ts",
-        "src/cli/commands/runLayers.ts"
+        "src/cli/commands/runLayers.ts",
+        "tests/unit/gateProfile.test.ts"
       ],
       "optionalFilesToEdit": [
         "tests/unit/resume.test.ts",
