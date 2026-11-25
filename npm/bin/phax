@@ -31,6 +31,7 @@ const START_REASONS = {
   EACCES: "permission denied",
   ENOENT: "no such file or directory",
   ENOEXEC: "exec format error",
+  E2BIG: "argument list too long",
 };
 
 // The shipped values. `main` is the only production caller; nothing here reads
@@ -125,7 +126,7 @@ function fetchUrl(config, originalUrl, consume, options = {}) {
       const requestOptions = { headers: { "User-Agent": `phax/${config.version}` } };
       if (options.signal) requestOptions.signal = options.signal;
       const req = config.transport.get(url, requestOptions, (res) => {
-        if (current.req !== req) {
+        if (settled || current.req !== req) {
           res.destroy();
           return;
         }
@@ -190,16 +191,29 @@ function fetchUrl(config, originalUrl, consume, options = {}) {
   });
 }
 
-// Write the body at `url` to `dest` through a write stream.
-function download(config, url, dest) {
+// Write the body at `url` to `dest` through a write stream, held in
+// `transfer.file` once the response arrives so a signal guard can close it. The
+// stream opens its file asynchronously: the promise settles only once the stream
+// is closed, so no file appears in `dest`'s directory after it settles.
+function download(config, url, dest, transfer) {
+  const closed = () =>
+    transfer.file === null || transfer.file.closed
+      ? Promise.resolve()
+      : new Promise((resolve) => transfer.file.once("close", resolve));
   return fetchUrl(
     config,
     url,
     (res) =>
       new Promise((resolve, reject) => {
-        pipeline(res, fs.createWriteStream(dest), (err) => (err ? reject(err) : resolve()));
+        transfer.file = fs.createWriteStream(dest);
+        pipeline(res, transfer.file, (err) => (err ? reject(err) : resolve()));
       }),
-  );
+  ).then(closed, (err) => {
+    if (transfer.file !== null) transfer.file.destroy();
+    return closed().then(() => {
+      throw err;
+    });
+  });
 }
 
 function fetchText(config, url) {
@@ -227,6 +241,15 @@ function sha256File(filePath) {
   });
 }
 
+// Remove a private download directory. A failure is not reported: a private
+// directory is never run, and the caller's own outcome (the binary, the reason
+// a download failed, the death by a signal) must not be replaced by an fs error.
+function removePrivateDir(privateDir) {
+  try {
+    fs.rmSync(privateDir, { recursive: true, force: true });
+  } catch {}
+}
+
 // The cache path of the binary, downloading and verifying it on a first run.
 // The download happens in a private mkdtemp directory; only a verified,
 // executable binary reaches the cache path, by one rename. The private
@@ -238,19 +261,27 @@ async function ensureBinary(config, name) {
   const versionDir = path.dirname(dest);
   fs.mkdirSync(versionDir, { recursive: true });
   const privateDir = fs.mkdtempSync(path.join(versionDir, ".download-"));
+  const transfer = { file: null };
   // A signal during the first run removes the private directory and ends the
-  // launcher by that signal; the binary is never started.
+  // launcher by that signal; the binary is never started. The download's write
+  // stream may still be opening its file, so it is closed first: a removal
+  // while the file is being created could leave the directory behind.
+  let stopping = false;
   const guards = FORWARDED_SIGNALS.map((signal) => {
     const guard = () => {
-      // The download's write stream may be creating its file while this runs,
-      // so a first removal can meet a directory that is no longer empty: retry,
-      // and never let a failed removal keep the launcher from dying by `signal`.
-      try {
-        fs.rmSync(privateDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 10 });
-      } catch {
-        // Left behind: a private directory is never run, and dying by `signal` comes first.
+      if (stopping) return;
+      stopping = true;
+      const stop = () => {
+        removePrivateDir(privateDir);
+        dieOf(signal);
+      };
+      const file = transfer.file;
+      if (file === null || file.closed) {
+        stop();
+        return;
       }
-      dieOf(signal);
+      file.once("close", stop);
+      file.destroy();
     };
     process.on(signal, guard);
     return [signal, guard];
@@ -259,7 +290,7 @@ async function ensureBinary(config, name) {
     const urls = releaseUrls(config, name);
     const privateFile = path.join(privateDir, name);
     try {
-      await download(config, urls.binary, privateFile);
+      await download(config, urls.binary, privateFile, transfer);
     } catch (err) {
       throw new Error(`download failed: ${err.message}`);
     }
@@ -290,8 +321,10 @@ async function ensureBinary(config, name) {
     fs.renameSync(privateFile, dest);
     return dest;
   } finally {
+    // Removed while the guards still hold the signals, so a signal right after
+    // the guards go finds nothing left to clean.
+    removePrivateDir(privateDir);
     for (const [signal, guard] of guards) process.removeListener(signal, guard);
-    fs.rmSync(privateDir, { recursive: true, force: true });
   }
 }
 
@@ -362,7 +395,14 @@ function checkForUpdate(config) {
 // End this process by `signal`, as the binary ended: drop every listener so the
 // default action applies, then re-raise it. A signal Node ignores by default
 // (SIGPIPE) leaves the process alive; it then exits 128 + n on the next timer turn.
+// SIGUSR1 is never re-raised: Node reserves it to start its inspector, which
+// would open a debug port instead of ending the launcher. It exits 128 + n,
+// the status a shell reports for that death.
 function dieOf(signal) {
+  if (signal === "SIGUSR1") {
+    process.exit(128 + os.constants.signals.SIGUSR1);
+    return;
+  }
   process.removeAllListeners(signal);
   process.kill(process.pid, signal);
   setTimeout(() => process.exit(128 + (os.constants.signals[signal] || 0)), 0);
@@ -396,7 +436,14 @@ function startBinary(binPath, args) {
       resolve(outcome);
     }
 
-    child = spawn(binPath, args, { stdio: "inherit" });
+    // Some start failures (ENOEXEC, E2BIG, macOS's EBADARCH) throw here instead
+    // of arriving as an `error` event; both end in the same report.
+    try {
+      child = spawn(binPath, args, { stdio: "inherit" });
+    } catch (err) {
+      settle({ error: { code: err.code, message: err.message } });
+      return;
+    }
     child.on("error", (err) => settle({ error: { code: err.code, message: err.message } }));
     child.on("exit", (code, signal) => settle({ code, signal }));
     if (child.pid !== undefined) for (const signal of pending.splice(0)) child.kill(signal);

@@ -9,6 +9,9 @@
 // The server listens on 127.0.0.1:0, logs every request as one JSON line
 // ({ method, path }) to <log file>, serves <fake binary file> at
 // /releases/v<version>/<name> and its sha256 line at the sidecar path.
+// A `stall-<SIGNAL>` scenario sends half the binary, waits until the launcher's
+// partial file holds bytes on disk, reports its size on stderr
+// ("drive: partial file holds <n> bytes") and only then sends <SIGNAL>.
 // This file starts no process itself: the launcher it requires does the
 // spawning, inside the test's bounded process group.
 
@@ -40,6 +43,42 @@ function fakeBytes() {
   return fs.readFileSync(fakeFile);
 }
 
+// The size of the partial file in the launcher's private download directory, or 0.
+function partialSize() {
+  const versionDir = path.dirname(launcher.cachePath({ version, home }, name));
+  let entries;
+  try {
+    entries = fs.readdirSync(versionDir);
+  } catch {
+    return 0;
+  }
+  for (const entry of entries) {
+    if (!entry.startsWith(".download-")) continue;
+    try {
+      return fs.statSync(path.join(versionDir, entry, name)).size;
+    } catch {}
+  }
+  return 0;
+}
+
+const PARTIAL_BOUND_MS = 10000;
+
+function signalOncePartial(signal) {
+  const started = Date.now();
+  const poll = setInterval(() => {
+    const size = partialSize();
+    if (size > 0) {
+      clearInterval(poll);
+      process.stderr.write(`drive: partial file holds ${size} bytes\n`);
+      process.kill(process.pid, signal);
+    } else if (Date.now() - started > PARTIAL_BOUND_MS) {
+      clearInterval(poll);
+      process.stderr.write(`drive: no partial file within ${PARTIAL_BOUND_MS} ms\n`);
+      process.exit(3);
+    }
+  }, 2);
+}
+
 function digestOf(bytes) {
   return crypto.createHash("sha256").update(bytes).digest("hex");
 }
@@ -61,7 +100,7 @@ function onRequest(req, res) {
       const body = fakeBytes();
       res.writeHead(200, { "Content-Length": body.length + 1024 });
       res.write(body.subarray(0, Math.max(1, Math.floor(body.length / 2))), () => {
-        process.kill(process.pid, stall);
+        signalOncePartial(stall);
       });
       return;
     }

@@ -13,7 +13,7 @@ import {
   rmSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
+import { constants, tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
@@ -198,6 +198,15 @@ describe("npm launcher process: the real file with a cached binary", () => {
     expect(result.signal).toBe("SIGTERM");
   });
 
+  it("exits 128 + n when the binary dies of SIGUSR1, without starting Node's inspector", () => {
+    const w = world();
+    placeCached(w, "#!/bin/sh\nkill -USR1 $$\n");
+    const result = runReal(w, []);
+    expect(result.status).toBe(128 + constants.signals.SIGUSR1);
+    expect(result.signal).toBeNull();
+    expect(result.stderr).not.toContain("Debugger");
+  });
+
   it("reports a non-executable cache file with its path, EACCES and the remedy", () => {
     const w = world();
     placeCached(w, "#!/bin/sh\nexit 0\n", 0o644);
@@ -209,6 +218,18 @@ describe("npm launcher process: the real file with a cached binary", () => {
     expect(result.stderr).toContain(
       `  remove ${w.versionDir} and run phax again to download it afresh\n`,
     );
+  });
+});
+
+describe("npm launcher start errors that spawn throws", () => {
+  it("resolves an argument list too long as a start error and keeps no signal listener", async () => {
+    const w = world();
+    placeCached(w, "#!/bin/sh\nexit 0\n");
+    const listeners = process.listenerCount("SIGINT");
+    // Past ARG_MAX on macOS and past one argument's limit on Linux: spawn throws E2BIG.
+    const outcome = await launcher.startBinary(w.cache, ["x".repeat(4 * 1024 * 1024)]);
+    expect(outcome).toEqual({ error: { code: "E2BIG", message: expect.any(String) } });
+    expect(process.listenerCount("SIGINT")).toBe(listeners);
   });
 });
 
@@ -245,6 +266,7 @@ describe("npm launcher process: first runs through the driver", () => {
       const fake = markerFake(join(w.root, "fake"));
       const marker = join(w.root, "marker");
       const stalled = driveSignal(`stall-${signal}`, w, fake, [marker, "0"], signal);
+      expect(stalled.stderr).toMatch(/drive: partial file holds [1-9]\d* bytes\n/);
       expect(stalled.signal).toBe(signal);
       expect(downloadEntries(w)).toEqual([]);
       expect(existsSync(w.cache)).toBe(false);

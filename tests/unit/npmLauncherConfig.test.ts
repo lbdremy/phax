@@ -108,6 +108,11 @@ describe("npm launcher: fixed download source", () => {
   });
 
   it("reads no process.env", () => {
-    expect(readFileSync(LAUNCHER_SOURCE, "utf8")).not.toContain("process.env");
+    // Past the shebang (`#!/usr/bin/env node`), the source names no `env` in any form
+    // (`process.env`, `const { env } = process`, `require("node:process").env`) and indexes
+    // `process` by no computed key (`process["env"]`).
+    const body = readFileSync(LAUNCHER_SOURCE, "utf8").split("\n").slice(1).join("\n");
+    expect(body).not.toMatch(/\benv\b/);
+    expect(body).not.toMatch(/process\s*\[/);
   });
 });
