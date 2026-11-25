@@ -118,7 +118,7 @@ afterEach(() => {
 const REFUSAL = () =>
   [
     `.phax-context is a symbolic link (→ ${outside}), not a directory`,
-    "phax writes and reads .phax-context only as a real directory; remove the link from the branch, then resume.",
+    "phax writes and reads .phax-context only as a real directory; remove the link from the branch it came from, then run phax reset-phase and phax resume.",
   ].join("\n");
 
 const realLayers = () => Layer.mergeAll(NodeFileSystemLayer, makeNodeGitLayer({ repoRoot }));

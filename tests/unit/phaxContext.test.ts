@@ -108,7 +108,7 @@ describe("ensurePhaxContextDir", () => {
     expect(Result.isFailure(result) ? result.failure.message : "").toBe(
       [
         `.phax-context is a symbolic link (→ ${OUTSIDE}), not a directory`,
-        "phax writes and reads .phax-context only as a real directory; remove the link from the branch, then resume.",
+        "phax writes and reads .phax-context only as a real directory; remove the link from the branch it came from, then run phax reset-phase and phax resume.",
       ].join("\n"),
     );
     expect(Result.isFailure(result) && result.failure).toMatchObject({ linkTarget: OUTSIDE });
