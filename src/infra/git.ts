@@ -1,11 +1,16 @@
-import { Effect, Layer, Predicate, absurd } from "effect";
+import { Context, Effect, Layer, Predicate, absurd } from "effect";
 import { execFile as nodeExecFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import type { Stats } from "node:fs";
 import { lstat, mkdtemp, readlink, realpath, rm, rmdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
-import { Git, GitError, type GitTreeEntry, type CommitFiles } from "../ports/git.js";
+import { Git, GitError, type GitOps, type GitTreeEntry, type CommitFiles } from "../ports/git.js";
+import {
+  WORKTREE_HARDENING_ARGS,
+  makeWorktreeGuard,
+  type WorktreeGuard,
+} from "./gitWorktreeGuard.js";
 import type {
   ObservedEntry,
   ObservedLink,
@@ -41,6 +46,8 @@ interface GitRunOptions {
 }
 
 function toGitError(err: unknown, command: string, args: readonly string[]): GitError {
+  // A refusal of the worktree guard is already the error to report.
+  if (err instanceof GitError) return err;
   const e = err as NodeJS.ErrnoException & { stdout?: string; stderr?: string };
   const stderrStr = e.stderr !== undefined ? e.stderr : undefined;
   const exitCode = typeof e.code === "number" ? e.code : undefined;
@@ -53,20 +60,56 @@ function toGitError(err: unknown, command: string, args: readonly string[]): Git
   });
 }
 
+/**
+ * The worktree guard of a layer built with the main checkout's root
+ * (`makeNodeGitLayer({ repoRoot })`), provided around each of that layer's
+ * port calls; null in the repository-less layer, whose calls run as given.
+ */
+const CurrentWorktreeGuard = Context.Reference<WorktreeGuard | null>(
+  "phax/infra/git/CurrentWorktreeGuard",
+  { defaultValue: () => null },
+);
+
+// Every git process of a port call starts here. With a guard, a call whose
+// cwd lies in a registered phase worktree first has the worktree's `.git`
+// pointer checked (a changed pointer rejects with the refusal, and no git
+// process starts), then runs with hooks and fsmonitor off on its command line.
 // The output's type follows the encoding asked for.
 function runGitProcess(
   args: readonly string[],
   cwd: string,
   encoding: "utf8",
   opts: GitRunOptions,
+  guard: WorktreeGuard | null,
 ): Promise<{ stdout: string; stderr: string }>;
 function runGitProcess(
   args: readonly string[],
   cwd: string,
   encoding: "buffer",
   opts: GitRunOptions,
+  guard: WorktreeGuard | null,
 ): Promise<{ stdout: Buffer; stderr: string }>;
-function runGitProcess(
+async function runGitProcess(
+  args: readonly string[],
+  cwd: string,
+  encoding: "utf8" | "buffer",
+  opts: GitRunOptions,
+  guard: WorktreeGuard | null,
+): Promise<{ stdout: string | Buffer; stderr: string }> {
+  const decision = guard === null ? null : await guard.decide(cwd);
+  if (decision?.kind === "refused") {
+    throw new GitError({
+      message: decision.message,
+      command: `git ${args.join(" ")}`,
+      args: [...args],
+      refusal: "gitdir-pointer",
+    });
+  }
+  const finalArgs = decision?.kind === "hardened" ? [...WORKTREE_HARDENING_ARGS, ...args] : args;
+  return spawnGit(finalArgs, cwd, encoding, opts);
+}
+
+function spawnGit(
   args: readonly string[],
   cwd: string,
   encoding: "utf8" | "buffer",
@@ -100,10 +143,12 @@ function gitRun(
   opts: GitRunOptions = {},
 ): Effect.Effect<{ stdout: string; stderr: string }, GitError> {
   const command = `git ${args.join(" ")}`;
-  return Effect.tryPromise({
-    try: () => runGitProcess(args, cwd, "utf8", opts),
-    catch: (err) => toGitError(err, command, args),
-  });
+  return Effect.flatMap(CurrentWorktreeGuard, (guard) =>
+    Effect.tryPromise({
+      try: () => runGitProcess(args, cwd, "utf8", opts, guard),
+      catch: (err) => toGitError(err, command, args),
+    }),
+  );
 }
 
 function gitRunBuffer(
@@ -112,10 +157,12 @@ function gitRunBuffer(
   opts: GitRunOptions = {},
 ): Effect.Effect<{ stdout: Buffer; stderr: string }, GitError> {
   const command = `git ${args.join(" ")}`;
-  return Effect.tryPromise({
-    try: () => runGitProcess(args, cwd, "buffer", opts),
-    catch: (err) => toGitError(err, command, args),
-  });
+  return Effect.flatMap(CurrentWorktreeGuard, (guard) =>
+    Effect.tryPromise({
+      try: () => runGitProcess(args, cwd, "buffer", opts, guard),
+      catch: (err) => toGitError(err, command, args),
+    }),
+  );
 }
 
 // Resolve a ref to its commit sha, or null when it does not exist. Shared by
@@ -856,7 +903,13 @@ function observeWorktreeEffect(
   );
 }
 
-export const NodeGitLayer = Layer.succeed(Git, {
+// The registrations a guard caches change when a worktree is added, removed
+// or pruned.
+const invalidateGuard = Effect.flatMap(CurrentWorktreeGuard, (guard) =>
+  Effect.sync(() => guard?.invalidate()),
+);
+
+const nodeGitOps: GitOps = {
   isClean: (repo) =>
     gitRun(["status", "--porcelain"], repo).pipe(
       Effect.map(({ stdout }) => isPortcelainClean(stdout)),
@@ -922,17 +975,23 @@ export const NodeGitLayer = Layer.succeed(Git, {
   deleteBranch: (name, force, repo) =>
     gitRun(["branch", force ? "-D" : "-d", "--", name], repo).pipe(Effect.asVoid),
 
+  // Always hardened, whatever the layer: the checkout `worktree add` runs
+  // would otherwise run a post-checkout hook the branch tracks.
   addWorktree: (branch, path, repo) =>
-    gitRun(["worktree", "add", "--", path, branch], repo).pipe(Effect.asVoid),
+    gitRun([...WORKTREE_HARDENING_ARGS, "worktree", "add", "--", path, branch], repo).pipe(
+      Effect.asVoid,
+      Effect.ensuring(invalidateGuard),
+    ),
 
   removeWorktree: (path, force, repo) => {
     const args: string[] = ["worktree", "remove"];
     if (force) args.push("--force");
     args.push("--", path);
-    return gitRun(args, repo).pipe(Effect.asVoid);
+    return gitRun(args, repo).pipe(Effect.asVoid, Effect.ensuring(invalidateGuard));
   },
 
-  // Stage everything then commit. `.gitignore` in the worktree excludes
+  // Stage everything then commit; in a phase worktree of a rooted layer the
+  // commit runs no hook. `.gitignore` in the worktree excludes
   // `.phax-context/` (phax metadata), so this leaves handoff/summary out of
   // the commit while still capturing new and modified source files.
   commit: (repo, subject, body) =>
@@ -986,25 +1045,27 @@ export const NodeGitLayer = Layer.succeed(Git, {
       beforePath,
       afterPath,
     ];
-    return Effect.tryPromise({
-      try: () =>
-        runGitProcess(args, repo, "utf8", {}).then(
-          ({ stdout }) => relabelDiffHeader(stdout, label),
-          (err: unknown) => {
-            if (
-              Predicate.hasProperty(err, "code") &&
-              err.code === 1 &&
-              Predicate.hasProperty(err, "stdout") &&
-              typeof err.stdout === "string" &&
-              err.stdout.length > 0
-            ) {
-              return relabelDiffHeader(err.stdout, label);
-            }
-            throw err;
-          },
-        ),
-      catch: (err) => toGitError(err, `git ${args.join(" ")}`, args),
-    });
+    return Effect.flatMap(CurrentWorktreeGuard, (guard) =>
+      Effect.tryPromise({
+        try: () =>
+          runGitProcess(args, repo, "utf8", {}, guard).then(
+            ({ stdout }) => relabelDiffHeader(stdout, label),
+            (err: unknown) => {
+              if (
+                Predicate.hasProperty(err, "code") &&
+                err.code === 1 &&
+                Predicate.hasProperty(err, "stdout") &&
+                typeof err.stdout === "string" &&
+                err.stdout.length > 0
+              ) {
+                return relabelDiffHeader(err.stdout, label);
+              }
+              throw err;
+            },
+          ),
+        catch: (err) => toGitError(err, `git ${args.join(" ")}`, args),
+      }),
+    );
   },
 
   worktreeIsClean: (path) =>
@@ -1012,7 +1073,8 @@ export const NodeGitLayer = Layer.succeed(Git, {
       Effect.map(({ stdout }) => isPortcelainClean(stdout)),
     ),
 
-  pruneWorktrees: (repo) => gitRun(["worktree", "prune"], repo).pipe(Effect.asVoid),
+  pruneWorktrees: (repo) =>
+    gitRun(["worktree", "prune"], repo).pipe(Effect.asVoid, Effect.ensuring(invalidateGuard)),
 
   diffNameStatus: (path) =>
     gitRun(["diff", "--name-status", "HEAD^", "HEAD"], path as string).pipe(
@@ -1332,8 +1394,36 @@ export const NodeGitLayer = Layer.succeed(Git, {
     ).pipe(Effect.map(({ stdout }) => stdout)),
 
   commitTree: (worktree, tree, subject, body) => commitTreeEffect(worktree, tree, subject, body),
-});
+};
 
-export function makeNodeGitLayer(): Layer.Layer<Git> {
-  return NodeGitLayer;
+/**
+ * The repository-less git layer: every call runs as given, except
+ * `addWorktree`, which always runs with hooks and fsmonitor off. For commands
+ * that stay in the main checkout, and for tests.
+ */
+export const NodeGitLayer: Layer.Layer<Git> = Layer.succeed(Git, nodeGitOps);
+
+const plainGitRunner = (args: readonly string[], cwd: string): Promise<string> =>
+  spawnGit(args, cwd, "utf8", {}).then(({ stdout }) => stdout.toString());
+
+/**
+ * The git layer. Built with the main checkout's root, it hardens every call
+ * whose cwd lies in a linked worktree registered in that repository, other
+ * than the root itself: the worktree's `.git` must still name its registered
+ * gitdir, or the call fails with a GitError and no git runs there; then it
+ * runs with `-c core.hooksPath=/dev/null -c core.fsmonitor=false`. Calls in
+ * the main checkout, a records clone or anywhere else run as given. Without a
+ * root it is `NodeGitLayer`.
+ *
+ * The layer provides the guard next to the Git service, as the current
+ * worktree guard of every effect it is provided to, so each port call reads it
+ * where it runs.
+ */
+export function makeNodeGitLayer(options?: { readonly repoRoot: string }): Layer.Layer<Git> {
+  if (options === undefined) return NodeGitLayer;
+  const { repoRoot } = options;
+  return Layer.merge(
+    NodeGitLayer,
+    Layer.sync(CurrentWorktreeGuard, () => makeWorktreeGuard(repoRoot, plainGitRunner)),
+  );
 }

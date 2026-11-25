@@ -469,7 +469,14 @@ describe("a mistral-vibe secure phase that declares protectedPaths", () => {
           string,
           { denylist?: string[] }
         >;
-        const guards = [".vibe", ".agents"].map((dir) => `${observed.worktree}/${dir}/**`);
+        const guards = [
+          ...[".vibe", ".agents"].map((dir) => `${observed.worktree}/${dir}/**`),
+          // The worktree's .git, under the cwd and under its real path.
+          `${observed.worktree}/.git`,
+          `${observed.worktree}/.git/**`,
+          `${observed.realWorktree}/.git`,
+          `${observed.realWorktree}/.git/**`,
+        ];
         for (const tool of ["write_file", "edit"]) {
           expect(tools[tool]?.denylist?.slice(0, guards.length)).toEqual(guards);
           expect(tools[tool]?.denylist?.slice(guards.length)).toEqual(entries);

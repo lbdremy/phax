@@ -1,6 +1,6 @@
 import { Data, Effect, Result } from "effect";
 import { randomUUID } from "node:crypto";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import {
   decodeBranchName,
   decodePhaseId,
@@ -82,6 +82,12 @@ export interface ResetPreview {
   readonly phaseCommit: string | null;
   /** The stopped phase's worktree; null away from a stop. */
   readonly worktree: string | null;
+}
+
+/** Whether `path` lies strictly inside `root`. */
+function isUnder(path: string, root: string): boolean {
+  const rel = relative(resolve(root), resolve(path));
+  return rel !== "" && rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel);
 }
 
 function archiveTimestamp(): string {
@@ -185,6 +191,10 @@ function resetPhaseLocked(
     }
 
     // 3) Remove the worktree if one was recorded, tolerant of already-absent.
+    //    `git worktree remove --force` refuses a worktree whose `.git` the
+    //    agent rewrote; such a worktree under phax's state root is deleted
+    //    (links removed, never followed) and its registration pruned, so a
+    //    resume creates it again.
     let worktreeRemoved = false;
     if (target.worktreePath !== undefined) {
       const wtPathResult = decodeWorktreePath(target.worktreePath);
@@ -193,6 +203,15 @@ function resetPhaseLocked(
           git.removeWorktree(wtPathResult.success, true, opts.repoRoot),
         );
         worktreeRemoved = Result.isSuccess(wtResult);
+        if (
+          !worktreeRemoved &&
+          isUnder(target.worktreePath, opts.stateRoot) &&
+          (yield* fs.exists(target.worktreePath))
+        ) {
+          yield* fs.remove(target.worktreePath);
+          yield* git.pruneWorktrees(opts.repoRoot);
+          worktreeRemoved = true;
+        }
       }
     }
 

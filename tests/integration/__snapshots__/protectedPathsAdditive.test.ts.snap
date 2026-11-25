@@ -671,21 +671,21 @@ exports[`a phase on mistral-vibe in a project that declares no protectedPaths > 
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",
     "VIBE_OUTSIDE_WORKDIR": "deny",
-    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
   },
   {
     "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",
     "VIBE_OUTSIDE_WORKDIR": "deny",
-    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
   },
   {
     "VIBE_BYPASS_TOOL_PERMISSIONS": "false",
     "VIBE_ENABLE_CONNECTORS": "false",
     "VIBE_ENABLE_MCP": "false",
     "VIBE_OUTSIDE_WORKDIR": "deny",
-    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
+    "VIBE_TOOLS": "{"bash":{"permission":"ask","allowlist":["node scripts/gate.mjs"],"outside_workdir":"deny"},"read_file":{"allowlist":[],"outside_workdir":"deny"},"write_file":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"edit":{"allowlist":[],"denylist":["<ROOT>/state/worktrees/example.invoice-export/phase-01/.vibe/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.agents/**","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git","<ROOT>/state/worktrees/example.invoice-export/phase-01/.git/**"],"outside_workdir":"deny"},"grep":{"allowlist":[]}}",
   },
 ]
 `;

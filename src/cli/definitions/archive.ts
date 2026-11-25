@@ -105,7 +105,7 @@ export const archiveCommand = defineCommand({
         Effect.provide(
           Layer.mergeAll(
             makeRepoRootedFileSystemLayer(config),
-            makeNodeGitLayer(),
+            makeNodeGitLayer({ repoRoot: config.repoRoot }),
             makeNodeLockLayer(config.stateRoot),
             NodeShellLayer,
             makeGlobalTelemetryJournalLayerOrNoop(),

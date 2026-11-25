@@ -20,7 +20,7 @@ import { runKey } from "../../domain/runRef.js";
 import { getSessionAdapter } from "../../domain/session/index.js";
 import { makeNodeEditorLayer } from "../../infra/editor.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
-import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitLayer, makeNodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import type { Backend } from "../../ports/backend.js";
@@ -333,7 +333,12 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
           Effect.provide(
             Layer.mergeAll(
               fsLayer,
-              deps.gitLayer ?? NodeGitLayer,
+              // Rooted at the project's main checkout when there is one; another
+              // project's run has no known root here.
+              deps.gitLayer ??
+                (config !== undefined
+                  ? makeNodeGitLayer({ repoRoot: config.repoRoot })
+                  : NodeGitLayer),
               deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
               deps.lockLayer ?? makeNodeLockLayer(stateRoot),
               NoopSystemTelemetryLayer,

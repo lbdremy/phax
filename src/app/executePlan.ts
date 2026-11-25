@@ -56,7 +56,7 @@ import {
 import type { PhaxEvent, PhaxEventBase } from "../domain/events.js";
 import { Backend, type AgentRunOptions } from "../ports/backend.js";
 import { FileSystem, FsError } from "../ports/fs.js";
-import { Git, type GitError } from "../ports/git.js";
+import { Git, GitError } from "../ports/git.js";
 import { GitHub } from "../ports/github.js";
 import type { OutputPort } from "../ports/output.js";
 import { Shell, type ShellError } from "../ports/shell.js";
@@ -220,6 +220,10 @@ function notedPhaseCommit(phaseFolderPath: string) {
 
 function isHandoffPausedError(e: unknown): e is HandoffPausedError {
   return e instanceof HandoffPausedError;
+}
+
+function isGitdirPointerRefusal(e: unknown): boolean {
+  return e instanceof GitError && e.refusal === "gitdir-pointer";
 }
 
 function isCommitPausedError(e: unknown): e is CommitPausedError {
@@ -2519,9 +2523,11 @@ export function executePlan(
           repoRoot: config.repoRoot,
           runPath,
         }).pipe(
+          // A worktree whose .git pointer was rewritten is no commit failure to
+          // resume: it fails the run, so `phax reset-phase` can recover it.
           Effect.catchIf(
             (e): e is Exclude<typeof e, PhaseHadNoChangesError> =>
-              !(e instanceof PhaseHadNoChangesError),
+              !(e instanceof PhaseHadNoChangesError) && !isGitdirPointerRefusal(e),
             (e) => pauseAsCommitFailed(e instanceof Error ? e.message : String(e), e),
           ),
         );
