@@ -274,6 +274,10 @@ completes-spec: true
 
 Store the rotated logs.
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - pnpm check:full

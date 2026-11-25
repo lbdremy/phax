@@ -112,6 +112,10 @@ completes-spec: true
 ---
 # Invoice export
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

@@ -35,6 +35,10 @@ ${approved}---
 
 Sync the garden.
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - pnpm check:full

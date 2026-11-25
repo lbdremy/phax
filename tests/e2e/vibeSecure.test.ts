@@ -145,6 +145,10 @@ source-spec: null
 
 # vibe-secure — one-phase probe
 
+## Gate profile
+
+\`minimal\`
+
 ## Required commands
 
 - (none)

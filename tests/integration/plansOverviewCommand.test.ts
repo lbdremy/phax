@@ -60,6 +60,10 @@ function planMd(opts: { frontmatter?: string; anchor?: string } = {}): string {
   const anchor = opts.anchor ?? " {#phase-01-widget}";
   return `${frontmatter}# Made-up widget
 
+## Gate profile
+
+\`fast\`
+
 ## Required commands
 
 - (none)

@@ -82,6 +82,10 @@ Does part ${index + 1}.
   });
   return `${frontmatter}# Invoice export
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

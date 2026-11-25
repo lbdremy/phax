@@ -182,6 +182,10 @@ export function invoiceExportPlan(
   const planMd = [
     "# Invoice export",
     "",
+    "## Gate profile",
+    "",
+    "`standard`",
+    "",
     "## Required commands",
     "",
     "- (none)",

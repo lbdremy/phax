@@ -11,6 +11,10 @@ source-spec: null
 
 ---
 
+## Gate profile
+
+`standard`
+
 ## Required commands
 
 - (none)

@@ -72,7 +72,11 @@ function containerDepth(markdown: string): number {
   return depthOf(fromMarkdown(markdown));
 }
 
-const PHASES = `## Required commands
+const PHASES = `## Gate profile
+
+\`fast\`
+
+## Required commands
 
 - (none)
 

@@ -109,7 +109,7 @@ feat(test): phase ${i + 1}
 Does phase ${i + 1}.
 `;
   });
-  return `# Thing\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
+  return `# Thing\n\n## Gate profile\n\n\`standard\`\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
 }
 
 /** Lint of a loose plan.md at the root of a repository whose working tree holds `tree`. */
