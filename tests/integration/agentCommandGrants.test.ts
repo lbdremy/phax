@@ -42,28 +42,32 @@ const GATE_COMMAND = "pnpm test";
 const shortName = Result.getOrThrow(decodeShortName("grants-run"));
 
 const plan: PhaxPlan = Result.getOrThrow(
-  liftFixturePhaxPlanToCurrent("phax-plan.json", {
-    version: 1,
-    run: {
-      shortName: "grants-run",
-      title: "Grants Run",
-      branch: "ai/grants-run",
-      requiredCommands: [],
-    },
-    phases: [
-      {
-        id: "phase-01",
-        title: "Phase 1",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        planMarkdownAnchor: "#phase-01",
-        plannedFilesToCreate: [],
-        plannedFilesToEdit: ["src/x.ts"],
-        optionalFilesToEdit: [],
-        commit: { subject: "feat: phase 1", body: "Phase 1." },
+  liftFixturePhaxPlanToCurrent(
+    "phax-plan.json",
+    {
+      version: 1,
+      run: {
+        shortName: "grants-run",
+        title: "Grants Run",
+        branch: "ai/grants-run",
+        requiredCommands: [],
       },
-    ],
-  }),
+      phases: [
+        {
+          id: "phase-01",
+          title: "Phase 1",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: [],
+          plannedFilesToEdit: ["src/x.ts"],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat: phase 1", body: "Phase 1." },
+        },
+      ],
+    },
+    "full",
+  ),
 ).plan;
 
 function makeConfig(stateRoot: string): ResolvedConfig {

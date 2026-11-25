@@ -480,13 +480,15 @@ describe("format readers", () => {
     const expected = phaxLatestPreSchema(id);
     // The current document records a summary; the pre-schema one is lifted with the placeholder.
     // The current phax-plan records its test lines; the pre-schema one is never given any.
-    // The current plan document declares its gate profile; the pre-schema one lifts without one.
+    // The current plan document and phax-plan declare their gate profile; the
+    // pre-schema ones lift without one.
     const expectedCurrent =
       id === "spec-document"
         ? withSurfaceSummary(expected, EXAMPLE_SURFACE_SUMMARY)
         : id === "phax-plan"
           ? {
               ...expected,
+              run: validDocuments["phax-plan"]["run"],
               phases: (expected["phases"] as Doc[]).map((p) => ({ ...p, testLines: [] })),
             }
           : id === "plan-document"
@@ -1651,7 +1653,7 @@ describe("documents from another release", () => {
                       : complianceReviewV0_17_0Document
                     : id === "phax-plan"
                       ? compareReleases(release, "0.33.0") >= 0
-                        ? validDocuments[id]
+                        ? withoutGateProfile(validDocuments[id])
                         : compareReleases(release, "0.28.0") >= 0
                           ? withOracleKeys(validDocuments[id])
                           : compareReleases(release, "0.26.0") >= 0
@@ -1941,6 +1943,36 @@ describe("readPhaxPlanFile's shapes", () => {
     },
   );
 
+  // A run plan an earlier release extracted names no gate profile: it is read
+  // for display, without one, never handed to a run.
+  it.each(["0.38.0", "0.42.0"])(
+    "reads a file stamped %s as shape 0.38.0, its run naming no gate profile",
+    (release) => {
+      const older = withKey(
+        withoutGateProfile(validDocuments["phax-plan"]),
+        "$schema",
+        schemaUrl("phax-plan", release),
+      );
+      const read = right(readPhaxPlanFile(file, older));
+      expect(read).toEqual({
+        shape: "0.38.0",
+        plan: withoutKey(withoutTestLines(validDocuments["phax-plan"]), "$schema"),
+      });
+      expect(read.plan.run).not.toHaveProperty("gateProfile");
+    },
+  );
+
+  it("refuses a 0.38.0-stamped file whose run names a gate profile, and a current one whose run names none", () => {
+    const older = withKey(validDocuments["phax-plan"], "$schema", schemaUrl("phax-plan", "0.38.0"));
+    expect(left(readPhaxPlanFile(file, older)).message).toBe(
+      `${file}: run.gateProfile: is unexpected, expected: "shortName" | "title" | "branch" | "requiredCommands"`,
+    );
+    const current = withoutGateProfile(validDocuments["phax-plan"]);
+    expect(left(readPhaxPlanFile(file, current)).message).toMatch(
+      new RegExp(`^${file}: run\\.gateProfile`),
+    );
+  });
+
   it("refuses the loop acceptance in a 0.32.0-stamped file, and the loop oracle in a current one, naming the file", () => {
     const stamped = withKey(
       withOracleKeys(phaxPlanWithLoop("acceptance")),
@@ -2090,7 +2122,9 @@ describe("a plan's phase key, acceptance with passedBy", () => {
   });
 
   it("refuses a current run plan that carries the oracle phase key", () => {
-    expect(left(readPhaxPlanFile(planFile, withOracleKeys(phaxPlan))).message).toContain("oracle");
+    // The current shape's run names its gate profile; only the phase key is old.
+    const withOracle = { ...withOracleKeys(phaxPlan), run: phaxPlan["run"] };
+    expect(left(readPhaxPlanFile(planFile, withOracle)).message).toContain("oracle");
   });
 });
 

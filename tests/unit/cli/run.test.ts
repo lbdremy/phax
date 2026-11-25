@@ -172,6 +172,7 @@ function makePlan(shortName = "fixbug"): PhaxPlan {
       title: "Fix the bug",
       branch: `phax/${shortName}`,
       requiredCommands: [],
+      gateProfile: "full",
     },
     phases: [
       {

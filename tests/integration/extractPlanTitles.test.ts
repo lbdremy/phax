@@ -29,6 +29,9 @@ function extractedJson(phases: ReadonlyArray<{ id: string; anchor: string }>): s
   });
 }
 
+// The plan's gate-profile declaration, which phax reads itself on the fallback path too.
+const DECLARED = ["## Gate profile", "", "`standard`", ""];
+
 // Drives the live fallback path: these fixtures are deliberately not
 // deterministically parseable, so `loadOrExtractPlan` reaches the LLM step and
 // then finalizes — which is where titles are derived from the headings.
@@ -58,6 +61,7 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
     const planMd = [
       "# Plan — My Run",
       "",
+      ...DECLARED,
       "## phase-01 — Alpha phase {#phase-01-alpha}",
       "",
       "## phase-02 — Beta phase {#phase-02-beta}",
@@ -80,6 +84,7 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
     const planMd = [
       "# Plan — My Run",
       "",
+      ...DECLARED,
       '## phase-01 — Guard "all I/O goes through a port" {#phase-01-quoted}',
     ].join("\n");
     const result = await run(
@@ -94,9 +99,12 @@ describe("loadOrExtractPlan — title derivation from headings", () => {
   });
 
   it("fails loudly when a phase has no matching heading", async () => {
-    const planMd = ["# Plan — My Run", "", "## phase-01 — Alpha phase {#phase-01-alpha}"].join(
-      "\n",
-    );
+    const planMd = [
+      "# Plan — My Run",
+      "",
+      ...DECLARED,
+      "## phase-01 — Alpha phase {#phase-01-alpha}",
+    ].join("\n");
     // Model reports phase-02 but the plan has no phase-02 heading.
     const result = await run(
       planMd,

@@ -359,7 +359,7 @@ describe("cost ledger at run time", () => {
     readonly prepare?: (backend: ReturnType<typeof makeFakeBackend>) => void;
   }) {
     const plan = Result.getOrThrow(
-      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan(opts.phase02Model)),
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan(opts.phase02Model), "full"),
     ).plan;
     const config = makeConfig(stateRoot, opts.complianceReview);
     const { backend, layers } = fakes(opts.gateFailsOnce);

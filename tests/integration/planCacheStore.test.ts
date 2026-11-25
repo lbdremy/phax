@@ -20,6 +20,7 @@ const EXTRACTED: ExtractedPhaxPlan = {
     shortName: "my-run",
     title: "My Run",
     requiredCommands: [],
+    gateProfile: "standard",
   },
   phases: [
     {
@@ -169,16 +170,21 @@ describe("readCacheEntry — an entry under an older extractor version", () => {
   // 5: a plan path as the model wrote it, which no current reader admits.
   const v5Phase = { ...EXTRACTED.phases[0]!, plannedFilesToEdit: ["./src/x.ts"] };
 
+  // 6: a run without the gate profile it declares.
+  const { gateProfile: _gateProfile, ...v6Run } = EXTRACTED.run;
+
   // 2: phases without mode, oracle and testLines; 3: phases without testLines;
-  // 4: phases whose test lines are in the loop `oracle`; 5: a non-canonical path.
+  // 4: phases whose test lines are in the loop `oracle`; 5: a non-canonical path;
+  // 6: a run without its gate profile.
   it.each([
-    { version: 2, phase: v2Phase },
-    { version: 3, phase: v3Phase },
-    { version: 4, phase: v4Phase },
-    { version: 5, phase: v5Phase },
+    { version: 2, run: v6Run, phase: v2Phase },
+    { version: 3, run: v6Run, phase: v3Phase },
+    { version: 4, run: v6Run, phase: v4Phase },
+    { version: 5, run: v6Run, phase: v5Phase },
+    { version: 6, run: v6Run, phase: EXTRACTED.phases[0] },
   ])(
-    "is never looked up under version $version: the version 6 key misses it",
-    async ({ version, phase }) => {
+    "is never looked up under version $version: the version 7 key misses it",
+    async ({ version, run, phase }) => {
       const { impl, layer } = makeFakeFileSystem();
       const olderKey = planCacheKey(PLAN_MD, MODEL, EFFORT, version);
       impl.setFile(
@@ -191,12 +197,12 @@ describe("readCacheEntry — an entry under an older extractor version", () => {
           effort: EFFORT,
           extractorVersion: version,
           extractedAt: "2026-01-01T00:00:00.000Z",
-          extracted: { ...EXTRACTED, phases: [phase] },
+          extracted: { ...EXTRACTED, run, phases: [phase] },
         }),
       );
 
       const currentKey = planCacheKey(PLAN_MD, MODEL, EFFORT);
-      expect(EXTRACTOR_VERSION).toBe(6);
+      expect(EXTRACTOR_VERSION).toBe(7);
       expect(currentKey).not.toBe(olderKey);
       const result = await Effect.runPromise(
         readCacheEntry(STATE_ROOT, currentKey).pipe(Effect.provide(layer)),

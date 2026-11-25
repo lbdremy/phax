@@ -162,6 +162,7 @@ import type {
   LatestPlanApprovals,
   LatestPlanDocument,
   LiftedPlanDocument,
+  LiftedPhaxPlan,
   LatestRunStatus,
   LatestSpecApprovalRecord,
   LatestSpecApprovals,
@@ -183,6 +184,7 @@ import type {
   PhaxPlanV0_26_0,
   PhaxPlanV0_32_0,
   PhaxPlanV0_33_0,
+  PhaxPlanV0_38_0,
   PhaxPlanExtractionV0_32_0,
   PhaxPlanExtractionV0_33_0,
   PlanApprovalRecord,
@@ -505,6 +507,7 @@ import type { PhaxPlanV0_17_0 as FrozenPhaxPlanV0_17_0 } from "../../src/schemas
 import type { PhaxPlanV0_26_0 as FrozenPhaxPlanV0_26_0 } from "../../src/schemas/history/phax-plan/0.26.0.js";
 import type { PhaxPlanV0_32_0 as FrozenPhaxPlanV0_32_0 } from "../../src/schemas/history/phax-plan/0.32.0.js";
 import type { PhaxPlanV0_33_0 as FrozenPhaxPlanV0_33_0 } from "../../src/schemas/history/phax-plan/0.33.0.js";
+import type { PhaxPlanV0_38_0 as FrozenPhaxPlanV0_38_0 } from "../../src/schemas/history/phax-plan/0.38.0.js";
 import type { PhaxPlanExtractionV0_32_0 as FrozenPhaxPlanExtractionV0_32_0 } from "../../src/schemas/history/phax-plan-extraction/0.32.0.js";
 import type { PhaxPlanExtractionV0_33_0 as FrozenPhaxPlanExtractionV0_33_0 } from "../../src/schemas/history/phax-plan-extraction/0.33.0.js";
 import type { PhaxPlanPreSchema as FrozenPhaxPlan } from "../../src/schemas/history/phax-plan/pre-schema.js";
@@ -866,7 +869,14 @@ const eachShapeId: [
   Equals<PhaseStatusShape, "pre-schema" | "0.17.0" | "0.20.0" | "0.26.0" | Current<"phase-status">>,
   Equals<
     PhaxPlanShape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.28.0" | "0.32.0" | "0.33.0" | Current<"phax-plan">
+    | "pre-schema"
+    | "0.17.0"
+    | "0.26.0"
+    | "0.28.0"
+    | "0.32.0"
+    | "0.33.0"
+    | "0.38.0"
+    | Current<"phax-plan">
   >,
   Equals<ComplianceReviewShape, "pre-schema" | "0.17.0" | "0.32.0" | Current<"compliance-review">>,
   Equals<PlanApprovalsShape, "pre-schema" | Current<"plan-approvals">>,
@@ -974,6 +984,7 @@ const parseValues: [
     | FrozenPhaxPlanV0_26_0
     | FrozenPhaxPlanV0_32_0
     | FrozenPhaxPlanV0_33_0
+    | FrozenPhaxPlanV0_38_0
     | PhaxPhaxPlanFile
   >,
   Equals<
@@ -1102,13 +1113,15 @@ type PhaxSpecDocumentWithUnknownSummary = Omit<PhaxSpecDocument, "surface"> & {
   >;
 };
 
-// A phase an older phax extracted holds `Unknown` test lines.
+// A phase an older phax extracted holds `Unknown` test lines, and an older
+// plan's run names no gate profile.
 type PhaxPlanPhaseWithUnknownLines = Omit<PhaxPhaxPlan["phases"][number], "testLines"> & {
   readonly testLines: PhaxPhaxPlan["phases"][number]["testLines"] | Unknown;
 };
-type PhaxPlanWithUnknownLines = Omit<PhaxPhaxPlan, "phases"> & {
+interface PhaxPlanLiftedWithUnknownLines {
+  readonly run: Omit<PhaxPhaxPlan["run"], "gateProfile">;
   readonly phases: readonly [PhaxPlanPhaseWithUnknownLines, ...PhaxPlanPhaseWithUnknownLines[]];
-};
+}
 
 // A review an older phax wrote holds `Unknown` ledgers, and one before 0.40.0
 // an `Unknown` id on each finding.
@@ -1143,7 +1156,9 @@ const latestTypes: [
     LatestPhaseStatus,
     PhaxPhaseStatus | (Omit<PhaxPhaseStatus, "base"> & { readonly base: Unknown })
   >,
-  Equals<LatestPhaxPlan, PhaxPlanWithUnknownLines>,
+  // An older phax-plan is never mapped onto the latest: none recorded a gate profile.
+  Equals<LatestPhaxPlan, PhaxPhaxPlan>,
+  Equals<LiftedPhaxPlan, PhaxPlanLiftedWithUnknownLines>,
   Equals<LatestComplianceReview, PhaxComplianceReviewWithUnknownLedgers>,
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
@@ -1158,6 +1173,7 @@ const latestTypes: [
   Equals<LatestSpecApprovalRecord, PhaxSpecRecord>,
   Equals<LatestGateRequest, PhaxGateRequest>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -1852,7 +1868,7 @@ declare const frozenSpecDocument: FrozenSpecDocument;
 declare const frozenReconciliation: FrozenPhaseFileReconciliation;
 declare const frozenPhaseRecordManifest: FrozenPhaseRecordManifest;
 const upgradedFrozenRunStatus: LatestRunStatus = toLatestRunStatus(frozenRunStatus);
-const upgradedFrozenPhaxPlan: LatestPhaxPlan = toLatestPhaxPlan(frozenPhaxPlan);
+const upgradedFrozenPhaxPlan: LiftedPhaxPlan = toLatestPhaxPlan(frozenPhaxPlan);
 const upgradedFrozenSpecDocument: LatestSpecDocument = toLatestSpecDocument(frozenSpecDocument);
 const upgradedFrozenReconciliation: LatestPhaseFileReconciliation =
   toLatestPhaseFileReconciliation(frozenReconciliation);
@@ -1892,6 +1908,7 @@ const toLatestParameters: [
         | FrozenPhaxPlanV0_26_0
         | FrozenPhaxPlanV0_32_0
         | FrozenPhaxPlanV0_33_0
+        | FrozenPhaxPlanV0_38_0
         | PhaxPhaxPlanFile,
     ]
   >,
@@ -2006,6 +2023,7 @@ const phaxPlanV0_17_0IsFrozen: Equals<PhaxPlanV0_17_0, FrozenPhaxPlanV0_17_0> = 
 const phaxPlanV0_26_0IsFrozen: Equals<PhaxPlanV0_26_0, FrozenPhaxPlanV0_26_0> = true;
 const phaxPlanV0_32_0IsFrozen: Equals<PhaxPlanV0_32_0, FrozenPhaxPlanV0_32_0> = true;
 const phaxPlanV0_33_0IsFrozen: Equals<PhaxPlanV0_33_0, FrozenPhaxPlanV0_33_0> = true;
+const phaxPlanV0_38_0IsFrozen: Equals<PhaxPlanV0_38_0, FrozenPhaxPlanV0_38_0> = true;
 const complianceReviewIsPhax: Equals<ComplianceReview, PhaxComplianceReviewFile> = true;
 void registryIsPhax;
 void runStatusIsPhax;
@@ -2019,6 +2037,25 @@ void phaxPlanV0_17_0IsFrozen;
 void phaxPlanV0_26_0IsFrozen;
 void phaxPlanV0_32_0IsFrozen;
 void phaxPlanV0_33_0IsFrozen;
+void phaxPlanV0_38_0IsFrozen;
+// The current phax-plan upgrades to the latest, which names its gate profile;
+// an older one recorded none, and lifts under a type of its own, `$schema`
+// dropped.
+declare const phaxPlanCurrent: PhaxPlan;
+declare const phaxPlanV0_38_0: PhaxPlanV0_38_0;
+declare const phaxPlanV0_17_0: PhaxPlanV0_17_0;
+const upgradedPhaxPlanCurrent = toLatestPhaxPlan(phaxPlanCurrent);
+const keptPhaxPlanV0_38_0 = toLatestPhaxPlan(phaxPlanV0_38_0);
+const keptPhaxPlanV0_17_0 = toLatestPhaxPlan(phaxPlanV0_17_0);
+const phaxPlanGateProfileNeverInvented: [
+  Equals<typeof upgradedPhaxPlanCurrent, LatestPhaxPlan>,
+  Equals<typeof keptPhaxPlanV0_38_0, LiftedPhaxPlan>,
+  Equals<typeof keptPhaxPlanV0_17_0, LiftedPhaxPlan>,
+  Equals<"gateProfile" extends keyof (typeof upgradedPhaxPlanCurrent)["run"] ? true : false, true>,
+  Equals<"gateProfile" extends keyof (typeof keptPhaxPlanV0_38_0)["run"] ? true : false, false>,
+  Equals<"$schema" extends keyof typeof upgradedPhaxPlanCurrent ? true : false, false>,
+] = [true, true, true, true, true, true];
+void phaxPlanGateProfileNeverInvented;
 void complianceReviewIsPhax;
 
 // ── repository formats

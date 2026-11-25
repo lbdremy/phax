@@ -64,26 +64,35 @@ export type PlanDocumentToLift = DistributiveOmit<PlanDocumentWithoutGateProfile
 };
 
 /**
- * A phax-plan, `$schema` dropped, whose phases may still be in a shape before
- * 0.33.0: the `oracle` key and test lines in the loop `oracle | in-phase`.
+ * A phax-plan's run as every shape before the gate profile recorded it: the
+ * current run without `gateProfile`. No older shape is given one.
  */
-export type PhaxPlanToLift = Omit<PhaxPlan, "phases"> & {
+export type PhaxPlanRunWithoutGateProfile = Omit<PhaxPlan["run"], "gateProfile">;
+
+/**
+ * A phax-plan, `$schema` dropped, whose phases may still be in a shape before
+ * 0.33.0: the `oracle` key and test lines in the loop `oracle | in-phase`. Its
+ * run names no gate profile.
+ */
+export interface PhaxPlanToLift {
+  readonly run: PhaxPlanRunWithoutGateProfile;
   readonly phases: Arr.NonEmptyReadonlyArray<
     Omit<PhaxPlanPhase, "testLines" | "acceptance"> &
       PhaseKeyToLift & { readonly testLines: ReadonlyArray<TestLineToLift> }
   >;
-};
+}
 
 /**
  * A phax-plan, `$schema` dropped, that carries no `testLines` (a plan an
  * earlier release extracted, shown or sized, never resumed), whose phases may
- * still have the `oracle` key.
+ * still have the `oracle` key. Its run names no gate profile.
  */
-export type PhaxPlanWithoutTestLinesToLift = Omit<PhaxPlan, "phases"> & {
+export interface PhaxPlanWithoutTestLinesToLift {
+  readonly run: PhaxPlanRunWithoutGateProfile;
   readonly phases: Arr.NonEmptyReadonlyArray<
     Omit<PhaxPlanPhase, "testLines" | "acceptance"> & PhaseKeyToLift
   >;
-};
+}
 
 /** A plan extraction answer, `$schema` dropped, whose test lines may still be in the 0.32.0 shape. */
 export interface PlanExtractionToLift {
@@ -166,8 +175,14 @@ export function liftPlanDocument(doc: PlanDocumentToLift): PlanDocumentWithoutGa
   };
 }
 
-/** A phax-plan of a shape before 0.33.0: every phase's key and test lines lifted. */
-export function liftPhaxPlan(plan: PhaxPlanToLift): PhaxPlan {
+/**
+ * A phax-plan of a shape before 0.33.0: every phase's key and test lines
+ * lifted. Its run keeps what it recorded, which names no gate profile.
+ */
+export function liftPhaxPlan(plan: PhaxPlanToLift): {
+  readonly run: PhaxPlanRunWithoutGateProfile;
+  readonly phases: Arr.NonEmptyReadonlyArray<PhaxPlanPhase>;
+} {
   return {
     ...plan,
     phases: Arr.map(plan.phases, (phase) =>
@@ -176,11 +191,12 @@ export function liftPhaxPlan(plan: PhaxPlanToLift): PhaxPlan {
   };
 }
 
-/** A phax-plan without `testLines` of a shape before 0.33.0: every phase's key lifted. */
-export function liftPhaxPlanWithoutTestLines(plan: PhaxPlanWithoutTestLinesToLift): Omit<
-  PhaxPlan,
-  "phases"
-> & {
+/**
+ * A phax-plan without `testLines` of a shape before 0.33.0: every phase's key
+ * lifted. Its run keeps what it recorded, which names no gate profile.
+ */
+export function liftPhaxPlanWithoutTestLines(plan: PhaxPlanWithoutTestLinesToLift): {
+  readonly run: PhaxPlanRunWithoutGateProfile;
   readonly phases: Arr.NonEmptyReadonlyArray<Omit<PhaxPlanPhase, "testLines">>;
 } {
   return { ...plan, phases: Arr.map(plan.phases, (phase) => liftPhaseKey(phase)) };

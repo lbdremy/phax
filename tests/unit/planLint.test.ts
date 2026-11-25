@@ -27,6 +27,10 @@ import {
 // Reused verbatim from tests/unit/loadOrExtractPlan.test.ts.
 const CONFORMING_PLAN = `# Test Plan
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)
@@ -76,6 +80,20 @@ describe("structureFindings", () => {
         phase: null,
         message: `missing "## Required commands" section`,
       },
+    ]);
+  });
+
+  it.each([
+    ["no gate-profile declaration", "", "the plan declares no gate profile (## Gate profile)"],
+    [
+      "a doubled gate-profile declaration",
+      "## Gate profile\n\n`standard`\n\n## Gate profile\n\nlight\n\n",
+      "the plan declares more than one gate profile (## Gate profile)",
+    ],
+  ])("reports %s as a plan-level structure error", (_, declaration, message) => {
+    const plan = CONFORMING_PLAN.replace("## Gate profile\n\n`standard`\n\n", declaration);
+    expect(structureFindings(plan)).toEqual([
+      { severity: "error", check: "structure", phase: null, message },
     ]);
   });
 

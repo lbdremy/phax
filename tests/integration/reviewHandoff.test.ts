@@ -120,7 +120,13 @@ function planPhase(id: string, acceptance: PhaxPlan["phases"][number]["acceptanc
 function oraclePlanJson(pair: boolean): string {
   const phase = planPhase;
   const plan: PhaxPlan = {
-    run: { shortName, title: "Refunds", branch: "feature/test-run", requiredCommands: [] },
+    run: {
+      shortName,
+      title: "Refunds",
+      branch: "feature/test-run",
+      requiredCommands: [],
+      gateProfile: "full",
+    },
     phases: [
       phase("phase-01", null),
       phase("phase-02", pair ? { passedBy: "phase-03", files: ["tests/refunds.test.ts"] } : null),

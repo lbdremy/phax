@@ -47,6 +47,7 @@ const plan = {
     title: "Credit notes",
     branch: "phax/credit-notes",
     requiredCommands: [],
+    gateProfile: "standard",
   },
   phases: phases as PhaxPlan["phases"],
 } satisfies PhaxPlan;

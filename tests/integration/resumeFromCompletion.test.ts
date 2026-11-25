@@ -215,7 +215,9 @@ async function runResume(opts: {
   runPath: string;
   runId: RunId;
 }) {
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+  ).plan;
   const config = makeConfig(opts.stateRoot);
   return Effect.runPromise(
     Effect.result(
@@ -250,7 +252,9 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("re-enters at the completion step, spawning no agent and re-running no gate", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -327,7 +331,9 @@ describe("executePlan — resume from completion-paused (committed final phase)"
   });
 
   it("creates no second commit when the plan on the branch is already Completed", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(

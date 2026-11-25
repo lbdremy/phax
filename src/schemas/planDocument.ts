@@ -1,12 +1,7 @@
 import { Array as Arr, Result, Schema, type Types } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatPlanDocumentViolation, formatViolationAt } from "./formatError.js";
-import {
-  ExtractedPhaseFields,
-  ExtractedRunSchema,
-  GateProfileId,
-  type ExtractedPhaxPlan,
-} from "./phaxPlan.js";
+import { ExtractedPhaseFields, ExtractedRunSchema, type ExtractedPhaxPlan } from "./phaxPlan.js";
 import {
   OpenQuestionSchema,
   PlanArbitratedQuestionSchema,
@@ -81,10 +76,8 @@ const planDocumentFields = {
     description:
       "Whether this plan's run completes its source spec: true when it is the spec's last plan, false when more plans of the spec follow. A boolean beside a sourceSpec path; null beside sourceSpec: null.",
   }),
-  // The extracted run's fields, then the declared gate profile. phase-05 moves
-  // `gateProfile` into `ExtractedRunSchema` itself; until then the extracted
-  // plan carries none, and the projection leaves it out.
-  run: Schema.Struct({ ...ExtractedRunSchema.fields, gateProfile: GateProfileId }),
+  // The extracted run: its fields, then the declared gate profile.
+  run: ExtractedRunSchema,
   preamble: Schema.Struct(preambleFields),
   phases: Schema.NonEmptyArray(PlanDocumentPhaseSchema),
 };
@@ -229,6 +222,7 @@ export function projectExtractedPlan(doc: PlanDocument): ExtractedPhaxPlan {
       shortName: doc.run.shortName,
       title: doc.run.title,
       requiredCommands: doc.run.requiredCommands,
+      gateProfile: doc.run.gateProfile,
     },
     phases: Arr.map(doc.phases, (phase) => ({
       id: phase.id,

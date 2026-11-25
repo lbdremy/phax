@@ -98,7 +98,13 @@ function makePhase(i: number): PhaxPlan["phases"][number] {
 
 function makePlan(shortName = "myrun", phaseCount = 2): PhaxPlan {
   return {
-    run: { shortName, title: "My Run", requiredCommands: [], branch: `phax/${shortName}` },
+    run: {
+      shortName,
+      title: "My Run",
+      requiredCommands: [],
+      branch: `phax/${shortName}`,
+      gateProfile: "standard",
+    },
     phases: [makePhase(0), ...Array.from({ length: phaseCount - 1 }, (_, i) => makePhase(i + 1))],
   };
 }
@@ -293,6 +299,8 @@ describe("runValidate", () => {
     // `oracle` key where the current shape has `acceptance`.
     { shape: "0.28.0", stamp: "0.28.0", older: asOracleKey },
     { shape: "0.32.0", stamp: "0.32.0", older: asOracleKey },
+    // 0.38.0 up to 0.42.x is the current shape but the run's gate profile.
+    { shape: "0.38.0", stamp: "0.38.0", older: (phase: PhaxPlanPhase) => phase },
   ])(
     "--plan on a phax-plan.json in the $shape shape: exits 2 naming the shape and the way out",
     async ({ shape, stamp, older }) => {
@@ -310,7 +318,10 @@ describe("runValidate", () => {
       const dir = mkdtempSync(join(tmpdir(), "phax-validate-older-"));
       try {
         const planPath = join(dir, "phax-plan.json");
-        const { run, phases } = makePlan("myrun", 2);
+        const {
+          run: { gateProfile: _gateProfile, ...run },
+          phases,
+        } = makePlan("myrun", 2);
         writeFileSync(
           planPath,
           JSON.stringify({
@@ -329,6 +340,9 @@ describe("runValidate", () => {
         const combined = errors.join("\n");
         expect(combined).toContain("Plan validation failed");
         expect(combined).toContain(`${planPath}: phax-plan in the ${shape} shape`);
+        expect(combined.includes("it records no gate profile (run.gateProfile)")).toBe(
+          shape === "0.38.0",
+        );
         expect(combined).toContain("Finish the run with the phax release that started it");
         expect(combined).toContain("`phax archive <run> --force`");
       } finally {

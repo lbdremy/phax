@@ -163,6 +163,7 @@ export function invoiceExportPlan(
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: PHASES.map((spec, i): PhaxPlanPhase => ({
       id: idOf(i),

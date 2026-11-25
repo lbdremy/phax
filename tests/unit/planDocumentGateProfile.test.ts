@@ -97,9 +97,9 @@ describe("a plan document's gate profile", () => {
     });
   });
 
-  it("leaves the gate profile out of the extracted-plan projection until extraction reads it", () => {
+  it("carries the gate profile into the extracted-plan projection", () => {
     const projected = projectExtractedPlan(decoded(declaring("light")));
-    expect(projected.run).not.toHaveProperty("gateProfile");
+    expect(projected.run.gateProfile).toBe("light");
   });
 });
 

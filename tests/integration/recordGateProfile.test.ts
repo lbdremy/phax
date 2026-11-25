@@ -135,12 +135,14 @@ function phaxJson(r: PreflightRepo): string {
   );
 }
 
-/** The fixture plan.md with `## Gate profile` declaring light, before `## Required commands`. */
+/** The fixture plan.md with its `## Gate profile` declaring light in place of standard. */
 function withGateProfile(planMd: string): string {
-  return planMd.replace(
-    "## Required commands\n",
-    "## Gate profile\n\n`light`\n\n## Required commands\n",
+  const declared = planMd.replace(
+    "## Gate profile\n\n`standard`\n",
+    "## Gate profile\n\n`light`\n",
   );
+  if (declared === planMd) throw new Error("the fixture plan.md declares no standard profile");
+  return declared;
 }
 
 let phaxHome: ReturnType<typeof isolatePhaxHome>;

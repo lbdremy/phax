@@ -77,7 +77,9 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes file-reconciliation.json and .md with correct classification", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -208,7 +210,9 @@ describe("reconcilePhaseFiles — lifecycle wiring", () => {
   });
 
   it("writes no-deviation report when actual changes match planned exactly", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {

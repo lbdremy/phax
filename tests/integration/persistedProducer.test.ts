@@ -124,6 +124,7 @@ const plan: PhaxPlan = {
     title: "Example run",
     branch: "phax/example-run",
     requiredCommands: [],
+    gateProfile: "fast",
   },
   phases: [
     {

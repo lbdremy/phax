@@ -111,28 +111,32 @@ afterEach(() => {
 
 function planOf(): { plan: PhaxPlan; planMd: string } {
   const { plan } = Result.getOrThrow(
-    liftFixturePhaxPlanToCurrent("phax-plan.json", {
-      version: 1,
-      run: {
-        shortName: SHORT,
-        title: "Invoice export",
-        branch: `phax/${SHORT}`,
-        requiredCommands: [],
-      },
-      phases: [
-        {
-          id: "phase-01",
-          title: "Export step",
-          model: "claude-sonnet-5-5",
-          effort: "medium",
-          planMarkdownAnchor: "#phase-01",
-          plannedFilesToCreate: ["src/phase-01.ts"],
-          plannedFilesToEdit: [],
-          optionalFilesToEdit: [],
-          commit: { subject: "feat(export): step one", body: "Made-up body." },
+    liftFixturePhaxPlanToCurrent(
+      "phax-plan.json",
+      {
+        version: 1,
+        run: {
+          shortName: SHORT,
+          title: "Invoice export",
+          branch: `phax/${SHORT}`,
+          requiredCommands: [],
         },
-      ],
-    }),
+        phases: [
+          {
+            id: "phase-01",
+            title: "Export step",
+            model: "claude-sonnet-5-5",
+            effort: "medium",
+            planMarkdownAnchor: "#phase-01",
+            plannedFilesToCreate: ["src/phase-01.ts"],
+            plannedFilesToEdit: [],
+            optionalFilesToEdit: [],
+            commit: { subject: "feat(export): step one", body: "Made-up body." },
+          },
+        ],
+      },
+      "standard",
+    ),
   );
   return { plan, planMd: planMdFor(plan) };
 }

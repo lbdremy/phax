@@ -74,23 +74,27 @@ describe("a failed phase session and its refused record", { timeout: 30_000 }, (
     await mkdir(join(worktreePath, ".phax-context"), { recursive: true });
 
     const plan = Result.getOrThrow(
-      liftFixturePhaxPlanToCurrent("phax-plan.json", {
-        version: 1,
-        run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
-        phases: [
-          {
-            id: "phase-01",
-            title: "First Phase",
-            model: "claude-sonnet-4-6",
-            effort: "low" as const,
-            planMarkdownAnchor: "#phase-01",
-            plannedFilesToCreate: [],
-            plannedFilesToEdit: [],
-            optionalFilesToEdit: [],
-            commit: { subject: "feat: add thing", body: "Adds the thing." },
-          },
-        ],
-      }),
+      liftFixturePhaxPlanToCurrent(
+        "phax-plan.json",
+        {
+          version: 1,
+          run: { shortName: "my-run", title: "My Run", branch: "ai/my-run", requiredCommands: [] },
+          phases: [
+            {
+              id: "phase-01",
+              title: "First Phase",
+              model: "claude-sonnet-4-6",
+              effort: "low" as const,
+              planMarkdownAnchor: "#phase-01",
+              plannedFilesToCreate: [],
+              plannedFilesToEdit: [],
+              optionalFilesToEdit: [],
+              commit: { subject: "feat: add thing", body: "Adds the thing." },
+            },
+          ],
+        },
+        "full",
+      ),
     ).plan;
 
     const config: ResolvedConfig = {

@@ -149,7 +149,13 @@ function planOf(count: number, pairs: Pair | readonly Pair[] | null): PhaxPlan {
   });
   const [first, ...rest] = phases;
   return {
-    run: { shortName: SHORT_NAME, title: "Refunds", branch: BRANCH, requiredCommands: [] },
+    run: {
+      shortName: SHORT_NAME,
+      title: "Refunds",
+      branch: BRANCH,
+      requiredCommands: [],
+      gateProfile: "full",
+    },
     phases: [first!, ...rest],
   };
 }

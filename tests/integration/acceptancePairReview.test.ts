@@ -148,11 +148,16 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases,
   } as unknown as PhaxPlan;
   const planMd = [
     "# Invoice export",
+    "",
+    "## Gate profile",
+    "",
+    "`standard`",
     "",
     "## Required commands",
     "",

@@ -50,8 +50,13 @@ Does the thing.
 
 // Non-conforming plan: missing "## Required commands", so extractPlanDeterministic
 // fails. The heading keeps {#phase-01-first} so finalizeExtractedPlan can derive
-// the title from it when the LLM path runs.
+// the title from it when the LLM path runs. It declares its gate profile, which
+// phax reads itself on the LLM path too.
 const NON_CONFORMING_PLAN = `# Test Plan
+
+## Gate profile
+
+\`light\`
 
 ## phase-01 — First Phase {#phase-01-first}
 
@@ -154,6 +159,8 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     expect(fallbackWarning).toBeDefined();
     expect(fallbackWarning).toMatch(/Deterministic extraction failed/);
     expect(fallbackWarning).toMatch(/fell back to LLM/);
+    // The model's answer carries no profile: the run's is plan.md's.
+    expect(result.success.plan.run.gateProfile).toBe("light");
   });
 
   it("--no-extract succeeds for a conforming plan without calling the backend", async () => {
@@ -188,6 +195,45 @@ describe("loadOrExtractPlan — deterministic-first wiring", () => {
     if (!Result.isFailure(result)) return;
     expect(result.failure.message).toMatch(/no-extract|no cached/i);
     expect(backend.completeCalls).toHaveLength(0);
+  });
+});
+
+describe("loadOrExtractPlan — a missing or doubled gate-profile declaration", () => {
+  const DECLARATION = "## Gate profile\n\n`light`\n\n";
+
+  it.each([
+    {
+      name: "no declaration",
+      plan: NON_CONFORMING_PLAN.replace(DECLARATION, ""),
+      defect: "the plan declares no gate profile (## Gate profile)",
+    },
+    {
+      name: "two declarations",
+      plan: NON_CONFORMING_PLAN.replace(DECLARATION, `${DECLARATION}## Gate profile\n\nfull\n\n`),
+      defect: "the plan declares more than one gate profile (## Gate profile)",
+    },
+    {
+      name: "two ids in one declaration",
+      plan: CONFORMING_PLAN.replace("`standard`", "`standard` `light`"),
+      defect: "the plan declares more than one gate profile (## Gate profile)",
+    },
+  ])("refuses $name before the cache and any model call", async ({ plan, defect }) => {
+    const { impl: fs, layer: fsLayer } = makeFakeFileSystem();
+    const { impl: backend, layer: backendLayer } = makeFakeBackend();
+    fs.setFile(BASE_OPTS.planMdPath, plan);
+    backend.addCompletionResponse({ finalText: JSON.stringify(LLM_EXTRACTED) });
+    const filesBefore = new Map(fs.files);
+
+    const result = await runEffect(
+      loadOrExtractPlan(BASE_OPTS).pipe(Effect.provide(Layer.merge(fsLayer, backendLayer))),
+    );
+
+    if (Result.isSuccess(result)) throw new Error("unexpected success");
+    expect(result.failure.message).toBe(
+      `/project/plan.md: ${defect} — run \`phax plans lint /project/plan.md\``,
+    );
+    expect(backend.completeCalls).toHaveLength(0);
+    expect(fs.files).toEqual(filesBefore);
   });
 });
 

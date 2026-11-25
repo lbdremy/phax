@@ -57,7 +57,7 @@ describe("ExtractedPhaxPlanSchema — title is not extracted", () => {
   it("decodes a phase that omits title", () => {
     const result = decodeExtracted({
       version: 1,
-      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [], gateProfile: "standard" },
       phases: [baseExtractedPhase],
     });
     expect(Result.isSuccess(result)).toBe(true);
@@ -66,7 +66,7 @@ describe("ExtractedPhaxPlanSchema — title is not extracted", () => {
   it("rejects a phase that includes title (excess property)", () => {
     const result = decodeExtracted({
       version: 1,
-      run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+      run: { shortName: "my-run", title: "My Run", requiredCommands: [], gateProfile: "standard" },
       phases: [{ ...baseExtractedPhase, title: "Should Not Be Here" }],
     });
     expect(Result.isFailure(result)).toBe(true);
@@ -81,6 +81,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
         shortName: "my-run",
         title: "My Run",
         requiredCommands: ["deno fmt", "deno lint"],
+        gateProfile: "standard",
       },
       phases: [baseExtractedPhase],
     });
@@ -97,6 +98,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
         shortName: "my-run",
         title: "My Run",
         requiredCommands: [],
+        gateProfile: "standard",
       },
       phases: [baseExtractedPhase],
     });
@@ -109,6 +111,7 @@ describe("ExtractedPhaxPlanSchema — requiredCommands", () => {
       run: {
         shortName: "my-run",
         title: "My Run",
+        gateProfile: "standard",
       },
       phases: [baseExtractedPhase],
     });
@@ -125,6 +128,7 @@ describe("PhaxPlanFileSchema — requiredCommands", () => {
         title: "My Run",
         branch: "phax/my-run",
         requiredCommands: ["pnpm test"],
+        gateProfile: "standard",
       },
       phases: [basePersistedPhase],
     });
@@ -141,10 +145,26 @@ describe("PhaxPlanFileSchema — requiredCommands", () => {
         shortName: "my-run",
         title: "My Run",
         branch: "phax/my-run",
+        gateProfile: "standard",
       },
       phases: [basePersistedPhase],
     });
     expect(Result.isFailure(result)).toBe(true);
+  });
+
+  it("fails decode when gateProfile is absent from persisted plan, naming it", () => {
+    const result = decodePhaxPlanFile({
+      $schema: PHAX_PLAN_URL,
+      run: {
+        shortName: "my-run",
+        title: "My Run",
+        branch: "phax/my-run",
+        requiredCommands: [],
+      },
+      phases: [basePersistedPhase],
+    });
+    if (Result.isSuccess(result)) throw new Error("unexpected success");
+    expect(String(result.failure)).toContain("gateProfile");
   });
 });
 
@@ -165,6 +185,10 @@ function answer(phases: readonly object[]): string {
 describe("extractPlanLlm — mode and oracle come from the header lines", () => {
   const PLAN_MD = [
     "# My Run",
+    "",
+    "## Gate profile",
+    "",
+    "`light`",
     "",
     "## phase-01 — First {#phase-01-first}",
     "",
@@ -224,6 +248,33 @@ describe("extractPlanLlm — mode and oracle come from the header lines", () => 
       "testLines",
       "commit",
     ]);
+  });
+
+  it("takes the run's gate profile from plan.md: the answer carries none", async () => {
+    const result = await extract(answer([baseAnswerPhase, secondAnswerPhase]));
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.run).toEqual({
+      shortName: "my-run",
+      title: "My Run",
+      requiredCommands: [],
+      gateProfile: "light",
+    });
+  });
+
+  it("refuses an answer whose run carries a gate profile, by the strict decode", async () => {
+    const result = await extract(
+      JSON.stringify({
+        $schema: EXTRACTION_STAMP,
+        plan: {
+          run: { shortName: "my-run", title: "My Run", requiredCommands: [], gateProfile: "full" },
+          phases: [baseAnswerPhase, secondAnswerPhase],
+        },
+        incomplete: null,
+      }),
+    );
+    if (Result.isSuccess(result)) throw new Error("unexpected success");
+    expect(result.failure.message).toMatch(/^Extracted JSON failed schema validation:/);
+    expect(result.failure.message).toContain("gateProfile");
   });
 
   it("keeps the answer's test lines, decoded through the test line schema", async () => {

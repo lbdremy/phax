@@ -168,7 +168,9 @@ function makeRun(
   opts: { failCommand?: string; model?: string; provider?: string } = {},
 ) {
   const runPlan = opts.model === undefined ? rawPlan : rawPlanFor(opts.model);
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan, "full"),
+  ).plan;
   const planMd = planMdFor(runPlan);
   const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
 

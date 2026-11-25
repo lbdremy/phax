@@ -7,8 +7,10 @@
 // its 0.26.0 shape, written before phases carried `testLines`, and its
 // 0.28.0 shape, the current one before the strict test lines and non-empty
 // strings restamped it, its 0.32.0 shape, written before the `acceptance`
-// loop, and its 0.33.0 shape, written before plan paths were canonical, as
-// releases, and lifts them as phax's reader does. The registry and run
+// loop, its 0.33.0 shape, written before plan paths were canonical, and its
+// 0.38.0 shape, written before the gate profile, as releases, and lifts them
+// as phax's reader does, under a type of its own (`LiftedPhaxPlan`) whose run
+// names no gate profile: none is invented. The registry and run
 // status list their 0.17.0 shapes, and phase status its 0.20.0 shape, written
 // before `awaiting_review`; a phase status that old is lifted with
 // `mode: "headless"` and `stop: null`.
@@ -111,6 +113,11 @@ import {
   decodePhaxPlanV0_33_0,
   type PhaxPlanV0_33_0,
 } from "../../../../src/schemas/history/phax-plan/0.33.0.js";
+import {
+  PhaxPlanV0_38_0Schema,
+  decodePhaxPlanV0_38_0,
+  type PhaxPlanV0_38_0,
+} from "../../../../src/schemas/history/phax-plan/0.38.0.js";
 import {
   PhaxPlanPreSchemaSchema,
   decodePhaxPlanPreSchema,
@@ -349,6 +356,7 @@ export type PhaxPlanShapes = {
   "0.28.0": PhaxPlanV0_28_0;
   "0.32.0": PhaxPlanV0_32_0;
   "0.33.0": PhaxPlanV0_33_0;
+  "0.38.0": PhaxPlanV0_38_0;
 } & {
   [K in CurrentShapeName<"phax-plan">]: PhaxPlanFile;
 };
@@ -366,6 +374,7 @@ export const phaxPlanFormat = defineFormat<PhaxPlanShapes>({
     ["0.28.0", { schema: PhaxPlanV0_28_0Schema, decode: decodePhaxPlanV0_28_0 }],
     ["0.32.0", { schema: PhaxPlanV0_32_0Schema, decode: decodePhaxPlanV0_32_0 }],
     ["0.33.0", { schema: PhaxPlanV0_33_0Schema, decode: decodePhaxPlanV0_33_0 }],
+    ["0.38.0", { schema: PhaxPlanV0_38_0Schema, decode: decodePhaxPlanV0_38_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["phax-plan"],
@@ -386,10 +395,24 @@ export type LatestPhaxPlanPhase = Omit<PhaxPlanPhase, "testLines"> & {
   readonly testLines: PhaxPlanPhase["testLines"] | Unknown;
 };
 
-/** The latest phax-plan: phax's in-memory value, with no `version` and no `$schema`. */
-export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
+/**
+ * The latest phax-plan: phax's in-memory value, with no `version` and no
+ * `$schema`. Its run names the gate profile that verifies it; only a plan at
+ * the current shape becomes one.
+ */
+export type LatestPhaxPlan = PhaxPlan;
+
+/**
+ * A phax-plan older than the gate profile (0.38.0 and earlier), upgraded under
+ * a type of its own: every recorded fact lifted to the latest shape, but its
+ * run names no gate profile, since none recorded one, and it is never a
+ * `LatestPhaxPlan`. A phase whose recorded test lines no current reader reads
+ * has `Unknown` `testLines` (`LatestPhaxPlanPhase`).
+ */
+export interface LiftedPhaxPlan {
+  readonly run: Omit<PhaxPlan["run"], "gateProfile">;
   readonly phases: readonly [LatestPhaxPlanPhase, ...LatestPhaxPlanPhase[]];
-};
+}
 
 /**
  * Upgrades a parsed phax-plan in memory. Keeps every recorded fact; never
@@ -400,17 +423,32 @@ export type LatestPhaxPlan = Omit<PhaxPlan, "phases"> & {
  * A 0.28.0 or 0.32.0 phase holding a criterion `acceptance`, which 0.33.0
  * reserves, has `Unknown` `testLines`. Every phase older than those shapes has
  * `Unknown` `testLines` too: its plan may have stated lines no older phax read, so an empty
- * list would invent the fact that it tested nothing. A 0.33.0 plan lifts like
- * the current one. Every older shape keeps its file lists as written, canonical
- * or not: the package reads plans, it never runs one, so a latest plan read
- * from an older document may hold a non-canonical spelling.
+ * list would invent the fact that it tested nothing. A 0.33.0 or 0.38.0 plan's
+ * facts are the current ones. Every older shape keeps its file lists as
+ * written, canonical or not: the package reads plans, it never runs one, so a
+ * plan read from an older document may hold a non-canonical spelling. No shape
+ * before the current one recorded a gate profile, and the package never
+ * invents one: every older shape upgrades to a `LiftedPhaxPlan`, whose run
+ * names none, and only a current plan becomes a `LatestPhaxPlan`, its
+ * `$schema` dropped.
  */
-export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
+export function toLatestPhaxPlan(value: PhaxPlanFile): LatestPhaxPlan;
+export function toLatestPhaxPlan(value: OlderPhaxPlan): LiftedPhaxPlan;
+export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan | LiftedPhaxPlan;
+export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan | LiftedPhaxPlan {
   if (isCurrentPhaxPlan(value)) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
+  return liftOlderPhaxPlan(value);
+}
+
+function liftOlderPhaxPlan(value: OlderPhaxPlan): LiftedPhaxPlan {
+  if (hasTestLines(value)) {
     const { $schema: _schema, ...recorded } = value;
     // A 0.28.0 or 0.32.0 plan carries test lines with the loop `oracle` and
     // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
-    // (`liftPhaxPlan`); a current one is kept. A phase holding a line whose
+    // (`liftPhaxPlan`); a 0.33.0 or 0.38.0 one is kept. A phase holding a line whose
     // criterion is `acceptance`, a word 0.33.0 reserves, has no current lines:
     // its `testLines` is `Unknown` (`newlyReservedCriterionAt`).
     const lifted = liftPhaxPlan(recorded);
@@ -446,24 +484,31 @@ export function toLatestPhaxPlan(value: PhaxPlanParsed): LatestPhaxPlan {
   };
 }
 
-type PhaxPlanParsed =
+/** Every phax-plan shape before the current one: none recorded a gate profile. */
+type OlderPhaxPlan =
   | PhaxPlanPreSchema
   | PhaxPlanV0_17_0
   | PhaxPlanV0_26_0
   | PhaxPlanV0_28_0
   | PhaxPlanV0_32_0
   | PhaxPlanV0_33_0
-  | PhaxPlanFile;
+  | PhaxPlanV0_38_0;
+
+type PhaxPlanParsed = OlderPhaxPlan | PhaxPlanFile;
+
+/** Whether a parsed phax-plan is the current shape: the only one whose run names a gate profile. */
+function isCurrentPhaxPlan(value: PhaxPlanParsed): value is PhaxPlanFile {
+  return "gateProfile" in value.run;
+}
 
 /**
- * Whether a parsed phax-plan carries test lines: the current shape, the 0.33.0
- * one (the current shape before plan paths were canonical), the 0.32.0 one,
- * or the 0.28.0 one, which is the 0.32.0 shape under a release-pattern
- * `$schema`.
+ * Whether an older phax-plan carries test lines: the 0.38.0 shape, the 0.33.0
+ * one (before plan paths were canonical), the 0.32.0 one, or the 0.28.0 one,
+ * which is the 0.32.0 shape under a release-pattern `$schema`.
  */
-function isCurrentPhaxPlan(
-  value: PhaxPlanParsed,
-): value is PhaxPlanFile | PhaxPlanV0_28_0 | PhaxPlanV0_32_0 | PhaxPlanV0_33_0 {
+function hasTestLines(
+  value: OlderPhaxPlan,
+): value is PhaxPlanV0_28_0 | PhaxPlanV0_32_0 | PhaxPlanV0_33_0 | PhaxPlanV0_38_0 {
   return "testLines" in value.phases[0];
 }
 

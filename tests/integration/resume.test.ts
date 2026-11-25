@@ -125,7 +125,9 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("continues from phase-02 and drives the run to review_open", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -324,7 +326,9 @@ describe("executePlan — resume from startIndex: 1", () => {
   });
 
   it("does not call prepareRunBranch when startIndex > 0", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -536,6 +540,8 @@ const OLDER_PLAN_SHAPES = [
   // older shape.
   { shape: "0.28.0", stamp: "0.28.0", older: asOracleKey },
   { shape: "0.32.0", stamp: "0.32.0", older: asOracleKey },
+  // 0.38.0 up to 0.42.x is the current shape but the run's gate profile.
+  { shape: "0.38.0", stamp: "0.42.0", older: (phase: Record<string, unknown>) => phase },
 ] as const;
 
 describe.each(OLDER_PLAN_SHAPES)(
@@ -626,12 +632,16 @@ describe.each(OLDER_PLAN_SHAPES)(
 
       const planPath = join(runPath, "phax-plan.json");
       const written = JSON.parse(readFileSync(planPath, "utf8")) as {
+        run: Record<string, unknown>;
         phases: Array<Record<string, unknown>>;
       };
+      // No shape before the current one recorded the run's gate profile.
+      const { gateProfile: _gateProfile, ...run } = written.run;
       await writeFile(
         planPath,
         JSON.stringify({
           ...written,
+          run,
           $schema: schemaUrl("phax-plan", stamp),
           phases: written.phases.map(older),
         }),
@@ -659,6 +669,9 @@ describe.each(OLDER_PLAN_SHAPES)(
       expect(message).toContain(planPath);
       expect(message).toContain(`phax-plan in the ${shape} shape`);
       expect(message).toContain("an older phax wrote it");
+      expect(message?.includes("it records no gate profile (run.gateProfile)")).toBe(
+        shape === "0.38.0",
+      );
       expect(message).toContain("Finish the run with the phax release that started it");
       expect(message).toContain(`\`phax archive ${r.namespace}.${runShortName} --force\``);
       expect(message).toContain("run its plan again");

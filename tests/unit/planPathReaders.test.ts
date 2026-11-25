@@ -55,7 +55,7 @@ feat(test): phase ${i + 1}
 Does phase ${i + 1}.
 `;
   });
-  return `# Thing\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
+  return `# Thing\n\n## Gate profile\n\n\`standard\`\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
 }
 
 /** The plan phax would run for this plan.md, as `loadOrExtractPlan` reads it without the model. */

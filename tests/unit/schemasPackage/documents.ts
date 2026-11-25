@@ -881,13 +881,13 @@ export function withModelReasons(doc: Doc): Doc {
 
 /**
  * A current phax-plan as the frozen 0.17.0 shape wrote it: no phase carries
- * `mode`, `oracle` or `testLines`.
+ * `mode`, `oracle` or `testLines`, and its run names no gate profile.
  */
 export function withoutPhaseKinds(doc: Doc): Doc {
   const phases = (withoutTestLines(doc)["phases"] as Doc[]).map(
     ({ mode: _mode, acceptance: _acceptance, ...phase }) => phase,
   );
-  return { ...doc, phases };
+  return { ...withoutGateProfile(doc), phases };
 }
 
 /**
@@ -906,10 +906,13 @@ export function costLedgerV0_26_0Document(): Doc {
   };
 }
 
-/** A current phax-plan as the frozen 0.26.0 shape wrote it: no phase carries `testLines`. */
+/**
+ * A current phax-plan as the frozen 0.26.0 shape wrote it: no phase carries
+ * `testLines`, and its run names no gate profile.
+ */
 export function withoutTestLines(doc: Doc): Doc {
   const phases = (doc["phases"] as Doc[]).map(({ testLines: _lines, ...phase }) => phase);
-  return { ...doc, phases };
+  return { ...withoutGateProfile(doc), phases };
 }
 
 /**
@@ -1034,7 +1037,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
   "phax-plan": encoded(
     PhaxPlanFileSchema,
     withSchemaUrl("phax-plan", {
-      run: phaxPlan.run,
+      run: { ...phaxPlan.run, gateProfile: "standard" },
       phases: [
         { ...phaxPlan.phases[0], mode: "headless" as const, acceptance: null, testLines: [] },
         ...phaxPlan.phases.slice(1).map((phase) => ({

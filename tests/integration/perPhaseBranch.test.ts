@@ -183,7 +183,9 @@ describe("preparePhaseBranch — unit", () => {
 describe("the noted base — real git", () => {
   let repoDir: string;
   let runPath: string;
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+  ).plan;
   const phase01 = plan.phases[0];
   const phase02 = plan.phases[1]!;
   const runBranch = Result.getOrThrow(decodeBranchName("ai/my-run"));
@@ -334,7 +336,9 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("creates two addWorktree calls with distinct branches and correct createBranch chain", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {
@@ -491,7 +495,9 @@ describe("executePlan — per-phase branch regression", () => {
   });
 
   it("seeds previousPhaseBranch correctly on resume: createBranch only for phase-02", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {

@@ -229,7 +229,9 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("re-runs only the handoff and continues to the next phase — no second commit", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -348,7 +350,9 @@ describe("executePlan — resume from handoff_failed", () => {
   });
 
   it("pauses again (interrupted) when the handoff re-run fails a second time", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -478,7 +482,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     ],
   };
   const plan = Result.getOrThrow(
-    liftFixturePhaxPlanToCurrent("phax-plan.json", threePhasePlan),
+    liftFixturePhaxPlanToCurrent("phax-plan.json", threePhasePlan, "full"),
   ).plan;
   const RESUMED_HANDOFF = HANDOFF_CONTENT.replace(
     "Ready to proceed.",

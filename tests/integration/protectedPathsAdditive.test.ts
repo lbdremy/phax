@@ -164,6 +164,7 @@ function planOf(model: string, effort: "medium" | "high"): { plan: PhaxPlan; pla
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: [phase] as unknown as PhaxPlan["phases"],
   } satisfies PhaxPlan;

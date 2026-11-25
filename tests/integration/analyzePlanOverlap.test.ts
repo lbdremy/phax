@@ -23,6 +23,10 @@ function makePlanMd(shortName: string): string {
   return [
     `# Plan — ${shortName}`,
     "",
+    "## Gate profile",
+    "",
+    "`standard`",
+    "",
     `## phase-01 — First phase {#phase-01-first}`,
     "",
     "Some content.",
@@ -50,6 +54,7 @@ function makeCacheEntry(
         shortName,
         title: `Plan — ${shortName}`,
         requiredCommands: [],
+        gateProfile: "standard",
       },
       phases: [
         {

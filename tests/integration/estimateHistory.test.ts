@@ -61,9 +61,15 @@ function olderPhaxPlanJson(
   stamp: "0.25.0" | "0.26.0",
   phases: Parameters<typeof phaxPlanJson>[0],
 ): string {
-  const plan = JSON.parse(phaxPlanJson(phases)) as { phases: Array<Record<string, unknown>> };
+  const plan = JSON.parse(phaxPlanJson(phases)) as {
+    run: Record<string, unknown>;
+    phases: Array<Record<string, unknown>>;
+  };
+  // No release before 0.43.0 recorded the run's gate profile.
+  const { gateProfile: _gateProfile, ...run } = plan.run;
   return JSON.stringify({
     ...plan,
+    run,
     $schema: schemaUrl("phax-plan", stamp),
     phases: plan.phases.map(({ mode, acceptance, testLines: _lines, ...phase }) =>
       stamp === "0.26.0" ? { ...phase, mode, oracle: acceptance } : phase,

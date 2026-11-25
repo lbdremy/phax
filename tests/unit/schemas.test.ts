@@ -155,6 +155,7 @@ const validPlan = {
     title: "My Run",
     branch: "feature/my-run",
     requiredCommands: [],
+    gateProfile: "standard",
   },
   phases: [
     {

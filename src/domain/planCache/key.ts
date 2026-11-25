@@ -6,7 +6,8 @@ import { splitFrontmatter } from "../artifact/frontmatter.js";
 // 4: phases carry testLines.
 // 5: the test line's loop is acceptance | in-phase and boundary joins the techniques.
 // 6: plan paths are canonical (PlanPath).
-export const EXTRACTOR_VERSION = 6;
+// 7: the run carries gateProfile, read from ## Gate profile.
+export const EXTRACTOR_VERSION = 7;
 
 /**
  * Content address over the plan.md body + model + effort + extractor version.

@@ -2,6 +2,7 @@ import { Array as Arr, Result } from "effect";
 import { slugifyShortName } from "../branded.js";
 import { PlanValidationError } from "../errors.js";
 import type { ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
+import { readPlanGateProfile } from "./parsePlanMarkdown.js";
 import { phaseHeadingSources } from "./sections.js";
 
 export interface FinalizeResult {
@@ -33,9 +34,11 @@ function parsePhaseTitles(headings: PhaseHeadings): Map<string, string> {
 
 /**
  * Pure post-processing of a validated LLM extraction. Derives titles from
- * headings, slugifies shortName, sets branch, detects anchors, and collects
- * warnings. Returns Left<PlanValidationError> if any phase lacks a title
- * heading; the caller is responsible for raising Left to an Effect failure.
+ * headings, slugifies shortName, sets branch, sets the run's gate profile to
+ * the one plan.md declares, detects anchors, and collects warnings. Returns
+ * Left<PlanValidationError> if any phase lacks a title heading, or if plan.md
+ * declares no gate profile or more than one; the caller is responsible for
+ * raising Left to an Effect failure.
  */
 export function finalizeExtractedPlan(
   extracted: ExtractedPhaxPlan,
@@ -63,6 +66,12 @@ export function finalizeExtractedPlan(
     title: phaseTitles.get(p.id) ?? "",
   }));
 
+  // The run's gate profile is phax's own reading of the plan's `## Gate
+  // profile` section, whatever the extracted value says: on the fallback path
+  // the model is never asked for it.
+  const gateProfile = readPlanGateProfile(planMd);
+  if (Result.isFailure(gateProfile)) return Result.fail(gateProfile.failure);
+
   const shortName =
     slugifyShortName(extracted.run.shortName) || slugifyShortName(extracted.run.title) || "run";
 
@@ -72,6 +81,7 @@ export function finalizeExtractedPlan(
       shortName,
       branch: `phax/${shortName}`,
       requiredCommands: extracted.run.requiredCommands,
+      gateProfile: gateProfile.success,
     },
     phases: phasesWithTitles,
   };

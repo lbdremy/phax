@@ -7,7 +7,7 @@ import { PlanValidationError } from "../../src/domain/errors.js";
 function makeExtracted(overrides?: Partial<ExtractedPhaxPlan>): ExtractedPhaxPlan {
   return {
     version: 1,
-    run: { shortName: "my-run", title: "My Run", requiredCommands: [] },
+    run: { shortName: "my-run", title: "My Run", requiredCommands: [], gateProfile: "standard" },
     phases: [
       {
         id: "phase-01",
@@ -27,9 +27,13 @@ function makeExtracted(overrides?: Partial<ExtractedPhaxPlan>): ExtractedPhaxPla
   };
 }
 
+// The plan's gate-profile declaration, which finalize reads from plan.md.
+const DECLARED = ["## Gate profile", "", "`standard`", ""];
+
 const PLAN_MD_ONE_PHASE = [
   "# Plan — My Run",
   "",
+  ...DECLARED,
   "## phase-01 — Alpha phase {#phase-01-alpha}",
   "",
   "Some content.",
@@ -53,7 +57,12 @@ describe("finalizeExtractedPlan", () => {
 
   it("slugifies shortName and sets branch", () => {
     const extracted = makeExtracted({
-      run: { shortName: "My Fancy Run!", title: "My Fancy Run", requiredCommands: [] },
+      run: {
+        shortName: "My Fancy Run!",
+        title: "My Fancy Run",
+        requiredCommands: [],
+        gateProfile: "standard",
+      },
     });
     const result = finalizeExtractedPlan(extracted, PLAN_MD_ONE_PHASE);
     expect(Result.isSuccess(result)).toBe(true);
@@ -65,7 +74,12 @@ describe("finalizeExtractedPlan", () => {
 
   it("falls back to title slug when shortName cannot be slugified", () => {
     const extracted = makeExtracted({
-      run: { shortName: "!!!", title: "fallback title", requiredCommands: [] },
+      run: {
+        shortName: "!!!",
+        title: "fallback title",
+        requiredCommands: [],
+        gateProfile: "standard",
+      },
     });
     const result = finalizeExtractedPlan(extracted, PLAN_MD_ONE_PHASE);
     expect(Result.isSuccess(result)).toBe(true);
@@ -105,6 +119,7 @@ describe("finalizeExtractedPlan", () => {
     const planMd = [
       "# Plan",
       "",
+      ...DECLARED,
       "## phase-01 — Alpha {#phase-01-alpha}",
       "",
       "## phase-02 — Beta {#phase-02-beta}",
@@ -153,6 +168,7 @@ describe("finalizeExtractedPlan", () => {
     const planMd = [
       "# Plan",
       "",
+      ...DECLARED,
       "## phase-01 — Alpha {#phase-01-alpha}",
       "",
       "Some content, then ## phase-03 mid-line.",
@@ -176,6 +192,7 @@ describe("finalizeExtractedPlan", () => {
     const planMd = [
       "# Plan",
       "",
+      ...DECLARED,
       "## phase-01 — Alpha phase {#phase-01-alpha}",
       "",
       "A phase heading looks like this:",
@@ -198,6 +215,7 @@ describe("finalizeExtractedPlan", () => {
     const planMd = [
       "# Plan",
       "",
+      ...DECLARED,
       "## phase-01 — Alpha {#phase-01-alpha}",
       "",
       "## phase-02 — Beta {#phase-02-beta}",
@@ -227,10 +245,25 @@ describe("finalizeExtractedPlan", () => {
     }
   });
 
+  it("takes the run's gate profile from plan.md, whatever the extracted plan says", () => {
+    const planMd = PLAN_MD_ONE_PHASE.replace("`standard`", "`light`");
+    const result = finalizeExtractedPlan(makeExtracted(), planMd);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    expect(result.success.plan.run.gateProfile).toBe("light");
+  });
+
+  it("refuses a plan.md that declares no gate profile", () => {
+    const planMd = PLAN_MD_ONE_PHASE.replace(DECLARED.join("\n"), "");
+    const result = finalizeExtractedPlan(makeExtracted(), planMd);
+    if (Result.isSuccess(result)) throw new Error("unexpected Right");
+    expect(result.failure.message).toBe("the plan declares no gate profile (## Gate profile)");
+  });
+
   it("preserves titles with double quotes", () => {
     const planMd = [
       "# Plan",
       "",
+      ...DECLARED,
       '## phase-01 — Guard "all I/O goes through a port" {#phase-01-quoted}',
     ].join("\n");
     const extracted = makeExtracted({

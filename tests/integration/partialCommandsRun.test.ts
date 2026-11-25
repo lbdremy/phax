@@ -178,7 +178,9 @@ function makeRun(
   opts: { failCommand?: string; model?: string; provider?: string; secure?: boolean } = {},
 ) {
   const runPlan = rawPlanFor(opts.model ?? "claude-sonnet-4-6");
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", runPlan, "full"),
+  ).plan;
   const planMd = planMdFor(runPlan);
   const worktreeOf = (phaseId: string) => join(root, "worktrees", "test-project.my-run", phaseId);
 

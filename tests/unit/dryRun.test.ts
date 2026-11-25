@@ -15,6 +15,7 @@ const minimalPlan: PhaxPlan = {
     title: "Test Run",
     branch: "feat/test",
     requiredCommands: [],
+    gateProfile: "full",
   },
   phases: [
     {
