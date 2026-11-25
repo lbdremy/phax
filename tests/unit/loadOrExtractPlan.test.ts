@@ -12,6 +12,10 @@ import { schemaUrl } from "../../src/schemas/schemaUrl.js";
 // Conforming plan: extractPlanDeterministic parses this without the LLM.
 const CONFORMING_PLAN = `# Test Plan
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)
@@ -219,7 +223,7 @@ describe("loadOrExtractPlan — a plan nested over the limit", () => {
     expect(Result.isFailure(result)).toBe(true);
     if (!Result.isFailure(result)) return;
     expect(result.failure.message).toBe(
-      "/project/plan.md: line 32: blockquotes and lists nest over 32 levels deep — run phax plans lint /project/plan.md",
+      "/project/plan.md: line 36: blockquotes and lists nest over 32 levels deep — run phax plans lint /project/plan.md",
     );
     expect(backend.completeCalls).toHaveLength(0);
     expect(readText.mock.calls.map(([path]) => path)).toEqual([BASE_OPTS.planMdPath]);

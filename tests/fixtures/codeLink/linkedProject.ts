@@ -150,6 +150,10 @@ ${completes}---
 
 Plan body.
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

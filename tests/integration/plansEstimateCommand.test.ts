@@ -39,6 +39,10 @@ source-spec: null
 ---
 # Made-up widget
 
+## Gate profile
+
+\`fast\`
+
 ## Required commands
 
 - (none)

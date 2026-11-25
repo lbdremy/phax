@@ -9,6 +9,10 @@ source-spec: null
 > TypeScript stub. Uses haiku (effort `none`, the only one it takes) so runs are
 > cheap, and follows the phax-planning shape so extraction stays deterministic.
 
+## Gate profile
+
+`minimal`
+
 ## Required commands
 
 - (none)

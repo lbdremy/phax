@@ -46,6 +46,10 @@ source-spec: ${spec ?? "null"}
 ${spec === null ? "" : "completes-spec: true\n"}---
 # ${PLAN_TITLE}
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

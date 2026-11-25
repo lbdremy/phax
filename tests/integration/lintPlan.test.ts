@@ -90,6 +90,10 @@ function planMd(
   const testSection = testStrategy === undefined ? "" : `### Test strategy\n\n${testStrategy}\n\n`;
   return `${frontmatter}# Thing
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 ${requiredCommands}
@@ -200,6 +204,10 @@ function runLint(plan: string, files: Readonly<Record<string, string>> = {}, opt
 }
 
 const PLAN_WITH_TWO_PHASES = `${DRAFT_FRONTMATTER}# Thing
+
+## Gate profile
+
+\`standard\`
 
 ## Required commands
 
@@ -426,6 +434,10 @@ describe("lintPlan", () => {
     ) =>
       [
         `${DRAFT_FRONTMATTER}# Invoice export`,
+        "",
+        "## Gate profile",
+        "",
+        "`standard`",
         "",
         "## Required commands",
         "",
@@ -1174,7 +1186,7 @@ feat(test): phase ${i + 1}
 Does phase ${i + 1}.
 `;
       });
-      return `${DRAFT_FRONTMATTER}# Refunds\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
+      return `${DRAFT_FRONTMATTER}# Refunds\n\n## Gate profile\n\n\`standard\`\n\n## Required commands\n\n- (none)\n\n${sections.join("\n")}`;
     }
 
     // phase-01 sits at the policy default with no file, so only phase-02 speaks.

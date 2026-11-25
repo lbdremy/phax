@@ -506,6 +506,10 @@ ${completes}---
 
 Body text.
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - pnpm check:full

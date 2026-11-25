@@ -105,6 +105,10 @@ source-spec: null
 ---
 # Publishing
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

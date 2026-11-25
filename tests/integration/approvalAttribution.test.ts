@@ -46,6 +46,10 @@ ${frontmatterExtra}---
 
 Store the pruned plans.
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - pnpm check:full

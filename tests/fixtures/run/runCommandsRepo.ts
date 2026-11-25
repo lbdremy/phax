@@ -103,6 +103,10 @@ const LOOSE_PLAN_EXTRACTION: PlanExtractionAnswer = {
 // The plan of the resumable run: it conforms, so extraction needs no model.
 const RESUMABLE_PLAN = `# Resumable Run
 
+## Gate profile
+
+\`fast\`
+
 ## Required commands
 
 - (none)

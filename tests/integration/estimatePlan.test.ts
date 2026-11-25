@@ -98,6 +98,10 @@ approved:
 ---
 # ${PLAN_MARKER} Thing
 
+## Gate profile
+
+\`standard\`
+
 ## Required commands
 
 - (none)

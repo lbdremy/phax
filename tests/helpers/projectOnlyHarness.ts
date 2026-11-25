@@ -219,6 +219,10 @@ function planOf(phases: readonly PlannedPhase[]): { plan: PhaxPlan; planMd: stri
   const planMd = [
     "# Invoice export",
     "",
+    "## Gate profile",
+    "",
+    "`standard`",
+    "",
     "## Required commands",
     "",
     "- (none)",
