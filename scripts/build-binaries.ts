@@ -7,6 +7,9 @@
 // Bundling with esbuild first collapses the embedded set to the reachable,
 // tree-shaken modules (~1.5 MB); deno compile --include then adds back the three
 // data files the CLI reads at runtime. Result: ~74 MB instead of ~360 MB.
+// deno.json's compile.exclude ["node_modules"] matters too: under nodeModulesDir
+// "manual" deno compile would otherwise embed pnpm's whole node_modules (~580 MB),
+// which the bundle never needs.
 //
 // WHY BUNDLE PATH IS THREE DIRECTORIES DEEP (dist/release/bundle/phax.mjs):
 // usage.ts and completions.ts resolve package.json / phax.usage.kdl / .claude/skills
