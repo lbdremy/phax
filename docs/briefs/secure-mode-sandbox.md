@@ -61,7 +61,11 @@ the operator runs it (as `docs/plans/archive/` spike plans did). It answers:
 4. **The agents' allowed commands.** Whether Claude Code's native sandbox (`sandbox` settings) confines its Bash
    commands in a headless `claude -p` session as phax starts it, so phax only turns it on and configures it; whether
    Vibe's commands can be confined by running the `vibe` process under `srt` (its own writes and its API endpoint
-   allowed); Codex unchanged.
+   allowed); Codex unchanged. What Claude Code's docs say (code.claude.com/docs/en/sandboxing.md, 2026-11-25): the
+   sandbox is off by default (`sandbox.enabled`); it confines Bash commands and the processes they start, not the
+   file tools, hooks or MCP servers; `allowUnsandboxedCommands` defaults to `true`, letting the agent retry a
+   blocked command unsandboxed (strict needs `false`); when the sandbox cannot start it runs commands unsandboxed
+   unless `failIfUnavailable` is set; its behaviour under `claude -p` is not documented, so the spike observes it.
 5. **Linux CI.** The same gate under `srt` on a GitHub Actions ubuntu runner, with what the AppArmor restriction needs.
 6. **Network.** Which hosts a gate step needs (none for this repository's gate once `node_modules` is installed;
    the npm registry for setup), and whether a gate under a deny-all network passes.

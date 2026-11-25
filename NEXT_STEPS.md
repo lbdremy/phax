@@ -720,9 +720,12 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
       (the June spike confirmed it blocks a hard-coded IP), hypervisor-enforced read-only mounts, credentials as
       placeholders the guest cannot read, long-lived machines with `machine exec`. The agent, its commands and the
       gate would all run in the guest, with a Linux `node_modules` on the guest's disk over the mounted worktree
-      and a pnpm store kept across phases. Two leads to check then: `claude setup-token` (a subscription token
-      for headless use) behind a credential placeholder, and the agent CLI on the host with only its commands
-      sent into the VM.
+      and a pnpm store kept across phases. Two leads to check then. `claude setup-token` makes a one-year token
+      billed to the subscription, read from `CLAUDE_CODE_OAUTH_TOKEN` and documented for CI and scripts; it could
+      sit behind a credential placeholder (its header and hosts are not documented, and the usage terms reserve
+      subscription OAuth to "ordinary use", so check them). Or the agent CLI stays on the host and only its Bash
+      commands go into the VM through `CLAUDE_CODE_SHELL_PREFIX` (documented for logging and auditing; it also
+      wraps shell hooks and stdio MCP startup, and the file tools stay on the host).
 - [ ] **A Claude Code plugin for phax, after the 1.0 freeze.** Raised 2026-10-08. Ship phax's
       skills (`phax-planning`, `phax-spec`, the `phax-decide-*` skills) as one plugin instead of
       copies under `~/.claude/skills/`, with a small mod for the operator's interactive session:
