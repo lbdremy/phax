@@ -1,7 +1,7 @@
-Write the phax spec `watched-paths`: a project names the files whose change the operator must see, between the ones
-no phase may change (`protectedPaths`) and all the others. A phase may change a watched file only if its plan names it,
-so the operator sees the change when approving the plan; a phase that changes one its plan does not name fails its
-gate; and the run's pull request lists the watched files the run changed in a section of their own.
+Write the phax spec `watched-paths`: a project names the files that matter, and every change a run makes to one is
+raised at review on its own, apart from the reconciliation's other files. Between the files no phase may change
+(`protectedPaths`) and all the others, a watched file may change, planned or not; what changes is that the operator
+always sees it.
 
 ## Why
 
@@ -11,64 +11,53 @@ script and its `check:full` choose which tests the gate runs, so a phase that ed
 off without touching the guard. `package.json` cannot be protected: phases add dependencies and scripts to it as a
 matter of course.
 
-The file reconciliation weighs every path the same. Each phase declares the files it creates and edits; phax compares
-them with the diff and reports what was planned but not done and what was done but not planned
-(`src/domain/reconciliation/`). A planned edit to `package.json` reads like a planned edit to a README, and nobody
-looks at it again. An unplanned one is one more deviation the agent justifies in its handoff: a model's sentence, read
-at review among the others (`## Needs your review` › "Unexplained deviations", `src/domain/publish/prBody.ts`), or not
-read at all when the agent explained it.
-
-The operator's attention goes to two moments: the plan's approval, before the run, and the review, after it. A watched
-file must show at the first, and fail the run when it was not shown there. A line in a report that leaves the gate
-green is read by no one (`docs/briefs/knip-production.md`, item 5).
+phax already reconciles every phase with its plan: each phase declares the files it creates and edits, and phax
+reports what was planned but not done and what was done but not planned (`src/domain/reconciliation/`). What it does
+not do is tell one file from another. A planned edit to `package.json` reads like a planned edit to a README and is
+never mentioned again; an unplanned one is one more deviation among the others, and leaves `## Needs your review` ›
+"Unexplained deviations" (`src/domain/publish/prBody.ts`) as soon as the agent's handoff explains it. The change that
+could switch a check off reaches the review as one line in a list, or not at all.
 
 ## The direction (the operator's, 2026-11-25)
 
-1. **A third tier.** Protected: no phase may change it. Watched: a phase may change it only if its plan names it.
-   The rest: reconciled as today. A key of `phax.json` beside `protectedPaths`, its globs in the same dialect; its name
-   is a placeholder until the spec settles it.
-2. **Seen at approval.** When a plan is linted and approved, phax names each phase that plans to create, change,
-   delete or rename a watched file, with the glob that watches it. That is where the operator says no, before the run,
-   when it costs a sentence. `docs/briefs/protected-path-exceptions.md` (item 4) asks `phax plans lint` for the same
-   probe on protected paths: one probe for both.
-3. **Unplanned means red.** A phase that changes a watched file its plan does not name fails its gate, naming the file
-   and the glob, as a protected path does. It is not a deviation to explain in the handoff.
-4. **Planned means listed.** The watched files a run changed, each with the phases that changed it, get their own
-   section in the run's pull request, under `## Needs your review`, and reach the compliance review and the review
-   handoff.
-5. **No warning.** Nothing of this is a line that leaves the gate green: it is shown at approval, fails the gate, or is
-   listed for review.
+1. **A list of the files that matter.** A key of `phax.json` beside `protectedPaths`, its globs in the same dialect;
+   its name is a placeholder until the spec settles it. `package.json`'s scripts are the first case.
+2. **Raised at review, every time.** Each watched file a run changed, with the phases that changed it and whether
+   each planned it, gets its own section under `## Needs your review` in the run's pull request, before the
+   unexplained deviations. A planned change and an explained one are listed too: the section says what changed in a
+   file that matters, not what went wrong.
+3. **The reviewers get it too.** The compliance review, `phax review-code` and the review handoff receive the same
+   list, so a review session starts from those files.
+4. **The reconciliation stays as it is.** Planned, planned but not done, done but not planned: nothing of it changes;
+   the watched files are read from it.
+5. **No warning.** The list is not a line in a log that leaves the gate green and that no one reads: it sits where the
+   operator's attention already goes, at the top of what they review.
 
 ## What phax has today, to read first
 
-- `docs/security.md`, "Protected paths", and `src/app/protectedPathsCheck.ts`: the key, its glob dialect, its
-  refusals, and where it is checked (each gate attempt in `src/app/fixLoop.ts`, the commit-only resume and a held
-  phase's re-entry in `src/app/executePlan.ts`, after the handoff turn in `src/app/handoffGeneration.ts`).
 - `src/domain/reconciliation/` (`reconcile.ts`, `global.ts`, `explained.ts`): planned, planned but not done, done but
   not planned, and which deviations the handoff explains.
-- `src/domain/publish/prBody.ts`, `## Needs your review`.
-- `phax plans lint`, which already reads `phax.json` (the assignment bounds) and probes the paths each phase names.
-- `docs/briefs/protected-path-exceptions.md` (the operator lets one phase change a protected path, granted at the
-  phase's resume) and `docs/briefs/review-map.md` (where review attention belongs; its map holds the reconciliation's
-  flagged files).
+- `src/domain/publish/prBody.ts`, `## Needs your review` (compliance attention points, unexplained deviations) and how
+  its lists are cut to fit the body.
+- The review handoff (`src/app/loadReviewHandoffInputs.ts`, `src/app/handoffGeneration.ts`), the compliance review's
+  prompt and the code review's (`src/domain/review/codeReviewPrompt.ts`).
+- `docs/security.md`, "Protected paths": the key `watched-paths` sits beside, its glob dialect and its refusals.
+- `docs/briefs/review-map.md`: where review attention belongs; its map holds the reconciliation's flagged files, and
+  the watched files would join it.
 
 ## What the spec must cover
 
 - **The key**: its name, where it may be declared (`phax.json` only, like `protectedPaths`, or the overlays too), its
-  refusals (a malformed glob, a directory without `**`), and a path both protected and watched (protected wins, or
-  refused).
-- **What "the plan names it" means**: the phase's file entries matched against the globs, for a file created, edited,
-  deleted or renamed; whether an earlier phase's entry counts for a later phase (recommended: no, each phase names its
-  own).
-- **The approval surface**: what `phax plans lint` and `phax artifact approve` show, in text and in `--json`; whether
-  approval asks anything more of the operator than reading it.
-- **The gate failure**: where it is checked (the moments protected paths are), its wording, and what the fix loop is
-  told: revert the change, since the agent cannot amend an approved plan. The route when the operator wants the
-  change: the same as a protected path's (`protected-path-exceptions`), or a plan revised before the phase resumes.
-- **The records and the review**: where the watched changes are recorded with the phase, the pull request's section,
-  and what the compliance review and `phax review-code` receive.
-- **The documentation to touch when it ships**: `docs/security.md`; `docs/comparisons/agentic-practices.md`, its row
-  "Files only a person may change" and its "last checked" line.
+  refusals (a malformed glob, a directory without `**`), and a path both protected and watched.
+- **What counts as a change**: a file created, edited, deleted or renamed in the run's diff against its base.
+- **The pull request's section**: its title, its place under `## Needs your review`, one line per file (the path, the
+  glob, the phases, planned or not, explained or not), and how it is cut when the body is long.
+- **The review sessions**: what the compliance review, `phax review-code` and the review handoff receive, and in what
+  order.
+- **The records**: whether the list is recorded with the run (a key of the global reconciliation) or computed when
+  the pull request is written.
+- **The documentation to touch when it ships**: `docs/security.md` or the review guide; `docs/comparisons/agentic-practices.md`
+  and its "last checked" line.
 
 ## Open questions
 
@@ -76,15 +65,18 @@ green is read by no one (`docs/briefs/knip-production.md`, item 5).
 - **A default list.** phax ships none (the project declares every glob), or a short default the project can drop
   (manifests, lockfiles, CI configuration). The lockfile changes whenever a dependency does: watching it doubles every
   dependency change.
-- **What the compliance review does with a planned change**: list it only, or check it against what the plan says
-  the phase does to that file.
-- **A case first.** Find a past run where a planned or unplanned change to such a file mattered, and say what each
-  part of this would have shown, before the spec settles the surface.
+- **Before the run too?** Whether `phax plans lint` and the approval also name the phases that plan to change a
+  watched file, so the operator can say no before the run. `docs/briefs/protected-path-exceptions.md` (item 4) asks
+  the lint for the same probe on protected paths.
+- **Red when unplanned?** Whether a phase that changes a watched file its plan does not name fails its gate, as a
+  protected path does, instead of being listed. It closes the door at the gate, at the cost of a revert and a resume
+  for every change no plan could foresee.
+- **A case first.** Find a past run where a change to such a file mattered, and say what the section would have shown.
 
 ## Out of scope
 
 - What a protected path means, and the exceptions to it (`protected-path-exceptions`).
-- The review map (`review-map`).
+- The review map as a whole (`review-map`).
 - Watching paths outside the worktree.
 
 ## Constraints
