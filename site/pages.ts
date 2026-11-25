@@ -264,6 +264,76 @@ export default definePageMap({
         "Spec Kit vs. phax, side by side: a methodology and prompt layer that runs your agent step by step, against verified delegation in gated, reviewable phases.",
     },
     {
+      route: "/compare/claude-code-vs-phax",
+      title: "Claude Code vs. phax",
+      source: "docs/comparisons/claude-code-vs-phax.md",
+      description:
+        "Claude Code vs. phax, side by side: the agent with its own subagents, hooks and reviews, against verified delegation through that same agent in gated phases.",
+    },
+    {
+      route: "/compare/codex-vs-phax",
+      title: "Codex vs. phax",
+      source: "docs/comparisons/codex-vs-phax.md",
+      description:
+        "Codex vs. phax, side by side: the agent with its own subagents, sandbox and cloud tasks, against verified delegation of an approved plan in gated phases.",
+    },
+    {
+      route: "/compare/kiro-vs-phax",
+      title: "Kiro vs. phax",
+      source: "docs/comparisons/kiro-vs-phax.md",
+      description:
+        "Kiro vs. phax, side by side: an agent platform with specs, hooks and cloud sandboxes, against verified delegation to the agent you already run, in gated phases.",
+    },
+    {
+      route: "/compare/bmad-loop-vs-phax",
+      title: "BMad Loop vs. phax",
+      source: "docs/comparisons/bmad-loop-vs-phax.md",
+      description:
+        "BMad Loop vs. phax, side by side: a loop that builds a BMAD backlog behind your verify commands, against verified delegation of a plan in gated phases.",
+    },
+    {
+      route: "/compare/archon-vs-phax",
+      title: "Archon vs. phax",
+      source: "docs/comparisons/archon-vs-phax.md",
+      description:
+        "Archon vs. phax, side by side: a YAML workflow engine that runs the checks you write, against verified delegation of an approved plan in gated phases.",
+    },
+    {
+      route: "/compare/zeroshot-vs-phax",
+      title: "zeroshot vs. phax",
+      source: "docs/comparisons/zeroshot-vs-phax.md",
+      description:
+        "zeroshot vs. phax, side by side: a graph of agents where separate sessions review the work, against verified delegation in phases gated by your own checks.",
+    },
+    {
+      route: "/compare/fabro-vs-phax",
+      title: "Fabro vs. phax",
+      source: "docs/comparisons/fabro-vs-phax.md",
+      description:
+        "Fabro vs. phax, side by side: workflow graphs you write, with the checks each graph declares, against verified delegation through one fixed sequence of phases.",
+    },
+    {
+      route: "/compare/bernstein-vs-phax",
+      title: "Bernstein vs. phax",
+      source: "docs/comparisons/bernstein-vs-phax.md",
+      description:
+        "Bernstein vs. phax, side by side: a deterministic scheduler for many parallel agents, against verified delegation of one approved plan in gated phases.",
+    },
+    {
+      route: "/compare/goose-vs-phax",
+      title: "Goose vs. phax",
+      source: "docs/comparisons/goose-vs-phax.md",
+      description:
+        "Goose vs. phax, side by side: a general agent whose recipes can carry shell checks, against verified delegation to other vendors' agents in gated phases.",
+    },
+    {
+      route: "/compare/entire-vs-phax",
+      title: "Entire vs. phax",
+      source: "docs/comparisons/entire-vs-phax.md",
+      description:
+        "Entire vs. phax, side by side: a Git forge that keeps every agent session with its commit, against verified delegation that runs the work behind your gates.",
+    },
+    {
       route: "/compare/agentic-practices",
       title: "phax and agentic practice",
       source: "docs/comparisons/agentic-practices.md",
