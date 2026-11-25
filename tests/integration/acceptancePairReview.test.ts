@@ -735,8 +735,9 @@ function recordManifestOf(run: HeldRun, phaseId: string): Record<string, unknown
 }
 
 const stamp = (format: string): string => `https://docs.phax.run/schemas/${format}/0.33.0.json`;
-// phase-record-manifest moved on to 0.34.0 with `userConfig`; its acceptance roles are unchanged.
-const RECORD_MANIFEST_STAMP = stamp("phase-record-manifest").replace("0.33.0", "0.34.0");
+// phase-record-manifest moved on with `userConfig`, then `gateProfile`; its acceptance roles are
+// unchanged.
+const RECORD_MANIFEST_STAMP = currentSchemaUrl("phase-record-manifest");
 
 describe("a held acceptance phase closed with a correction", { timeout: 60_000 }, () => {
   it("records acceptanceStep authored in status.json and the acceptance and passing roles in the manifests, all at 0.33.0", async () => {

@@ -222,6 +222,7 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     expected: {
       ...manifestFields,
       userConfig: "loaded",
+      gateProfile: null,
       verifiedSurfaces: ["acceptance", "local"],
       acceptance: { role: "acceptance", passedBy: "phase-04" },
     },
@@ -239,6 +240,7 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     expected: {
       ...manifestFields,
       userConfig: "loaded",
+      gateProfile: null,
       phaseId: "phase-04",
       verifiedSurfaces: ["acceptance", "local"],
       acceptance: { role: "passing", acceptancePhase: "phase-03" },
@@ -256,6 +258,7 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     expected: {
       ...manifestFields,
       userConfig: "loaded",
+      gateProfile: null,
       verifiedSurfaces: ["local", "structural"],
       acceptance: null,
     },
@@ -272,6 +275,7 @@ export const liftCases: ReadonlyArray<LiftCase> = [
     expected: {
       ...manifestFields,
       userConfig: "loaded",
+      gateProfile: null,
       verifiedSurfaces: ["acceptance", "structural"],
       acceptance: { role: "acceptance", passedBy: "phase-04" },
     },
@@ -376,6 +380,7 @@ export const stampCases: ReadonlyArray<StampCase> = [
     expected: {
       ...manifestFields,
       userConfig: "loaded",
+      gateProfile: null,
       verifiedSurfaces: ["acceptance", "local"],
       acceptance: { role: "passing", acceptancePhase: "phase-03" },
     },

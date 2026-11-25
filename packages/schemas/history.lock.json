@@ -31,6 +31,7 @@
   "src/schemas/history/phase-record-manifest/0.26.0.ts": "abdf429030cf7425187c6ceb278ddd545634794945f0e76ce592974f7866897f",
   "src/schemas/history/phase-record-manifest/0.30.0.ts": "45db54d31188f84a5bf03251627bc55efba87eda73813cd3ddd9f83e2d95c234",
   "src/schemas/history/phase-record-manifest/0.33.0.ts": "befe754fff8a05bd9ae1372b3140e7089bdb3e34e393963467c45d195ced3f11",
+  "src/schemas/history/phase-record-manifest/0.34.0.ts": "852c0dbd8236e542c3283df35beec837b812f797442e68ef4029f46d9f5cc6f3",
   "src/schemas/history/phase-record-manifest/pre-schema.ts": "12e44864e994fd59c106a7fd5407987b08a3c9542e3b0ec50d1088c9f23bbd8f",
   "src/schemas/history/phase-status/0.17.0.ts": "d350680c7c26671d7121f5b1f27f663453999ed4cac7c1ee9c2307e0f6486082",
   "src/schemas/history/phase-status/0.20.0.ts": "8ec3b39bcccf1f1b9913bd2a8f3a1e0f5f45626a437c5bd8162065288000cc71",

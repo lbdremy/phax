@@ -48,6 +48,8 @@ export interface WriteRecordInput {
   readonly provider: ProviderId;
   readonly model: string;
   readonly effort: string;
+  /** The id of the gate profile that gated the run (run-status.json's `gateProfileId`). */
+  readonly gateProfile: string;
   readonly outcome: RecordPhaseOutcome;
   /** The phase's role in an acceptance pair, or null when it is in none. */
   readonly acceptance: RecordAcceptanceRole;
@@ -111,6 +113,7 @@ export function writeRecord(
       model: input.model,
       effort: input.effort,
       provider: input.provider,
+      gateProfile: input.gateProfile,
       outcome: input.outcome,
       usage,
       verifiedSurfaces: verifiedSurfacesForPhase,

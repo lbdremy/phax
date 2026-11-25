@@ -27,6 +27,9 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **`phax records explain` shows these times** under its `gates` line, and `--json` adds `gateAttempts`.
 - **Older attributions still read, with their times `unknown`, and are never rewritten.**
 - **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new attributions**, so upgrade the package. Its `toLatestGateAttribution` gives 0.26.0 to 0.33.0 attributions `unknown` times. Older ones (pre-schema, 0.17.0 to 0.21.0) come back under their own types with no `time` key, since their steps can be `pending`; phax itself reads them with `unknown` times.
+- **Phase records carry the required `gateProfile`**, the id of the gate profile that gated the run, and `phase-record-manifest` is stamped 0.43.0. `phax records explain` prints it on a `profile` line just before the `gates` line, and `--json` adds `gateProfile`.
+- **Earlier records read as `null`**, shown as `(not recorded)` by `phax records explain`, and are never rewritten. `toLatestPhaseRecordManifest` lifts them the same way.
+- **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new records**, so upgrade the package.
 
 No step is needed in a repository.
 

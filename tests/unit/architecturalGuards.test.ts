@@ -734,6 +734,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/phase-record-manifest/0.26.0.ts",
   "src/schemas/history/phase-record-manifest/0.30.0.ts",
   "src/schemas/history/phase-record-manifest/0.33.0.ts",
+  "src/schemas/history/phase-record-manifest/0.34.0.ts",
   "src/schemas/history/phase-record-manifest/pre-schema.ts",
   "src/schemas/history/phase-status/0.17.0.ts",
   "src/schemas/history/phase-status/0.20.0.ts",

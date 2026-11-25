@@ -44,7 +44,7 @@ function manifestOf(run: PlanRun, phaseId: string): Record<string, unknown> {
 
 describe("ac-record", () => {
   it(
-    "a claude-code phase record says userConfig excluded and a codex-cli one says loaded, both at 0.34.0",
+    "a claude-code phase record says userConfig excluded and a codex-cli one says loaded, both at the current stamp",
     { timeout: 60_000 },
     async () => {
       // phase-01 on Claude Code, then phase-02 on Codex: work and handoff turns.
@@ -72,7 +72,6 @@ describe("ac-record", () => {
       const claude = manifestOf(run, "phase-01");
       const codex = manifestOf(run, "phase-02");
       const stamp = currentSchemaUrl("phase-record-manifest");
-      expect(stamp).toContain("0.34.0");
       expect(claude).toMatchObject({ provider: "claude-code", $schema: stamp });
       expect(codex).toMatchObject({ provider: "codex-cli", $schema: stamp });
       expect(claude["userConfig"]).toBe("excluded");

@@ -76,21 +76,25 @@ const USAGES: ReadonlyArray<readonly [provider: string, usage: Doc, lifted: Doc]
 /** A current-shape document restamped at `stamp`, carrying `usage` where its format keeps one. */
 type Frozen = (stamp: string, usage: Doc) => Doc;
 
-// A frozen phase manifest carries the `oracle` role and, being older than 0.34.0, no `userConfig`.
+// A frozen phase manifest carries the `oracle` role and, being older than 0.34.0, no `userConfig`
+// and no `gateProfile`.
 const phase: Frozen = (stamp, usage) =>
   withoutKey(
-    withOracleRole(
-      withKey(
+    withoutKey(
+      withOracleRole(
         withKey(
-          validDocuments["phase-record-manifest"],
-          "$schema",
-          schemaUrl("phase-record-manifest", stamp),
+          withKey(
+            validDocuments["phase-record-manifest"],
+            "$schema",
+            schemaUrl("phase-record-manifest", stamp),
+          ),
+          "usage",
+          usage,
         ),
-        "usage",
-        usage,
       ),
+      "userConfig",
     ),
-    "userConfig",
+    "gateProfile",
   );
 
 const authoring: Frozen = (stamp, usage) =>
@@ -166,7 +170,9 @@ function currentOf(format: FormatId): Doc {
 
 function expectedValue(format: FormatId, usageKey: string, lifted: Doc): Doc {
   const { $schema: _schema, ...recorded } = currentOf(format) as Doc & { $schema: unknown };
-  return { ...recorded, [usageKey]: lifted };
+  // A frozen phase manifest recorded no gate profile: it lifts to null, never a guessed id.
+  const profile = format === "phase-record-manifest" ? { gateProfile: null } : {};
+  return { ...recorded, ...profile, [usageKey]: lifted };
 }
 
 describe("a record stamped below 0.30.0 reads through its frozen decoder (phax)", () => {

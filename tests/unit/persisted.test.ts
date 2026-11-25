@@ -1112,17 +1112,27 @@ describe("format readers", () => {
     (id, label, file) => {
       const { version: _version, ...recorded } = preSchemaDocuments[id];
       // A pre-schema authoring session was never retried: it upgrades with retry none.
-      // A pre-schema phase manifest predates oracle phases, stops and
-      // userConfig: it upgrades with acceptance null, mode headless, stop null
-      // and userConfig loaded.
+      // A pre-schema phase manifest predates oracle phases, stops, userConfig
+      // and the gate profile: it upgrades with acceptance null, mode headless,
+      // stop null, userConfig loaded and gateProfile null (not recorded). The
+      // current one names the profile phax wrote.
       const expected =
         id === "authoring-record-manifest"
           ? { ...recorded, retry: "none" }
-          : { ...recorded, userConfig: "loaded", acceptance: null, mode: "headless", stop: null };
+          : {
+              ...recorded,
+              userConfig: "loaded",
+              gateProfile: null,
+              acceptance: null,
+              mode: "headless",
+              stop: null,
+            };
       const fromPreSchema = right(readRecordManifestFile(file, preSchemaDocuments[id]));
       const fromCurrent = right(readRecordManifestFile(file, validDocuments[id]));
       expect(fromPreSchema).toEqual(expected);
-      expect(fromCurrent).toEqual(expected);
+      expect(fromCurrent).toEqual(
+        id === "authoring-record-manifest" ? expected : { ...expected, gateProfile: "standard" },
+      );
       expect(fromCurrent).not.toHaveProperty("$schema");
       expect(fromPreSchema).not.toHaveProperty("version");
 
@@ -1190,11 +1200,14 @@ describe("format readers", () => {
     );
   });
 
-  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to acceptance null, mode headless, stop null and userConfig loaded, and refuses a current one without any of them", () => {
+  it("readRecordManifestFile lifts a manifest stamped 0.17.0 to acceptance null, mode headless, stop null, userConfig loaded and gateProfile null, and refuses a current one without any of them", () => {
     const file = "run-0001/phase-01/record.json";
     const unstopped = withoutKey(
-      withoutKey(withoutKey(validDocuments["phase-record-manifest"], "mode"), "stop"),
-      "userConfig",
+      withoutKey(
+        withoutKey(withoutKey(validDocuments["phase-record-manifest"], "mode"), "stop"),
+        "userConfig",
+      ),
+      "gateProfile",
     );
     const older = withKey(
       withoutKey(unstopped, "acceptance"),
@@ -1203,14 +1216,16 @@ describe("format readers", () => {
     );
     expect(right(readRecordManifestFile(file, older))).toMatchObject({
       userConfig: "loaded",
+      gateProfile: null,
       acceptance: null,
       mode: "headless",
       stop: null,
     });
     expect(right(readRecordManifestFile(file, older))).not.toHaveProperty("$schema");
 
-    // q-dev-records: a current-stamped manifest without mode, stop or userConfig stays refused.
-    for (const key of ["acceptance", "mode", "stop", "userConfig"]) {
+    // q-dev-records: a current-stamped manifest without mode, stop, userConfig or gateProfile
+    // stays refused.
+    for (const key of ["acceptance", "mode", "stop", "userConfig", "gateProfile"]) {
       const current = withoutKey(validDocuments["phase-record-manifest"], key);
       expect(left(readRecordManifestFile(file, current)).format).toBe("phase-record-manifest");
     }
@@ -1219,8 +1234,8 @@ describe("format readers", () => {
   describe("readRecordManifestFile: userConfig", () => {
     const file = "run-0001/phase-01/record.json";
     const current = validDocuments["phase-record-manifest"];
-    const expected = { ...withoutKey(current, "$schema"), userConfig: "loaded" };
-    const withoutUserConfig = withoutKey(current, "userConfig");
+    const expected = { ...withoutKey(current, "$schema"), userConfig: "loaded", gateProfile: null };
+    const withoutUserConfig = withoutKey(withoutKey(current, "userConfig"), "gateProfile");
     const stamped = phaseManifestStampedAt;
     const unstopped = withoutKey(
       withoutKey(withoutKey(withoutUserConfig, "acceptance"), "mode"),
@@ -1261,6 +1276,59 @@ describe("format readers", () => {
 
     it("refuses a userConfig in a frozen 0.33.0 manifest, where it was never written", () => {
       expect(left(readRecordManifestFile(file, stamped(current, "0.33.0"))).format).toBe(
+        "phase-record-manifest",
+      );
+    });
+  });
+
+  describe("readRecordManifestFile: gateProfile", () => {
+    const file = "run-0001/phase-01/record.json";
+    const current = validDocuments["phase-record-manifest"];
+    const unprofiled = withoutKey(current, "gateProfile");
+    const unconfigured = withoutKey(unprofiled, "userConfig");
+    const stamped = phaseManifestStampedAt;
+    const unstopped = withoutKey(
+      withoutKey(withoutKey(unconfigured, "acceptance"), "mode"),
+      "stop",
+    );
+
+    // One raw manifest per earlier shape: each reads with the profile not
+    // recorded, never a guessed id, and its bytes stay as they were.
+    it.each<readonly [string, Doc]>([
+      ["pre-schema", preSchemaDocuments["phase-record-manifest"]],
+      ["0.17.0", stamped(unstopped, "0.17.0")],
+      ["0.26.0", stamped(withOracleRole(unconfigured), "0.26.0")],
+      ["0.30.0", stamped(withOracleRole(unconfigured), "0.30.0")],
+      ["0.33.0", stamped(unconfigured, "0.33.0")],
+      ["0.34.0", stamped(unprofiled, "0.34.0")],
+    ])("reads a %s manifest with gateProfile null right after userConfig", (name, raw) => {
+      const bytes = JSON.stringify(raw);
+      const manifest = right(readRecordManifestFile(file, raw));
+      expect(manifest).toHaveProperty("gateProfile", null);
+      const keys = Object.keys(manifest);
+      expect(keys[keys.indexOf("userConfig") + 1]).toBe("gateProfile");
+      if (name !== "pre-schema" && name !== "0.17.0") {
+        expect(manifest).toEqual({ ...withoutKey(current, "$schema"), gateProfile: null });
+      }
+      expect(JSON.stringify(raw)).toBe(bytes);
+    });
+
+    it("keeps the gate profile a current manifest recorded, a string or null", () => {
+      for (const gateProfile of ["light", null]) {
+        expect(
+          right(readRecordManifestFile(file, withKey(current, "gateProfile", gateProfile))),
+        ).toMatchObject({ gateProfile });
+      }
+    });
+
+    it("refuses an empty gateProfile, naming the file", () => {
+      const error = left(readRecordManifestFile(file, withKey(current, "gateProfile", "")));
+      expect(error.format).toBe("phase-record-manifest");
+      expect(error.message).toMatch(new RegExp(`^${file}: `));
+    });
+
+    it("refuses a gateProfile in a frozen 0.34.0 manifest, where it was never written", () => {
+      expect(left(readRecordManifestFile(file, stamped(current, "0.34.0"))).format).toBe(
         "phase-record-manifest",
       );
     });
@@ -1471,8 +1539,10 @@ describe("documents from another release", () => {
     // frozen 0.17.0 shape (no arbitratedQuestions either); a plan document, as the frozen
     // 0.26.0 shape (test strategies as strings), the frozen 0.25.0 shape (modelReason) or
     // the frozen 0.20.0 shape, which has no preamble questions.
-    // A phase manifest stamped 0.33.0 or later, below its current stamp, is
-    // read as the frozen 0.33.0 shape, which has no `userConfig`; one stamped
+    // A phase manifest stamped 0.34.0 or later, below its current stamp, is
+    // read as the frozen 0.34.0 shape, which has no `gateProfile`; one stamped
+    // 0.33.0 or later, as the frozen 0.33.0 shape, which has no `userConfig`
+    // either; one stamped
     // 0.26.0 or later, as the frozen shape of that release, which carries the
     // role under `oracle` and no `userConfig` either; an authoring manifest stamped 0.23.0 or later, as the frozen
     // shape of that release, which differs from the current one only in a
@@ -1485,17 +1555,22 @@ describe("documents from another release", () => {
           ? validDocuments[id]
           : withoutKey(validDocuments[id], "retry")
         : id === "phase-record-manifest"
-          ? withoutKey(
-              compareReleases(release, "0.33.0") >= 0
-                ? validDocuments[id]
-                : compareReleases(release, "0.26.0") >= 0
-                  ? withOracleRole(validDocuments[id])
-                  : withoutKey(
-                      withoutKey(withoutKey(validDocuments[id], "acceptance"), "mode"),
-                      "stop",
-                    ),
-              "userConfig",
-            )
+          ? compareReleases(release, "0.34.0") >= 0
+            ? withoutKey(validDocuments[id], "gateProfile")
+            : withoutKey(
+                withoutKey(
+                  compareReleases(release, "0.33.0") >= 0
+                    ? validDocuments[id]
+                    : compareReleases(release, "0.26.0") >= 0
+                      ? withOracleRole(validDocuments[id])
+                      : withoutKey(
+                          withoutKey(withoutKey(validDocuments[id], "acceptance"), "mode"),
+                          "stop",
+                        ),
+                  "userConfig",
+                ),
+                "gateProfile",
+              )
           : id === "plan-approval-record"
             ? // From 0.25.0, the frozen shape names its approver and has no
               // `code`; below it, neither.

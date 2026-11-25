@@ -131,6 +131,7 @@ import { PhaseRecordManifestV0_17_0Schema } from "../../../src/schemas/history/p
 import { PhaseRecordManifestV0_26_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import { PhaseRecordManifestV0_30_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.30.0.js";
 import { PhaseRecordManifestV0_33_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.33.0.js";
+import { PhaseRecordManifestV0_34_0Schema } from "../../../src/schemas/history/phase-record-manifest/0.34.0.js";
 import { PhaseRecordManifestPreSchemaSchema } from "../../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import { PhaseStatusV0_17_0Schema } from "../../../src/schemas/history/phase-status/0.17.0.js";
 import { PhaseStatusV0_20_0Schema } from "../../../src/schemas/history/phase-status/0.20.0.js";
@@ -895,6 +896,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
     shape("0.26.0", PhaseRecordManifestV0_26_0Schema),
     shape("0.30.0", PhaseRecordManifestV0_30_0Schema),
     shape("0.33.0", PhaseRecordManifestV0_33_0Schema),
+    shape("0.34.0", PhaseRecordManifestV0_34_0Schema),
   ],
   "authoring-record-manifest": [
     shape("pre-schema", AuthoringRecordManifestPreSchemaSchema),

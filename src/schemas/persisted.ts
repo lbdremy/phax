@@ -168,6 +168,7 @@ import {
   type PhaseRecordManifestV0_30_0,
 } from "./history/phase-record-manifest/0.30.0.js";
 import { decodePhaseRecordManifestV0_33_0 } from "./history/phase-record-manifest/0.33.0.js";
+import { decodePhaseRecordManifestV0_34_0 } from "./history/phase-record-manifest/0.34.0.js";
 import { decodePhaseRecordManifestPreSchema } from "./history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusV0_20_0 } from "./history/phase-status/0.20.0.js";
 import { decodePhaseStatusV0_26_0 } from "./history/phase-status/0.26.0.js";
@@ -258,7 +259,13 @@ import { decodeCodeReviewV0_29_0 } from "./history/code-review/0.29.0.js";
 import { decodeCodeReviewV0_32_0 } from "./history/code-review/0.32.0.js";
 import { decodeReviewStopV0_26_0 } from "./history/review-stop/0.26.0.js";
 import { decodeReviewStopFile, type ReviewStop } from "./reviewStop.js";
-import { liftFrozenTokenUsage, withLoadedUserConfig, type TokenUsage } from "./runRecord.js";
+import {
+  liftFrozenTokenUsage,
+  withLoadedUserConfig,
+  withUnrecordedGateProfile,
+  type RunRecordManifest,
+  type TokenUsage,
+} from "./runRecord.js";
 import {
   compareReleases,
   parseSchemaUrl,
@@ -2036,22 +2043,36 @@ function isStampedBelowCurrent(
 }
 
 // A phase manifest stamped below the format's current stamp is read by the
-// frozen 0.33.0 decoder when stamped 0.33.0 or later, by the frozen 0.30.0
-// decoder when stamped 0.30.0 or later, by the frozen 0.26.0 decoder when
-// stamped 0.26.0 or later, else by the frozen 0.17.0 decoder. The 0.30.0 and
-// 0.26.0 shapes' `oracle` role becomes the `acceptance` role and their
-// `oracle` verified surface `acceptance`, sorted again. One written before the
-// role (pre-schema, or read by the 0.17.0 decoder) is upgraded with
-// `acceptance: null`, `mode: "headless"` and `stop: null`: no phax before it
-// could run an oracle phase or stop a phase. Every shape below 0.34.0 recorded
-// no `userConfig`: every lift inserts `userConfig: "loaded"` after `provider`,
-// because every earlier phax loaded the user layer for every provider. Every
-// lift of a frozen usage turns a Vibe session cost into unavailable.
+// frozen 0.34.0 decoder when stamped 0.34.0 or later, by the frozen 0.33.0
+// decoder when stamped 0.33.0 or later, by the frozen 0.30.0 decoder when
+// stamped 0.30.0 or later, by the frozen 0.26.0 decoder when stamped 0.26.0 or
+// later, else by the frozen 0.17.0 decoder. The 0.30.0 and 0.26.0 shapes'
+// `oracle` role becomes the `acceptance` role and their `oracle` verified
+// surface `acceptance`, sorted again. One written before the role (pre-schema,
+// or read by the 0.17.0 decoder) is upgraded with `acceptance: null`,
+// `mode: "headless"` and `stop: null`: no phax before it could run an oracle
+// phase or stop a phase. Every shape below 0.34.0 recorded no `userConfig`:
+// every lift of one inserts `userConfig: "loaded"` after `provider`, because
+// every earlier phax loaded the user layer for every provider. No older shape
+// recorded the run's gate profile: every lift inserts `gateProfile: null` (not
+// recorded) after `userConfig`, never a guessed id, and the file is never
+// rewritten. Every lift of a frozen usage turns a Vibe session cost into
+// unavailable.
 function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
   return (file, input) => {
     if (isDocumentObject(input) && isStampedBelowCurrent("phase-record-manifest", input)) {
       // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
       const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+      if (compareReleases(release, "0.34.0") >= 0) {
+        const older = decodePhaseRecordManifestV0_34_0(input);
+        if (Result.isFailure(older)) {
+          return Result.fail(
+            readError(file, "phase-record-manifest", formatFirstViolation(older.failure)),
+          );
+        }
+        const { $schema: _schema, ...manifest } = older.success;
+        return Result.succeed(withUnrecordedGateProfile(manifest));
+      }
       if (compareReleases(release, "0.33.0") >= 0) {
         const older = decodePhaseRecordManifestV0_33_0(input);
         if (Result.isFailure(older)) {
@@ -2060,7 +2081,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
           );
         }
         const { $schema: _schema, ...manifest } = older.success;
-        return Result.succeed(withLoadedUserConfig(manifest));
+        return Result.succeed(liftUnconfigured(manifest));
       }
       if (compareReleases(release, "0.30.0") >= 0) {
         const older = decodePhaseRecordManifestV0_30_0(input);
@@ -2091,7 +2112,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       }
       const { $schema: _schema, usage, ...manifest } = older.success;
       return Result.succeed(
-        withLoadedUserConfig({
+        liftUnconfigured({
           ...manifest,
           usage: liftFrozenTokenUsage(usage),
           acceptance: null,
@@ -2109,7 +2130,7 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
       fromCurrent: fromRecordManifestFile,
       fromPreSchema: ({ version: _version, usage, ...manifest }) =>
         Result.succeed(
-          withLoadedUserConfig({
+          liftUnconfigured({
             ...manifest,
             usage: liftFrozenTokenUsage(usage),
             acceptance: null,
@@ -2125,20 +2146,31 @@ function readPhaseRecordManifestAs(label: string): Reader<RecordManifest> {
  * A phase manifest of the 0.26.0 or 0.30.0 shape, its usage already current:
  * `$schema` dropped, the `oracle` role key renamed `acceptance` and its value
  * lifted (`liftRecordRole`), in the key's own position, the verified
- * surfaces lifted (`liftVerifiedSurfaces`), and `userConfig: "loaded"`
- * inserted after `provider`.
+ * surfaces lifted (`liftVerifiedSurfaces`), and `userConfig: "loaded"` then
+ * `gateProfile: null` inserted after `provider`.
  */
 function liftOracleRecordManifest(
   manifest: Omit<PhaseRecordManifestV0_30_0, "usage"> & { readonly usage: TokenUsage },
 ): RecordManifest {
   const { $schema: _schema, oracle, verifiedSurfaces, mode, stop, ...head } = manifest;
-  return withLoadedUserConfig({
+  return liftUnconfigured({
     ...head,
     verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
     acceptance: liftRecordRole(oracle),
     mode,
     stop,
   });
+}
+
+/**
+ * A phase manifest of a shape below 0.34.0, which recorded neither
+ * `userConfig` nor `gateProfile`: `userConfig: "loaded"` after `provider`,
+ * then `gateProfile: null` after it.
+ */
+function liftUnconfigured(
+  manifest: Omit<RunRecordManifest, "userConfig" | "gateProfile">,
+): RunRecordManifest {
+  return withUnrecordedGateProfile(withLoadedUserConfig(manifest));
 }
 
 const readPhaseRecordManifest = readPhaseRecordManifestAs("phase record manifest");

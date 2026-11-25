@@ -429,8 +429,11 @@ const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
 // records it.
 // A pre-schema compliance review upgrades with `Unknown` ledgers, a
 // phax-written one keeps its own.
+// A pre-schema phase record manifest upgrades with `gateProfile: null` (not
+// recorded), a phax-written one names the run's profile.
 const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
+    id !== "phase-record-manifest" &&
     id !== "phase-status" &&
     id !== "spec-document" &&
     id !== "phax-plan" &&
@@ -707,4 +710,14 @@ describe("phax's bridge and the package agree", () => {
       );
     },
   );
+
+  it("phase-record-manifest: the package upgrades a pre-schema document alike but for its gate profile, not recorded", () => {
+    const id = "phase-record-manifest";
+    const fromPreSchema = PACKAGE_LATEST[id](preSchemaDocuments[id]);
+    const written = PACKAGE_LATEST[id](validDocuments[id]);
+    expect(written).toMatchObject({ gateProfile: validDocuments[id]["gateProfile"] });
+    expect(fromPreSchema).toEqual(
+      PACKAGE_LATEST[id](withKey(validDocuments[id], "gateProfile", null)),
+    );
+  });
 });

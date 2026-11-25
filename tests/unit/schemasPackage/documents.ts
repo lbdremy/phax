@@ -1058,6 +1058,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
     withSchemaUrl("phase-record-manifest", {
       ...stepped(phaseRecordManifest),
       userConfig: "loaded",
+      gateProfile: "standard",
       usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
       acceptance: null,
       mode: "headless",
@@ -1699,6 +1700,7 @@ export const heldPhaseRecordManifestDocument: Doc = encoded(
   withSchemaUrl("phase-record-manifest", {
     ...stepped(phaseRecordManifest),
     userConfig: "loaded",
+    gateProfile: "standard",
     usage: liftFrozenTokenUsage(phaseRecordManifest.usage),
     acceptance: null,
     mode: "headless",

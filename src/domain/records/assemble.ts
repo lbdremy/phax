@@ -29,6 +29,8 @@ export interface AssembleRecordInput {
   readonly model: string;
   readonly effort: string;
   readonly provider: ProviderId;
+  /** The id of the gate profile that gated the phase's run. */
+  readonly gateProfile: string;
   readonly outcome: RecordPhaseOutcome;
   readonly usage: TokenUsage;
   readonly verifiedSurfaces: readonly RecordedSurface[];
@@ -114,6 +116,7 @@ export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
     effort: input.effort,
     provider: input.provider,
     userConfig: userConfigOf(input.provider),
+    gateProfile: input.gateProfile,
     outcome: input.outcome,
     usage: input.usage,
     verifiedSurfaces: input.verifiedSurfaces,

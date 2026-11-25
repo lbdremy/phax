@@ -810,6 +810,10 @@ export {
   type PhaseRecordManifestV0_33_0,
 } from "../../../src/schemas/history/phase-record-manifest/0.33.0.js";
 export {
+  PhaseRecordManifestV0_34_0Schema,
+  type PhaseRecordManifestV0_34_0,
+} from "../../../src/schemas/history/phase-record-manifest/0.34.0.js";
+export {
   BriefRecordV0_20_0Schema,
   type BriefRecordV0_20_0,
 } from "../../../src/schemas/history/brief-record/0.20.0.js";

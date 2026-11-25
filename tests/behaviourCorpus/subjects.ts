@@ -100,6 +100,7 @@ import { decodePhaseRecordManifestV0_17_0 } from "../../src/schemas/history/phas
 import { decodePhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import { decodePhaseRecordManifestV0_30_0 } from "../../src/schemas/history/phase-record-manifest/0.30.0.js";
 import { decodePhaseRecordManifestV0_33_0 } from "../../src/schemas/history/phase-record-manifest/0.33.0.js";
+import { decodePhaseRecordManifestV0_34_0 } from "../../src/schemas/history/phase-record-manifest/0.34.0.js";
 import { decodePhaseRecordManifestPreSchema } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import { decodePhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import { decodePhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
@@ -530,6 +531,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("phase-record-manifest/0.26.0", decodePhaseRecordManifestV0_26_0, "first"),
   frozen("phase-record-manifest/0.30.0", decodePhaseRecordManifestV0_30_0, "first"),
   frozen("phase-record-manifest/0.33.0", decodePhaseRecordManifestV0_33_0, "first"),
+  frozen("phase-record-manifest/0.34.0", decodePhaseRecordManifestV0_34_0, "first"),
   frozen("phase-record-manifest/pre-schema", decodePhaseRecordManifestPreSchema, "first"),
   frozen("phase-status/0.17.0", decodePhaseStatusV0_17_0, "package"),
   frozen("phase-status/0.20.0", decodePhaseStatusV0_20_0, "first"),

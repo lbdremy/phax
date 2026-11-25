@@ -149,6 +149,7 @@ describe("phase record allowlist (SEC-02)", () => {
       provider: "claude-code",
       model: "claude-opus-4-8",
       effort: "high",
+      gateProfile: "standard",
       outcome: "committed",
       acceptance: null,
       mode: "headless",

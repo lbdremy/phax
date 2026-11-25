@@ -429,6 +429,7 @@ function worldAt(
             provider: "claude-code",
             model: "claude-opus-5-5",
             effort: "high",
+            gateProfile: "standard",
             outcome: "committed",
             acceptance: null,
             mode: "headless",

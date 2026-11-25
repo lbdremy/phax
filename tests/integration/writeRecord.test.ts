@@ -117,6 +117,7 @@ describe("writeRecord", () => {
       provider: "claude-code",
       model: "claude-opus-4-8",
       effort: "high",
+      gateProfile: "standard",
       outcome: "committed",
       acceptance: null,
       mode: "headless",
@@ -178,21 +179,24 @@ describe("writeRecord", () => {
     { provider: "claude-code", userConfig: "excluded" },
     { provider: "codex-cli", userConfig: "loaded" },
   ] as const)(
-    "stamps a $provider phase record 0.34.0 and says userConfig $userConfig right after provider",
+    "stamps a $provider phase record at the current stamp, with userConfig $userConfig right after provider and the gate profile after it",
     async ({ provider, userConfig }) => {
       await seedPhaseFolder({ "prompt.md": "p\n" });
 
-      await run(writeRecord(baseInput({ provider })));
+      await run(writeRecord(baseInput({ provider, gateProfile: "light" })));
 
       const manifest = readManifest("run-1/phase-01");
-      expect(manifest["$schema"]).toBe(
+      expect(manifest["$schema"]).toBe(currentSchemaUrl("phase-record-manifest"));
+      expect(manifest["$schema"]).not.toBe(
         "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
       );
       const keys = Object.keys(manifest);
       expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
-      expect(manifest).toMatchObject({ provider, userConfig });
+      expect(keys[keys.indexOf("userConfig") + 1]).toBe("gateProfile");
+      expect(manifest).toMatchObject({ provider, userConfig, gateProfile: "light" });
       const text = git(["show", `${RECORDS_BRANCH_NAME}:run-1/phase-01/record.json`], repoDir);
       expect(text).toContain(`"userConfig": "${userConfig}"`);
+      expect(text).toContain(`"gateProfile": "light"`);
     },
   );
 

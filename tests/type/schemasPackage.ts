@@ -205,6 +205,7 @@ import type {
   PhaseRecordManifestV0_17_0,
   PhaseRecordManifestV0_26_0,
   PhaseRecordManifestV0_33_0,
+  PhaseRecordManifestV0_34_0,
   RecordManifest,
   RecordManifestFormat,
   Registry,
@@ -494,6 +495,7 @@ import type { PhaseRecordManifestV0_17_0 as FrozenPhaseRecordManifestV0_17_0 } f
 import type { PhaseRecordManifestV0_26_0 as FrozenPhaseRecordManifestV0_26_0 } from "../../src/schemas/history/phase-record-manifest/0.26.0.js";
 import type { PhaseRecordManifestV0_30_0 as FrozenPhaseRecordManifestV0_30_0 } from "../../src/schemas/history/phase-record-manifest/0.30.0.js";
 import type { PhaseRecordManifestV0_33_0 as FrozenPhaseRecordManifestV0_33_0 } from "../../src/schemas/history/phase-record-manifest/0.33.0.js";
+import type { PhaseRecordManifestV0_34_0 as FrozenPhaseRecordManifestV0_34_0 } from "../../src/schemas/history/phase-record-manifest/0.34.0.js";
 import type { PhaseRecordManifestPreSchema as FrozenPhaseRecordManifest } from "../../src/schemas/history/phase-record-manifest/pre-schema.js";
 import type { PhaseStatusV0_17_0 as FrozenPhaseStatusV0_17_0 } from "../../src/schemas/history/phase-status/0.17.0.js";
 import type { PhaseStatusV0_20_0 as FrozenPhaseStatusV0_20_0 } from "../../src/schemas/history/phase-status/0.20.0.js";
@@ -561,6 +563,7 @@ const asParsed: Parsed<
   | FrozenPhaseRecordManifestV0_26_0
   | FrozenPhaseRecordManifestV0_30_0
   | FrozenPhaseRecordManifestV0_33_0
+  | FrozenPhaseRecordManifestV0_34_0
   | PhaseRecordManifest
 > = parsed;
 void asParsed;
@@ -569,7 +572,13 @@ void asParsed;
 if (parsed.ok) {
   const shape: Equals<
     typeof parsed.shape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | "0.33.0" | Current<"phase-record-manifest">
+    | "pre-schema"
+    | "0.17.0"
+    | "0.26.0"
+    | "0.30.0"
+    | "0.33.0"
+    | "0.34.0"
+    | Current<"phase-record-manifest">
   > = true;
   const exact: Equals<
     typeof parsed.value,
@@ -578,6 +587,7 @@ if (parsed.ok) {
     | FrozenPhaseRecordManifestV0_26_0
     | FrozenPhaseRecordManifestV0_30_0
     | FrozenPhaseRecordManifestV0_33_0
+    | FrozenPhaseRecordManifestV0_34_0
     | RunRecordManifestFile
   > = true;
   void shape;
@@ -878,7 +888,13 @@ const eachShapeId: [
   >,
   Equals<
     PhaseRecordManifestShape,
-    "pre-schema" | "0.17.0" | "0.26.0" | "0.30.0" | "0.33.0" | Current<"phase-record-manifest">
+    | "pre-schema"
+    | "0.17.0"
+    | "0.26.0"
+    | "0.30.0"
+    | "0.33.0"
+    | "0.34.0"
+    | Current<"phase-record-manifest">
   >,
   Equals<
     AuthoringRecordManifestShape,
@@ -993,6 +1009,7 @@ const parseValues: [
     | FrozenPhaseRecordManifestV0_26_0
     | FrozenPhaseRecordManifestV0_30_0
     | FrozenPhaseRecordManifestV0_33_0
+    | FrozenPhaseRecordManifestV0_34_0
     | RunRecordManifestFile
   >,
   Equals<
@@ -1947,6 +1964,7 @@ const toLatestParameters: [
         | FrozenPhaseRecordManifestV0_26_0
         | FrozenPhaseRecordManifestV0_30_0
         | FrozenPhaseRecordManifestV0_33_0
+        | FrozenPhaseRecordManifestV0_34_0
         | RunRecordManifestFile,
     ]
   >,
@@ -2124,6 +2142,7 @@ const anyManifestAsParsed: Parsed<
   | FrozenPhaseRecordManifestV0_26_0
   | FrozenPhaseRecordManifestV0_30_0
   | FrozenPhaseRecordManifestV0_33_0
+  | FrozenPhaseRecordManifestV0_34_0
   | PhaseRecordManifest
   | FrozenAuthoringRecordManifest
   | AuthoringRecordManifestV0_17_0
@@ -2148,6 +2167,7 @@ if (anyManifest.ok) {
     | "0.28.0"
     | "0.30.0"
     | "0.33.0"
+    | "0.34.0"
     | Current<"phase-record-manifest">
     | Current<"authoring-record-manifest">
     | Current<"decision-record-manifest">
@@ -2188,6 +2208,7 @@ if (anyManifest.ok) {
       | FrozenPhaseRecordManifestV0_26_0
       | FrozenPhaseRecordManifestV0_30_0
       | FrozenPhaseRecordManifestV0_33_0
+      | FrozenPhaseRecordManifestV0_34_0
       | RunRecordManifestFile
     > = true;
     void exact;
@@ -2238,6 +2259,19 @@ const phaseRecordManifestV0_33_0IsFrozen: Equals<
   FrozenPhaseRecordManifestV0_33_0
 > = true;
 void phaseRecordManifestV0_33_0IsFrozen;
+const phaseRecordManifestV0_34_0IsFrozen: Equals<
+  PhaseRecordManifestV0_34_0,
+  FrozenPhaseRecordManifestV0_34_0
+> = true;
+void phaseRecordManifestV0_34_0IsFrozen;
+// A 0.34.0 phase record manifest upgrades to the latest value, its gate profile not recorded.
+declare const phaseRecordManifestV0_34_0: PhaseRecordManifestV0_34_0;
+const upgradedPhaseRecordManifestV0_34_0 = toLatestPhaseRecordManifest(phaseRecordManifestV0_34_0);
+const upgradedPhaseRecordManifestV0_34_0IsLatest: Equals<
+  typeof upgradedPhaseRecordManifestV0_34_0,
+  LatestPhaseRecordManifest
+> = true;
+void upgradedPhaseRecordManifestV0_34_0IsLatest;
 // The current gate attribution upgrades to the latest value.
 declare const phaxGateAttribution: PhaxGateAttributionFile;
 const upgradedGateAttribution: LatestGateAttribution = toLatestGateAttribution(phaxGateAttribution);
