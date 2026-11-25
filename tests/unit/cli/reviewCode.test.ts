@@ -153,7 +153,7 @@ const accepted = (
       reviewPath: "/run/code-review.json",
       sessionPath: "/run/code-review-session.json",
       session: { provider, sessionId: "session-cr", worktreePath: "/wt/phase-02" },
-      skill: { source: "bundled", baseShort: "a1b2c3d", changedByRun: false },
+      skill: { source: "bundled", baseShort: "a1b2c3d", changedByRun: false, baseReadable: true },
     },
     record: { kind: "no-entry" },
     push: { kind: "no-record" },
@@ -188,8 +188,9 @@ describe("runReviewCode --headless", () => {
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(0);
-    expect(errors).toEqual(["review skill: bundled"]);
+    expect(errors).toEqual([]);
     expect(lines).toEqual([
+      "review skill: bundled",
       "Code review: 2 findings (1 bug, 1 concern)",
       "Findings: /run/code-review.json",
       `Fix them in the session: phax review-code ${SHORT_NAME}`,
@@ -215,7 +216,11 @@ describe("runReviewCode --headless", () => {
     const { out, lines } = makeOutput();
     await runReviewCode(SHORT_NAME, { headless: true }, out);
 
-    expect(lines).toEqual(["Code review: 0 findings", "Findings: /run/code-review.json"]);
+    expect(lines).toEqual([
+      "review skill: bundled",
+      "Code review: 0 findings",
+      "Findings: /run/code-review.json",
+    ]);
   });
 
   it("exits 1 naming the state and starts no session when the run is not review_open", async () => {
@@ -285,8 +290,8 @@ describe("runReviewCode --headless", () => {
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(0);
-    expect(lines[0]).toBe("Code review: 1 finding (1 bug)");
-    const warning = errors[1];
+    expect(lines[1]).toBe("Code review: 1 finding (1 bug)");
+    const warning = errors[0];
     expect(warning).toContain("code-review");
     expect(warning).toContain("disk full");
     expect(warning).toContain(`phax review-code ${SHORT_NAME} --headless`);
