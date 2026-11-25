@@ -12,6 +12,11 @@ export class GitError extends Data.TaggedError("GitError")<{
   args?: readonly string[];
   stderrExcerpt?: string;
   expected?: string;
+  /**
+   * Set when the adapter ran no git at all because a phase worktree's `.git`
+   * no longer names the gitdir phax created: the run fails rather than pauses.
+   */
+  refusal?: "gitdir-pointer";
 }> {}
 
 /** A file to write into a records tree: a repo-relative path and its raw bytes. */

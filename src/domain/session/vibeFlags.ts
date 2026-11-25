@@ -33,8 +33,9 @@ import type { SecurityPolicy } from "../security/types.js";
 //       every tool phax names denies reaching outside the working directories
 //       whatever a user's per-tool `outside_workdir` says. write_file and edit
 //       deny `<root>/.vibe/**` and `<root>/.agents/**` in every root, then (a
-//       secure session with protected paths) the worktree's protected literal
-//       and `**/` entries, under its resolved path.
+//       secure session) the worktree's `.git` and everything under it, then
+//       (with protected paths) the worktree's protected literal and `**/`
+//       entries, under its resolved path.
 //       web_fetch/web_search are left alone, as Claude Code's secure flags do.
 //   VIBE_ENABLE_MCP=false, VIBE_ENABLE_CONNECTORS=false
 //       When the policy disables MCP or allowlists servers: no MCP server or
@@ -155,6 +156,16 @@ function mcpEnv(security: SecurityPolicy): Readonly<Record<string, string>> {
     : {};
 }
 
+/**
+ * The worktree's `.git` and everything under it, which a secure session's
+ * write_file and edit deny (SEC-07): under the cwd, and under the worktree's
+ * resolved path too when it differs, since Vibe compares resolved paths.
+ */
+function worktreeGitDenylist(cwd: string, resolvedRoot: string | undefined): readonly string[] {
+  const roots = resolvedRoot === undefined || resolvedRoot === cwd ? [cwd] : [cwd, resolvedRoot];
+  return roots.flatMap((root) => [`${root}/.git`, `${root}/.git/**`]);
+}
+
 /** The writable roots a secure session opens with `--add-dir`: every one but the cwd. */
 export function vibeExtraRoots(security: SecurityPolicy, cwd: string): readonly string[] {
   return security.filesystem.allowWrite.filter((path) => path !== cwd);
@@ -196,9 +207,12 @@ export function buildVibeFlags(input: VibeFlagsInput): VibeFlags {
           input.agentCommands,
           [cwd, ...extraRoots],
           // The worktree only, never the extra roots.
-          input.protectedPaths === undefined
-            ? []
-            : vibeProtectedDenylist(input.protectedPaths.root, input.protectedPaths.list),
+          [
+            ...worktreeGitDenylist(cwd, input.protectedPaths?.root),
+            ...(input.protectedPaths === undefined
+              ? []
+              : vibeProtectedDenylist(input.protectedPaths.root, input.protectedPaths.list)),
+          ],
         ),
       ),
     },

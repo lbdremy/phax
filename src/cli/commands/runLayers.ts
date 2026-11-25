@@ -3,7 +3,7 @@ import { Effect, Result, Layer } from "effect";
 import { makeNodeBackendLayer } from "../../infra/claudeCli.js";
 import { NodeFileSystemLayer, makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
-import { NodeGitLayer } from "../../infra/git.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { ProviderStoreRootsLive } from "../../infra/providerStoreRoots.js";
@@ -150,7 +150,8 @@ export function provideRunLayers<A, E>(
   return effect.pipe(
     Effect.provide(backendLayer),
     Effect.provide(makeRepoRootedFileSystemLayer(config)),
-    Effect.provide(NodeGitLayer),
+    // Rooted at the main checkout, so every git call in a phase worktree is hardened.
+    Effect.provide(makeNodeGitLayer({ repoRoot: config.repoRoot })),
     Effect.provide(swaps.githubLayer ?? NodeGitHubLayer),
     Effect.provide(swaps.shellLayer ?? NodeShellLayer),
     Effect.provide(makeNodeLockLayer(config.stateRoot)),

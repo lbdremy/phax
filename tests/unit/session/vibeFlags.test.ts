@@ -77,10 +77,14 @@ describe("buildVibeFlags — secure", () => {
     ]);
     expect(env["VIBE_OUTSIDE_WORKDIR"]).toBe("deny");
     expect(env["VIBE_BYPASS_TOOL_PERMISSIONS"]).toBe("false");
-    const guards = ["/work/tree", "/home/me/.phax", "/data/extra"].flatMap((root) => [
-      `${root}/.vibe/**`,
-      `${root}/.agents/**`,
-    ]);
+    const guards = [
+      ...["/work/tree", "/home/me/.phax", "/data/extra"].flatMap((root) => [
+        `${root}/.vibe/**`,
+        `${root}/.agents/**`,
+      ]),
+      "/work/tree/.git",
+      "/work/tree/.git/**",
+    ];
     expect(JSON.parse(env["VIBE_TOOLS"] ?? "null")).toEqual({
       bash: { permission: "ask", allowlist: AGENT_COMMANDS, outside_workdir: "deny" },
       read_file: { allowlist: [], outside_workdir: "deny" },
@@ -435,10 +439,13 @@ describe("protected paths", () => {
     `${ROOT}/**/steme.baseline.json`,
     `${ROOT}/phax.json`,
   ];
-  const guards = ["/work/tree", "/home/me/.phax", "/data/extra"].flatMap((root) => [
+  const configGuards = ["/work/tree", "/home/me/.phax", "/data/extra"].flatMap((root) => [
     `${root}/.vibe/**`,
     `${root}/.agents/**`,
   ]);
+  // The worktree's .git, under the cwd and under its resolved path.
+  const gitGuards = ["/work/tree/.git", "/work/tree/.git/**", `${ROOT}/.git`, `${ROOT}/.git/**`];
+  const guards = [...configGuards, ...gitGuards];
   const protectedInput: VibeFlagsInput = {
     security: securePolicy,
     cwd: "/work/tree",
@@ -462,7 +469,25 @@ describe("protected paths", () => {
 
   it("leaves the denylists as they are when nothing is declared", () => {
     const { protectedPaths: _none, ...plain } = protectedInput;
-    expect(toolsOf(plain)["write_file"]?.denylist).toEqual(guards);
+    expect(toolsOf(plain)["write_file"]?.denylist).toEqual([
+      ...configGuards,
+      "/work/tree/.git",
+      "/work/tree/.git/**",
+    ]);
+  });
+
+  it("denies writing the worktree's .git and everything under it in a secure session", () => {
+    const { protectedPaths: _none, ...plain } = protectedInput;
+    const tools = toolsOf(plain);
+    for (const tool of ["write_file", "edit"]) {
+      expect(tools[tool]?.denylist).toEqual(
+        expect.arrayContaining(["/work/tree/.git", "/work/tree/.git/**"]),
+      );
+    }
+    // Never under the extra roots.
+    expect(tools["write_file"]?.denylist?.some((e) => e.startsWith("/data/extra/.git"))).toBe(
+      false,
+    );
   });
 
   it("adds nothing for an unsafe or a read-only session", () => {

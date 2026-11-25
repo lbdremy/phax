@@ -13,7 +13,7 @@ import { previewResetPhase, resetPhase } from "../../app/resetPhase.js";
 import { decodeShortName } from "../../domain/branded.js";
 import { LockConflictError as DomainLockConflictError } from "../../domain/errors.js";
 import { runKey } from "../../domain/runRef.js";
-import { NodeGitLayer } from "../../infra/git.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { makeNodeLockLayer } from "../../infra/lock.js";
 import { NodeShellLayer } from "../../infra/shell.js";
 import type { FileSystem } from "../../ports/fs.js";
@@ -45,7 +45,7 @@ function realLayer(
 ): Layer.Layer<FileSystem | Git | Shell | SystemTelemetry> {
   return Layer.mergeAll(
     makeRepoRootedFileSystemLayer(config),
-    NodeGitLayer,
+    makeNodeGitLayer({ repoRoot: config.repoRoot }),
     NodeShellLayer,
     makeGlobalTelemetryJournalLayerOrNoop(),
   );

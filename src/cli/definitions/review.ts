@@ -33,7 +33,7 @@ import { runKey } from "../../domain/runRef.js";
 import type { RunReviewInfo } from "../../domain/runReviewInfo.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
 import { PHAX_REVIEW_SKILL } from "../../domain/skills/catalog.js";
-import { NodeGitLayer } from "../../infra/git.js";
+import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { makeNodeSessionLayer } from "../../infra/session.js";
 import type { Backend } from "../../ports/backend.js";
@@ -392,7 +392,7 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
           makeRepoRootedFileSystemLayer(config),
           NoopSystemTelemetryLayer,
-          deps.gitLayer ?? NodeGitLayer,
+          deps.gitLayer ?? makeNodeGitLayer({ repoRoot: config.repoRoot }),
           deps.githubLayer ?? NodeGitHubLayer,
         );
         const verbose = program["verbose"];
@@ -612,7 +612,7 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
             deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
             makeRepoRootedFileSystemLayer(config),
             NoopSystemTelemetryLayer,
-            deps.gitLayer ?? NodeGitLayer,
+            deps.gitLayer ?? makeNodeGitLayer({ repoRoot: config.repoRoot }),
             deps.githubLayer ?? NodeGitHubLayer,
           ),
         ),

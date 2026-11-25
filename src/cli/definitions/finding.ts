@@ -9,7 +9,7 @@ import { fixFindings } from "../../app/findingFix.js";
 import { postFindings } from "../../app/findingPost.js";
 import { deferFindings, dismissFindings } from "../../app/findingSettle.js";
 import { listRunFindings } from "../../app/findingList.js";
-import { NodeGitLayer } from "../../infra/git.js";
+import { NodeGitLayer, makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
 import { NodeTerminalLayer } from "../../infra/terminal.js";
 import {
@@ -334,7 +334,8 @@ const fixCommand = defineCommand({
         Effect.provide(
           Layer.mergeAll(
             makeRepoRootedFileSystemLayer(config),
-            NodeGitLayer,
+            // Rooted: the fix commit is made in the run's worktree.
+            makeNodeGitLayer({ repoRoot: config.repoRoot }),
             NodeGitHubLayer,
             NodeTerminalLayer,
           ),
@@ -498,7 +499,8 @@ const settleTexts = (verb: string) => {
 const settleLayer = (config: Parameters<typeof makeRepoRootedFileSystemLayer>[0]) =>
   Layer.mergeAll(
     makeRepoRootedFileSystemLayer(config),
-    NodeGitLayer,
+    // Rooted: the settle reads the tree of the cwd, which may be a phase worktree.
+    makeNodeGitLayer({ repoRoot: config.repoRoot }),
     NodeGitHubLayer,
     NodeTerminalLayer,
   );
