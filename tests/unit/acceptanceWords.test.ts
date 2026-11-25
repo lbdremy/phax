@@ -33,7 +33,8 @@ export interface ScannedRoot {
 
 /**
  * Directories scanned recursively. The live docs leave out what records
- * decisions in the words of their day.
+ * decisions in the words of their day, and the research notes, which quote
+ * their sources' own words.
  */
 export const SCANNED_ROOTS: readonly ScannedRoot[] = [
   { dir: "src", extensions: [".ts"], exclude: [] },
@@ -42,7 +43,7 @@ export const SCANNED_ROOTS: readonly ScannedRoot[] = [
   {
     dir: "docs",
     extensions: [".md"],
-    exclude: ["docs/specs", "docs/plans", "docs/briefs", "docs/releases"],
+    exclude: ["docs/specs", "docs/plans", "docs/briefs", "docs/releases", "docs/research"],
   },
   {
     dir: "site",
@@ -696,7 +697,9 @@ describe("acceptance words in the sources (ac-oracle-kept, source half)", () => 
     expect(files).toContain("docs/comparisons/agentic-practices.md");
     expect(files).toContain("site/pages.ts");
     expect(files).toContain("site/build/sources.ts");
-    expect(files.filter((file) => /^docs\/(specs|plans|briefs|releases)\//.test(file))).toEqual([]);
+    expect(
+      files.filter((file) => /^docs\/(specs|plans|briefs|releases|research)\//.test(file)),
+    ).toEqual([]);
     expect(files.filter((file) => file.startsWith("site/generated/"))).toEqual([]);
   });
 
