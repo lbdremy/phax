@@ -1,8 +1,11 @@
 ---
-status: Draft
+status: Approved
 date: 2026-11-25
 audience: implementation planning with Claude Code
 scope: functional behavior and consumption surface
+approved:
+  date: 2026-11-25
+  baseline: ac1abb6
 ---
 # The plan names its gate profile
 
