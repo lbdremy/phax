@@ -137,6 +137,13 @@ export interface GitOps {
   remoteExists(remote: string, repo: string): Effect.Effect<boolean, GitError>;
   pushBranch(branch: BranchName, remote: string, repo: string): Effect.Effect<void, GitError>;
   headCommit(repo: string): Effect.Effect<string, GitError>;
+  /**
+   * The patch `commit` brings over its first parent, as `git diff <commit>^ <commit>` prints it,
+   * with no external diff command and no textconv driver: config in `repo` runs nothing.
+   */
+  commitPatch(repo: string, commit: string): Effect.Effect<string, GitError>;
+  /** The full message of `commit` (`git log -1 --format=%B`). */
+  commitMessage(repo: string, commit: string): Effect.Effect<string, GitError>;
   commitExists(commit: string, repo: string): Effect.Effect<boolean, GitError>;
   changedFilesSince(baseline: string, repo: string): Effect.Effect<readonly string[], GitError>;
 

@@ -221,6 +221,36 @@ describe("a core.fsmonitor written into the common .git/config", () => {
   });
 });
 
+describe("the phase commit's patch and a stop commit's message", () => {
+  it("run no diff.external, no textconv driver and no fsmonitor from the common config", async () => {
+    const layer = rooted();
+    const wt = await phaseWorktree(layer, "phase-01");
+    writeIn(root, "external.sh", markerScript("diff-external"), true);
+    writeIn(root, "textconv.sh", markerScript("textconv"), true);
+    writeIn(root, "fsmonitor.sh", markerScript("fsmonitor"), true);
+    gitIn(repo, "config", "--local", "diff.external", join(root, "external.sh"));
+    gitIn(repo, "config", "--local", "diff.planted.textconv", join(root, "textconv.sh"));
+    gitIn(repo, "config", "--local", "core.fsmonitor", join(root, "fsmonitor.sh"));
+    writeIn(wt, ".gitattributes", "*.ts diff=planted\n");
+    writeIn(wt, "src/app.ts", "export const a = 2;\n");
+    await ok(layer, (git) => git.commit(wt, "feat: phase one", "Run-Id: run-1"));
+    const commit = await ok(layer, (git) => git.headCommit(wt));
+
+    const patch = await ok(layer, (git) => git.commitPatch(wt, commit));
+    const message = await ok(layer, (git) => git.commitMessage(wt, commit));
+
+    expect(patch).toContain("+export const a = 2;");
+    expect(message).toBe("feat: phase one\n\nRun-Id: run-1\n\n");
+    expect(marked("diff-external")).toBe(false);
+    expect(marked("textconv")).toBe(false);
+    expect(marked("fsmonitor")).toBe(false);
+
+    // The planted diff.external is live: a plain git diff there runs it.
+    boundedSpawn("git", ["diff", `${commit}^`, commit], { boundMs: GIT_BOUND_MS, cwd: wt });
+    expect(marked("diff-external")).toBe(true);
+  });
+});
+
 describe("an intact worktree", () => {
   it("answers status, snapshot and commit as before", async () => {
     const layer = rooted();

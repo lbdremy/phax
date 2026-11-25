@@ -237,12 +237,7 @@ describe("executePlan — resume from commit-paused (passed+interrupted)", () =>
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef01020304\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef01020304");
 
     const fakeBackend = makeFakeBackend();
     // Agent body must NOT be re-run for phase-01.

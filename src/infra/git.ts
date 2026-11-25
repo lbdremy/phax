@@ -1136,6 +1136,16 @@ const nodeGitOps: GitOps = {
   pushBranch: (branch, remote, repo) =>
     gitRun(["push", "--set-upstream", remote, "--", branch], repo).pipe(Effect.asVoid),
 
+  commitPatch: (repo, commit) =>
+    gitRun(["diff", "--no-ext-diff", "--no-textconv", `${commit}^`, commit, "--"], repo).pipe(
+      Effect.map(({ stdout }) => stdout),
+    ),
+
+  commitMessage: (repo, commit) =>
+    gitRun(["log", "-1", "--format=%B", commit, "--"], repo).pipe(
+      Effect.map(({ stdout }) => stdout),
+    ),
+
   headCommit: (repo) =>
     gitRun(["rev-parse", "HEAD"], repo).pipe(
       Effect.flatMap(({ stdout }) => {

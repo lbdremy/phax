@@ -261,12 +261,7 @@ describe("executePlan — resume from startIndex: 1", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "aabb1122\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("aabb1122");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -463,12 +458,7 @@ describe("executePlan — resume from startIndex: 1", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafebabe\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafebabe");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({

@@ -74,6 +74,8 @@ export type GitCall =
   | { method: "remoteExists"; remote: string; repo: string }
   | { method: "pushBranch"; branch: string; remote: string; repo: string }
   | { method: "headCommit"; repo: string }
+  | { method: "commitPatch"; repo: string; commit: string }
+  | { method: "commitMessage"; repo: string; commit: string }
   | { method: "commitExists"; commit: string; repo: string }
   | { method: "changedFilesSince"; baseline: string; repo: string }
   | {
@@ -455,6 +457,22 @@ export class FakeGitImpl implements GitOps {
   headCommit(repo: string): Effect.Effect<string, GitError> {
     this.calls.push({ method: "headCommit", repo });
     return Effect.succeed(this.headCommitValue);
+  }
+
+  /** Patches by commit; a commit with none set has an empty patch. */
+  readonly commitPatches = new Map<string, string>();
+
+  commitPatch(repo: string, commit: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "commitPatch", repo, commit });
+    return Effect.succeed(this.commitPatches.get(commit) ?? "");
+  }
+
+  /** Messages by commit; a commit with none set has an empty message. */
+  readonly commitMessages = new Map<string, string>();
+
+  commitMessage(repo: string, commit: string): Effect.Effect<string, GitError> {
+    this.calls.push({ method: "commitMessage", repo, commit });
+    return Effect.succeed(this.commitMessages.get(commit) ?? "");
   }
 
   commitExists(commit: string, repo: string): Effect.Effect<boolean, GitError> {

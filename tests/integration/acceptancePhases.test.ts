@@ -277,6 +277,14 @@ describe("acceptance phases in a run", () => {
 
     const commitsIn = (cwd: string) =>
       fakeGit.impl.calls.filter((c) => c.method === "commit" && c.repo === cwd).length;
+    // The phase's commit: reading its hash moves its branch, as a real commit would.
+    fakeGit.impl.headCommit = (repo: string) => {
+      fakeGit.impl.calls.push({ method: "headCommit", repo });
+      const phase = basename(repo);
+      const tip = tipOf(phase, commitsIn(repo));
+      fakeGit.impl.setBranchRef(`${BRANCH}--${phase}`, tip);
+      return Effect.succeed(tip);
+    };
     const providerCalls: ProviderCall[] = [];
     const shellCalls: ShellRunOptions[] = [];
     // `failConfigured`: how many upcoming runs of the configured `pnpm test` step exit 1.
@@ -286,13 +294,6 @@ describe("acceptance phases in a run", () => {
         Effect.sync(() => {
           shellCalls.push(options);
           const command = options.command.join(" ");
-          if (command === "git rev-parse HEAD") {
-            // The phase's commit: moves its branch, as a real commit would.
-            const phase = basename(options.cwd);
-            const tip = tipOf(phase, commitsIn(options.cwd));
-            fakeGit.impl.setBranchRef(`${BRANCH}--${phase}`, tip);
-            return ok(`${tip}\n`);
-          }
           if (options.command[0] === ORACLES) {
             const stdin = options.stdin ?? "";
             const request = JSON.parse(stdin) as Record<string, unknown>;

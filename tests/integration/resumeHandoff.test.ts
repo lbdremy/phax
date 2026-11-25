@@ -266,12 +266,7 @@ describe("executePlan — resume from handoff_failed", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafecafe11223344\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafecafe11223344");
 
     const fakeBackend = makeFakeBackend();
     // resumeAgentSession calls: (1) phase-01 handoff re-run, (2) phase-02 handoff.
@@ -547,12 +542,7 @@ describe("executePlan — a limit inside a committed phase's handoff turn", () =
     }
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafecafe11223344\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafecafe11223344");
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.setAutoHandoffContent(opts.handoff);
     for (const id of opts.bodies) {

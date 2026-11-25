@@ -9,7 +9,7 @@ import {
 } from "../domain/errors.js";
 import type { PhaxEvent } from "../domain/events.js";
 import { Git, type GitError } from "../ports/git.js";
-import { Shell, type ShellError } from "../ports/shell.js";
+import type { Shell, ShellError } from "../ports/shell.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { PhaxPlanPhase } from "../schemas/phaxPlan.js";
@@ -138,31 +138,17 @@ export function buildHeldReviewCommitBody(opts: InteractiveCommitBodyOptions): s
   ].join("\n");
 }
 
-function getCommitHash(worktreePath: WorktreePath): Effect.Effect<string, ShellError, Shell> {
-  return Effect.gen(function* () {
-    const shell = yield* Shell;
-    const result = yield* shell.run({
-      command: ["git", "rev-parse", "HEAD"],
-      cwd: worktreePath as string,
-    });
-    return result.stdout.trim();
-  });
-}
-
+/** The phase commit's patch, read through the Git port so the worktree guard covers it. */
 function saveDiffPatch(
   worktreePath: WorktreePath,
+  commitHash: string,
   phaseFolderPath: string,
-): Effect.Effect<void, ShellError | FsError, Shell | FileSystem> {
+): Effect.Effect<void, GitError | FsError, Git | FileSystem> {
   return Effect.gen(function* () {
-    const shell = yield* Shell;
+    const git = yield* Git;
     const fs = yield* FileSystem;
-
-    const result = yield* shell.run({
-      command: ["git", "diff", "HEAD^", "HEAD"],
-      cwd: worktreePath as string,
-    });
-
-    yield* fs.writeAtomic(join(phaseFolderPath, "diff.patch"), result.stdout);
+    const patch = yield* git.commitPatch(worktreePath as string, commitHash);
+    yield* fs.writeAtomic(join(phaseFolderPath, "diff.patch"), patch);
   });
 }
 
@@ -214,7 +200,7 @@ export function commitPhase(
     const body = buildCommitBody(opts);
     yield* git.commit(opts.worktreePath as string, opts.phase.commit.subject, body);
 
-    const commitHash = yield* getCommitHash(opts.worktreePath);
+    const commitHash = yield* git.headCommit(opts.worktreePath as string);
 
     const event: PhaxEvent = {
       eventId: randomUUID(),
@@ -231,7 +217,7 @@ export function commitPhase(
       phaseId: opts.phase.id,
     });
 
-    yield* saveDiffPatch(opts.worktreePath, opts.phaseFolderPath);
+    yield* saveDiffPatch(opts.worktreePath, commitHash, opts.phaseFolderPath);
 
     return { committed: true as const, commitHash };
   });
