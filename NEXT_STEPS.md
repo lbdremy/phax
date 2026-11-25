@@ -424,6 +424,10 @@ desktop — none is promised by the announcement.
       (#260, F3): the close gate writes measured step and attempt times under `review-gate/`, a stop artifact
       phase records do not carry, so `phax/records/v1` and `phax records explain` never show them. Decide
       whether a stop's record carries its close gate's attribution.
+- [ ] **A resumed interactive code review does not say which review skill it follows.** Found
+      2026-11-25 reviewing `security-high-fixes` (#265, F8): on resume `skill` is null, so no
+      `review skill:` line and no change warning print. The session keeps the doctrine it started
+      with; store the skill fact with the session and print it again, or say so.
 - [x] **A record commit hashes its files one git process each.** Folded 2026-11-23 into
       `fewer-git-processes` (wave 3), which takes the whole record write.
 - [ ] **Vibe's helper processes outlive a hung `vibe-rs`.** Seen once in the `vibe-model-flags`
