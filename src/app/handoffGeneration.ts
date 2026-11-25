@@ -9,6 +9,7 @@ import {
   type AgentSessionFailedError,
   type AgentSessionIdMissingError,
   HandoffProtectedPathsError,
+  type PhaxContextRefusedError,
   type RateLimitError,
   type RegistryCorruptionError,
   type SecurityEnforcementError,
@@ -25,7 +26,11 @@ import { withInvocationCost } from "./costLedger.js";
 import { dispatch } from "./dispatcher.js";
 import type { ProtectedList } from "../domain/security/protectedPaths.js";
 import { HANDOFF_GUIDANCE_LINES, REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
+import { readPhaxContextFile } from "./phaxContext.js";
 import { checkProtectedPaths } from "./protectedPathsCheck.js";
+
+/** The handoff the phase writes, relative to its worktree. */
+const PHASE_HANDOFF_FILE = ".phax-context/phase-handoff.md";
 
 function buildDeviationBlock(result: ReconciliationResult): string {
   if (!result.hasDeviations) {
@@ -128,6 +133,7 @@ export function generatePhaseHandoff(
   | SecurityEnforcementError
   | HandoffValidationError
   | HandoffProtectedPathsError
+  | PhaxContextRefusedError
   | RegistryCorruptionError,
   FileSystem | Backend | Git | Shell | SystemTelemetry
 > {
@@ -183,8 +189,14 @@ export function generatePhaseHandoff(
       }
     }
 
-    const handoffPath = join(worktreePath, ".phax-context", "phase-handoff.md");
-    const exists = yield* fs.exists(handoffPath);
+    // Read through the `.phax-context` guard: a linked handoff is never read,
+    // and reads as a missing one.
+    const handoff = yield* readPhaxContextFile(worktreePath, PHASE_HANDOFF_FILE);
+    if (handoff.kind === "linked") {
+      yield* Effect.logWarning(
+        `[phax] ${phaseId}: ${PHASE_HANDOFF_FILE} is a symbolic link (→ ${handoff.target}); not read.`,
+      );
+    }
 
     const dispatchHandoffMissing = (missing: readonly string[]) =>
       Effect.gen(function* () {
@@ -204,14 +216,14 @@ export function generatePhaseHandoff(
         });
       });
 
-    if (!exists) {
+    if (handoff.kind !== "file") {
       yield* dispatchHandoffMissing(REQUIRED_HANDOFF_SECTIONS);
       return yield* Effect.fail(
         new HandoffValidationError(REQUIRED_HANDOFF_SECTIONS, worktreePath),
       );
     }
 
-    const content = yield* fs.readText(handoffPath);
+    const content = handoff.text;
     const missingSections = validateHandoffSections(content);
     if (missingSections.length > 0) {
       yield* dispatchHandoffMissing(missingSections);

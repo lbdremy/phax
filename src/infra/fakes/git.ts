@@ -54,6 +54,7 @@ export type GitCall =
   | { method: "repoTopLevel"; path: string }
   | { method: "isIgnored"; repo: string; path: string }
   | { method: "isTracked"; repo: string; path: string }
+  | { method: "ensureInfoExclude"; repo: string; line: string }
   | { method: "deleteBranch"; name: string; force: boolean; repo: string }
   | { method: "addWorktree"; branch: string; path: string; repo: string }
   | { method: "removeWorktree"; path: string; force: boolean; repo: string }
@@ -228,7 +229,9 @@ export class FakeGitImpl implements GitOps {
 
   isIgnored(repo: string, path: string): Effect.Effect<boolean, GitError> {
     this.calls.push({ method: "isIgnored", repo, path });
-    return Effect.succeed(this.ignoredPaths.get(`${repo}\0${path}`) ?? false);
+    return Effect.succeed(
+      this.ignoredPaths.get(`${repo}\0${path}`) ?? this.excludedByInfo(repo, path),
+    );
   }
 
   private readonly trackedPaths = new Set<string>();
@@ -298,7 +301,29 @@ export class FakeGitImpl implements GitOps {
       );
     }
     this.checkedOutBranches.set(branch, path);
+    this.worktreeRepos.set(path, repo);
     return Effect.void;
+  }
+
+  /** The repository each worktree added through `addWorktree` belongs to. */
+  private readonly worktreeRepos = new Map<string, string>();
+  /** The lines of each repository's `info/exclude`, keyed by its main checkout. */
+  readonly infoExcludes = new Map<string, string[]>();
+
+  ensureInfoExclude(repo: string, line: string): Effect.Effect<boolean, GitError> {
+    this.calls.push({ method: "ensureInfoExclude", repo, line });
+    const main = this.worktreeRepos.get(repo) ?? repo;
+    const lines = this.infoExcludes.get(main) ?? [];
+    if (lines.includes(line)) return Effect.succeed(false);
+    this.infoExcludes.set(main, [...lines, line]);
+    return Effect.succeed(true);
+  }
+
+  // Whether an info/exclude line of the repository `repo` belongs to ignores
+  // the top-level `path`: only the anchored `/<path>` form is modelled.
+  private excludedByInfo(repo: string, path: string): boolean {
+    const main = this.worktreeRepos.get(repo) ?? repo;
+    return (this.infoExcludes.get(main) ?? []).includes(`/${path}`);
   }
 
   removeWorktree(path: WorktreePath, force: boolean, repo: string): Effect.Effect<void, GitError> {

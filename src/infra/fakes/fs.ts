@@ -1,6 +1,12 @@
 import { Effect, Layer } from "effect";
-import { isAbsolute, join } from "node:path/posix";
-import { FileSystem, type FileSystemOps, FsError, type WriteModeOptions } from "../../ports/fs.js";
+import { dirname, isAbsolute, join } from "node:path/posix";
+import {
+  type EntryKind,
+  FileSystem,
+  type FileSystemOps,
+  FsError,
+  type WriteModeOptions,
+} from "../../ports/fs.js";
 
 export class FakeFileSystemImpl implements FileSystemOps {
   readonly files = new Map<string, string>();
@@ -40,6 +46,48 @@ export class FakeFileSystemImpl implements FileSystemOps {
 
   addDir(path: string): void {
     this.dirs.add(path);
+  }
+
+  /** Symbolic links: path → link target. Only `entryKind` and `remove` see them. */
+  readonly symlinks = new Map<string, string>();
+  /** Entries that are neither a file, a directory nor a link (a fifo, a socket). */
+  readonly others = new Set<string>();
+
+  /** Places a symbolic link at `path` naming `target`. */
+  setSymlink(path: string, target: string): void {
+    this.symlinks.set(path, target);
+    this.registerParentDirs(path);
+  }
+
+  /** Places an entry of another kind (a fifo, a socket) at `path`. */
+  setOther(path: string): void {
+    this.others.add(path);
+    this.registerParentDirs(path);
+  }
+
+  // Like lstat: a link among the parents is followed (its target resolved
+  // against the link's folder), the last entry is not; a path under a file or
+  // another entry is absent.
+  entryKind(path: string): Effect.Effect<EntryKind, FsError> {
+    const parts = path.split("/");
+    for (let i = 1; i < parts.length; i++) {
+      const parent = parts.slice(0, i).join("/");
+      if (parent === "") continue;
+      const link = this.symlinks.get(parent);
+      if (link !== undefined) {
+        const resolved = isAbsolute(link) ? link : join(dirname(parent), link);
+        return this.entryKind(join(resolved, ...parts.slice(i)));
+      }
+      if (this.files.has(parent) || this.others.has(parent)) {
+        return Effect.succeed({ kind: "absent" });
+      }
+    }
+    const target = this.symlinks.get(path);
+    if (target !== undefined) return Effect.succeed({ kind: "symlink", target });
+    if (this.files.has(path)) return Effect.succeed({ kind: "file" });
+    if (this.dirs.has(path)) return Effect.succeed({ kind: "directory" });
+    if (this.others.has(path)) return Effect.succeed({ kind: "other" });
+    return Effect.succeed({ kind: "absent" });
   }
 
   private registerParentDirs(filePath: string): void {
@@ -150,6 +198,14 @@ export class FakeFileSystemImpl implements FileSystemOps {
     const prefix = path + "/";
     this.forget(path);
     this.dirs.delete(path);
+    this.symlinks.delete(path);
+    this.others.delete(path);
+    for (const key of Array.from(this.symlinks.keys())) {
+      if (key.startsWith(prefix)) this.symlinks.delete(key);
+    }
+    for (const key of Array.from(this.others)) {
+      if (key.startsWith(prefix)) this.others.delete(key);
+    }
     for (const key of Array.from(this.files.keys())) {
       if (key.startsWith(prefix)) this.forget(key);
     }
@@ -283,6 +339,7 @@ function makeRootedFakeFileSystemOps(base: FakeFileSystemImpl, root: string): Fi
     appendLine: (path, line) => base.appendLine(resolveKey(path), line),
     mkdirp: (path, options) => base.mkdirp(resolveKey(path), options),
     exists: (path) => base.exists(resolveKey(path)),
+    entryKind: (path) => base.entryKind(resolveKey(path)),
     remove: (path) => base.remove(resolveKey(path)),
     rename: (from, to) => base.rename(resolveKey(from), resolveKey(to)),
     list: (path) => base.list(resolveKey(path)),

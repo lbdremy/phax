@@ -39,6 +39,19 @@ export class WorktreeCreationError extends Data.TaggedError("WorktreeCreationErr
   path: string;
 }> {}
 
+/**
+ * A `.phax-context` level in a phase worktree (the folder itself or one phax
+ * uses under it) is not a real directory, so phax refused to create, write,
+ * remove or read anything through it. `kind` is what lstat found there and
+ * `linkTarget` a symbolic link's target, else null.
+ */
+export class PhaxContextRefusedError extends Data.TaggedError("PhaxContextRefusedError")<{
+  message: string;
+  path: string;
+  kind: "symlink" | "file" | "other";
+  linkTarget: string | null;
+}> {}
+
 export class SetupCommandFailedError extends Data.TaggedError("SetupCommandFailedError")<{
   message: string;
   command: string;

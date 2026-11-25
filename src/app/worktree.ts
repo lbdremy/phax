@@ -4,8 +4,13 @@ import { Git, type GitError } from "../ports/git.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { BranchName, PhaseId, ShortName, WorktreePath } from "../domain/branded.js";
 import { decodeBranchName, decodeWorktreePath } from "../domain/branded.js";
-import { UnsafeGitStateError, WorktreeCreationError } from "../domain/errors.js";
+import {
+  type PhaxContextRefusedError,
+  UnsafeGitStateError,
+  WorktreeCreationError,
+} from "../domain/errors.js";
 import { runKey } from "../domain/runRef.js";
+import { ensurePhaxContextDir, PHAX_CONTEXT_DIR, writePhaxContextFile } from "./phaxContext.js";
 
 const FULL_COMMIT_SHA = /^[0-9a-f]{40}([0-9a-f]{24})?$/;
 
@@ -125,8 +130,6 @@ export function prepareRunBranch(
   });
 }
 
-export const PHAX_CONTEXT_DIR = ".phax-context";
-
 /** The full plan inside a phase worktree, which the phase prompt names. */
 export const PHASE_PLAN_FILE = join(PHAX_CONTEXT_DIR, "plan.md");
 
@@ -134,51 +137,35 @@ export const PHASE_PLAN_FILE = join(PHAX_CONTEXT_DIR, "plan.md");
 export function writePhasePlanFile(
   worktreePath: string,
   planMd: string,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    yield* fs.mkdirp(join(worktreePath, PHAX_CONTEXT_DIR));
-    yield* fs.writeAtomic(join(worktreePath, PHASE_PLAN_FILE), planMd);
-  });
+): Effect.Effect<void, PhaxContextRefusedError | FsError, FileSystem> {
+  return writePhaxContextFile(worktreePath, PHASE_PLAN_FILE, planMd);
 }
 
-/**
- * Ensure `<worktree>/.gitignore` excludes `.phax-context/`. Phax writes phase
- * metadata (handoff, summary) inside that folder; gitignoring it lets the
- * commit step run a plain `git add . && git commit` without dragging phax
- * artifacts into the project history.
- *
- * Idempotent: appends only if the rule is absent. Creates `.gitignore` if it
- * does not already exist.
- */
-function ensurePhaxContextIgnored(worktreePath: string): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
+/** The repository's info/exclude line that keeps every worktree's `.phax-context` out of git. */
+const PHAX_CONTEXT_EXCLUDE = `/${PHAX_CONTEXT_DIR}`;
 
+/**
+ * Keep `.phax-context` out of git and make sure it is a real directory. The
+ * ignore rule is one `/.phax-context` line in the repository's info/exclude,
+ * shared by every worktree, so no tracked file changes: the commit step runs a
+ * plain `git add -A` without phax metadata, or phax's own ignore line, entering
+ * the history. Unlike `.phax-context/`, the rule also matches a symbolic link
+ * of that name. `.phax-context` is then created, or used when it is already a
+ * real directory, and refused otherwise.
+ */
+function preparePhaxContext(
+  worktreePath: string,
+  repoRoot: string,
+): Effect.Effect<void, PhaxContextRefusedError | GitError | FsError, Git | FileSystem> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const fs = yield* FileSystem;
+    yield* git.ensureInfoExclude(repoRoot, PHAX_CONTEXT_EXCLUDE);
     // `git worktree add` already creates the worktree dir; this mkdirp is a
     // no-op there but lets fake-git unit tests (which don't materialise the
     // worktree) hit the same path safely.
     yield* fs.mkdirp(worktreePath);
-
-    const gitignorePath = join(worktreePath, ".gitignore");
-    const rule = `${PHAX_CONTEXT_DIR}/`;
-    const present = yield* fs.exists(gitignorePath);
-    const existing = present ? yield* fs.readText(gitignorePath) : "";
-    const alreadyPresent = existing
-      .split("\n")
-      .map((l) => l.trim())
-      .some((l) => l === rule);
-    if (!alreadyPresent) {
-      const needsLeadingNewline = existing.length > 0 && !existing.endsWith("\n");
-      yield* fs.writeAtomic(
-        gitignorePath,
-        `${existing}${needsLeadingNewline ? "\n" : ""}${rule}\n`,
-      );
-    }
-
-    // The folder is empty until the agent writes into it, and git tracks
-    // contents not directories, so this has no effect on the commit.
-    yield* fs.mkdirp(join(worktreePath, PHAX_CONTEXT_DIR));
+    yield* ensurePhaxContextDir(worktreePath);
   });
 }
 
@@ -189,7 +176,11 @@ export function createPhaseWorktree(
   branch: BranchName,
   stateRoot: string,
   repoRoot: string,
-): Effect.Effect<WorktreePath, WorktreeCreationError | GitError | FsError, Git | FileSystem> {
+): Effect.Effect<
+  WorktreePath,
+  WorktreeCreationError | PhaxContextRefusedError | GitError | FsError,
+  Git | FileSystem
+> {
   return Effect.gen(function* () {
     const git = yield* Git;
     const fs = yield* FileSystem;
@@ -212,7 +203,7 @@ export function createPhaseWorktree(
     // and the partial work / session state must be preserved.
     const alreadyExists = yield* fs.exists(worktreeDir);
     if (alreadyExists) {
-      yield* ensurePhaxContextIgnored(worktreeDir);
+      yield* preparePhaxContext(worktreeDir, repoRoot);
       return worktreePath;
     }
 
@@ -227,7 +218,7 @@ export function createPhaseWorktree(
       ),
     );
 
-    yield* ensurePhaxContextIgnored(worktreeDir);
+    yield* preparePhaxContext(worktreeDir, repoRoot);
 
     return worktreePath;
   });

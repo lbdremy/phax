@@ -1,6 +1,7 @@
 import { Effect, Result } from "effect";
 import { join } from "node:path";
 import { renderBriefSection } from "../domain/brief/render.js";
+import type { PhaxContextRefusedError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import type { OutputPort } from "../ports/output.js";
 import type { Shell } from "../ports/shell.js";
@@ -13,7 +14,7 @@ import {
   serializeBriefRecord,
   serializeBriefRequest,
 } from "./briefProvider.js";
-import { PHAX_CONTEXT_DIR } from "./worktree.js";
+import { PHAX_CONTEXT_DIR, writePhaxContextFile } from "./phaxContext.js";
 
 /** The phase request file, relative to the phase worktree's root. */
 export const PHASE_BRIEF_REQUEST_FILE = join(PHAX_CONTEXT_DIR, "brief-request.json");
@@ -25,15 +26,12 @@ const PUSHED_BRIEF_RECORD = "brief-00.json";
 export function writePhaseBriefRequest(
   worktreePath: string,
   request: BriefRequestFile,
-): Effect.Effect<void, FsError, FileSystem> {
-  return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    yield* fs.mkdirp(join(worktreePath, PHAX_CONTEXT_DIR));
-    yield* fs.writeAtomic(
-      join(worktreePath, PHASE_BRIEF_REQUEST_FILE),
-      serializeBriefRequest(request),
-    );
-  });
+): Effect.Effect<void, PhaxContextRefusedError | FsError, FileSystem> {
+  return writePhaxContextFile(
+    worktreePath,
+    PHASE_BRIEF_REQUEST_FILE,
+    serializeBriefRequest(request),
+  );
 }
 
 function unavailable(

@@ -10,6 +10,17 @@ export interface WriteModeOptions {
   readonly mode?: number | undefined;
 }
 
+/**
+ * What sits at a path, read without following a symbolic link at the path
+ * itself (lstat). A path under a file, or under nothing, is `absent`.
+ */
+export type EntryKind =
+  | { readonly kind: "absent" }
+  | { readonly kind: "directory" }
+  | { readonly kind: "file" }
+  | { readonly kind: "symlink"; readonly target: string }
+  | { readonly kind: "other" };
+
 export interface FileSystemOps {
   readText(path: string): Effect.Effect<string, FsError>;
   /** The file's bytes exactly, whatever their encoding. */
@@ -34,6 +45,11 @@ export interface FileSystemOps {
   /** `mode`, when given, is set on the folder at `path`, whether or not it existed. */
   mkdirp(path: string, options?: WriteModeOptions): Effect.Effect<void, FsError>;
   exists(path: string): Effect.Effect<boolean, FsError>;
+  /**
+   * The kind of entry at `path`, lstat'ed: a symbolic link is reported as
+   * `symlink` with its link target (readlink), never as what it points at.
+   */
+  entryKind(path: string): Effect.Effect<EntryKind, FsError>;
   remove(path: string): Effect.Effect<void, FsError>;
   rename(from: string, to: string): Effect.Effect<void, FsError>;
   list(path: string): Effect.Effect<readonly string[], FsError>;

@@ -7,18 +7,25 @@ import {
 } from "../domain/brief/pull.js";
 import { outsideBriefRequest, phaseBriefRequest } from "../domain/brief/request.js";
 import { resolveTreePaths } from "../domain/treePaths.js";
-import { FileSystem } from "../ports/fs.js";
+import { FileSystem, type FsError } from "../ports/fs.js";
 import type { OutputPort } from "../ports/output.js";
 import type { Shell } from "../ports/shell.js";
 import type { BriefRequestFile, PhaseBriefRequest } from "../schemas/brief.js";
 import type { BriefReport } from "../schemas/briefReport.js";
-import { readBriefRequestFile } from "../schemas/persisted.js";
+import { readBriefRecordFile, readBriefRequestFile } from "../schemas/persisted.js";
 import {
   queryBrief,
   serializeBriefRecord,
+  serializeDecodedBriefRecord,
   stampBriefRequest,
   type BriefOutcome,
 } from "./briefProvider.js";
+import {
+  ensurePhaxContextDir,
+  PHAX_CONTEXT_DIR,
+  phaxContextDirState,
+  readPhaxContextFile,
+} from "./phaxContext.js";
 import { PHASE_BRIEF_REQUEST_FILE } from "./pushedBrief.js";
 
 /** What one `phax brief` call comes to. `files` is null for the phase's brief. */
@@ -47,16 +54,17 @@ function readPhaseRequest(
   root: string,
 ): Effect.Effect<PhaseBriefRequest | string | undefined, never, FileSystem> {
   return Effect.gen(function* () {
-    const fs = yield* FileSystem;
-    const path = join(root, PHASE_BRIEF_REQUEST_FILE);
-    const present = yield* Effect.result(fs.exists(path));
-    if (Result.isFailure(present)) return notARequest(present.failure.message);
-    if (!present.success) return undefined;
-    const text = yield* Effect.result(fs.readText(path));
-    if (Result.isFailure(text)) return notARequest(text.failure.message);
+    const found = yield* Effect.result(readPhaxContextFile(root, PHASE_BRIEF_REQUEST_FILE));
+    if (Result.isFailure(found)) return notARequest(found.failure.message);
+    const file = found.success;
+    if (file.kind === "absent") return undefined;
+    if (file.kind === "linked") {
+      return notARequest(`it is a symbolic link (→ ${file.target}); phax does not read it`);
+    }
+    if (file.kind === "not-a-file") return notARequest("it is not a regular file");
     let parsed: unknown;
     try {
-      parsed = JSON.parse(text.success) as unknown;
+      parsed = JSON.parse(file.text) as unknown;
     } catch {
       return notARequest("not valid JSON");
     }
@@ -86,9 +94,8 @@ function recordPull(
 ): Effect.Effect<string | undefined, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
-    const dir = join(root, PULLED_BRIEFS_DIR);
-    if (yield* fs.exists(join(dir, BRIEFS_CLOSED_MARKER))) return undefined;
-    yield* fs.mkdirp(dir);
+    const dir = yield* ensurePhaxContextDir(root, BRIEFS_SUBDIR);
+    if ((yield* fs.entryKind(join(dir, BRIEFS_CLOSED_MARKER))).kind !== "absent") return undefined;
     const content = serializeBriefRecord("pulled", request, outcome);
     const taken = [...(yield* fs.list(dir))];
     while (true) {
@@ -105,13 +112,51 @@ function recordPull(
 
 const PULLED_BRIEF_RECORD = /^brief-(\d{2,})\.json$/;
 
+/** `PULLED_BRIEFS_DIR`, relative to `.phax-context`. */
+const BRIEFS_SUBDIR = PULLED_BRIEFS_DIR.slice(PHAX_CONTEXT_DIR.length + 1);
+
+// The pulled record `name` waiting at `path`, as the bytes to copy into the
+// phase folder, or the warning that it is not copied: a link is never read,
+// and a file that does not decode as a pulled brief record is not copied.
+function readPulledRecord(
+  path: string,
+  name: string,
+  phaseId: string,
+): Effect.Effect<{ readonly bytes: string } | { readonly warning: string }, FsError, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const shown = `${PULLED_BRIEFS_DIR}/${name}`;
+    const notRecorded = (why: string) => ({
+      warning: `[phax] Warning: phase "${phaseId}" — ${shown} ${why}; not recorded.`,
+    });
+    const entry = yield* fs.entryKind(path);
+    if (entry.kind === "symlink") return notRecorded("is a symbolic link");
+    if (entry.kind !== "file") return notRecorded("is not a regular file");
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(yield* fs.readText(path)) as unknown;
+    } catch {
+      return notRecorded("is not valid JSON");
+    }
+    const record = readBriefRecordFile(shown, parsed);
+    if (Result.isFailure(record)) {
+      return notRecorded(`is not a brief record (${record.failure.message})`);
+    }
+    if (record.success.moment !== "pulled") return notRecorded("is not a pulled brief record");
+    return { bytes: serializeDecodedBriefRecord(record.success) };
+  });
+}
+
 /**
  * At a phase's terminal outcome (committed or failed), copies the pulled
  * records waiting in `<worktree>/.phax-context/briefs/` into the phase folder,
  * in number order, then writes the `closed` marker so later pulls are answered
  * and not recorded (spec Q7). Runs once per phase: an existing marker makes it
  * a no-op. `brief-00.json` is the pushed brief's and is never copied from
- * here. Never fails: a FsError becomes a warning.
+ * here. A record is copied only once it decodes as a pulled brief record, as
+ * the bytes phax writes for it; a link is never read. When `.phax-context` or
+ * its `briefs` folder is not a real directory nothing is copied and no marker
+ * written. Never fails: every problem is a warning.
  */
 export function closePulledBriefs(input: {
   readonly worktreePath: string;
@@ -122,21 +167,30 @@ export function closePulledBriefs(input: {
 }): Effect.Effect<void, never, FileSystem> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
+    const state = yield* phaxContextDirState(input.worktreePath, BRIEFS_SUBDIR);
     const dir = join(input.worktreePath, PULLED_BRIEFS_DIR);
     const marker = join(dir, BRIEFS_CLOSED_MARKER);
-    if (yield* fs.exists(marker)) return;
-    const names = (yield* fs.exists(dir)) ? yield* fs.list(dir) : [];
+    if (state === "directory" && (yield* fs.entryKind(marker)).kind !== "absent") return;
+    const names = state === "directory" ? yield* fs.list(dir) : [];
     const pulled = names
       .map((name) => ({ name, n: PULLED_BRIEF_RECORD.exec(name)?.[1] }))
       .filter((e): e is { name: string; n: string } => e.n !== undefined && Number(e.n) > 0)
       .toSorted((a, b) => Number(a.n) - Number(b.n));
     for (const { name } of pulled) {
-      const text = yield* fs.readText(join(dir, name));
-      yield* fs.writeAtomic(join(input.phaseFolderPath, name), text);
+      const read = yield* readPulledRecord(join(dir, name), name, input.phaseId);
+      if ("warning" in read) input.output.warn(read.warning);
+      else yield* fs.writeAtomic(join(input.phaseFolderPath, name), read.bytes);
     }
-    yield* fs.mkdirp(dir);
+    yield* ensurePhaxContextDir(input.worktreePath, BRIEFS_SUBDIR);
     yield* fs.writeAtomic(marker, "");
   }).pipe(
+    Effect.catchTag("PhaxContextRefusedError", (e) =>
+      Effect.sync(() => {
+        input.output.warn(
+          `[phax] Warning: phase "${input.phaseId}" — ${e.message.split("\n")[0] ?? e.path}; pulled briefs not collected.`,
+        );
+      }),
+    ),
     Effect.catch((e) =>
       Effect.sync(() => {
         input.output.warn(

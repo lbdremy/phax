@@ -2,7 +2,9 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node
 import { join } from "node:path";
 import { Effect, Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { serializeBriefRecord, stampBriefRequest } from "../../src/app/briefProvider.js";
 import { exitCodeForError } from "../../src/cli/commands/runLayers.js";
+import { outsideBriefRequest } from "../../src/domain/brief/request.js";
 import { syncSaveInterruptedRun } from "../../src/cli/interruptHandler.js";
 import {
   AwaitingReviewStopError,
@@ -202,7 +204,11 @@ describe("re-entering a hold point", { timeout: 30_000 }, () => {
     const briefs = join(worktreeOf(run, "phase-02"), ".phax-context", "briefs");
     rmSync(briefs, { recursive: true, force: true });
     mkdirSync(briefs, { recursive: true });
-    const pulled = JSON.stringify({ paths: ["src/invoiceRow.ts"], outcome: "answered" });
+    const pulled = serializeBriefRecord(
+      "pulled",
+      stampBriefRequest(outsideBriefRequest(["src/invoiceRow.ts"])),
+      { kind: "failed", reason: "brief-provider exited 1" },
+    );
     writeFileSync(join(briefs, "brief-01.json"), pulled);
     Object.assign(run.config, { brief: { command: "brief-provider", push: "findings" } });
     syncSaveInterruptedRun({ namespace: NAMESPACE, shortName: SHORT, stateRoot: world.stateRoot });
