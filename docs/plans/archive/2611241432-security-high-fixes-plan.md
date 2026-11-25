@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611231049-security-high-fixes.md
 completes-spec: true
 approved:
