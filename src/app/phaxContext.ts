@@ -38,7 +38,8 @@ function phaxContextRefusal(
   return new PhaxContextRefusedError({
     message: [
       `${name} is ${what}, not a directory`,
-      `phax writes and reads ${PHAX_CONTEXT_DIR} only as a real directory; remove ${removed} from the branch, then resume.`,
+      // resume alone reuses the worktree, which still holds the entry: reset-phase recreates it.
+      `phax writes and reads ${PHAX_CONTEXT_DIR} only as a real directory; remove ${removed} from the branch it came from, then run phax reset-phase and phax resume.`,
     ].join("\n"),
     path,
     kind: entry.kind,

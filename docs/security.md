@@ -433,13 +433,17 @@ This reports per-provider jail, network, and MCP capabilities from live probes.
 The agent can write the phase worktree, so phax does not trust what it finds there.
 
 - **Hooks.** phax's git calls in a phase worktree (creating it, the phase commit, a stop's commit) run with hooks off (`core.hooksPath=/dev/null`) and `core.fsmonitor=false`.
-- **The `.git` file.** Before each git call in a phase worktree, phax checks that `.git` still names the gitdir phax created, as registered in the main checkout. On a mismatch the phase fails, phax runs no git command there, and the error says what `.git` holds and what was expected. `phax reset-phase` recovers the phase; `phax resume` refuses again. Vibe sessions cannot write the worktree's `.git`.
-- **`.phax-context`.** phax uses it only as a real directory. A symbolic link, or any other entry, is refused and the phase fails. Pulled brief records are decoded before they are recorded. It is ignored through `.git/info/exclude` in the main checkout, not your `.gitignore`, so a phase's diff no longer shows phax's ignore line. phax leaves one `/.phax-context` line in that file.
+- **The `.git` file.** Before each git call in a phase worktree, phax checks that `.git` still names the gitdir phax created, as registered in the main checkout. On a mismatch the phase fails, phax runs no git command there, and the error says what `.git` holds and what was expected. `phax reset-phase` recovers the phase; `phax resume` refuses again. Secure Vibe sessions cannot write the worktree's `.git`.
+- **`.phax-context`.** phax uses it only as a real directory. A symbolic link, or any other entry, is refused and the phase fails. Remove the entry from the branch it came from, then run `phax reset-phase` and `phax resume`: `phax resume` alone reuses the worktree, which still holds it. Pulled brief records are decoded before they are recorded. It is ignored through `.git/info/exclude` in the main checkout, not your `.gitignore`, so a phase's diff no longer shows phax's ignore line. phax leaves one `/.phax-context` line in that file.
 - **The review skill.** `phax review-code` follows `.claude/skills/phax-review/SKILL.md` as it was at the run's base, never the worktree copy, and warns when the run changed that file. A symlink or a missing file means the bundled skill.
 
 **What a record written with `records.transcript: false` carries.** It holds no session stream, no gate or setup log, and no agent error log. It keeps `prompt.md`, the diff, the handoff, the gate reports and attribution, and the brief records. The toggle decides this, not the record's shape: with `records.transcript: true` a record carries every log as before, even a `skeleton` record whose session wrote no transcript. A phase record is built from an allowlist of phase-folder files, so a file the allowlist does not name is carried by neither shape. `security.json` and `status.json` keep their absolute paths.
 
-One residual remains: config planted in `.git/config` by gate code, described under "What the check does not resist".
+Three residuals remain:
+
+- Config planted in `.git/config` by gate code, described under "What the check does not resist".
+- `phax enter-phase` on another project's run does not know that project's main checkout, so its git calls in that phase worktree run without the `.git` check, with hooks and with fsmonitor.
+- phax takes the main checkout from the directory you run it in. A phax command run from inside a phase worktree takes that worktree for the main checkout, and its git calls there run unchecked. Run phax from the main checkout.
 
 ## Unsafe Mode Warning
 
