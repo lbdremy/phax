@@ -65,6 +65,7 @@ import {
   withModelReasons,
   withTestStrategyStrings,
   EXAMPLE_TEST_LINES,
+  withoutGateProfile,
   withoutPhaseKinds,
   withoutPreambleQuestions,
   withOracleKeys,
@@ -72,6 +73,7 @@ import {
   withoutTestLines,
   type Doc,
 } from "./schemasPackage/documents.js";
+import type { PlanDocumentWithoutGateProfile } from "../../src/schemas/planDocument.js";
 
 // Toy formats: a pre-schema shape with `version: 1`, and a current shape with
 // a `$schema` string. Every document is made up.
@@ -177,6 +179,28 @@ function right<A>(result: Result.Result<A, PersistedReadError>): A {
   if (Result.isFailure(result)) throw new Error(`expected a value, got ${result.failure.message}`);
   return result.success;
 }
+
+/**
+ * A plan sidecar as phax lifts it before an operator names its gate profile:
+ * an older sidecar's lift that passes every check, every recorded fact but the
+ * profile it never recorded; a current one's document; otherwise the refusal
+ * `readPlanDocumentFile` gives.
+ */
+function readLiftedPlan(
+  file: string,
+  input: unknown,
+): Result.Result<PlanDocumentWithoutGateProfile, PersistedReadError> {
+  const sidecar = readDocumentSidecar("plan", file, input);
+  if (Result.isSuccess(sidecar) && sidecar.success.shape !== "current") {
+    const { lift } = sidecar.success;
+    if (lift.kind === "missing-gate-profile") return Result.succeed(lift.document);
+  }
+  return readPlanDocumentFile(file, input);
+}
+
+/** The current plan document phax writes, as an older shape carried it: no gate profile. */
+const currentPlanWithoutGateProfile = (): Doc =>
+  withoutGateProfile(validDocuments["plan-document"]);
 
 describe("readPersisted", () => {
   it("refuses a non-object, naming the file", () => {
@@ -451,16 +475,12 @@ describe("format readers", () => {
     ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger", "docs/plans/approvals.json"],
     ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger", "docs/specs/approvals.json"],
     ["spec-document", readSpecDocumentFile, "spec document", "docs/specs/2609230835-example.json"],
-    [
-      "plan-document",
-      readPlanDocumentFile,
-      "plan document",
-      "docs/plans/2609230835-example-plan.json",
-    ],
+    ["plan-document", readLiftedPlan, "plan document", "docs/plans/2609230835-example-plan.json"],
   ])("%s: reads both shapes to the same in-memory value", (id, read, label, file) => {
     const expected = phaxLatestPreSchema(id);
     // The current document records a summary; the pre-schema one is lifted with the placeholder.
     // The current phax-plan records its test lines; the pre-schema one is never given any.
+    // The current plan document declares its gate profile; the pre-schema one lifts without one.
     const expectedCurrent =
       id === "spec-document"
         ? withSurfaceSummary(expected, EXAMPLE_SURFACE_SUMMARY)
@@ -469,7 +489,9 @@ describe("format readers", () => {
               ...expected,
               phases: (expected["phases"] as Doc[]).map((p) => ({ ...p, testLines: [] })),
             }
-          : expected;
+          : id === "plan-document"
+            ? { ...expected, run: validDocuments["plan-document"]["run"] }
+            : expected;
     const fromPreSchema = right(read(file, preSchemaDocuments[id]));
     const fromCurrent = right(read(file, validDocuments[id]));
     expect(fromPreSchema).toEqual(expected);
@@ -661,7 +683,7 @@ describe("format readers", () => {
     const specPath = "docs/specs/2609230835-example.md";
 
     it("steps a spec-less pre-schema sidecar to completesSpec: null", () => {
-      expect(right(readPlanDocumentFile(file, preSchemaDocuments["plan-document"]))).toMatchObject({
+      expect(right(readLiftedPlan(file, preSchemaDocuments["plan-document"]))).toMatchObject({
         sourceSpec: null,
         completesSpec: null,
       });
@@ -825,9 +847,31 @@ describe("format readers", () => {
     );
 
     it("lifts a sidecar stamped 0.20.0", () => {
-      expect(right(readPlanDocumentFile(file, v0_20_0))).toEqual(
+      expect(right(readLiftedPlan(file, v0_20_0))).toEqual(
         withEmptyQuestions(withoutKey(v0_20_0, "$schema")),
       );
+    });
+
+    // No shape before the current one recorded a gate profile, and phax never
+    // invents one: the reader of a current document refuses every older sidecar
+    // whose lift passes, naming run.gateProfile.
+    it("refuses, as a current document, every older sidecar whose lift passes, naming run.gateProfile", () => {
+      const v0_38_0 = withKey(
+        currentPlanWithoutGateProfile(),
+        "$schema",
+        schemaUrl("plan-document", "0.38.0"),
+      );
+      for (const older of [v0_20_0, v0_38_0, preSchemaDocuments["plan-document"]]) {
+        expect(left(readPlanDocumentFile(file, older)).message).toBe(
+          `${file}: the plan declares no gate profile (run.gateProfile)`,
+        );
+      }
+      expect(right(readDocumentSidecar("plan", file, v0_38_0))).toEqual({
+        kind: "plan",
+        shape: "0.38.0",
+        lift: { kind: "missing-gate-profile", document: withoutKey(v0_38_0, "$schema") },
+        older: withoutKey(v0_38_0, "$schema"),
+      });
     });
 
     it("lifts a sidecar stamped 0.25.0 with each modelReason carried over as assignmentReason", () => {
@@ -842,7 +886,7 @@ describe("format readers", () => {
         "$schema",
         schemaUrl("plan-document", "0.25.0"),
       );
-      const lifted = right(readPlanDocumentFile(file, reasoned));
+      const lifted = right(readLiftedPlan(file, reasoned));
       expect(lifted).toEqual({
         ...withoutKey(reasoned, "$schema"),
         phases: (reasoned["phases"] as Doc[]).map(({ modelReason, model, effort, ...phase }) => ({
@@ -876,11 +920,14 @@ describe("format readers", () => {
       expect(read).toEqual({
         kind: "plan",
         shape: "0.26.0",
-        lift: { kind: "lifted", document: withoutKey(validDocuments["plan-document"], "$schema") },
+        lift: {
+          kind: "missing-gate-profile",
+          document: withoutKey(currentPlanWithoutGateProfile(), "$schema"),
+        },
         older: withoutKey(v0_26_0, "$schema"),
       });
-      expect(right(readPlanDocumentFile(file, v0_26_0))).toEqual(
-        withoutKey(validDocuments["plan-document"], "$schema"),
+      expect(right(readLiftedPlan(file, v0_26_0))).toEqual(
+        withoutKey(currentPlanWithoutGateProfile(), "$schema"),
       );
     });
 
@@ -926,7 +973,7 @@ describe("format readers", () => {
         schemaUrl("plan-document", "0.25.0"),
       );
       const lifted = right(readDocumentSidecar("plan", file, reasoned));
-      expect(lifted.shape !== "current" && lifted.lift.kind).toBe("lifted");
+      expect(lifted.shape !== "current" && lifted.lift.kind).toBe("missing-gate-profile");
       const prose = {
         ...reasoned,
         phases: (reasoned["phases"] as Doc[]).map((phase) => ({ ...phase, testStrategy: "Unit." })),
@@ -974,9 +1021,9 @@ describe("format readers", () => {
         );
         const sidecar = right(readDocumentSidecar("plan", file, older));
         expect(sidecar).toMatchObject({ kind: "plan", shape, older: withoutKey(older, "$schema") });
-        const lifted = right(readPlanDocumentFile(file, older));
+        const lifted = right(readLiftedPlan(file, older));
         expect(lifted).toEqual(
-          withoutKey(withLoops(validDocuments["plan-document"], "acceptance"), "$schema"),
+          withoutKey(withLoops(currentPlanWithoutGateProfile(), "acceptance"), "$schema"),
         );
         // The value the frozen decoder read keeps the loop it was written with.
         if (sidecar.kind !== "plan" || sidecar.shape === "current") throw new Error("not older");
@@ -999,7 +1046,7 @@ describe("format readers", () => {
         "$schema",
         schemaUrl("plan-document", "0.26.0"),
       );
-      const lifted = right(readPlanDocumentFile(file, v0_26_0));
+      const lifted = right(readLiftedPlan(file, v0_26_0));
       const lines = lifted.phases.flatMap((phase) => phase.testStrategy);
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.every((l) => l.loop === "acceptance")).toBe(true);
@@ -1011,8 +1058,8 @@ describe("format readers", () => {
         "$schema",
         schemaUrl("plan-document", "0.32.0"),
       );
-      expect(right(readPlanDocumentFile(file, older))).toEqual(
-        withoutKey(validDocuments["plan-document"], "$schema"),
+      expect(right(readLiftedPlan(file, older))).toEqual(
+        withoutKey(currentPlanWithoutGateProfile(), "$schema"),
       );
     });
 
@@ -1046,7 +1093,7 @@ describe("format readers", () => {
       const refused = left(
         readPlanDocumentFile(
           file,
-          withKey(validDocuments["plan-document"], "$schema", schemaUrl("plan-document", "0.25.0")),
+          withKey(currentPlanWithoutGateProfile(), "$schema", schemaUrl("plan-document", "0.25.0")),
         ),
       );
       expect(refused.message).toContain(file);
@@ -1054,7 +1101,7 @@ describe("format readers", () => {
     });
 
     it("lifts a sidecar written before $schema with sourceSpec: null, with completesSpec: null", () => {
-      expect(right(readPlanDocumentFile(file, preSchemaDocuments["plan-document"]))).toEqual(
+      expect(right(readLiftedPlan(file, preSchemaDocuments["plan-document"]))).toEqual(
         latestPreSchema("plan-document"),
       );
     });
@@ -1076,7 +1123,10 @@ describe("format readers", () => {
       expect(right(readDocumentSidecar("plan", file, v0_20_0))).toEqual({
         kind: "plan",
         shape: "0.20.0",
-        lift: { kind: "lifted", document: withEmptyQuestions(withoutKey(v0_20_0, "$schema")) },
+        lift: {
+          kind: "missing-gate-profile",
+          document: withEmptyQuestions(withoutKey(v0_20_0, "$schema")),
+        },
         older: withoutKey(v0_20_0, "$schema"),
       });
       const { version: _version, ...preSchema } = preSchemaDocuments["plan-document"];
@@ -1515,7 +1565,7 @@ describe("documents from another release", () => {
     ["plan-approvals", readPlanApprovalsFile, "plan approvals ledger"],
     ["spec-approvals", readSpecApprovalsFile, "spec approvals ledger"],
     ["spec-document", readSpecDocumentFile, "spec document"],
-    ["plan-document", readPlanDocumentFile, "plan document"],
+    ["plan-document", readLiftedPlan, "plan document"],
     ["gate-attribution", readGateAttributionFile, "gate attribution"],
     ["phase-file-reconciliation", readPhaseFileReconciliationFile, "phase file reconciliation"],
     ["phase-record-manifest", readRecordManifestFile, "phase record manifest"],
@@ -1587,7 +1637,7 @@ describe("documents from another release", () => {
                     : withoutKey(withoutSurfaceSummary(validDocuments[id]), "arbitratedQuestions")
                 : id === "plan-document"
                   ? compareReleases(release, "0.33.0") >= 0
-                    ? validDocuments[id]
+                    ? withoutGateProfile(validDocuments[id])
                     : compareReleases(release, "0.28.0") >= 0
                       ? withOracleKeys(validDocuments[id])
                       : compareReleases(release, "0.26.0") >= 0
@@ -1612,13 +1662,16 @@ describe("documents from another release", () => {
     // An answer format's $schema is a const of its own stamps: a release above
     // its current stamp that this phax did not outgrow names no shape it wrote,
     // and nor does one between the plan document's frozen 0.33.0 stamp and its
-    // current one; so does the compliance review's frozen 0.32.0 shape, whose
+    // current one but its frozen 0.38.0 stamp; so does the compliance review's frozen 0.32.0 shape, whose
     // `$schema` is a const of its one stamp.
     const constAbove =
       (id in ANSWER_FORMATS || id === "code-review" || id === "compliance-review") &&
       !newer &&
       (compareReleases(release, CURRENT_STAMPS[id]) > 0 ||
-        (id === "plan-document" && below && compareReleases(release, "0.33.0") > 0) ||
+        (id === "plan-document" &&
+          below &&
+          compareReleases(release, "0.33.0") > 0 &&
+          release !== "0.38.0") ||
         (id === "compliance-review" && below && compareReleases(release, "0.32.0") > 0));
     if (constAbove) {
       expect(left(result).message).toContain(`$schema`);
@@ -2007,7 +2060,7 @@ describe("a plan's phase key, acceptance with passedBy", () => {
     ["0.26.0", withTestStrategyStrings(planDocument)],
   ])("lifts a plan sidecar stamped %s to acceptance, passedBy and files kept", (release, doc) => {
     const older = withKey(doc, "$schema", schemaUrl("plan-document", release));
-    const lifted = right(readPlanDocumentFile(docFile, older));
+    const lifted = right(readLiftedPlan(docFile, older));
     expect(lifted.phases.map((phase) => phase.acceptance)).toEqual([
       { passedBy: "phase-02", files },
     ]);
@@ -2017,9 +2070,9 @@ describe("a plan's phase key, acceptance with passedBy", () => {
   });
 
   it("refuses a current plan sidecar that carries the oracle phase key", () => {
-    expect(left(readPlanDocumentFile(docFile, withOracleKeys(planDocument))).message).toContain(
-      "oracle",
-    );
+    // The current shape's run declares its gate profile; only the phase key is old.
+    const withOracle = { ...withOracleKeys(planDocument), run: planDocument["run"] };
+    expect(left(readPlanDocumentFile(docFile, withOracle)).message).toContain("oracle");
   });
 
   it.each([

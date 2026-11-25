@@ -124,6 +124,7 @@ import { decodePlanDocumentV0_26_0 } from "../../src/schemas/history/plan-docume
 import { decodePlanDocumentV0_28_0 } from "../../src/schemas/history/plan-document/0.28.0.js";
 import { decodePlanDocumentV0_32_0 } from "../../src/schemas/history/plan-document/0.32.0.js";
 import { decodePlanDocumentV0_33_0 } from "../../src/schemas/history/plan-document/0.33.0.js";
+import { decodePlanDocumentV0_38_0 } from "../../src/schemas/history/plan-document/0.38.0.js";
 import { decodePlanDocumentPreSchema } from "../../src/schemas/history/plan-document/pre-schema.js";
 import { decodeRegistryV0_17_0 } from "../../src/schemas/history/registry/0.17.0.js";
 import { decodeRegistryPreSchema } from "../../src/schemas/history/registry/pre-schema.js";
@@ -555,6 +556,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("plan-document/0.28.0", decodePlanDocumentV0_28_0, "plan-document"),
   frozen("plan-document/0.32.0", decodePlanDocumentV0_32_0, "plan-document"),
   frozen("plan-document/0.33.0", decodePlanDocumentV0_33_0, "plan-document"),
+  frozen("plan-document/0.38.0", decodePlanDocumentV0_38_0, "plan-document"),
   frozen("plan-document/pre-schema", decodePlanDocumentPreSchema, "first"),
   frozen("registry/0.17.0", decodeRegistryV0_17_0, "first"),
   frozen("registry/pre-schema", decodeRegistryPreSchema, "first"),

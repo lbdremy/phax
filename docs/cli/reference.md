@@ -1840,9 +1840,11 @@ phax artifact migrate-approvals
 
 ## `phax artifact migrate-documents`
 
-- **Usage**: `phax artifact migrate-documents [--json]`
+- **Usage**: `phax artifact migrate-documents [--gate-profile <id>] [--json]`
 
 Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. A plan sidecar stamped 0.26.0 or below has each phase's testStrategy string read as test lines: one whose every line follows the line format (`- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`) is lifted to those lines, and one holding prose is refused, naming the phase, its first departing line and the remedy: rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun. Archived artifacts, hand-authored artifacts and approval record files are never touched.
+
+A plan sidecar stamped 0.38.0 or earlier declares no gate profile, and phax never invents one: it migrates only with --gate-profile <id>, which writes that id as its run.gateProfile and renders it as the body's `## Gate profile` section, so an Approved plan reads as edited since its approval and needs approving again. Without the flag such a plan is refused, naming the flag. One call applies the one id to every plan it migrates. An id phax.json does not define is refused with exit 2 before anything is read or written. A spec sidecar ignores the flag.
 
 Before writing anything it decides everything, and exits 12, writing nothing, on an invalid sidecar (including a plan document stamped 0.17.0–0.19.x, which stays refused), on a plan sidecar whose test strategy is not in the line format, on a body that is not its sidecar's own-shape rendering (a hand edit would be overwritten), or on an uncommitted change to any path it would write; each refused artifact is named with its remedy: re-author it headless, or delete its sidecar to demote it to hand-authored.
 
@@ -1854,6 +1856,10 @@ Side effects: writes the sidecars and re-rendered bodies, re-seeds each rewritte
 
 ### Flags
 
+#### `--gate-profile <id>`
+
+The gate profile each plan sidecar stamped 0.38.0 or earlier declares once migrated, one phax.json defines; such a sidecar declares none, and is refused without it
+
 #### `--json`
 
 Answer in JSON: the output on stdout, messages as JSON lines on stderr
@@ -1862,6 +1868,10 @@ Answer in JSON: the output on stdout, messages as JSON lines on stderr
 
 ```
 phax artifact migrate-documents
+```
+
+```
+phax artifact migrate-documents --gate-profile standard
 ```
 
 ## `phax plans`

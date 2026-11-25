@@ -83,6 +83,21 @@ export const answerPhaseFields = {
   optionalFilesToEdit: Schema.Array(PlanPathFromWritten),
 };
 
+/**
+ * A gate profile id as a plan declares it: a non-empty run of non-whitespace
+ * characters without a backtick, so the plan's `## Gate profile` section reads
+ * it back from a code span or a bare word. One pattern, which also refuses the
+ * empty string, carrying the description: a second check would render under
+ * `allOf`, outside a provider's strict structured output.
+ */
+export const GateProfileId = Schema.String.check(
+  isExportedPattern(/^[^\s`]+$/, {
+    message: "a gate profile id is a run of non-whitespace characters holding no backtick",
+    description:
+      "The id of the one gate profile in phax.json that verifies this plan's whole run; rendered as the plan's `## Gate profile` section.",
+  }),
+);
+
 export const ExtractedRunSchema = Schema.Struct({
   // Loose on purpose: the model is unreliable at emitting a valid slug, so we
   // accept any non-empty string here and slugify it ourselves in

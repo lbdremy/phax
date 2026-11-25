@@ -207,6 +207,10 @@ import {
   type PlanDocumentV0_33_0,
 } from "./history/plan-document/0.33.0.js";
 import {
+  decodePlanDocumentV0_38_0,
+  type PlanDocumentV0_38_0,
+} from "./history/plan-document/0.38.0.js";
+import {
   decodePlanDocumentPreSchema,
   type PlanDocumentPreSchema,
 } from "./history/plan-document/pre-schema.js";
@@ -246,6 +250,7 @@ import {
   decodePlanDocumentFile,
   type PlanDocument,
   type PlanDocumentFile,
+  type PlanDocumentWithoutGateProfile,
 } from "./planDocument.js";
 import { liftMarkedQuestions } from "./questions.js";
 import {
@@ -923,6 +928,13 @@ export type PlanDocumentV0_32_0Value = DistributiveOmit<PlanDocumentV0_32_0, "$s
  */
 type PlanDocumentV0_33_0Value = DistributiveOmit<PlanDocumentV0_33_0, "$schema">;
 
+/**
+ * A plan document in its 0.38.0 shape, as a 0.38.0 sidecar carried it: the
+ * current in-memory document under its const `$schema`, which is dropped,
+ * except that its run declares no gate profile.
+ */
+export type PlanDocumentV0_38_0Value = DistributiveOmit<PlanDocumentV0_38_0, "$schema">;
+
 /** A phase's three file lists, in plan order. */
 type PlanPathList = "plannedFilesToCreate" | "plannedFilesToEdit" | "optionalFilesToEdit";
 
@@ -933,18 +945,22 @@ const PLAN_PATH_LISTS: ReadonlyArray<PlanPathList> = [
 ];
 
 /**
- * An older plan document lifted to the current in-memory shape, or the reason
- * it cannot be: every phase's `testStrategy` string is read as test lines, and
- * the first phase in plan order holding a departure refuses the lift with its
- * first departure (`refused`). A lift that passes those checks then reads its
- * plan paths: the first path in plan order (phases, then create, edit,
- * optional, then items) that is not canonical refuses the lift
- * (`refused-path`), naming the phase, the list, the path as written and what
- * is wrong with it (`describePlanPathProblem`); a path is never rewritten. A
- * refused lift is not a read error: the sidecar still reads.
+ * An older plan document lifted to the current in-memory shape but its gate
+ * profile, or the reason it cannot be: every phase's `testStrategy` string is
+ * read as test lines, and the first phase in plan order holding a departure
+ * refuses the lift with its first departure (`refused`). A lift that passes
+ * those checks then reads its plan paths: the first path in plan order
+ * (phases, then create, edit, optional, then items) that is not canonical
+ * refuses the lift (`refused-path`), naming the phase, the list, the path as
+ * written and what is wrong with it (`describePlanPathProblem`); a path is
+ * never rewritten. A lift that passes every check still declares no gate
+ * profile (`missing-gate-profile`): no shape before the current one recorded
+ * one, and phax never invents one, so it becomes current only once an operator
+ * names the id (`withDeclaredGateProfile`). No lift is a read error: the
+ * sidecar still reads.
  */
 export type PlanDocumentLift =
-  | { readonly kind: "lifted"; readonly document: PlanDocument }
+  | { readonly kind: "missing-gate-profile"; readonly document: PlanDocumentWithoutGateProfile }
   | {
       readonly kind: "refused";
       readonly phase: string;
@@ -965,10 +981,26 @@ export function planPathLiftMessage(
   return `${lift.phase} ${lift.list} ${JSON.stringify(lift.written)} ${lift.problem}`;
 }
 
+/** The text a reader that needs a current document refuses a `missing-gate-profile` lift with. */
+const MISSING_GATE_PROFILE_MESSAGE = "the plan declares no gate profile (run.gateProfile)";
+
+/**
+ * A `missing-gate-profile` lift completed with the gate profile an operator
+ * names: the current document, `gateProfile` the run's last key. The id is
+ * not checked against phax.json here; the caller checks it.
+ */
+export function withDeclaredGateProfile(
+  lift: Extract<PlanDocumentLift, { readonly kind: "missing-gate-profile" }>,
+  gateProfile: string,
+): PlanDocument {
+  const { document } = lift;
+  return { ...document, run: { ...document.run, gateProfile } };
+}
+
 // A lifted document whose every plan path is canonical stays lifted; the first
 // other path in plan order refuses it. A refused lift is kept: its own check ran first.
 function withCanonicalPlanPaths(lift: PlanDocumentLift): PlanDocumentLift {
-  if (lift.kind !== "lifted") return lift;
+  if (lift.kind !== "missing-gate-profile") return lift;
   for (const phase of lift.document.phases) {
     for (const list of PLAN_PATH_LISTS) {
       for (const written of phase[list]) {
@@ -1021,6 +1053,12 @@ export type SpecDocumentSidecar =
  */
 export type PlanDocumentSidecar =
   | { readonly kind: "plan"; readonly shape: "current"; readonly document: PlanDocument }
+  | {
+      readonly kind: "plan";
+      readonly shape: "0.38.0";
+      readonly lift: PlanDocumentLift;
+      readonly older: PlanDocumentV0_38_0Value;
+    }
   | {
       readonly kind: "plan";
       readonly shape: "0.33.0";
@@ -1180,7 +1218,10 @@ function liftStructuredPlanDocument(older: PlanDocumentToLift): PlanDocumentLift
       };
     }
   }
-  return withCanonicalPlanPaths({ kind: "lifted", document: liftPlanDocument(older) });
+  return withCanonicalPlanPaths({
+    kind: "missing-gate-profile",
+    document: liftPlanDocument(older),
+  });
 }
 
 /**
@@ -1207,7 +1248,7 @@ function liftPlanDocumentV0_26_0(older: PlanDocumentV0_26_0Value): PlanDocumentL
       testStrategy: (readings[i]?.lines ?? []).map(({ line }) => line),
     }),
   );
-  return withCanonicalPlanPaths({ kind: "lifted", document: { ...older, phases } });
+  return withCanonicalPlanPaths({ kind: "missing-gate-profile", document: { ...older, phases } });
 }
 
 function readSpecDocumentSidecar(
@@ -1279,6 +1320,24 @@ function readPlanDocumentSidecar(
   if (isDocumentObject(input) && isStampedBelowCurrent("plan-document", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.38.0") >= 0) {
+      const frozen = decodePlanDocumentV0_38_0(input);
+      if (Result.isFailure(frozen)) {
+        return Result.fail(
+          readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.failure)),
+        );
+      }
+      // The 0.38.0 document is the current in-memory one but its gate profile,
+      // and its plan paths are canonical by its own decoder: it lifts with
+      // every recorded fact, and declares no gate profile.
+      const { $schema: _schema, ...value } = frozen.success;
+      return Result.succeed({
+        kind: "plan",
+        shape: "0.38.0",
+        lift: withCanonicalPlanPaths({ kind: "missing-gate-profile", document: value }),
+        older: value,
+      });
+    }
     if (compareReleases(release, "0.33.0") >= 0) {
       const frozen = decodePlanDocumentV0_33_0(input);
       if (Result.isFailure(frozen)) {
@@ -1286,14 +1345,14 @@ function readPlanDocumentSidecar(
           readError(file, "plan-document", formatPlanDocumentViolation(input, frozen.failure)),
         );
       }
-      // The 0.33.0 document is the current in-memory one, its file lists
-      // aside: it lifts unchanged when they are canonical, and is refused at
-      // its first other path.
+      // The 0.33.0 document is the current in-memory one, its file lists and
+      // its gate profile aside: it lifts unchanged when its paths are
+      // canonical, and is refused at its first other path.
       const { $schema: _schema, ...value } = frozen.success;
       return Result.succeed({
         kind: "plan",
         shape: "0.33.0",
-        lift: withCanonicalPlanPaths({ kind: "lifted", document: value }),
+        lift: withCanonicalPlanPaths({ kind: "missing-gate-profile", document: value }),
         older: value,
       });
     }
@@ -1402,9 +1461,10 @@ function readPlanDocumentSidecar(
  *   decoder, and one written before `$schema` by the pre-schema decoder, both
  *   lifted by `liftMarkedQuestions`. Every lift sets the summary placeholder
  *   on each surface element;
- * - a plan stamped 0.33.0 or later, below its current stamp, is read by the
- *   frozen 0.33.0 decoder, its document the current in-memory one whatever
- *   its file lists hold; one stamped 0.32.0 or later by the
+ * - a plan stamped 0.38.0 or later, below its current stamp, is read by the
+ *   frozen 0.38.0 decoder, its document the current in-memory one but its gate
+ *   profile; one stamped 0.33.0 or later by the frozen 0.33.0 decoder, its
+ *   document the same whatever its file lists hold; one stamped 0.32.0 or later by the
  *   frozen 0.32.0 decoder, and one stamped 0.28.0 or later by the frozen 0.28.0
  *   decoder; each is lifted by `liftStructuredPlanDocument` (the test lines' loop `oracle`
  *   becomes `acceptance` and each phase's `oracle: { dischargedBy, files }`
@@ -1422,7 +1482,8 @@ function readPlanDocumentSidecar(
  *   `testStrategy` string read as test lines, or refused at the first
  *   departing line. Every plan lift that passes those checks is then refused
  *   at its first plan path that is not canonical, never rewritten
- *   (`refused-path`). A refused lift still reads;
+ *   (`refused-path`). Every plan lift that passes those checks too declares
+ *   no gate profile (`missing-gate-profile`). A refused lift still reads;
  * - any other sidecar is read by the current file decoder, shape `current`;
  *   a plan's violation under a test line names the phase and the line, and
  *   one at a plan path names the phase, the path and why
@@ -1533,16 +1594,20 @@ export const readSpecDocumentFile: Reader<SpecDocument> = (file, input) =>
 
 /**
  * Reads a plan's JSON sidecar as the current in-memory document; see
- * `readDocumentSidecar`. An older sidecar whose lift is refused fails, naming
- * the sidecar, the phase and the departing line, or the sidecar, the phase,
- * the list and the path as written with why it is not canonical
- * (`<file>: <phase> <list> "<written>" <problem>`).
+ * `readDocumentSidecar`. Every older sidecar fails: one whose lift is refused
+ * names the sidecar, the phase and the departing line, or the sidecar, the
+ * phase, the list and the path as written with why it is not canonical
+ * (`<file>: <phase> <list> "<written>" <problem>`); one whose lift passes
+ * declares no gate profile (`<file>: the plan declares no gate profile
+ * (run.gateProfile)`).
  */
 export const readPlanDocumentFile: Reader<PlanDocument> = (file, input) =>
   Result.flatMap(readPlanDocumentSidecar(file, input), (sidecar) => {
     if (sidecar.shape === "current") return Result.succeed(sidecar.document);
     const { lift } = sidecar;
-    if (lift.kind === "lifted") return Result.succeed(lift.document);
+    if (lift.kind === "missing-gate-profile") {
+      return Result.fail(readError(file, "plan-document", MISSING_GATE_PROFILE_MESSAGE));
+    }
     if (lift.kind === "refused-path") {
       return Result.fail(readError(file, "plan-document", planPathLiftMessage(lift)));
     }

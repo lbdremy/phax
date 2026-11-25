@@ -30,8 +30,11 @@ Only the releases that ask for something are listed. phax never asks for a step 
 - **Phase records carry the required `gateProfile`**, the id of the gate profile that gated the run, and `phase-record-manifest` is stamped 0.43.0. `phax records explain` prints it on a `profile` line just before the `gates` line, and `--json` adds `gateProfile`.
 - **Earlier records read as `null`**, shown as `(not recorded)` by `phax records explain`, and are never rewritten. `toLatestPhaseRecordManifest` lifts them the same way.
 - **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new records**, so upgrade the package.
+- **A plan's JSON sidecar carries the required `run.gateProfile`**, the id of the one gate profile in phax.json that verifies the plan's whole run, and `plan-document` is stamped 0.43.0. The rendered plan.md declares it in a `## Gate profile` section, just before `## Required commands`. A document without it is refused, naming `run.gateProfile`.
+- **An `@lbdremy/phax-schemas` before 0.43.0 cannot read the new plan documents**, so upgrade the package. Its `toLatestPlanDocument` lifts a plan document stamped 0.38.0 or earlier under a type of its own, `LiftedPlanDocument`, whose run declares no gate profile: it never invents one.
+- **A plan sidecar stamped 0.38.0 or earlier declares no gate profile.** It still reads, but `phax artifact approve` and `phax artifact reopen` refuse it until it is migrated.
 
-No step is needed in a repository.
+Run `phax artifact migrate-documents --gate-profile <id>` once per live plan sidecar stamped 0.38.0 or earlier, naming one of phax.json's gate profiles. It writes the id into the sidecar and renders `## Gate profile` into the body, so approve each Approved plan again afterwards. Without the flag such a plan is refused, naming the flag, and an id phax.json does not define is refused with exit 2.
 
 ### 0.41.0
 

@@ -157,7 +157,12 @@ function planDocument(
     kind: "plan",
     sourceSpec: null,
     completesSpec: null,
-    run: { shortName: "log-rotation", title: "Log rotation", requiredCommands: [] },
+    run: {
+      shortName: "log-rotation",
+      title: "Log rotation",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     preamble: {
       summary: "Two phases: the rotation, then its docs.",
       requiredCommandsNote: "No extra commands.",

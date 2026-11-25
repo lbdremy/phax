@@ -144,7 +144,12 @@ function planDocument(preamble: Partial<PlanDocument["preamble"]> = {}): PlanDoc
     kind: "plan",
     sourceSpec: "docs/specs/2609281200-log-rotation.md",
     completesSpec: true,
-    run: { shortName: "log-rotation", title: "Log rotation", requiredCommands: [] },
+    run: {
+      shortName: "log-rotation",
+      title: "Log rotation",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     preamble: {
       summary: "Two phases: the store, then the command.",
       requiredCommandsNote: "No extra commands.",

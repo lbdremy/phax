@@ -267,7 +267,7 @@ function planWithQuestions(): PlanDocument {
       kind: "plan",
       sourceSpec: null,
       completesSpec: null,
-      run: { shortName: "thing", title: "Thing", requiredCommands: [] },
+      run: { shortName: "thing", title: "Thing", requiredCommands: [], gateProfile: "standard" },
       preamble: {
         summary: "One phase.",
         requiredCommandsNote: "No extra commands.",

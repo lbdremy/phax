@@ -161,6 +161,7 @@ import type {
   LatestPlanApprovalRecord,
   LatestPlanApprovals,
   LatestPlanDocument,
+  LiftedPlanDocument,
   LatestRunStatus,
   LatestSpecApprovalRecord,
   LatestSpecApprovals,
@@ -197,6 +198,7 @@ import type {
   PlanDocumentV0_26_0,
   PlanDocumentV0_32_0,
   PlanDocumentV0_33_0,
+  PlanDocumentV0_38_0,
   GateAttributionV0_17_0,
   GateAttributionV0_20_0,
   GateAttributionV0_21_0,
@@ -453,8 +455,6 @@ import type {
 import type {
   PlanDocument as PhaxPlanDocument,
   PlanDocumentFile as PhaxPlanDocumentFile,
-  PlanDocumentLineage as PhaxPlanDocumentLineage,
-  PlanDocumentPhase as PhaxPlanDocumentPhase,
 } from "../../src/schemas/planDocument.js";
 import type {
   SpecApprovalRecordFile,
@@ -519,6 +519,7 @@ import type { PlanDocumentV0_26_0 as FrozenPlanDocumentV0_26_0 } from "../../src
 import type { PlanDocumentV0_28_0 as FrozenPlanDocumentV0_28_0 } from "../../src/schemas/history/plan-document/0.28.0.js";
 import type { PlanDocumentV0_32_0 as FrozenPlanDocumentV0_32_0 } from "../../src/schemas/history/plan-document/0.32.0.js";
 import type { PlanDocumentV0_33_0 as FrozenPlanDocumentV0_33_0 } from "../../src/schemas/history/plan-document/0.33.0.js";
+import type { PlanDocumentV0_38_0 as FrozenPlanDocumentV0_38_0 } from "../../src/schemas/history/plan-document/0.38.0.js";
 import type { SpecDocumentV0_17_0 as FrozenSpecDocumentV0_17_0 } from "../../src/schemas/history/spec-document/0.17.0.js";
 import type { SpecDocumentV0_25_0 as FrozenSpecDocumentV0_25_0 } from "../../src/schemas/history/spec-document/0.25.0.js";
 import type { PlanDocumentPreSchema as FrozenPlanDocument } from "../../src/schemas/history/plan-document/pre-schema.js";
@@ -884,6 +885,7 @@ const eachShapeId: [
     | "0.28.0"
     | "0.32.0"
     | "0.33.0"
+    | "0.38.0"
     | Current<"plan-document">
   >,
   Equals<
@@ -1000,6 +1002,7 @@ const parseValues: [
     | FrozenPlanDocumentV0_28_0
     | FrozenPlanDocumentV0_32_0
     | FrozenPlanDocumentV0_33_0
+    | FrozenPlanDocumentV0_38_0
     | PhaxPlanDocumentFile
   >,
   Equals<
@@ -1099,20 +1102,6 @@ type PhaxSpecDocumentWithUnknownSummary = Omit<PhaxSpecDocument, "surface"> & {
   >;
 };
 
-// A phase older than test lines whose strategy is not in the line format holds `Unknown`.
-type PhaxPlanPhaseWithUnknownStrategy = Omit<PhaxPlanDocumentPhase, "testStrategy"> & {
-  readonly testStrategy: PhaxPlanDocumentPhase["testStrategy"] | Unknown;
-};
-type PhaxPlanBodyWithUnknownStrategy = Omit<
-  PhaxPlanDocument,
-  "sourceSpec" | "completesSpec" | "phases"
-> & {
-  readonly phases: readonly [
-    PhaxPlanPhaseWithUnknownStrategy,
-    ...PhaxPlanPhaseWithUnknownStrategy[],
-  ];
-};
-
 // A phase an older phax extracted holds `Unknown` test lines.
 type PhaxPlanPhaseWithUnknownLines = Omit<PhaxPhaxPlan["phases"][number], "testLines"> & {
   readonly testLines: PhaxPhaxPlan["phases"][number]["testLines"] | Unknown;
@@ -1159,14 +1148,8 @@ const latestTypes: [
   Equals<LatestPlanApprovals, PhaxPlanApprovals>,
   Equals<LatestSpecApprovals, PhaxSpecApprovals>,
   Equals<LatestSpecDocument, PhaxSpecDocumentWithUnknownSummary>,
-  Equals<
-    LatestPlanDocument,
-    | (PhaxPlanBodyWithUnknownStrategy & PhaxPlanDocumentLineage)
-    | (PhaxPlanBodyWithUnknownStrategy & {
-        readonly sourceSpec: string;
-        readonly completesSpec: Unknown;
-      })
-  >,
+  // An older plan document is never mapped onto the latest: none recorded a gate profile.
+  Equals<LatestPlanDocument, PhaxPlanDocument>,
   Equals<LatestPhaseRecordManifest, PhaxRunRecordManifest>,
   Equals<LatestAuthoringRecordManifest, PhaxAuthoringRecordManifest>,
   Equals<LatestGateAttribution, PhaxGateAttribution>,
@@ -1952,6 +1935,7 @@ const toLatestParameters: [
         | FrozenPlanDocumentV0_28_0
         | FrozenPlanDocumentV0_32_0
         | FrozenPlanDocumentV0_33_0
+        | FrozenPlanDocumentV0_38_0
         | PhaxPlanDocumentFile,
     ]
   >,
@@ -2051,6 +2035,7 @@ const planDocumentV0_25_0IsFrozen: Equals<PlanDocumentV0_25_0, FrozenPlanDocumen
 const planDocumentV0_26_0IsFrozen: Equals<PlanDocumentV0_26_0, FrozenPlanDocumentV0_26_0> = true;
 const planDocumentV0_32_0IsFrozen: Equals<PlanDocumentV0_32_0, FrozenPlanDocumentV0_32_0> = true;
 const planDocumentV0_33_0IsFrozen: Equals<PlanDocumentV0_33_0, FrozenPlanDocumentV0_33_0> = true;
+const planDocumentV0_38_0IsFrozen: Equals<PlanDocumentV0_38_0, FrozenPlanDocumentV0_38_0> = true;
 const specDocumentV0_17_0IsFrozen: Equals<SpecDocumentV0_17_0, FrozenSpecDocumentV0_17_0> = true;
 void planApprovalsIsPhax;
 void specApprovalsIsPhax;
@@ -2062,21 +2047,41 @@ void planDocumentV0_25_0IsFrozen;
 void planDocumentV0_26_0IsFrozen;
 void planDocumentV0_32_0IsFrozen;
 void planDocumentV0_33_0IsFrozen;
+void planDocumentV0_38_0IsFrozen;
 void specDocumentV0_17_0IsFrozen;
-// An older document always upgrades with both question arrays: a spec's
-// arbitratedQuestions, a plan's preamble openQuestions and arbitratedQuestions
+// An older spec always upgrades with its arbitratedQuestions.
 declare const specDocumentV0_17_0: SpecDocumentV0_17_0;
-declare const planDocumentV0_20_0: PlanDocumentV0_20_0;
 const questionsAlwaysPresent: [
   Equals<
     ReturnType<typeof toLatestSpecDocument>["arbitratedQuestions"],
     PhaxSpecDocument["arbitratedQuestions"]
   >,
-  Equals<ReturnType<typeof toLatestPlanDocument>["preamble"], PhaxPlanDocument["preamble"]>,
-] = [true, true];
+] = [true];
 void questionsAlwaysPresent;
 void toLatestSpecDocument(specDocumentV0_17_0).arbitratedQuestions;
-void toLatestPlanDocument(planDocumentV0_20_0).preamble.arbitratedQuestions;
+// The current plan document upgrades to the latest, which declares its gate
+// profile; an older one recorded none, and lifts under a type of its own, with
+// both preamble question arrays and no gate profile, `$schema` dropped.
+declare const planDocumentCurrent: PlanDocument;
+declare const planDocumentV0_20_0: PlanDocumentV0_20_0;
+declare const planDocumentV0_38_0: PlanDocumentV0_38_0;
+const upgradedPlan = toLatestPlanDocument(planDocumentCurrent);
+const keptV0_20_0 = toLatestPlanDocument(planDocumentV0_20_0);
+const keptV0_38_0 = toLatestPlanDocument(planDocumentV0_38_0);
+type GateProfileKey<T extends { readonly run: object }> = "gateProfile" extends keyof T["run"]
+  ? true
+  : false;
+const gateProfileNeverInvented: [
+  Equals<typeof upgradedPlan, LatestPlanDocument>,
+  Equals<typeof keptV0_38_0, LiftedPlanDocument>,
+  Equals<typeof keptV0_20_0, LiftedPlanDocument>,
+  Equals<GateProfileKey<typeof upgradedPlan>, true>,
+  Equals<GateProfileKey<typeof keptV0_38_0>, false>,
+  Equals<GateProfileKey<typeof keptV0_20_0>, false>,
+  Equals<"$schema" extends keyof typeof keptV0_38_0 ? true : false, false>,
+] = [true, true, true, true, true, true, true];
+void gateProfileNeverInvented;
+void keptV0_20_0.preamble.arbitratedQuestions;
 declare const phaxPlanApprovals: ApprovalRecordFile;
 declare const packagePlanApprovals: PlanApprovals;
 const planApprovalsToPackage: PlanApprovals = phaxPlanApprovals;

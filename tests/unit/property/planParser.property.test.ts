@@ -372,7 +372,12 @@ const BASE: PlanDocument = {
   kind: "plan",
   sourceSpec: null,
   completesSpec: null,
-  run: { shortName: "read-the-plan", title: "Read the plan", requiredCommands: ["pnpm test"] },
+  run: {
+    shortName: "read-the-plan",
+    title: "Read the plan",
+    requiredCommands: ["pnpm test"],
+    gateProfile: "standard",
+  },
   preamble: {
     summary: "Read a rendered plan back.",
     requiredCommandsNote: "The gate runs it.",

@@ -221,6 +221,7 @@ export {
   type LatestPlanApprovals,
   type LatestPlanDocument,
   type LatestPlanPhase,
+  type LiftedPlanDocument,
   type LatestSpecApprovalRecord,
   type LatestSpecApprovals,
   type LatestSpecDocument,
@@ -661,6 +662,10 @@ export {
   PlanDocumentV0_33_0Schema,
   type PlanDocumentV0_33_0,
 } from "../../../src/schemas/history/plan-document/0.33.0.js";
+export {
+  PlanDocumentV0_38_0Schema,
+  type PlanDocumentV0_38_0,
+} from "../../../src/schemas/history/plan-document/0.38.0.js";
 export {
   PhaxPlanV0_33_0Schema,
   type PhaxPlanV0_33_0,

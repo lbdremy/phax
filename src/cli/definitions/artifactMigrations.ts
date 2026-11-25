@@ -2,12 +2,17 @@
 // them: each answers its use case's report and lists the files it wrote as written-file records,
 // and prints today's lines from the report alone. An orphan approval record is a note beside the
 // report, one line each.
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Result } from "effect";
 import * as Schema from "effect/Schema";
 import { migrateApprovals } from "../../app/migrateApprovals.js";
 import { migrateDocuments } from "../../app/migrateDocuments.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import type { DocumentMigrationResult } from "../../domain/artifact/documentMigration.js";
+import { GateProfileUndefinedError } from "../../domain/errors.js";
+import {
+  resolveGateProfileById,
+  undefinedGateProfileMessage,
+} from "../../domain/gate/gateProfile.js";
 import {
   renderDocumentMigrationReport,
   renderMigrationReport,
@@ -83,6 +88,18 @@ const DocumentMigrationOutput = Schema.Union([
 
 const sentence = (error: { readonly message: string }): string => error.message;
 
+const MigrateDocumentsFlags = reject(
+  Schema.Struct({
+    gateProfile: Schema.optionalKey(
+      Schema.String.annotate({
+        identifier: "id",
+        description:
+          "The gate profile each plan sidecar stamped 0.38.0 or earlier declares once migrated, one phax.json defines; such a sidecar declares none, and is refused without it",
+      }),
+    ),
+  }),
+);
+
 export const artifactMigrateApprovalsCommand = defineCommand({
   name: "migrate-approvals",
   summary: "Split the old approval ledgers into one record file per artifact (one-time)",
@@ -145,19 +162,37 @@ export const artifactMigrateDocumentsCommand = defineCommand({
   name: "migrate-documents",
   summary:
     "Rewrite every live spec and plan sidecar below its current shape, re-rendering its body (one-time)",
-  help: "Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. A plan sidecar stamped 0.26.0 or below has each phase's testStrategy string read as test lines: one whose every line follows the line format (`- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`) is lifted to those lines, and one holding prose is refused, naming the phase, its first departing line and the remedy: rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun. Archived artifacts, hand-authored artifacts and approval record files are never touched.\n\nBefore writing anything it decides everything, and exits 12, writing nothing, on an invalid sidecar (including a plan document stamped 0.17.0–0.19.x, which stays refused), on a plan sidecar whose test strategy is not in the line format, on a body that is not its sidecar's own-shape rendering (a hand edit would be overwritten), or on an uncommitted change to any path it would write; each refused artifact is named with its remedy: re-author it headless, or delete its sidecar to demote it to hand-authored.\n\nThe report names each migrated artifact with its status and question counts (open, with their ids, and arbitrated, with how many are lifted), or `body unchanged`. It names every Approved artifact the re-rendering leaves edited since approval — with its open question ids and `phax artifact reopen <path>` when it has any, else `phax artifact approve <path>` — and every live plan it leaves stale with spec-changed evidence. With nothing to migrate it says so, writes nothing and exits 0.\n\nUntil it has run, phax artifact approve and phax artifact reopen refuse with exit 12, naming each unmigrated sidecar; complete, abandon and run completion carry an older sidecar as before.\n\nSide effects: writes the sidecars and re-rendered bodies, re-seeds each rewritten plan's extraction cache so phax run never re-extracts it, and commits exactly the rewritten paths in one commit. A failed commit exits 12, leaving the files written but uncommitted.",
-  examples: ["phax artifact migrate-documents"],
-  input: {},
+  help: "Rewrites every live spec and plan sidecar (a <name>.json directly under docs/specs/ or docs/plans/ beside its <name>.md) stamped below its document format's current shape, or written before $schema, at that shape, and re-renders its body in the current layout, keeping its frontmatter byte for byte. A spec's questions are lifted by the author's rationale marker: a question whose rationale opens with `Decided by the author on <YYYY-MM-DD>` becomes arbitrated with a lifted, unattributed verdict; every other question stays open. A plan document stamped 0.20.0 lifts with empty preamble questions and keeps its body, lineage and frontmatter as they were. A plan sidecar stamped 0.26.0 or below has each phase's testStrategy string read as test lines: one whose every line follows the line format (`- <guarantee> — <size> · <technique> · <oracle> · <loop>[ · <criterion>]`) is lifted to those lines, and one holding prose is refused, naming the phase, its first departing line and the remedy: rewrite each phase's test strategy in the line format, in the sidecar and plan.md alike, or re-author the plan, then rerun. Archived artifacts, hand-authored artifacts and approval record files are never touched.\n\nA plan sidecar stamped 0.38.0 or earlier declares no gate profile, and phax never invents one: it migrates only with --gate-profile <id>, which writes that id as its run.gateProfile and renders it as the body's `## Gate profile` section, so an Approved plan reads as edited since its approval and needs approving again. Without the flag such a plan is refused, naming the flag. One call applies the one id to every plan it migrates. An id phax.json does not define is refused with exit 2 before anything is read or written. A spec sidecar ignores the flag.\n\nBefore writing anything it decides everything, and exits 12, writing nothing, on an invalid sidecar (including a plan document stamped 0.17.0–0.19.x, which stays refused), on a plan sidecar whose test strategy is not in the line format, on a body that is not its sidecar's own-shape rendering (a hand edit would be overwritten), or on an uncommitted change to any path it would write; each refused artifact is named with its remedy: re-author it headless, or delete its sidecar to demote it to hand-authored.\n\nThe report names each migrated artifact with its status and question counts (open, with their ids, and arbitrated, with how many are lifted), or `body unchanged`. It names every Approved artifact the re-rendering leaves edited since approval — with its open question ids and `phax artifact reopen <path>` when it has any, else `phax artifact approve <path>` — and every live plan it leaves stale with spec-changed evidence. With nothing to migrate it says so, writes nothing and exits 0.\n\nUntil it has run, phax artifact approve and phax artifact reopen refuse with exit 12, naming each unmigrated sidecar; complete, abandon and run completion carry an older sidecar as before.\n\nSide effects: writes the sidecars and re-rendered bodies, re-seeds each rewritten plan's extraction cache so phax run never re-extracts it, and commits exactly the rewritten paths in one commit. A failed commit exits 12, leaving the files written but uncommitted.",
+  examples: [
+    "phax artifact migrate-documents",
+    "phax artifact migrate-documents --gate-profile standard",
+  ],
+  input: { flags: MigrateDocumentsFlags },
   output: reject(DocumentMigrationOutput),
-  run: () =>
+  run: ({ input }) =>
     Effect.gen(function* () {
       const config = yield* configured();
+      const gateProfile = input.flags.gateProfile ?? null;
+      // The named profile is checked before anything is read or written.
+      if (gateProfile !== null) {
+        const resolved = resolveGateProfileById(config.raw, gateProfile, undefined);
+        if (Result.isFailure(resolved)) {
+          return yield* Effect.fail(
+            new GateProfileUndefinedError({
+              id: resolved.failure.id,
+              defined: resolved.failure.defined,
+              message: undefinedGateProfileMessage(resolved.failure),
+            }),
+          );
+        }
+      }
       const report = yield* migrateDocuments({
         repoRoot: config.repoRoot,
         stateRoot: effectiveStateRoot(config),
         extractPlanModel: config.extractPlanModel,
         extractPlanEffort: config.extractPlanEffort,
         nowIso: new Date().toISOString(),
+        gateProfile,
       }).pipe(
         Effect.provide(
           Layer.mergeAll(makeRootedNodeFileSystemLayer(config.repoRoot), makeNodeGitLayer()),
@@ -183,6 +218,7 @@ export const artifactMigrateDocumentsCommand = defineCommand({
     }).pipe(Effect.mapError(exposeMessage)),
   exits: {
     ConfigValidationError: 1,
+    GateProfileUndefinedError: 2,
     FsError: 1,
     GitError: 1,
     ApprovalRecordUnreadableError: 12,
@@ -193,6 +229,11 @@ export const artifactMigrateDocumentsCommand = defineCommand({
   },
   errors: {
     ConfigValidationError: MessageFields,
+    GateProfileUndefinedError: Schema.Struct({
+      id: Schema.String,
+      defined: Schema.Array(Schema.String),
+      message: Schema.String,
+    }),
     FsError: MessageFields,
     GitError: MessageFields,
     ApprovalRecordUnreadableError: MessageFields,
@@ -203,6 +244,7 @@ export const artifactMigrateDocumentsCommand = defineCommand({
   },
   texts: {
     ConfigValidationError: (error) => `Config error: ${error.message}`,
+    GateProfileUndefinedError: sentence,
     FsError: sentence,
     GitError: sentence,
     ApprovalRecordUnreadableError: sentence,

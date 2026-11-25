@@ -781,7 +781,12 @@ const PLAN_BASE = {
   kind: "plan",
   sourceSpec: PLAN_SOURCE_SPEC,
   completesSpec: true,
-  run: { shortName: "log-rotation", title: "Log rotation", requiredCommands: [] },
+  run: {
+    shortName: "log-rotation",
+    title: "Log rotation",
+    requiredCommands: [],
+    gateProfile: "standard",
+  },
   preamble: {
     summary: "Two phases: the store, then the command.",
     requiredCommandsNote: "No extra commands.",

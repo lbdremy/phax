@@ -23,10 +23,10 @@ import { exitCodeForAuthoringError, exitCodeForError } from "../../src/cli/comma
 import { approvalRecordPathFor } from "../../src/domain/artifact/approvalRecordFile.js";
 import { renderDocumentMigrationReport } from "../../src/domain/artifact/render.js";
 import type { ArtifactKind } from "../../src/domain/artifact/status.js";
-import { renderPlanBody } from "../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderPlanBodyV0_26_0 } from "../../src/domain/authoring/renderPlanV0_26_0.js";
 import { renderPlanBodyV0_32_0 } from "../../src/domain/authoring/renderPlanV0_32_0.js";
+import { renderPlanBodyV0_38_0 } from "../../src/domain/authoring/renderPlanV0_38_0.js";
 import { renderSpecBodyV0_17_0 } from "../../src/domain/authoring/renderSpecV0_17_0.js";
 import { renderSpecBody } from "../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_25_0 } from "../../src/domain/authoring/renderSpecV0_25_0.js";
@@ -45,12 +45,14 @@ import {
   type PlanDocumentV0_25_0Value,
   type PlanDocumentV0_26_0Value,
   type PlanDocumentV0_32_0Value,
+  type PlanDocumentV0_38_0Value,
   type SpecDocumentV0_17_0Value,
   type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
+  readDocumentSidecar,
   readPlanDocumentFile,
 } from "../../src/schemas/persisted.js";
-import { projectExtractedPlan, type PlanDocument } from "../../src/schemas/planDocument.js";
+import { projectExtractedPlan } from "../../src/schemas/planDocument.js";
 import type { OpenQuestion } from "../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../src/schemas/release.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
@@ -304,18 +306,31 @@ function planFrontmatter(status: string, sourceSpec: string | null, approved = "
   return `---\nstatus: ${status}\n${lineage}${approved}---\n`;
 }
 
-// A headless plan stamped 0.20.0, its body the plan renderer's.
+// A headless plan stamped 0.20.0, its body the plan renderer's before the gate profile.
 function writeOlderPlan(sourceSpec: string | null, frontmatter: string): string {
   const sidecar = { $schema: schemaUrl("plan-document", "0.20.0"), ...olderPlan(sourceSpec) };
-  const lifted = readPlanDocumentFile(sidecarOf(PLAN), sidecar);
-  if (Result.isFailure(lifted)) throw new Error(lifted.failure.message);
-  const md = frontmatter + renderPlanBody(lifted.success);
+  const read = readDocumentSidecar("plan", sidecarOf(PLAN), sidecar);
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  const { success } = read;
+  if (success.shape === "current" || success.lift.kind !== "missing-gate-profile") {
+    throw new Error("the 0.20.0 plan lifts without a gate profile");
+  }
+  const md = frontmatter + renderPlanBodyV0_38_0(success.lift.document);
   writeRepoFile(PLAN, md);
   writeRepoFile(sidecarOf(PLAN), json(sidecar));
   return md;
 }
 
 const PHASE_REASON = "Designs the prune store, which no code in the repository shows yet.";
+
+// A plan body as migrate-documents leaves it: the body as written, plus the gate profile the
+// operator named (`migrate` names `standard`), declared just before `## Required commands`.
+function withGateProfile(md: string): string {
+  return md.replace(
+    "## Required commands",
+    "## Gate profile\n\n`standard`\n\n## Required commands",
+  );
+}
 
 // The 0.25.0 shape: questions in the preamble, a `modelReason` on each phase.
 function plan0_25_0(): PlanDocumentV0_25_0Value {
@@ -423,6 +438,8 @@ function migrate() {
         extractPlanModel: MODEL,
         extractPlanEffort: EFFORT,
         nowIso: NOW,
+        // Every older plan sidecar declares no gate profile; the operator names one.
+        gateProfile: "standard",
       }).pipe(Effect.provide(layer())),
     ),
   );
@@ -488,7 +505,7 @@ afterEach(() => {
 });
 
 describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, () => {
-  it("restamps a Draft 0.20.0 plan with empty questions, its body and lineage byte-identical, its cache re-seeded", async () => {
+  it("restamps a Draft 0.20.0 plan with empty questions and the named gate profile, its lineage kept, its body gaining only the Gate profile section, its cache re-seeded", async () => {
     const md = writeOlderPlan(null, planFrontmatter("Draft", null));
     commitAll();
 
@@ -504,6 +521,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       $schema: string;
       sourceSpec: unknown;
       completesSpec: unknown;
+      run: Record<string, unknown>;
       preamble: Record<string, unknown>;
       phases: Array<Record<string, unknown>>;
     };
@@ -518,8 +536,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     expect(sidecar.preamble["openQuestions"]).toEqual([]);
     expect(sidecar.preamble["arbitratedQuestions"]).toEqual([]);
     expect([sidecar.sourceSpec, sidecar.completesSpec]).toEqual([null, null]);
-    expect(readRepoFile(PLAN)).toBe(md);
-    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(sidecar.run["gateProfile"]).toBe("standard");
+    const after = readRepoFile(PLAN);
+    expect(after).toBe(withGateProfile(md));
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
     expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
     expect(porcelain()).toBe("");
 
@@ -527,7 +547,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     const lifted = readPlanDocumentFile(sidecarOf(PLAN), sidecar);
     if (Result.isFailure(lifted)) throw new Error(lifted.failure.message);
     const cached = await Effect.runPromise(
-      readCacheEntry(stateRoot, planCacheKey(md, MODEL, EFFORT)).pipe(
+      readCacheEntry(stateRoot, planCacheKey(after, MODEL, EFFORT)).pipe(
         Effect.provide(makeRootedNodeFileSystemLayer(repoDir)),
       ),
     );
@@ -573,7 +593,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     const after = readRepoFile(PLAN);
     expect(after).toContain(`\n**Assignment reason:** ${PHASE_REASON}\n`);
     expect(after).not.toContain("Model reason");
-    expect(after).toBe(md.replace("**Model reason:**", "**Assignment reason:**"));
+    expect(after).toBe(withGateProfile(md.replace("**Model reason:**", "**Assignment reason:**")));
     expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
     expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
     expect(porcelain()).toBe("");
@@ -591,7 +611,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     ["0.20.0", (fm: string) => writeOlderPlan(null, fm)],
     ["0.25.0", (fm: string) => writeV0_25_0Plan(fm)],
   ] as const)(
-    "lifts a %s plan with mode headless and acceptance null on every phase, adding no line to plan.md",
+    "lifts a %s plan with mode headless and acceptance null on every phase, adding no Mode or acceptance line to plan.md",
     async (_release, write) => {
       const md = write(planFrontmatter("Draft", null));
       commitAll();
@@ -617,7 +637,9 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       }
       const after = readRepoFile(PLAN);
       expect(after).not.toMatch(/\*\*Mode:\*\*|\*\*Oracle (phase|files):\*\*/);
-      expect(after).toBe(md.replace("**Model reason:**", "**Assignment reason:**"));
+      expect(after).toBe(
+        withGateProfile(md.replace("**Model reason:**", "**Assignment reason:**")),
+      );
     },
   );
 
@@ -643,7 +665,7 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
   });
 
   // ac-migrate-lift
-  it("migrates a live 0.26.0 plan whose every test strategy follows the line format to its lines, its body unchanged, and commits it", async () => {
+  it("migrates a live 0.26.0 plan whose every test strategy follows the line format to its lines, its body gaining only the Gate profile section, and commits it", async () => {
     const md = writeV0_26_0Plan(planFrontmatter("Draft", null));
     commitAll();
 
@@ -659,8 +681,8 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
       [STEP_LINE],
     ]);
     expect(sidecar.phases.map((phase) => phase["assignmentReason"])).toEqual([null, PHASE_REASON]);
-    expect(readRepoFile(PLAN)).toBe(md);
-    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(readRepoFile(PLAN)).toBe(withGateProfile(md));
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
     expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
     expect(porcelain()).toBe("");
     expect(renderDocumentMigrationReport(result)).toContain(
@@ -673,8 +695,8 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
 
   // The strict answer restamped plan-document without changing its body: a
   // 0.28.0 sidecar reads through its frozen module, and migrating it rewrites
-  // the sidecar alone.
-  it("restamps a 0.28.0 plan to the current stamp, its Markdown byte-identical, and commits the sidecar alone", async () => {
+  // the sidecar, its body gaining only the gate profile the operator named.
+  it("restamps a 0.28.0 plan to the current stamp, its Markdown gaining only the Gate profile section", async () => {
     const older = plan0_26_0();
     // The 0.28.0 sidecar still carries the `oracle` key; the current document
     // carries `acceptance` in its place.
@@ -689,8 +711,8 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
         acceptance: null,
         testStrategy: [STEP_LINE],
       })),
-    } as unknown as PlanDocument;
-    const md = planFrontmatter("Draft", null) + renderPlanBody(doc);
+    } as unknown as PlanDocumentV0_38_0Value;
+    const md = planFrontmatter("Draft", null) + renderPlanBodyV0_38_0(doc);
     writeRepoFile(PLAN, md);
     writeRepoFile(
       sidecarOf(PLAN),
@@ -703,9 +725,10 @@ describe("migrate-documents — plan documents in flight", { timeout: 30_000 }, 
     expect(JSON.parse(readRepoFile(sidecarOf(PLAN)))).toEqual({
       $schema: currentSchemaUrl("plan-document"),
       ...doc,
+      run: { ...doc.run, gateProfile: "standard" },
     });
-    expect(readRepoFile(PLAN)).toBe(md);
-    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(readRepoFile(PLAN)).toBe(withGateProfile(md));
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
     expect(renderDocumentMigrationReport(result)).toContain(
       `plan-document 0.28.0 → ${CURRENT_STAMPS["plan-document"]}`,
     );
@@ -914,10 +937,13 @@ describe(
         ),
       );
 
-      // One migration commit, exactly the spec and its sidecar, and the plan's sidecar.
+      // One migration commit, exactly the spec and its sidecar, and the plan and its sidecar
+      // (its body gains the Gate profile section).
       expect(git(["rev-list", "--count", `${head}..HEAD`]).trim()).toBe("1");
       expect(git(["log", "-1", "--format=%s"]).trim()).toBe(COMMIT_SUBJECT);
-      expect(headFiles()).toEqual([PLAN_PRUNE, sidecarOf(PLAN_PRUNE), sidecarOf(PLAN)].toSorted());
+      expect(headFiles()).toEqual(
+        [PLAN_PRUNE, sidecarOf(PLAN_PRUNE), PLAN, sidecarOf(PLAN)].toSorted(),
+      );
       expect(porcelain()).toBe("");
 
       expect(report).toContain(
@@ -1099,7 +1125,11 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
     expect(report).toContain(
       "    now edited since approval, with open questions Q3 — reopen it and decide Q3 before re-approving",
     );
-    expect(report).toMatch(/plan-document 0\.20\.0 → .*\n {2}\S+ +Approved {2}body unchanged/);
+    // The plan's body gains its Gate profile section, so it is approved again.
+    expect(report).toMatch(/plan-document 0\.20\.0 → .*\n {2}\S+ +Approved {2}open 0/);
+    expect(report).toContain(
+      `    now edited since approval — re-approve with \`phax artifact approve ${PLAN}\``,
+    );
     expect(lines.slice(-3)).toEqual([
       "stale (spec-changed)",
       `  ${PLAN}  its spec ${PLAN_PRUNE} was re-rendered`,
@@ -1108,17 +1138,18 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
     // Only the spec left with an open question is told to decide.
     expect(lines.filter((l) => l.includes("decide"))).toHaveLength(1);
 
-    // Exactly the two specs, their sidecars and the plan's sidecar.
+    // Exactly the two specs, their sidecars, the plan and its sidecar.
     expect(headFiles()).toEqual(
       [
         PLAN_PRUNE,
         sidecarOf(PLAN_PRUNE),
         CACHE_KEYS,
         sidecarOf(CACHE_KEYS),
+        PLAN,
         sidecarOf(PLAN),
       ].toSorted(),
     );
-    expect(readRepoFile(PLAN)).toBe(planMd);
+    expect(readRepoFile(PLAN)).toBe(withGateProfile(planMd));
     const planSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as Record<string, unknown>;
     expect([planSidecar["sourceSpec"], planSidecar["completesSpec"]]).toEqual([
       planSidecarBefore["sourceSpec"],
@@ -1126,7 +1157,8 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
     ]);
     expect(records.map(readRepoFile)).toEqual(recordsBefore);
 
-    // `phax plans status` reads the plan stale, with spec-changed evidence.
+    // `phax plans status` reads the plan stale, with spec-changed evidence, and self-changed
+    // evidence for its own body, which gained its Gate profile section.
     const { layer: backendLayer } = makeFakeBackend();
     const staleness = await Effect.runPromise(
       plansStalenessReport({
@@ -1145,7 +1177,10 @@ describe("migrate-documents — names what it unsettles", { timeout: 30_000 }, (
     expect(staleness.report).toEqual([
       {
         path: PLAN,
-        result: { kind: "stale", evidence: [{ reason: "spec-changed", specPath: PLAN_PRUNE }] },
+        result: {
+          kind: "stale",
+          evidence: [{ reason: "spec-changed", specPath: PLAN_PRUNE }, { reason: "self-changed" }],
+        },
       },
     ]);
 
@@ -1252,10 +1287,10 @@ describe("migrate-documents — commit failure", { timeout: 30_000 }, () => {
 });
 
 describe("phax artifact migrate-documents — the command", { timeout: 30_000 }, () => {
-  async function runCommand(): Promise<{ code: number; lines: string[] }> {
+  async function runCommand(...args: string[]): Promise<{ code: number; lines: string[] }> {
     process.chdir(repoDir);
     try {
-      const result = await phaxCall(["artifact", "migrate-documents"]);
+      const result = await phaxCall(["artifact", "migrate-documents", ...args]);
       // stdout's lines, then stderr as one error sentence when the command failed.
       const lines = [...result.outLines];
       if (result.err !== "") {
@@ -1313,8 +1348,8 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
     expect(existsSync(join(repoDir, sidecarOf(LOG_ROTATION)))).toBe(true);
   });
 
-  // The 0.33.0 shape is today's current shape under its own stamp: a plan whose
-  // phase-02 edits `editPath`, its body the current rendering.
+  // The 0.33.0 shape is the 0.38.0 shape under its own stamp: a plan whose
+  // phase-02 edits `editPath`, its body the 0.38.0 rendering.
   function writePlan0_33_0(editPath: string): { md: string; sidecar: string } {
     const older = plan0_26_0();
     const doc = {
@@ -1325,8 +1360,8 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
         testStrategy: [STEP_LINE],
         plannedFilesToEdit: phase.id === "phase-02" ? [editPath] : [],
       })),
-    } as unknown as PlanDocument;
-    const md = planFrontmatter("Draft", null) + renderPlanBody(doc);
+    } as unknown as PlanDocumentV0_38_0Value;
+    const md = planFrontmatter("Draft", null) + renderPlanBodyV0_38_0(doc);
     const sidecar = json({ $schema: schemaUrl("plan-document", "0.33.0"), ...doc });
     writeRepoFile(PLAN, md);
     writeRepoFile(sidecarOf(PLAN), sidecar);
@@ -1365,7 +1400,7 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
     writeRepoFile(sidecarOf(PLAN), sidecar.replaceAll("./src/x.ts", "src/x.ts"));
     commitAll("make the path canonical");
 
-    const rerun = await runCommand();
+    const rerun = await runCommand("--gate-profile", "fast");
     expect(rerun.code).toBe(0);
     const migratedSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
       $schema: string;
@@ -1382,16 +1417,22 @@ describe("phax artifact migrate-documents — the command", { timeout: 30_000 },
     expect(porcelain()).toBe("");
   });
 
-  it("migrates a canonical 0.33.0 plan sidecar to the current stamp, its Markdown byte-identical, the commit body naming it", async () => {
+  it("migrates a canonical 0.33.0 plan sidecar to the current stamp with the named gate profile, its Markdown gaining only the Gate profile section, the commit body naming it", async () => {
     const { md } = writePlan0_33_0("src/x.ts");
 
-    const done = await runCommand();
+    const done = await runCommand("--gate-profile", "fast");
 
     expect(done.code).toBe(0);
-    const migratedSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as { $schema: string };
+    const migratedSidecar = JSON.parse(readRepoFile(sidecarOf(PLAN))) as {
+      $schema: string;
+      run: { gateProfile: string };
+    };
     expect(migratedSidecar.$schema).toBe(currentSchemaUrl("plan-document"));
-    expect(readRepoFile(PLAN)).toBe(md);
-    expect(headFiles()).toEqual([sidecarOf(PLAN)]);
+    expect(migratedSidecar.run.gateProfile).toBe("fast");
+    expect(readRepoFile(PLAN)).toBe(
+      md.replace("## Required commands", "## Gate profile\n\n`fast`\n\n## Required commands"),
+    );
+    expect(headFiles()).toEqual([PLAN, sidecarOf(PLAN)].toSorted());
     expect(git(["log", "-1", "--format=%B"])).toContain(PLAN);
     expect(porcelain()).toBe("");
   });
@@ -1466,9 +1507,10 @@ describe("migrate-documents — the acceptance loop", { timeout: 30_000 }, () =>
       expect(after).toContain("· acceptance · AC-1");
       expect(after).not.toContain("· oracle · AC-1");
       // ac-migrate, the header half: the header lines are re-rendered with the
-      // acceptance words, and nothing else in the body changes.
+      // acceptance words, the named gate profile gains its section, and nothing
+      // else in the body changes.
       expect(after).toBe(
-        md
+        withGateProfile(md)
           .replace("· oracle · AC-1", "· acceptance · AC-1")
           .replace(
             "**Oracle phase:** discharged by phase-02",

@@ -123,6 +123,7 @@ import {
   readPhaseStatusFile,
   readPhaxPlanFile,
   readPlanApprovalsFile,
+  readDocumentSidecar,
   readPlanDocumentFile,
   readPlanRecordFile,
   readFindingFateRecordManifestFile,
@@ -153,8 +154,11 @@ import {
   validDocuments,
   withKey,
   withOracleKey,
+  withoutGateProfile,
+  withoutKey,
   type Doc,
 } from "./documents.js";
+import type { PlanDocumentWithoutGateProfile } from "../../../src/schemas/planDocument.js";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const snapshotsDir = join(repoRoot, "packages", "schemas", "snapshots");
@@ -410,10 +414,13 @@ const READ_BY_PHAX = FORMAT_IDS.filter((id) => BRIDGE_READERS[id] !== undefined)
 // they part. A pre-schema gate attribution ran no protected-paths check: phax
 // lifts it with `protectedPaths: null`, the package keeps it as recorded. A
 // pre-schema compliance review never recorded its ledgers: phax's reader gives
-// it no ledger key, the package `Unknown` ones.
+// it no ledger key, the package `Unknown` ones. A pre-schema plan document
+// recorded no gate profile: phax's reader of a current document refuses it,
+// and its sidecar lift agrees with the package (covered below).
 const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
     BRIDGE_READERS[id] !== undefined &&
+    id !== "plan-document" &&
     id !== "phase-status" &&
     id !== "spec-document" &&
     id !== "phax-plan" &&
@@ -431,8 +438,11 @@ const PRE_SCHEMA_READ_BY_PHAX = PRE_SCHEMA_FORMAT_IDS.filter(
 // phax-written one keeps its own.
 // A pre-schema phase record manifest upgrades with `gateProfile: null` (not
 // recorded), a phax-written one names the run's profile.
+// A pre-schema plan document upgrades without a gate profile, a phax-written
+// one declares its own.
 const UPGRADED_ALIKE = PRE_SCHEMA_FORMAT_IDS.filter(
   (id) =>
+    id !== "plan-document" &&
     id !== "phase-record-manifest" &&
     id !== "phase-status" &&
     id !== "spec-document" &&
@@ -451,6 +461,17 @@ function withoutFindingIds(review: Record<string, unknown>): Record<string, unkn
       findings: phase.findings.map(({ id: _id, ...finding }) => finding),
     })),
   };
+}
+
+/** An older plan sidecar as phax's sidecar reader lifts it: every fact but a gate profile. */
+function sidecarLift(document: unknown): PlanDocumentWithoutGateProfile {
+  const read = readDocumentSidecar("plan", "/work/example-repo/plan.json", document);
+  if (Result.isFailure(read)) throw new Error(read.failure.message);
+  const { success } = read;
+  if (success.shape === "current" || success.lift.kind !== "missing-gate-profile") {
+    throw new Error("the sidecar lifts without a gate profile");
+  }
+  return success.lift.document;
 }
 
 /** Each phase without its `testLines` key. */
@@ -641,13 +662,37 @@ describe("phax's bridge and the package agree", () => {
     expect(written.phases.every((p) => "testLines" in p && Array.isArray(p.testLines))).toBe(true);
   });
 
-  // The test line loop `oracle` became `acceptance` at 0.33.0: phax's reader and the
-  // package lift a plan document stamped 0.28.0 or 0.32.0 through the same
-  // functions (src/schemas/acceptanceLift.ts), so they read it alike.
+  // No plan document older than the gate profile recorded one: phax's sidecar
+  // reader lifts it all but its profile, as the package does, and phax's reader
+  // of a current document refuses it, naming run.gateProfile.
+  it("plan-document: a pre-schema document lifts alike in the bridge's sidecar reader and toLatest, without a gate profile", () => {
+    const document = preSchemaDocuments["plan-document"];
+    expect(sidecarLift(document)).toEqual(PACKAGE_LATEST["plan-document"](document));
+    expect(sidecarLift(document).run).not.toHaveProperty("gateProfile");
+    const read = readPlanDocumentFile("/work/example-repo/plan.json", document);
+    expect(Result.isFailure(read) && read.failure.message).toBe(
+      "/work/example-repo/plan.json: the plan declares no gate profile (run.gateProfile)",
+    );
+  });
+
+  it("plan-document: the package upgrades a pre-schema document alike but for its gate profile, not recorded", () => {
+    const id = "plan-document";
+    const written = PACKAGE_LATEST[id](validDocuments[id]);
+    expect(written).toMatchObject({ run: { gateProfile: "standard" } });
+    expect(written).toEqual(withoutKey(validDocuments[id], "$schema"));
+    expect(PACKAGE_LATEST[id](preSchemaDocuments[id])).toEqual(
+      withoutGateProfile(withoutKey(validDocuments[id], "$schema")),
+    );
+  });
+
+  // The test line loop `oracle` became `acceptance` at 0.33.0: phax's sidecar
+  // reader and the package lift a plan document stamped 0.28.0 or 0.32.0
+  // through the same functions (src/schemas/acceptanceLift.ts), so they read it
+  // alike, neither inventing a gate profile.
   it.each(["0.28.0", "0.32.0"])(
     "plan-document: a %s sidecar with the loop oracle is lifted to acceptance by the bridge and by toLatest alike",
     (release) => {
-      const current = validDocuments["plan-document"];
+      const current = withoutGateProfile(validDocuments["plan-document"]);
       // The phases also carry the `oracle` key a sidecar had before 0.33.0.
       const oldLoops = (current["phases"] as Doc[]).map((phase, i) =>
         withOracleKey({
@@ -664,13 +709,12 @@ describe("phax's bridge and the package agree", () => {
         "$schema",
         schemaUrl("plan-document", release),
       );
-      const read = readPlanDocumentFile("/work/example-repo/plan.json", document);
-      if (Result.isFailure(read)) throw new Error(read.failure.message);
-      expect(read.success).toEqual(PACKAGE_LATEST["plan-document"](document));
-      const lines = read.success.phases.flatMap((phase) => phase.testStrategy);
+      const lifted = sidecarLift(document);
+      expect(lifted).toEqual(PACKAGE_LATEST["plan-document"](document));
+      const lines = lifted.phases.flatMap((phase) => phase.testStrategy);
       expect(lines.length).toBeGreaterThan(0);
       expect(lines.every((line) => line.loop === "acceptance")).toBe(true);
-      expect(read.success.phases[0]?.acceptance).toEqual({
+      expect(lifted.phases[0]?.acceptance).toEqual({
         passedBy: "phase-02",
         files: ["tests/a.test.ts"],
       });

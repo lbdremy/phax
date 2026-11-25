@@ -759,10 +759,24 @@ function stepped<T extends { readonly version: number }>(value: T): Omit<T, "ver
 }
 
 /**
+ * A current plan document as every shape before the gate profile (0.38.0 and
+ * earlier) wrote its run: without `gateProfile`. A document whose run has none
+ * is returned as it is.
+ */
+export function withoutGateProfile(doc: Doc): Doc {
+  const run = doc["run"];
+  if (typeof run !== "object" || run === null) return doc;
+  return {
+    ...doc,
+    run: Object.fromEntries(Object.entries(run).filter(([key]) => key !== "gateProfile")),
+  };
+}
+
+/**
  * A plan document as every shape before the preamble's question arrays and
  * each phase's reason (the frozen 0.20.0 shape): without both, and without
- * each phase's `mode` and `oracle`, its test lines as a string. The reason is
- * `assignmentReason` in the current shape.
+ * each phase's `mode` and `oracle`, its test lines as a string, its run
+ * without a gate profile. The reason is `assignmentReason` in the current shape.
  */
 export function withoutPreambleQuestions(doc: Doc): Doc {
   const {
@@ -774,7 +788,7 @@ export function withoutPreambleQuestions(doc: Doc): Doc {
     ({ assignmentReason: _reason, mode: _mode, acceptance: _acceptance, ...phase }) =>
       withTestStrategyText(phase),
   );
-  return { ...doc, preamble, phases };
+  return { ...withoutGateProfile(doc), preamble, phases };
 }
 
 /** A phase with its test lines as the string an older shape carried: one `- ` line each. */
@@ -802,10 +816,11 @@ export function withOracleKey(phase: Doc): Doc {
 
 /**
  * A current plan document or phax-plan as every shape before 0.33.0 wrote its
- * phases: each phase's `acceptance` under the `oracle` key.
+ * phases: each phase's `acceptance` under the `oracle` key, its run without a
+ * gate profile.
  */
 export function withOracleKeys(doc: Doc): Doc {
-  return { ...doc, phases: (doc["phases"] as Doc[]).map(withOracleKey) };
+  return { ...withoutGateProfile(doc), phases: (doc["phases"] as Doc[]).map(withOracleKey) };
 }
 
 /**
@@ -836,12 +851,12 @@ export function withOracleRole(manifest: Doc): Doc {
 
 /**
  * A current plan document as the frozen 0.26.0 shape wrote it: each phase's
- * test lines are the string the line format renders, and its acceptance tests
- * sit under the `oracle` key.
+ * test lines are the string the line format renders, its acceptance tests
+ * sit under the `oracle` key, and its run declares no gate profile.
  */
 export function withTestStrategyStrings(doc: Doc): Doc {
   return {
-    ...doc,
+    ...withoutGateProfile(doc),
     phases: (doc["phases"] as Doc[]).map((phase) => withOracleKey(withTestStrategyText(phase))),
   };
 }
@@ -849,7 +864,8 @@ export function withTestStrategyStrings(doc: Doc): Doc {
 /**
  * A current plan document as the frozen 0.25.0 shape wrote it: each phase's
  * `assignmentReason` is a `modelReason`, in the same place before model and
- * effort, no phase carries `mode` or `oracle`, and its test lines are a string.
+ * effort, no phase carries `mode` or `oracle`, its test lines are a string,
+ * and its run declares no gate profile.
  */
 export function withModelReasons(doc: Doc): Doc {
   const phases = (doc["phases"] as Doc[]).map(
@@ -860,7 +876,7 @@ export function withModelReasons(doc: Doc): Doc {
       effort,
     }),
   );
-  return { ...doc, phases };
+  return { ...withoutGateProfile(doc), phases };
 }
 
 /**
@@ -923,7 +939,8 @@ function withEmptyQuestions(doc: Doc): Doc {
  * shape added set to the only value the document allows — a spec-less plan
  * document's `completesSpec` is null and its preamble questions empty, and a
  * spec document whose questions carry no author's marker has no arbitrated
- * question.
+ * question. A plan document's run declares no gate profile: none older than
+ * the gate profile recorded one.
  */
 export function latestPreSchema(id: PreSchemaFormatId): Doc {
   const lifted = liftPreSchema(id, UNKNOWN);
@@ -1111,6 +1128,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
       ...stepped(planDocument),
       sourceSpec: null,
       completesSpec: null,
+      run: { ...planDocument.run, gateProfile: "standard" },
       preamble: { ...planDocument.preamble, openQuestions: [], arbitratedQuestions: [] },
       phases: [
         {

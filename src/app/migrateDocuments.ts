@@ -45,6 +45,8 @@ export interface MigrateDocumentsOptions {
   readonly extractPlanModel: string;
   readonly extractPlanEffort: string;
   readonly nowIso: string;
+  /** The gate profile `--gate-profile` named, already checked against phax.json, or null. */
+  readonly gateProfile: string | null;
 }
 
 export type MigrateDocumentsError =
@@ -142,6 +144,7 @@ export function migrateDocuments(
         sidecarPath: sidecar.sidecarPath,
         md,
         sidecarJson: sidecar.sidecarJson,
+        gateProfile: opts.gateProfile,
       });
       if (decision.kind === "refuse") refusals.push(decision.refusal);
       else migrations.push(decision.migration);

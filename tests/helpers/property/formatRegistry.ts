@@ -155,6 +155,7 @@ import { PlanDocumentV0_26_0Schema } from "../../../src/schemas/history/plan-doc
 import { PlanDocumentV0_28_0Schema } from "../../../src/schemas/history/plan-document/0.28.0.js";
 import { PlanDocumentV0_32_0Schema } from "../../../src/schemas/history/plan-document/0.32.0.js";
 import { PlanDocumentV0_33_0Schema } from "../../../src/schemas/history/plan-document/0.33.0.js";
+import { PlanDocumentV0_38_0Schema } from "../../../src/schemas/history/plan-document/0.38.0.js";
 import { PlanDocumentPreSchemaSchema } from "../../../src/schemas/history/plan-document/pre-schema.js";
 import { RegistryV0_17_0Schema } from "../../../src/schemas/history/registry/0.17.0.js";
 import { RegistryPreSchemaSchema } from "../../../src/schemas/history/registry/pre-schema.js";
@@ -376,7 +377,8 @@ const readPlanSidecar: Reader = (input) => {
   if (Result.isFailure(result)) return refused(result.failure.message);
   const sidecar = result.success;
   if (sidecar.shape === "current") return ok(sidecar.document, sidecar.shape);
-  return sidecar.lift.kind === "lifted"
+  // An older sidecar's lift that passes every check still declares no gate profile.
+  return sidecar.lift.kind === "missing-gate-profile"
     ? ok(sidecar.lift.document, sidecar.shape)
     : refused(`${sidecar.shape} lift refused: ${sidecar.lift.kind}`);
 };
@@ -934,6 +936,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
     shape("0.28.0", PlanDocumentV0_28_0Schema),
     shape("0.32.0", PlanDocumentV0_32_0Schema),
     shape("0.33.0", PlanDocumentV0_33_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
+    shape("0.38.0", PlanDocumentV0_38_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),
   ],
   "plan-approval-record": [
     shape("0.19.0", PlanApprovalRecordV0_19_0Schema),

@@ -57,7 +57,7 @@ describe("archived plan sidecars", () => {
     if (Result.isFailure(read)) throw new Error(read.failure.message);
     const sidecar = read.success;
     expect(sidecar.kind).toBe("plan");
-    if (sidecar.shape === "current" || sidecar.lift.kind === "lifted") return;
+    if (sidecar.shape === "current" || sidecar.lift.kind === "missing-gate-profile") return;
     const phases = archived.json["phases"] as Array<Record<string, unknown>>;
     expect(phases.map((phase) => phase["id"])).toContain(sidecar.lift.phase);
     const { lift } = sidecar;
@@ -89,8 +89,9 @@ describe("archived plan sidecars", () => {
     if (Result.isFailure(read)) throw new Error(read.failure.message);
     expect(read.success.shape).toBe("0.26.0");
     const lift = read.success.shape === "current" ? null : read.success.lift;
-    expect(lift?.kind).toBe("lifted");
-    if (lift?.kind !== "lifted") return;
+    // Every check passes; like every older sidecar, it declares no gate profile.
+    expect(lift?.kind).toBe("missing-gate-profile");
+    if (lift?.kind !== "missing-gate-profile") return;
     expect(lift.document.phases.every((phase) => phase.testStrategy.length > 0)).toBe(true);
   });
 });

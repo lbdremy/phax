@@ -4,14 +4,15 @@ import {
   type PlanDocumentLift,
   planDocumentV0_20_0AsV0_26_0,
   planPathLiftMessage,
+  withDeclaredGateProfile,
 } from "../../schemas/persisted.js";
 import { CURRENT_STAMPS } from "../../schemas/release.js";
 import { compareReleases } from "../../schemas/schemaUrl.js";
-import { renderPlanBody } from "../authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../authoring/renderPlanV0_25_0.js";
 import { renderSpecBody } from "../authoring/renderSpec.js";
 import { renderPlanBodyV0_26_0 } from "../authoring/renderPlanV0_26_0.js";
 import { renderPlanBodyV0_32_0 } from "../authoring/renderPlanV0_32_0.js";
+import { renderPlanBodyV0_38_0 } from "../authoring/renderPlanV0_38_0.js";
 import { renderSpecBodyV0_17_0 } from "../authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../authoring/renderSpecV0_25_0.js";
 import { validateArtifact } from "./document.js";
@@ -48,6 +49,12 @@ export interface DocumentMigrationInput {
   readonly sidecarPath: string;
   readonly md: string;
   readonly sidecarJson: string;
+  /**
+   * The gate profile the operator named with `--gate-profile`, already checked
+   * against phax.json, or null. An older plan sidecar declares none, so it
+   * migrates only with one; a spec sidecar ignores it.
+   */
+  readonly gateProfile: string | null;
 }
 
 /** A refused artifact: `<path> <problem>`, then the way out. */
@@ -91,8 +98,10 @@ function formatOf(kind: ArtifactKind): DocumentFormat {
 // The body the sidecar's own shape renders: the current rendering for
 // spec-document 0.27.0, whose body did not change when the strict answer
 // restamped it (a migration rewrites the sidecar and leaves the Markdown
-// byte-identical), and for plan-document 0.33.0, whose body is the current
-// body (only its file lists' admitted spellings changed); the rendering frozen at plan-document 0.32.0 for both
+// byte-identical); the rendering frozen at plan-document 0.38.0 for both
+// 0.38.0 and 0.33.0 plan sidecars (0.33.0's body is 0.38.0's: only its file
+// lists' admitted spellings changed), which writes no `## Gate profile`
+// section, so the migration re-renders the body; the rendering frozen at plan-document 0.32.0 for both
 // 0.32.0 and 0.28.0 plan sidecars (their test lines end `· oracle`, and the
 // current rendering writes `· acceptance`, so the migration re-renders the
 // body); the rendering frozen at spec-document
@@ -115,8 +124,9 @@ function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "cur
     }
   }
   switch (sidecar.shape) {
+    case "0.38.0":
     case "0.33.0":
-      return renderPlanBody(sidecar.older);
+      return renderPlanBodyV0_38_0(sidecar.older);
     case "0.32.0":
     case "0.28.0":
       return renderPlanBodyV0_32_0(sidecar.older);
@@ -132,19 +142,27 @@ function renderOwnShape(sidecar: Exclude<DocumentSidecar, { readonly shape: "cur
   }
 }
 
-// An older sidecar's document at the current shape, or a plan's refused lift.
+// An older sidecar's document at the current shape, or a plan's refused lift:
+// a plan's lift that declares no gate profile is completed with the operator's
+// id, and stays refused without one.
 function liftedDocument(
   sidecar: Exclude<DocumentSidecar, { readonly shape: "current" }>,
+  gateProfile: string | null,
 ):
   | { readonly kind: "lifted"; readonly document: SidecarDocument }
-  | Exclude<PlanDocumentLift, { readonly kind: "lifted" }> {
+  | Exclude<PlanDocumentLift, { readonly kind: "missing-gate-profile" }>
+  | { readonly kind: "no-gate-profile" } {
   if (sidecar.kind === "spec") {
     return { kind: "lifted", document: { kind: "spec", document: sidecar.document } };
   }
   const { lift } = sidecar;
-  return lift.kind === "lifted"
-    ? { kind: "lifted", document: { kind: "plan", document: lift.document } }
-    : lift;
+  if (lift.kind !== "missing-gate-profile") return lift;
+  return gateProfile === null
+    ? { kind: "no-gate-profile" }
+    : {
+        kind: "lifted",
+        document: { kind: "plan", document: withDeclaredGateProfile(lift, gateProfile) },
+      };
 }
 
 const TEST_STRATEGY_REMEDY =
@@ -153,17 +171,22 @@ const TEST_STRATEGY_REMEDY =
 const PLAN_PATH_REMEDY =
   "Edit the path to its canonical form (or remove it), in the sidecar and plan.md alike, rerun `phax artifact migrate-documents`, then re-approve the plan if needed.";
 
+const GATE_PROFILE_REMEDY =
+  "Rerun with --gate-profile <id>, naming one of phax.json's gate profiles; an Approved plan then needs approving again.";
+
 /**
  * Whether and how one older sidecar migrates. Refused when the artifact is
  * not a valid spec or plan, when the sidecar does not decode (a refused older
  * shape included), when a plan's test strategy cannot be read as test lines
  * (its refused lift, naming the phase and the first departing line), when a
  * plan holds a path that is not canonical (its refused lift, `<phase> <list>
- * "<written>" <problem>`), or
+ * "<written>" <problem>`), when a plan is given no gate profile (every older
+ * plan sidecar declares none), or
  * when the body is not the sidecar's own-shape rendering
  * (compared as agreement compares). Otherwise the sidecar is rewritten at the
- * current shape and the body re-rendered in the current layout; a body whose
- * rendering did not change keeps its md untouched.
+ * current shape, a plan's run declaring the given gate profile, and the body
+ * re-rendered in the current layout; a body whose rendering did not change
+ * keeps its md untouched.
  */
 export function decideDocumentMigration(input: DocumentMigrationInput): DocumentMigrationDecision {
   const { kind, path, sidecarPath, md } = input;
@@ -195,7 +218,7 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
   }
   // A plan whose test strategy cannot be read as test lines is refused before
   // its body is compared: no rewrite could keep what it declares.
-  const lifted = liftedDocument(sidecar);
+  const lifted = liftedDocument(sidecar, input.gateProfile);
   // A plan holding a path that is not canonical is refused too: phax never
   // rewrites an approved plan's paths, so the operator edits them.
   if (lifted.kind === "refused-path") {
@@ -208,6 +231,11 @@ export function decideDocumentMigration(input: DocumentMigrationInput): Document
       `${phase} testStrategy line ${String(departure.line)} departs from the test line format: "${departure.text}"`,
       TEST_STRATEGY_REMEDY,
     );
+  }
+  // A plan sidecar older than the gate profile declares none, and phax never
+  // invents one: the operator names it.
+  if (lifted.kind === "no-gate-profile") {
+    return refuse(path, "declares no gate profile (run.gateProfile)", GATE_PROFILE_REMEDY);
   }
   const { document } = lifted;
 

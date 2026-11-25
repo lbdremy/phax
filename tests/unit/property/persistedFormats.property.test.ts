@@ -306,7 +306,7 @@ const planDocument: Document = {
   kind: "plan",
   sourceSpec: null,
   completesSpec: null,
-  run: { shortName: "demo", title: "Demo", requiredCommands: [] },
+  run: { shortName: "demo", title: "Demo", requiredCommands: [], gateProfile: "standard" },
   preamble: {
     summary: "Summary.",
     requiredCommandsNote: "None.",

@@ -28,6 +28,7 @@ function fixture(): PlanDocument {
       shortName: "headless-authoring",
       title: "Headless authoring",
       requiredCommands: ["pnpm gen:usage-spec", "pnpm dev schema upgrade"],
+      gateProfile: "standard",
     },
     preamble: {
       summary: "Core to surface: schemas, then renderers.\nEach phase leaves the gates green.",
@@ -275,6 +276,10 @@ const BEFORE_QUESTIONS = `# Headless authoring
 
 Core to surface: schemas, then renderers.
 Each phase leaves the gates green.
+
+## Gate profile
+
+\`standard\`
 
 ## Required commands
 

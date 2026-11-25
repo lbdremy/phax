@@ -120,7 +120,7 @@ scope: functional behavior and consumption surface
 // SPEC_DOCUMENT and PLAN_DOCUMENT are the shapes 0.16.0 wrote, before
 // questions were arbitrated; the current shape adds the question arrays and,
 // on each plan phase, a `mode`, an `oracle` and an `assignmentReason`, and
-// holds the test strategy as test lines.
+// holds the test strategy as test lines; its run declares a gate profile.
 const CURRENT_SPEC_DOCUMENT = {
   ...SPEC_DOCUMENT,
   surface: SPEC_DOCUMENT.surface.map(({ surface, ...rest }) => ({
@@ -132,6 +132,7 @@ const CURRENT_SPEC_DOCUMENT = {
 };
 const CURRENT_PLAN_DOCUMENT = {
   ...PLAN_DOCUMENT,
+  run: { ...PLAN_DOCUMENT.run, gateProfile: "standard" },
   preamble: { ...PLAN_DOCUMENT.preamble, openQuestions: [], arbitratedQuestions: [] },
   phases: PLAN_DOCUMENT.phases.map((phase) => ({
     ...phase,
@@ -301,13 +302,14 @@ describe("sidecarAgreement", () => {
         inspection.sidecar?.kind === "plan" && inspection.sidecar.shape !== "current"
           ? inspection.sidecar.lift
           : null;
-      expect(lift?.kind === "lifted" && lift.document.preamble).toMatchObject({
+      expect(lift?.kind).toBe("missing-gate-profile");
+      expect(lift?.kind === "missing-gate-profile" && lift.document.preamble).toMatchObject({
         openQuestions: [],
         arbitratedQuestions: [],
       });
-      expect(lift?.kind === "lifted" && lift.document.phases[0].testStrategy).toEqual([
-        PRUNE_TEST_LINE,
-      ]);
+      expect(lift?.kind === "missing-gate-profile" && lift.document.phases[0].testStrategy).toEqual(
+        [PRUNE_TEST_LINE],
+      );
     });
 
     it("names the stamped shape", () => {

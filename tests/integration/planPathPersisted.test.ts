@@ -96,7 +96,7 @@ const NON_CANONICAL_PLAN = JSON.stringify({
   kind: "plan",
   sourceSpec: null,
   completesSpec: null,
-  run: { shortName: SLUG, title: "Widget export", requiredCommands: [] },
+  run: { shortName: SLUG, title: "Widget export", requiredCommands: [], gateProfile: "standard" },
   preamble: {
     summary: "Two steps.",
     requiredCommandsNote: "No extra commands.",

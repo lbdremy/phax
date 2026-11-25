@@ -758,6 +758,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/plan-document/0.28.0.ts",
   "src/schemas/history/plan-document/0.32.0.ts",
   "src/schemas/history/plan-document/0.33.0.ts",
+  "src/schemas/history/plan-document/0.38.0.ts",
   "src/schemas/history/plan-document/pre-schema.ts",
   "src/schemas/history/registry/0.17.0.ts",
   "src/schemas/history/registry/pre-schema.ts",

@@ -49,6 +49,7 @@ import {
   withoutKey,
   withModelReasons,
   withOracleKeys,
+  withoutGateProfile,
   withoutPreambleQuestions,
   withTestStrategyStrings,
   EXAMPLE_TEST_LINES,
@@ -149,10 +150,15 @@ describe.each(FORMATS)("$id", (format) => {
     const written = format.parse(document);
     if (!old.ok || !written.ok) throw new Error("document rejected");
     // A pre-schema spec document recorded no summary: the package lifts it as
-    // Unknown and keeps the one a current document recorded.
+    // Unknown and keeps the one a current document recorded. A pre-schema plan
+    // document recorded no gate profile: the package invents none.
     const fromWritten = format.toLatest(written.value as never) as Doc;
     const expected =
-      format.id === "spec-document" ? withSurfaceSummary(fromWritten, UNKNOWN) : fromWritten;
+      format.id === "spec-document"
+        ? withSurfaceSummary(fromWritten, UNKNOWN)
+        : format.id === "plan-document"
+          ? withoutGateProfile(fromWritten)
+          : fromWritten;
     expect(format.toLatest(old.value as never)).toEqual(expected);
   });
 
@@ -438,7 +444,7 @@ describe("the plan document's question history", () => {
     });
     if (!result.ok) throw new Error("document rejected");
     expect(toLatestPlanDocument(result.value)).toEqual({
-      ...withoutKey(current, "$schema"),
+      ...withoutGateProfile(withoutKey(current, "$schema")),
       phases: (current["phases"] as Doc[]).map((phase) => ({
         ...phase,
         assignmentReason: "Designs a state machine.",
@@ -457,7 +463,9 @@ describe("the plan document's question history", () => {
     const result = parsePlanDocument(v0_26_0);
     expect(result).toEqual({ ok: true, shape: "0.26.0", value: v0_26_0 });
     if (!result.ok) throw new Error("document rejected");
-    expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(current, "$schema"));
+    expect(toLatestPlanDocument(result.value)).toEqual(
+      withoutGateProfile(withoutKey(current, "$schema")),
+    );
 
     const prose = {
       ...v0_26_0,
@@ -488,7 +496,9 @@ describe("the plan document's question history", () => {
       const result = parsePlanDocument(v0_28_0);
       expect(result).toEqual({ ok: true, shape: "0.28.0", value: v0_28_0 });
       if (!result.ok) throw new Error("document rejected");
-      expect(toLatestPlanDocument(result.value)).toEqual(withoutKey(current, "$schema"));
+      expect(toLatestPlanDocument(result.value)).toEqual(
+        withoutGateProfile(withoutKey(current, "$schema")),
+      );
     },
   );
 
@@ -641,7 +651,9 @@ const withTestLoop = (doc: Doc, loop: string): Doc =>
 // `acceptance` and is read as written (ac-migrate, ac-read-old).
 describe("the plan document's test line loop", () => {
   const current = validDocuments["plan-document"];
-  const lifted = (loop: string): Doc => withoutKey(withTestLoop(current, loop), "$schema");
+  // An older document lifts without a gate profile: it recorded none.
+  const lifted = (loop: string): Doc =>
+    withoutGateProfile(withoutKey(withTestLoop(current, loop), "$schema"));
 
   it.each([
     ["0.32.0", "0.32.0"],
@@ -783,5 +795,51 @@ describe("the plan document's phase key", () => {
   it("refuses an oracle phase key at the current stamp", () => {
     const old = withOracleKeys(withAcceptance);
     expect(parsePlanDocument(old).ok).toBe(false);
+  });
+});
+
+// The gate profile joined the plan document's run at its current stamp: a
+// document stamped 0.38.0 or earlier recorded none, so the package lifts it
+// under a type of its own and never invents one; a current document must
+// declare it, and is the only one that upgrades to the latest.
+describe("the plan document's gate profile", () => {
+  const current = validDocuments["plan-document"];
+  // Literal release, not PACKAGE_VERSION: the answer must not change when a release is cut.
+  const v0_38_0 = withKey(
+    withoutGateProfile(current),
+    "$schema",
+    schemaUrl("plan-document", "0.38.0"),
+  );
+
+  it("upgrades a current document to the latest, its gate profile kept", () => {
+    const result = parsePlanDocument(current);
+    expect(result).toMatchObject({ ok: true, shape: CURRENT_SHAPES["plan-document"] });
+    if (!result.ok) throw new Error("document rejected");
+    const latest = toLatestPlanDocument(result.value);
+    expect(latest).toEqual(withoutKey(current, "$schema"));
+    expect(latest.run).toMatchObject({ gateProfile: "standard" });
+  });
+
+  it("parses a 0.38.0 document as shape 0.38.0 and lifts it with every recorded fact, inventing no gate profile", () => {
+    const result = parsePlanDocument(v0_38_0);
+    expect(result).toEqual({ ok: true, shape: "0.38.0", value: v0_38_0 });
+    expect(parseDocument(v0_38_0)).toMatchObject({
+      ok: true,
+      format: "plan-document",
+      shape: "0.38.0",
+    });
+    if (!result.ok) throw new Error("document rejected");
+    const lifted = toLatestPlanDocument(result.value);
+    expect(lifted).toEqual(withoutKey(v0_38_0, "$schema"));
+    expect(lifted.run).not.toHaveProperty("gateProfile");
+  });
+
+  it("refuses a gate profile in a 0.38.0 document, and a current document without one", () => {
+    expect(parsePlanDocument(withKey(v0_38_0, "run", current["run"])).ok).toBe(false);
+    expect(parsePlanDocument(withoutGateProfile(current))).toMatchObject({
+      ok: false,
+      error: { path: "run.gateProfile" },
+    });
+    expect(Result.isFailure(decodePlanDocumentFile(withoutGateProfile(current)))).toBe(true);
   });
 });

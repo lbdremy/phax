@@ -67,6 +67,7 @@ function validPlanDocument() {
       shortName: "headless-authoring",
       title: "Headless authoring",
       requiredCommands: ["pnpm gen:usage-spec"],
+      gateProfile: "standard",
     },
     preamble: {
       summary: "Core to surface.",

@@ -17,7 +17,8 @@ import { makeRootedNodeFileSystemLayer } from "../../src/infra/fs.js";
 import { NodeGitLayer } from "../../src/infra/git.js";
 import {
   type SpecDocumentV0_17_0Value,
-  readPlanDocumentFile,
+  readDocumentSidecar,
+  withDeclaredGateProfile,
   withSchemaUrl,
 } from "../../src/schemas/persisted.js";
 import type { PlanDocument } from "../../src/schemas/planDocument.js";
@@ -152,8 +153,10 @@ const SPEC_BASE: Omit<SpecDocument, "openQuestions" | "arbitratedQuestions"> = {
   docsPage: { kind: "none", why: "the CLI reference covers it" },
 };
 
+// The 0.20.0 sidecar lifted, then given the gate profile an operator names
+// (`phax artifact migrate-documents --gate-profile standard`): a current document.
 function planBase(): PlanDocument {
-  const doc = readPlanDocumentFile("plan.json", {
+  const doc = readDocumentSidecar("plan", "plan.json", {
     $schema: schemaUrl("plan-document", "0.20.0"),
     kind: "plan",
     sourceSpec: null,
@@ -185,7 +188,16 @@ function planBase(): PlanDocument {
     })),
   });
   if (Result.isFailure(doc)) throw new Error(doc.failure.message);
-  return doc.success;
+  const { success } = doc;
+  if (success.shape === "current" || success.lift.kind !== "missing-gate-profile") {
+    throw new Error("the 0.20.0 plan lifts without a gate profile");
+  }
+  return withDeclaredGateProfile(success.lift, "standard");
+}
+
+/** A plan's run as every shape before the gate profile recorded it: without one. */
+function olderRun({ gateProfile: _gateProfile, ...run }: PlanDocument["run"]) {
+  return run;
 }
 
 let repoDir: string;
@@ -445,6 +457,7 @@ describe("phax artifact status — unmigrated sidecars", () => {
       json({
         $schema: schemaUrl("plan-document", "0.20.0"),
         ...rest,
+        run: olderRun(rest.run),
         preamble: olderPreamble,
         phases: olderPhases,
       }),
@@ -467,6 +480,7 @@ describe("phax artifact status — unmigrated sidecars", () => {
       json({
         $schema: schemaUrl("plan-document", "0.26.0"),
         ...rest,
+        run: olderRun(rest.run),
         preamble: { ...rest.preamble, openQuestions: OPEN_Q3_Q4 },
         phases: phases.map(({ acceptance, ...phase }) => ({
           ...phase,
@@ -496,7 +510,10 @@ describe("phax artifact status — unmigrated sidecars", () => {
       phases: [first, { ...second!, plannedFilesToEdit: ["./src/x.ts"] }],
     };
     writeRepoFile(PLAN, PLAN_FRONTMATTER + renderPlanBody(doc));
-    writeRepoFile(PLAN_SIDECAR, json({ $schema: schemaUrl("plan-document", "0.33.0"), ...doc }));
+    writeRepoFile(
+      PLAN_SIDECAR,
+      json({ $schema: schemaUrl("plan-document", "0.33.0"), ...doc, run: olderRun(doc.run) }),
+    );
     commitAll();
 
     const lines = await statusLines(PLAN);
