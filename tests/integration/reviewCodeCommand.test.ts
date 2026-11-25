@@ -236,8 +236,12 @@ describe("runReviewCode", () => {
     expect(call[1]).toContain("--effort");
     expect(call[1]).toContain("high");
     expect(logs.some((l) => l.toLowerCase().includes("starting"))).toBe(true);
-    // The worktree is no repository, so the base holds no skill: the bundled one is followed.
+    // The worktree is no repository, so the base cannot be read: the bundled skill is followed,
+    // and the operator is told the base was unreadable rather than shown a project without one.
     expect(logs).toContain("review skill: bundled");
+    expect(
+      logs.some((l) => l.startsWith("! could not read .claude/skills/phax-review/SKILL.md")),
+    ).toBe(true);
   });
 
   it("--model/--effort overrides: spawned argv uses overridden values", async () => {

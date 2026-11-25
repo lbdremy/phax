@@ -389,6 +389,8 @@ describe("review and publication commands", () => {
       expect(result.code).toBe(3);
       expect(result.outLines).toEqual([
         "review skill: bundled",
+        // The fixture's base names no commit of a repository: it is reported as unreadable.
+        "! could not read .claude/skills/phax-review/SKILL.md at the run base a1b2c3d; the review follows the bundled skill",
         `Starting code review session in ${worktreePath}`,
       ]);
       expect(t.session.impl.invocations).toHaveLength(1);

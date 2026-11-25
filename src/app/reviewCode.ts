@@ -356,13 +356,17 @@ export interface CodeReviewSkillFact {
   /** Abbreviated run base sha, or null when the run records no base. */
   readonly baseShort: string | null;
   readonly changedByRun: boolean;
+  /** False when the base's tree or the project's blob could not be read: the bundled skill
+   *  stands in, and the operator is told so rather than shown a project without a skill. */
+  readonly baseReadable: boolean;
 }
 
 /**
  * The review doctrine: the project's skill as a regular blob (100644, 100755)
  * of the run base's tree, else the bundled skill. The worktree's copy is never
  * read — a phase agent can rewrite it. The fact says whether the run changed
- * the path (mode or oid, added or removed) between the base and the branch tip.
+ * the path (mode or oid, added or removed) between the base and the final phase's
+ * branch, and whether the base could be read at all.
  */
 function resolveReviewSkill(
   info: RunReviewInfo,
@@ -375,33 +379,44 @@ function resolveReviewSkill(
     if (base === undefined || base === null || base === "") {
       return {
         doctrine: bundled,
-        skill: { source: "bundled", baseShort: null, changedByRun: false },
+        skill: { source: "bundled", baseShort: null, changedByRun: false, baseReadable: true },
       };
     }
+    // A failed read is not an absent entry: it says "unreadable", never "no project skill".
     const entryAt = (treeish: string) =>
       git.readTree(info.worktreePath, treeish).pipe(
         Effect.map((entries) => entries.find((e) => e.path === REVIEW_SKILL_PATH) ?? null),
-        Effect.catch(() => Effect.succeed(null)),
+        Effect.result,
       );
-    const baseEntry = yield* entryAt(base);
-    const tipEntry = yield* entryAt(info.branch);
+    const baseRead = yield* entryAt(base);
+    // The run branch stays at the base; the phases' commits are on the final phase's branch.
+    const tipRead = yield* entryAt(info.finalPhaseBranch);
     let doctrine = bundled;
+    let baseReadable = Result.isSuccess(baseRead);
+    const baseEntry = Result.isSuccess(baseRead) ? baseRead.success : null;
     if (
       baseEntry !== null &&
       baseEntry.type === "blob" &&
       (baseEntry.mode === "100644" || baseEntry.mode === "100755")
     ) {
-      const bytes = yield* git
-        .readBlob(info.worktreePath, baseEntry.oid)
-        .pipe(Effect.catch(() => Effect.succeed(null)));
-      if (bytes !== null) doctrine = { source: "project", text: new TextDecoder().decode(bytes) };
+      const bytes = yield* Effect.result(git.readBlob(info.worktreePath, baseEntry.oid));
+      if (Result.isSuccess(bytes)) {
+        doctrine = { source: "project", text: new TextDecoder().decode(bytes.success) };
+      } else {
+        baseReadable = false;
+      }
     }
+    const tipEntry = Result.isSuccess(tipRead) ? tipRead.success : null;
     return {
       doctrine,
       skill: {
         source: doctrine.source,
         baseShort: base.slice(0, 7),
-        changedByRun: baseEntry?.mode !== tipEntry?.mode || baseEntry?.oid !== tipEntry?.oid,
+        changedByRun:
+          baseReadable &&
+          Result.isSuccess(tipRead) &&
+          (baseEntry?.mode !== tipEntry?.mode || baseEntry?.oid !== tipEntry?.oid),
+        baseReadable,
       },
     };
   });

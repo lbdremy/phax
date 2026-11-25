@@ -332,24 +332,32 @@ const ReviewComplianceOutput = Schema.Struct({
   written: Schema.Array(Written),
 });
 
-/** The lines that say which review skill a code review follows, and whether the run changed it. */
-function reviewSkillLines(skill: CodeReviewSkillFact): string[] {
-  const lines =
-    skill.source === "project"
-      ? [`review skill: project, as of base ${skill.baseShort ?? "unknown"} (${REVIEW_SKILL_PATH})`]
-      : [
-          skill.baseShort === null
-            ? "review skill: bundled (the run base is unknown)"
-            : "review skill: bundled",
-        ];
+/** The line that says which review skill a code review follows: information, never a warning. */
+function reviewSkillLine(skill: CodeReviewSkillFact): string {
+  if (skill.source === "project") {
+    return `review skill: project, as of base ${skill.baseShort ?? "unknown"} (${REVIEW_SKILL_PATH})`;
+  }
+  return skill.baseShort === null
+    ? "review skill: bundled (the run base is unknown)"
+    : "review skill: bundled";
+}
+
+/** The warnings about the review skill: the run changed it, or the base could not be read. */
+function reviewSkillWarnings(skill: CodeReviewSkillFact): string[] {
+  const warnings: string[] = [];
+  if (!skill.baseReadable) {
+    warnings.push(
+      `! could not read ${REVIEW_SKILL_PATH} at the run base ${skill.baseShort ?? "unknown"}; the review follows the bundled skill`,
+    );
+  }
   if (skill.changedByRun) {
-    lines.push(
+    warnings.push(
       `! this run changed ${REVIEW_SKILL_PATH}; the review follows ${
         skill.source === "project" ? "the base copy" : "the bundled skill"
       }`,
     );
   }
-  return lines;
+  return warnings;
 }
 
 /** The output port a review's use case writes through: its lines on stdout (said), its warnings
@@ -665,6 +673,7 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       return yield* fail(`Code review failed: ${review.reason}. To retry, run: ${retryCommand}`);
     }
 
+    yield* call.say(reviewSkillLine(review.skill));
     const findings = review.review.findings;
     const answer: ReviewCodeOutput = {
       kind: "headless",
@@ -675,7 +684,7 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       fixHint: codeReviewFixHint(findings.length, review.session, retryRef) ?? null,
       notice: reviewEntryNotice(outcome) ?? null,
       warnings: [
-        ...reviewSkillLines(review.skill),
+        ...reviewSkillWarnings(review.skill),
         ...reviewEntryWarnings(outcome, "code-review", retryCommand),
       ],
       written: yield* writtenRecords([review.reviewPath, review.sessionPath], config.repoRoot),
@@ -731,7 +740,8 @@ function runInteractive(
     // The render is empty: the lines of the session's start are said as it begins.
     if (crossProject) yield* call.say(`Target: ${qualifiedName}`);
     if (result.skill !== null) {
-      for (const line of reviewSkillLines(result.skill)) yield* call.say(line);
+      yield* call.say(reviewSkillLine(result.skill));
+      for (const line of reviewSkillWarnings(result.skill)) yield* call.say(line);
     }
     yield* call.say(
       mode === "new"

@@ -100,8 +100,15 @@ describe("code review skill from the run base (real git)", () => {
     symlinkSync("../../../elsewhere.md", join(repo, SKILL));
   }
 
-  /** Review the run whose base is `base` and whose branch tip is the repo's HEAD. */
+  /**
+   * Review the run whose base is `base`. As in a real run, the run branch stays at the base
+   * and the phases' commits sit on the final phase's branch (here `main`, the repo's HEAD).
+   */
   async function review(base: string) {
+    // The all-zero base of the unreadable case names no commit: there is nothing to branch from.
+    if (!/^0+$/.test(base)) {
+      git(repo, "branch", "-f", "phax/my-run", base);
+    }
     const backend = makeFakeBackend();
     backend.impl.addRunResponse({
       sessionId: Result.getOrThrow(decodeClaudeSessionId("session-a")),
@@ -113,7 +120,7 @@ describe("code review skill from the run base (real git)", () => {
       shortName: "my-run",
       runId: "my-run-001",
       runState: "review_open",
-      branch: "main",
+      branch: "phax/my-run",
       runTitle: "My Run",
       finalPhaseBranch: Result.getOrThrow(decodeBranchName("main")),
       stateRoot: runPath,
@@ -183,6 +190,7 @@ describe("code review skill from the run base (real git)", () => {
         source: "project",
         baseShort: base.slice(0, 7),
         changedByRun: true,
+        baseReadable: true,
       });
     }
   });
@@ -203,6 +211,7 @@ describe("code review skill from the run base (real git)", () => {
         source: "bundled",
         baseShort: base.slice(0, 7),
         changedByRun: true,
+        baseReadable: true,
       });
     } else {
       expect(result.kind).toBe("accepted");
@@ -242,6 +251,7 @@ describe("code review skill from the run base (real git)", () => {
         source: "project",
         baseShort: base.slice(0, 7),
         changedByRun: false,
+        baseReadable: true,
       });
     } else {
       expect(result.kind).toBe("accepted");
@@ -261,6 +271,25 @@ describe("code review skill from the run base (real git)", () => {
     if (result.kind === "accepted") {
       expect(result.skill.source).toBe("bundled");
       expect(result.skill.changedByRun).toBe(false);
+    } else {
+      expect(result.kind).toBe("accepted");
+    }
+  });
+
+  it("a base the review cannot read is reported, not taken for a project without a skill", async () => {
+    writeSkill(skillText("A"));
+    commit("base");
+
+    const { result, prompt } = await review("0".repeat(40));
+
+    expect(prompt).toContain("Bundled doctrine");
+    if (result.kind === "accepted") {
+      expect(result.skill).toEqual({
+        source: "bundled",
+        baseShort: "0000000",
+        changedByRun: false,
+        baseReadable: false,
+      });
     } else {
       expect(result.kind).toBe("accepted");
     }

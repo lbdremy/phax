@@ -395,6 +395,7 @@ describe("prepareCodeReviewSession", () => {
         source: "project",
         baseShort: info.phaseStatuses[0]?.base.slice(0, 7),
         changedByRun: false,
+        baseReadable: true,
       });
     }
     const promptContent = fs.impl.getFile(promptFilePath);
