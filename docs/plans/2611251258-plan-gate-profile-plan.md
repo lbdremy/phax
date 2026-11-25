@@ -14,7 +14,7 @@ Order, core to surface:
 - phase-03: the plan document and its sidecar.
 - phase-04: every plan.md fixture declares the profile its own config defines. No behaviour changes.
 - phase-05: extraction reads and requires the declaration.
-- phase-06: run, dry run, lint and the preflight use the declaration, and the first-key pick goes.
+- phase-06: run, dry run, lint and the preflight use the declaration, the first-key pick goes, and an undefined profile is reported under a new `gate-profile` lint check (q-lint-check), which moves the plan-lint format.
 - phase-07: the planning prompts.
 - phase-08: the skill and the docs page.
 
@@ -22,9 +22,9 @@ There is no acceptance phase (operator brief): the surface is a plan section, a 
 
 Run this plan with `phax run --allow-skill-edits`, because phase-08 edits `.claude/skills/phax-planning/SKILL.md`. Runs on this repository use the installed phax, so this run is gated by `standard`, the only profile. Per the operator brief, this plan carries no `## Gate profile` section, and each phase's Verification still names `standard`.
 
-After merging, by q-legacy, the live plans `security-high-fixes` and `smolvm-isolation-spike` declare no profile. Lint and run refuse them until each is revised to declare `standard` and approved again. The live sidecar of `security-high-fixes` (stamped 0.38.0) is migrated as q-older-sidecar decides. No phase may approve, migrate or run them.
+After merging, by q-legacy, the live plans `security-high-fixes` and `smolvm-isolation-spike` declare no profile. Lint and run refuse them until each is revised to declare `standard` and approved again. The live sidecar of `security-high-fixes` (stamped 0.38.0) is migrated with `phax artifact migrate-documents --gate-profile <id>` (q-older-sidecar). No phase may approve, migrate or run them.
 
-Phases 02, 03 and 05 each add a frozen decoder that the schemas package imports. The package-closure allowlist in the protected `tests/unit/architecturalGuards.test.ts` must gain each of them. How it does is q-closure-guard, and those phases are written for its recommendation.
+Phases 02, 03, 05 and 06 each add a frozen decoder that the schemas package imports. The package-closure allowlist in the protected `tests/unit/architecturalGuards.test.ts` gains each of them, by lifting the protection for the run (q-closure-guard, `lift-for-run`). The operator's note on that verdict names three paths (phase-record-manifest 0.34.0, plan-document 0.38.0, phax-plan 0.38.0). q-lint-check's `gate-profile` choice adds a fourth, `src/schemas/history/plan-lint/0.34.0.ts`, in phase-06, so the operator's pre-merge diff check of that file expects exactly four added paths.
 
 ## Required commands
 
@@ -38,7 +38,7 @@ Phases 02, 03 and 05 each add a frozen decoder that the schemas package imports.
 
 Every command above is already covered. `pnpm exec tsx`, `pnpm test:unit`, `pnpm test:integration`, `pnpm gen:usage-spec`, `pnpm docs:cli` and `git grep` are entries of `security.agentCommands`, and `pnpm build` is a command of the `standard` gate profile. What each one does here:
 
-- `pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phases 02, 03 and 05. It writes each moving format's `next` snapshot and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts`, `packages/schemas/shipped-json.json` and `packages/schemas/history.lock.json`.
+- `pnpm exec tsx` runs `scripts/schemas-check.ts --write` in phases 02, 03, 05 and 06. It writes each moving format's `next` snapshot and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts`, `packages/schemas/shipped-json.json` and `packages/schemas/history.lock.json`.
 - `pnpm build` regenerates `packages/schemas/json/`.
 - `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and `docs/cli/reference.md` after phase-03 adds a flag.
 - `git grep` finds the fixtures phases 03 to 05 update.
@@ -47,7 +47,7 @@ phax.json needs no change for these commands.
 
 ## Technical arbitrations
 
-- Which shapes move. phax-plan and plan-document move to the opened release's stamp (0.43.0, through `next` snapshots) with `run.gateProfile` required. Each keeps a frozen 0.38.0 decoder: `src/schemas/history/phax-plan/0.38.0.ts` and `src/schemas/history/plan-document/0.38.0.ts`. phase-record-manifest also moves, with a required, nullable `gateProfile` and a frozen 0.34.0 decoder. phax-plan-extraction does not move: phax reads the declaration from plan.md itself, as it reads a phase's mode and acceptance lines, so the model's answer keeps its three run fields. plan-lint moves only if q-lint-check is decided `gate-profile`. `phax schema upgrade` writes only the editor schemas and stays as it is, and no command writes a default profile into an older document (q-legacy). EXTRACTOR_VERSION goes to 7, so an extraction cached before the change is a miss. Loss accepted: three formats move in one release, and `@lbdremy/phax-schemas` consumers must upgrade to read the new shapes.
+- Which shapes move. phax-plan and plan-document move to the opened release's stamp (0.43.0, through `next` snapshots) with `run.gateProfile` required. Each keeps a frozen 0.38.0 decoder: `src/schemas/history/phax-plan/0.38.0.ts` and `src/schemas/history/plan-document/0.38.0.ts`. phase-record-manifest also moves, with a required, nullable `gateProfile` and a frozen 0.34.0 decoder. plan-lint moves too (q-lint-check decided `gate-profile`): its `check` enum gains `gate-profile`, under a frozen 0.34.0 decoder `src/schemas/history/plan-lint/0.34.0.ts`. phax-plan-extraction does not move: phax reads the declaration from plan.md itself, as it reads a phase's mode and acceptance lines, so the model's answer keeps its three run fields. `phax schema upgrade` writes only the editor schemas and stays as it is, and no command writes a default profile into an older document (q-legacy). EXTRACTOR_VERSION goes to 7, so an extraction cached before the change is a miss. Loss accepted: four formats move in one release, and `@lbdremy/phax-schemas` consumers must upgrade to read the new shapes.
 - How older documents read. A phax-plan.json stamped 0.38.0 or earlier is read and displayed with no profile, and never run. Its display type (`AnyShapePhaxPlan`) has a run without `gateProfile`. `loadPlan` refuses it with `olderPhaxPlanMessage`, which for the 0.38.0 shape adds that it records no `run.gateProfile`, then names the remedy: finish the run with the release that started it, or archive it with `phax archive <run> --force` and run its plan again. Resume refuses a run whose run-status recorded no `gateProfileId` with the same remedy. The recorded `gateProfileId` stays what resume gates with. In the schemas package, `toLatest…` of a plan-document or phax-plan of 0.38.0 or older keeps the value under its own type: it never invents a profile. Loss accepted: a run started before this release cannot be resumed by it, and a package consumer gets older plans as their own shapes rather than the latest.
 - Where the records carry the profile (q-records). Every phase record (`record.json`, format `phase-record-manifest`) carries the run's gate profile as `gateProfile`, beside the model and provider the phase ran. phax has no run-level record, and creating one would add a new format for a single field. The key is required and nullable. phax always writes the run's recorded profile, and `null` is what a record of an earlier shape lifts to, in phax's reader and in the package's `toLatest…`. This follows the gate-time precedent: one schema for the file and for the lifted value. `phax records explain` prints `profile  <id>` just before its `gates` line, or `profile  (not recorded)` for null, and `--json` adds `gateProfile`. Loss accepted: the id is repeated on each phase record of a run, and a hand-written record under the new stamp may say null, which phax never writes.
 - One function for the run's profile. `src/domain/gate/gateProfile.ts` holds the single rule:
@@ -63,10 +63,10 @@ phax.json needs no change for these commands.
   - `gate profile "<id>" is not defined in phax.json (defined: <ids>)`
   - `  the plan declares it under ## Gate profile; no worktree was created`
   `--dry-run` refuses such a plan the same way. Resume refuses a recorded profile that is gone with exit 2, before `executePlan`. `phax artifact approve` and the headless authoring decoder do not check the declaration against phax.json (spec §10 left this open): lint and the run preflight do, and the authoring prompt lists the defined profiles. Loss accepted: a plan naming an undefined profile can be approved, and is refused at lint and at run.
-- Lint's commands check with an undefined profile. Lint checks required commands against the declared profile's resolved steps. When the declared profile is undefined, lint reports that error and skips the coverage comparison, which cannot be judged without steps. Loss accepted: an uncovered command in such a plan shows up only once the profile is fixed.
+- Lint's undefined-profile finding (q-lint-check: `gate-profile`). `phax plans lint` resolves the declared profile once. When it is undefined, lint reports one `gate-profile` error with phase `-` and the message `gate profile "<id>" is not defined in phax.json (defined: <ids>)`, and the `commands` check is skipped, since coverage cannot be judged without steps. When it is defined, the `commands` check compares required commands with that profile's steps alone. `gate-profile` is now the longest check name, so every lint report's check column is one space wider, and plan-lint moves to a new stamp. Loss accepted: recorded lint outputs in tests change by one column; the plan-lint format, its frozen decoder, package release and corpus cases move for one enum value; an uncovered command in a plan with an undefined profile shows up only once the profile is fixed.
 - The phase cut. plan.md fixtures declare their profile in a phase of their own (phase-04), before the reader requires it (phase-05). Until phase-05 the parser ignores an unknown preamble section, so phase-04 changes no outcome. Each fixture declares the profile its own phax.json lists first, which is the one today's first-key pick runs, so phase-06 changes no fixture's outcome either. The plan document moves (phase-03) before the extracted plan (phase-05). Until phase-05 the document carries `run.gateProfile`, and its projection to the extracted plan drops it. Loss accepted: between phase-03 and phase-06, on the run branch only, a declared profile is rendered and read but is not yet the one the run uses.
 
-## Open questions
+## Arbitrated questions
 
 ### q-lint-check — Under which `phax plans lint` check does an undefined declared gate profile appear? Spec §10 leaves the name open; its §6 sketch shows `gate-profile`. A missing or doubled declaration is a `structure` error either way.
 
@@ -74,6 +74,9 @@ phax.json needs no change for these commands.
 - gate-profile — A new `gate-profile` check — abandons: The lint output and the plan-lint format as they are. `gate-profile` becomes the longest check name, so every lint report's check column widens by one space and recorded lint outputs in tests change. plan-lint also moves to a new stamp, with a frozen 0.34.0 decoder, a package release, corpus cases and one more entry in the protected closure allowlist.
 
 Recommendation: commands — The commands check already resolves the declared profile to judge the required commands, and an unresolvable profile is the first thing it finds. Reporting it there keeps the lint output byte-identical for every plan that declares a defined profile, and moves no format. phase-06 is written for this option. Choosing `gate-profile` adds the plan-lint move (frozen module, snapshots, package, corpus, allowlist entry) and the widened recorded outputs to phase-06.
+
+Decision: gate-profile — by operator (Rémy Loubradou), 2026-11-25
+Why: The commands check judges commands; whether the declared profile exists is a different question and gets its own check, even at the cost of the plan-lint move and the wider column. Advocate: The strongest case for commands: reporting the undefined profile under the existing check keeps every recorded lint output byte-identical and moves no persisted format, so no frozen decoder, package release, corpus case or protected-allowlist entry is needed. Principles: C3, E0. Reversibility: costly. Revised: preamble.summary, preamble.requiredCommandsNote, preamble.technicalArbitrations, phase-06, phase-08. Phase: phase-06.
 
 ### q-older-sidecar — Every live plan sidecar written before the field lifts with no gate profile: `security-high-fixes` here, and any user's. approve, reopen, decide and revise refuse an older sidecar until `phax artifact migrate-documents` rewrites it. How does such a sidecar gain its declaration, given q-legacy (no default is ever written)?
 
@@ -83,6 +86,9 @@ Recommendation: commands — The commands check already resolves the declared pr
 
 Recommendation: migrate-flag — The operator states the profile explicitly, so the re-approval covers a profile someone chose (q-legacy), and a headless plan keeps its sidecar. The cost is one flag on the command that already exists to bring older sidecars forward. phase-03 is written for this option.
 
+Decision: migrate-flag — by operator (Rémy Loubradou), 2026-11-25
+Why: The operator states the profile explicitly, so the re-approval covers a profile someone chose (q-legacy), and a headless plan keeps its sidecar. The cost is one flag on the command that already exists to bring older sidecars forward. phase-03 is written for this option. Advocate: The strongest case for body-declared: the operator edits plan.md, where the plan is read, and no new flag, help text, usage spec or CLI reference change is needed; the declaration is written where it is rendered. Principles: C2, E0. Reversibility: costly. Revised: none. Phase: phase-03.
+
 ### q-corpus — Some behaviour corpus cases take a current-shape document of a format that moves here, and their input no longer decodes once `gateProfile` is required: the encode round trips `encode/plan-document.json`, `encode/phax-plan.json` and `encode/phase-record-manifest.json`, and the plan cases of `answers/authoring-answer.json`. CONTRIBUTING says a captured expectation is never changed. What do these cases become?
 
 - restamp-declare — In those cases' inputs and expected values, replace the format's old stamp with its new one and add the one new key (`"gateProfile": "standard"`, at its schema position), keeping every other byte. The handoff lists every case touched. — abandons: The corpus rule that a captured case is never edited by hand. A reviewer must check by diff that the stamp and the one key are the only changes.
@@ -90,12 +96,25 @@ Recommendation: migrate-flag — The operator states the profile explicitly, so 
 
 Recommendation: restamp-declare — This matches plan-path-canonical's q-corpus-stamp, decided `restamp`. The diff per case stays one URL and one key, and the cases keep testing the subjects they were captured for. Phases 02, 03 and 05 are written for this option.
 
+Decision: restamp-declare — by operator (Rémy Loubradou), 2026-11-25
+Why: This matches plan-path-canonical's q-corpus-stamp, decided `restamp`. The diff per case stays one URL and one key, and the cases keep testing the subjects they were captured for. Phases 02, 03 and 05 are written for this option. Advocate: The strongest case for retarget: CONTRIBUTING says a captured expectation is never changed, and retarget keeps every captured input byte for byte as a frozen-decoder case, so the corpus rule holds without exception and no reviewer has to verify by diff that only a stamp and one key moved. Principles: C1, C3. Reversibility: cheap. Revised: none. Phase: phase-02.
+
 ### q-closure-guard — The schemas package imports each frozen decoder, so phases 02, 03 and 05 grow the package's src/ closure. `tests/unit/architecturalGuards.test.ts` compares that closure exactly against `CLOSURE_SRC_ALLOWLIST`. That file is in `protectedPaths`, so no phase may land a change to it, and the operator brief says it stays untouched. How does the allowlist gain `src/schemas/history/phase-record-manifest/0.34.0.ts`, `src/schemas/history/plan-document/0.38.0.ts` and `src/schemas/history/phax-plan/0.38.0.ts`?
 
 - lift-for-run — Before the run, the operator removes `tests/unit/architecturalGuards*.test.ts` from `protectedPaths` in phax.json. Phases 02, 03 and 05 each add exactly their frozen module's path to `CLOSURE_SRC_ALLOWLIST` and touch nothing else in that file. The operator restores the entry after the merge. — abandons: The guard file's protection for the whole run. Any phase agent could loosen any architecture guard in that file (a layering rule, a forbidden import) and the gate would still pass. Only the operator's review of that file's diff in the pull request would catch it.
 - operator-prepares — Before the run, the operator lands on main the three frozen modules (exact copies of today's phase-record-manifest, plan-document and phax-plan shapes), imports them from the schemas package, updates its export baseline and adds them to the allowlist. The phases then build on those modules and never touch the guard. — abandons: The run's self-containment. The operator does each format move's first step by hand, outside any gate. Any change to these shapes landing on main between that commit and the run makes the copies wrong.
 
 Recommendation: lift-for-run — The change the guard needs is three strings added to a data list, not a rule. Each phase's instruction confines it to that list, and the pull request diff of the file is three lines a reviewer checks at a glance. operator-prepares moves schema work outside the gated run. Because this weakens a protected boundary for the run, it is the operator's call. Phases 02, 03 and 05 are written for lift-for-run. Under operator-prepares, they lose the frozen-module creation and the guard edit.
+
+Decision: lift-for-run — by operator (Rémy Loubradou), 2026-11-25
+Why: Before merge, the session checks mechanically that the run's diff of tests/unit/architecturalGuards*.test.ts is exactly the three frozen-module paths added to CLOSURE_SRC_ALLOWLIST; anything else is a no-go. The protection is restored right after the merge. Advocate: The strongest case for operator-prepares: the guard file stays protected for the whole run, so no phase agent can touch any architecture guard, and the schema work's first step is done by hand where the operator sees it. Principles: E0, C4. Reversibility: cheap. Revised: none. Phase: phase-02.
+
+## Decision log
+
+- 2026-11-25 q-lint-check decided gate-profile — operator (Rémy Loubradou) — revised 5 sections
+- 2026-11-25 q-older-sidecar decided migrate-flag — operator (Rémy Loubradou)
+- 2026-11-25 q-corpus decided restamp-declare — operator (Rémy Loubradou)
+- 2026-11-25 q-closure-guard decided lift-for-run — operator (Rémy Loubradou)
 
 ---
 
@@ -821,34 +840,45 @@ phax-plan.json moves to a new shape with run.gateProfile required, keeping a fro
 
 ---
 
-## phase-06 — Run, dry run and lint use the declared gate profile {#phase-06-run-uses-declared-profile}
+## phase-06 — Run, dry run and lint use the declared gate profile; lint gains a gate-profile check {#phase-06-run-uses-declared-profile}
 
 **Recommended model:** claude-opus-5-5
-**Recommended effort:** medium
-**Assignment reason:** The phase removes the first-key pick from three entry points at once and puts a refusal before the run is named, where a mistake would leave state behind or gate a run with the wrong profile.
+**Recommended effort:** high
+**Assignment reason:** The phase removes the first-key pick from three entry points at once, puts a refusal before the run is named, and moves the plan-lint format with a frozen decoder, the schemas package and the corpus. A mistake would leave state behind, gate a run with the wrong profile or corrupt a recorded output.
 
-`phax run` gates every phase with the plan's declared profile, whatever its position in phax.json, and records it as the run's profile. It refuses an undefined one with exit 2 before any worktree, run branch or phase folder exists. `phax run --dry-run` names the declared profile. `phax plans lint` checks required commands against the declared profile alone, and reports an undefined one naming every defined profile. The first-key pick has no caller left and is removed.
+`phax run` gates every phase with the plan's declared profile, whatever its position in phax.json, and records it as the run's profile. It refuses an undefined one with exit 2 before any worktree, run branch or phase folder exists. `phax run --dry-run` names the declared profile. `phax plans lint` checks required commands against the declared profile alone, and reports an undefined one as an error of a new `gate-profile` check naming every defined profile. The plan-lint format moves to a new stamp for the new check name. The first-key pick has no caller left and is removed.
 
 ### Detailed instructions
 
-- Read first: `src/cli/definitions/run.ts` (`pickGateProfileId`, the flow from extraction through the staleness gate, the dry run and `freshRunPreflight`), `src/app/dryRun.ts` (`buildDryRunReport`), `src/app/lintPlan.ts` (the commands block near line 224), `src/domain/plan/lint.ts` (`commandFindings`), and phase-01's `src/domain/gate/gateProfile.ts`.
+- Read first: `src/cli/definitions/run.ts` (`pickGateProfileId`, the flow from extraction through the staleness gate, the dry run and `freshRunPreflight`), `src/app/dryRun.ts` (`buildDryRunReport`), `src/app/lintPlan.ts` (the commands block near line 224), `src/domain/plan/lint.ts` (`LINT_CHECKS`, `commandFindings`), `src/domain/plan/lintRender.ts`, `src/schemas/planLint.ts`, `packages/schemas/src/formats/commandAnswers.ts` (`planLintFormat`), `scripts/schemas-check.ts`, CONTRIBUTING's 'The behaviour corpus', phase-01's `src/domain/gate/gateProfile.ts`, and the frozen-module precedent of phase-02.
 - `phax run`: delete `pickGateProfileId` and its refusal. The run's profile is `plan.run.gateProfile`. Right after the staleness gate and the short-name checks, before the dry run, resolve it with `resolveGateProfileById(config.raw, id, undefined)`. When it is undefined, refuse with exit 2 and the two lines:
   - `undefinedGateProfileMessage(...)`
   - `  the plan declares it under ## Gate profile; no worktree was created`
   Pass the declared id as `gateProfileId` to the dry run, `freshRunPreflight` and `executePlan`. `executePlan` already records it in run-status.json, and the review handoff and PR body print the recorded id.
 - `buildDryRunReport`: its `gateProfileId` parameter becomes required, with no first-key fallback, and the steps come from `resolveGateProfileById`. The caller has already refused an undefined id, so treat a refusal there as a defect.
-- Lint's commands check: resolve the plan's `run.gateProfile` through the rule (workspace undefined, as the run does).
-  - When it is defined, check `run.requiredCommands` against `security.agentCommands` and that profile's step commands only.
-  - When it is undefined, report one `commands` error with `phase` null whose message is `undefinedGateProfileMessage(...)`, and skip the coverage comparison.
-  This is written for q-lint-check decided `commands`. If it is decided `gate-profile`, the check is a new `gate-profile` lint check: `LINT_CHECKS` gains it, plan-lint moves (a frozen 0.34.0 decoder, schemas-check `--write`, the package, the corpus, the closure allowlist entry), and the recorded lint outputs widen by one column.
+- Step 1, freeze, before the lint check changes. Create `src/schemas/history/plan-lint/0.34.0.ts`, an exact copy of today's plan-lint file schema (its `check` literals without `gate-profile`), importing only effect, under a header comment like the other frozen modules'. Export `PlanLintV0_34_0Schema`, `decodePlanLintV0_34_0` and `PlanLintV0_34_0`. Check that it renders the committed `packages/schemas/snapshots/plan-lint/0.34.0.schema.json` and answers every existing corpus document of the format as today's decoder does.
+- Step 2, the check. `LINT_CHECKS` in `src/domain/plan/lint.ts` gains `gate-profile`, after `commands`, and so do the check literals of `src/schemas/planLint.ts`. `src/domain/plan/lintRender.ts` already sizes the check column from the longest check name: confirm it needs no change, and that the column is now one space wider in every report.
+- Step 3, lint. Resolve the plan's `run.gateProfile` through the rule (workspace undefined, as the run does).
+  - When it is undefined, report one `gate-profile` error with `phase` null and the message `undefinedGateProfileMessage(...)`, and skip the `commands` coverage comparison.
+  - When it is defined, check `run.requiredCommands` against `security.agentCommands` and that profile's step commands only, under the `commands` check as today.
   A plan with a structure error is not read, as today, so a missing or doubled declaration stays a `structure` error.
+- Step 4, the stamps. Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/plan-lint/next.schema.json`, moves `CURRENT_STAMPS["plan-lint"]` to `PHAX_RELEASE`, and updates the history lock, the generated index and the shipped JSON. Never edit those files by hand. Run it with no flag and make it pass. `pnpm build` regenerates `packages/schemas/json/plan-lint.schema.json`.
+- Step 5, the schemas package. List `0.34.0` as a release of `planLintFormat` in `packages/schemas/src/formats/commandAnswers.ts`. Extend its shape map, parsed union and current guard. Its `toLatest…` lifts a 0.34.0 document unchanged (its check names are a subset of the current ones); say so in its doc comment. Export the frozen schema and types from `packages/schemas/src/index.ts`. Update `tests/type/schemasPackage.ts` and every package test the compiler or a failure names.
+- Step 6, the behaviour corpus. Register `frozen:plan-lint/0.34.0` in `tests/behaviourCorpus/subjects.ts`, with its cases as the coverage test asks. Add `next`-shaped cases stamped `https://docs.phax.run/schemas/plan-lint/0.43.0.json` literally, with expected shape `next`: a report with a `gate-profile` error, and one with an unknown check name, refused. Handle `tests/behaviourCorpus/cases/encode/plan-lint.json` as q-corpus is decided: under `restamp-declare`, change only the stamp to the 0.43.0 URL (no key is added to this format) in each input and expected value, and list every case touched in the handoff. Never edit any other recorded expectation.
+- Step 7, the closure guard, as q-closure-guard is decided. Under `lift-for-run`, add exactly `src/schemas/history/plan-lint/0.34.0.ts` to `CLOSURE_SRC_ALLOWLIST` in `tests/unit/architecturalGuards.test.ts`, in its sorted position. Change nothing else in that file. This is a fourth path beyond the three frozen modules of phases 02, 03 and 05, and the operator's pre-merge check of that file's diff expects it.
+- Step 8, recorded lint outputs. The check column is one space wider, so every test that pins a lint report's text (for example `tests/unit/planLintRender.test.ts`, `tests/unit/planLint.test.ts`, `tests/integration/lintPlan.test.ts`, `tests/integration/lintTestLines.test.ts`, `tests/integration/acceptanceLint.test.ts`, `tests/integration/canonicalPlansUnchanged.test.ts`, `tests/integration/plansInspectionJson.test.ts` and `tests/fixtures/commandAnswers/before.ts`) is updated by hand to the new bytes only: one extra space in the check column. List each one in the handoff. A changed assertion that is anything else means the change is wrong.
 - Remove `pickGateProfileId`'s tests from `tests/unit/cli/run.test.ts` and any other caller knip reports. `git grep -n "gateProfiles)\[0\]\|Object.keys(.*gateProfiles" -- src` must find nothing.
+- Step 9, docs. Add bullets to `docs/upgrading.md` under `### 0.43.0`:
+  - `phax plans lint` has a new `gate-profile` check, and its report's check column is one space wider;
+  - `plan-lint` is stamped 0.43.0, and an `@lbdremy/phax-schemas` before 0.43.0 refuses new lint documents.
 - Tests go in `tests/integration/declaredGateProfileRun.test.ts` and `tests/integration/declaredGateProfileLint.test.ts`, each in its own temporary repository with its own phax.json. Spawn children through `tests/helpers/boundedSpawn.ts`. Never read `~/.phax`, a real provider home, the global git config or the network.
   - For the second-profile criterion, list `standard` first with an always-failing step (`node -e "process.exit(1)"`), and `light` second with a step that appends to a marker file. Use an approved plan declaring `light` (approve it in the temporary repository with `phax artifact approve --by operator`) and the fake provider the run tests use.
   - For the re-approval criterion, go through `phax artifact status`, `phax run` (refused as edited since approval), `phax artifact approve`, then `phax run --dry-run`, which passes the approval gate and reads `Gate profile: light`.
 
 ### Planned files to create
 
+- `src/schemas/history/plan-lint/0.34.0.ts`
+- `packages/schemas/snapshots/plan-lint/next.schema.json`
 - `tests/integration/declaredGateProfileRun.test.ts`
 - `tests/integration/declaredGateProfileLint.test.ts`
 
@@ -858,44 +888,82 @@ phax-plan.json moves to a new shape with run.gateProfile required, keeping a fro
 - `src/app/dryRun.ts`
 - `src/app/lintPlan.ts`
 - `src/domain/plan/lint.ts`
+- `src/schemas/planLint.ts`
+- `src/schemas/release.ts`
+- `packages/schemas/src/formats/commandAnswers.ts`
+- `packages/schemas/src/index.ts`
+- `packages/schemas/src/generated/index.ts`
+- `packages/schemas/shipped-json.json`
+- `packages/schemas/history.lock.json`
+- `packages/schemas/json/plan-lint.schema.json`
+- `tests/behaviourCorpus/subjects.ts`
+- `tests/behaviourCorpus/cases/formats/plan-lint.json`
+- `tests/behaviourCorpus/cases/encode/plan-lint.json`
+- `tests/unit/architecturalGuards.test.ts`
+- `tests/type/schemasPackage.ts`
 - `tests/unit/cli/run.test.ts`
 - `tests/unit/dryRun.test.ts`
+- `tests/unit/planLintRender.test.ts`
+- `docs/upgrading.md`
 
 ### Optional files that may be edited
 
+- `src/domain/plan/lintRender.ts`
 - `src/app/runPreflight.ts`
 - `src/app/gates.ts`
 - `src/cli/definitions/runOutcome.ts`
+- `tests/unit/planLint.test.ts`
 - `tests/integration/lintPlan.test.ts`
+- `tests/integration/lintTestLines.test.ts`
+- `tests/integration/acceptanceLint.test.ts`
+- `tests/integration/canonicalPlansUnchanged.test.ts`
+- `tests/integration/plansInspectionJson.test.ts`
+- `tests/fixtures/commandAnswers/before.ts`
 - `tests/integration/run.test.ts`
 - `tests/integration/runPreflightBeforeNaming.test.ts`
 - `tests/integration/runCommandsAnswers.test.ts`
 - `tests/integration/planStaleness.test.ts`
-- `tests/unit/planLint.test.ts`
 - `tests/unit/security/agentCommands.test.ts`
+- `tests/unit/cli/plansInspectionContracts.test.ts`
+- `tests/behaviourCorpus/baseline/package-exports.json`
+- `tests/behaviourCorpus/baseline/snapshot-digests.json`
+- `tests/unit/behaviourCorpus/coverage.test.ts`
+- `tests/unit/schemasPackage/frozenHistory.test.ts`
+- `tests/unit/schemasPackage/currentShapes.test.ts`
+- `tests/unit/schemasPackage/parity.test.ts`
+- `tests/unit/schemasPackage/exports.test.ts`
+- `tests/unit/schemasPackage/snapshots.test.ts`
+- `tests/unit/schemasPackage/jsonSchemas.test.ts`
 - `tests/fixtures/run/runCommandsRepo.ts`
 - `tests/integration/helpers/preflightRepo.ts`
 
 ### Boundary contracts
 
-Consumer: `phax run`, `--dry-run` and `phax plans lint` (cli and app). Producers: the extracted plan's `run.gateProfile` (phase-05) and the gate-profile rule (phase-01). Contract: the profile that gates a fresh run, that the dry run names and that lint checks commands against is exactly the plan's declared id, resolved by the same rule. An unresolvable id stops `phax run` before any state is written. `executePlan`, the run status, the review handoff and the PR body keep consuming the id they are given.
+Consumer: `phax run`, `--dry-run` and `phax plans lint` (cli and app). Producers: the extracted plan's `run.gateProfile` (phase-05) and the gate-profile rule (phase-01). Contract: the profile that gates a fresh run, that the dry run names and that lint checks commands against is exactly the plan's declared id, resolved by the same rule. An unresolvable id stops `phax run` before any state is written, and lint reports it under the `gate-profile` check. `executePlan`, the run status, the review handoff and the PR body keep consuming the id they are given. The plan-lint document's `check` vocabulary gains `gate-profile`, under a new stamp.
 
 ### Test strategy
 
 - an approved plan declaring light runs every phase's gate with light's steps only, although standard is listed first, and the run status and review handoff record light — medium · smoke · each phase's gate log holding only light's step, run-status.json's gateProfileId, and the review handoff's Gate Profile line · in-phase · ac-second-profile
 - phax run --dry-run of a plan declaring light reads Gate profile: light while phax.json lists standard first — medium · example · the dry-run report line · in-phase · ac-dry-run
 - phax run of an approved plan declaring light, with only standard defined, exits non-zero naming light and standard and creates no worktree, run branch or phase folder — medium · example · exit 2, both refusal lines, and the absence of the worktree root, the phax/ branch and the run folder · in-phase · ac-preflight
-- lint of a plan declaring light, with only standard defined, reports one error naming light and listing standard, and exits non-zero — medium · example · the lint report's single error line and exit 1 · in-phase · ac-lint-unknown
+- lint of a plan declaring light, with only standard defined, reports one gate-profile error naming light and listing standard, and exits non-zero — medium · example · the lint report's single error line under the gate-profile check, with its column alignment, and exit 1 · in-phase · ac-lint-unknown
 - lint flags pnpm test as not covered when the plan declares light, and reports no command finding when it declares standard — medium · table · two rows of (declared profile, expected commands findings) against one phax.json · in-phase · ac-lint-commands
+- lint skips the commands comparison when the declared profile is undefined, so the report holds the gate-profile error alone — medium · example · the lint findings for a plan with an uncovered required command and an undefined profile · in-phase
 - editing an approved plan's declaration from standard to light makes it edited since approval and refused by run, and after approval the run starts under light — medium · example · artifact status's edited-since-approval line, run's refusal, then the dry run's Gate profile: light · in-phase · ac-approval
+- the frozen plan-lint 0.34.0 decoder accepts and refuses every 0.34.0 document exactly as today's decoder did — small · contract · the corpus's existing cases and the committed 0.34.0 snapshot · in-phase
+- phax's printer and the schemas package agree on every next-shaped plan-lint document, gate-profile findings included — small · contract · the behaviour corpus replayed against both readers · in-phase
 
 ### Implementation order
 
-1. run.ts: the declared profile, its refusal, and pickGateProfileId removed
-2. buildDryRunReport's required profile
-3. lint's commands check on the declared profile
-4. the run and lint integration tests
-5. the unit tests that named the first-key pick
+1. the frozen plan-lint 0.34.0 module, checked against today's decoder
+2. run.ts: the declared profile, its refusal, and pickGateProfileId removed
+3. buildDryRunReport's required profile
+4. LINT_CHECKS, the planLint schema and lint's gate-profile and commands checks
+5. schemas-check --write, the check, then pnpm build
+6. the schemas package
+7. the behaviour corpus and the closure guard entry
+8. the widened recorded lint outputs
+9. the run and lint integration tests, the unit tests that named the first-key pick, and docs/upgrading.md
 
 ### Excluded scope
 
@@ -903,14 +971,15 @@ Consumer: `phax run`, `--dry-run` and `phax plans lint` (cli and app). Producers
 - A launch-time flag choosing the profile (spec §7).
 - Checking the declaration at artifact approve or at headless authoring.
 - A per-phase profile (q-scope: per-run).
+- Any lint check other than the new `gate-profile` one.
 
 ### Verification
 
-The `standard` gate profile in `phax.json` (the only profile; this plan predates the declaration). Beyond it, the run integration test shows standard's failing step never ran, and `git grep` finds no first-key pick left in src/.
+The `standard` gate profile in `phax.json` (the only profile; this plan predates the declaration). Beyond it, the run integration test shows standard's failing step never ran, `pnpm exec tsx scripts/schemas-check.ts` with no flag passes after the write, and `git grep` finds no first-key pick left in src/.
 
 ### Expected handoff content
 
-Where in run.ts the undefined-profile refusal sits, and its two lines verbatim. The dry run's new signature. The lint finding's check, phase and message, and the rule that skips coverage. The q-lint-check decision this phase was built for. The removed exports. Any deviation from the planned file lists, with the reason.
+Where in run.ts the undefined-profile refusal sits, and its two lines verbatim. The dry run's new signature. The `gate-profile` finding's check, phase and message, and the rule that skips the commands comparison. The frozen plan-lint module's exports. Every corpus case touched, under q-corpus's decision. The fourth closure allowlist entry added. Every recorded lint output widened by one column, listed by test. The removed exports. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -918,9 +987,9 @@ Where in run.ts the undefined-profile refusal sits, and its two lines verbatim. 
 
 ### Commit body
 
-phax run gates every phase with the gate profile the plan declares, whatever its position in phax.json, and records it as the run's profile. A declared profile phax.json does not define is refused with exit 2 before any worktree, run branch or phase folder exists. The dry run names the declared profile. phax plans lint checks required commands against the declared profile alone, and reports an undefined one naming every defined profile (spec §5.5 to §5.9, §5.12).
+phax run gates every phase with the gate profile the plan declares, whatever its position in phax.json, and records it as the run's profile. A declared profile phax.json does not define is refused with exit 2 before any worktree, run branch or phase folder exists. The dry run names the declared profile. phax plans lint checks required commands against the declared profile alone, and reports an undefined one under a new gate-profile check naming every defined profile (spec §5.5 to §5.9, §5.12; q-lint-check).
 
-pickGateProfileId and every first-key pick are removed.
+plan-lint moves to a new stamp for the new check name, with a frozen 0.34.0 decoder, and its report's check column widens by one space. pickGateProfileId and every first-key pick are removed.
 
 ---
 
@@ -1032,14 +1101,14 @@ The phax-planning skill documents the run-level `## Gate profile` declaration, a
   (3) The phase template's Verification line reads `<what proves this phase beyond the declared gate profile — never the profile's name>`.
   (4) The Planning constraints bullet 'No invented repo commands' says gates come from the plan's declared gate profile in phax.json, and that `### Verification` says what proves the phase beyond it.
   (5) The example well-formed phase's Verification states a phase-specific proof rather than the profile.
-  (6) 'Lint before you run' says the commands check reads the declared profile's steps and reports an undefined profile.
+  (6) 'Lint before you run' lists the new `gate-profile` check (an undefined declared profile is an error naming every defined profile), says the `commands` check reads the declared profile's steps, and counts nine checks.
   (7) Headless authoring's `run` key lists `{ shortName, title, requiredCommands, gateProfile }`.
   (8) The spike guidance says a spike plan declares its light profile.
   Touch nothing inside the `<!-- BEGIN generated … -->` blocks.
 - Create `docs/gate-profiles.md` for the reader and the example spec §11 describes:
   - `gateProfiles` and the workspace layer;
   - the `## Gate profile` declaration;
-  - what lint, `--dry-run` and `phax run` do with it, including the refusals' wording;
+  - what lint (its `gate-profile` check), `--dry-run` and `phax run` do with it, including the refusals' wording;
   - resume keeping the recorded profile;
   - the records naming the profile;
   - migrating an older sidecar with `phax artifact migrate-documents --gate-profile <id>` (as q-older-sidecar was decided).
@@ -1095,7 +1164,7 @@ The `standard` gate profile in `phax.json` (the only profile; this plan predates
 
 ### Expected handoff content
 
-The new skill section's heading and the exact replacement lines for Verification. The docs page's route. The upgrading bullet. A note for the operator that this run needed `--allow-skill-edits`. The operator's remaining steps after the merge: approve or revise `security-high-fixes` and `smolvm-isolation-spike` to declare `standard`; migrate the `security-high-fixes` sidecar as q-older-sidecar decided; and, under q-closure-guard `lift-for-run`, restore the guard file's entry in `protectedPaths`. Any deviation from the planned file lists, with the reason.
+The new skill section's heading and the exact replacement lines for Verification. The docs page's route. The upgrading bullet. A note for the operator that this run needed `--allow-skill-edits`. The operator's remaining steps after the merge: approve or revise `security-high-fixes` and `smolvm-isolation-spike` to declare `standard`; migrate the `security-high-fixes` sidecar with `phax artifact migrate-documents --gate-profile standard`; and, under q-closure-guard `lift-for-run`, check that the guard file's diff is exactly the four frozen-module paths and restore its entry in `protectedPaths`. Any deviation from the planned file lists, with the reason.
 
 ### Commit subject
 
@@ -1103,6 +1172,6 @@ The new skill section's heading and the exact replacement lines for Verification
 
 ### Commit body
 
-The phax-planning skill documents the run-level ## Gate profile declaration, and a phase's Verification now states what proves the phase beyond the declared profile, never the profile's name (spec §5.14, q-verification).
+The phax-planning skill documents the run-level ## Gate profile declaration, and a phase's Verification now states what proves the phase beyond the declared profile, never the profile's name (spec §5.14, q-verification). It also lists the new gate-profile lint check.
 
 Add docs/gate-profiles.md, for an operator running a plan under a profile other than the first in phax.json, and note in docs/upgrading.md that run, dry run and lint use the declared profile.
