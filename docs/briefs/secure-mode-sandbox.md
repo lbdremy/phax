@@ -77,7 +77,10 @@ the operator runs it (as `docs/plans/archive/` spike plans did). It answers:
 2. **Writes are an allowlist.** The worktree, a temporary directory, the package caches, phax's state; never the
    main checkout's `.git`, which sits outside the worktree and so is refused by the allowlist itself.
 3. **The agents' credentials are unreadable** from a gate step or an allowed command.
-4. **Codex keeps its own sandbox**; phax does not stack another on it.
+4. **Gate steps run under the sandbox whatever the provider.** phax runs them itself, after the agent's session, so
+   no provider's sandbox covers them: with Codex too, `pnpm test` runs today with the user's rights (operator,
+   2026-11-25). Only the agent's own commands differ: Codex keeps its own sandbox for them (Seatbelt, or
+   bubblewrap and seccomp, `.git` read-only), and phax does not stack another on it.
 5. **A host that cannot sandbox is refused, not silently run unconfined.** Whether the refusal can be waived, and how
    it is recorded, is a question for the spec.
 
