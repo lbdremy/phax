@@ -24,6 +24,7 @@ import { measuredTime, timed } from "./gateTime.js";
 import { requestPathFor } from "../domain/gate/gateRequest.js";
 import { stepRecordPathFor } from "../domain/gate/attemptFiles.js";
 import { commandWords } from "../domain/gate/commandWords.js";
+import { resolveGateProfileById, undefinedGateProfileMessage } from "../domain/gate/gateProfile.js";
 import { encodeGateRequestFile, type GateRequest } from "../schemas/gateRequest.js";
 import {
   encodeAcceptanceRequestFile,
@@ -74,18 +75,9 @@ export function resolveGateProfile(
   profileId: string,
   workspaceId?: string,
 ): readonly GateStep[] {
-  if (workspaceId !== undefined) {
-    const workspace = config.raw.workspaces?.find((w) => w.id === workspaceId);
-    const wsProfile = workspace?.gateProfiles?.[profileId];
-    if (wsProfile !== undefined && wsProfile.length > 0) {
-      return wsProfile;
-    }
-  }
-  const profile = config.raw.gateProfiles[profileId];
-  if (profile === undefined || profile.length === 0) {
-    throw new Error(`Gate profile "${profileId}" not found or empty`);
-  }
-  return profile;
+  const resolved = resolveGateProfileById(config.raw, profileId, workspaceId);
+  if (Result.isFailure(resolved)) throw new Error(undefinedGateProfileMessage(resolved.failure));
+  return resolved.success;
 }
 
 function parseCommandTokens(raw: string): readonly [string, ...string[]] {

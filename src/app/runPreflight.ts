@@ -14,6 +14,7 @@ import { Effect, Result } from "effect";
 import {
   AssignmentPreflightError,
   type ConfigValidationError,
+  GateProfileUndefinedError,
   HoldPreflightError,
   InteractivePreflightError,
   ModelPreflightError,
@@ -23,12 +24,13 @@ import {
   SecurityPreflightError,
   type SkillEditConsentError,
   type SkillEditProtectedError,
-  UnsafeGitStateError,
+  type UnsafeGitStateError,
 } from "../domain/errors.js";
 import { resolveHold, type HoldRequest } from "../domain/hold.js";
 import { interactiveFindings } from "../domain/plan/interactiveCheck.js";
 import { reasonLabelFindings, type LintFinding } from "../domain/plan/lint.js";
 import { acceptanceFindings } from "../domain/plan/acceptanceCheck.js";
+import { resolveGateProfileById, undefinedGateProfileMessage } from "../domain/gate/gateProfile.js";
 import { readPhaseHeaders, type PhaseHeader } from "../domain/plan/phaseHeader.js";
 import { locatePlanSections, type PlanSections } from "../domain/plan/sections.js";
 import { preflightPhaseModels } from "../domain/routing/preflight.js";
@@ -48,7 +50,6 @@ import type { PhaxPlan } from "../schemas/phaxPlan.js";
 import type { ProviderConfig } from "../schemas/providerConfig.js";
 import type { RunHold } from "../schemas/status.js";
 import { assignmentBoundFindings } from "./assignmentBounds.js";
-import { resolveGateProfile } from "./gates.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 import { checkRecordsRunPreflight } from "./recordsSync.js";
 import { skillEditConsentRefusal, skillEditProtectedRefusal } from "./skillEditConsent.js";
@@ -88,6 +89,7 @@ export interface RunPreflightInput {
 
 export type RunPreflightRefusal =
   | UnsafeGitStateError
+  | GateProfileUndefinedError
   | SecurityPreflightError
   | SkillEditConsentError
   | SkillEditProtectedError
@@ -127,21 +129,24 @@ export function mcpAllowlistPreflight(mcp: {
   });
 }
 
-function resolveGateSteps(
-  input: RunPreflightInput,
-): Effect.Effect<readonly GateStep[], UnsafeGitStateError> {
+function resolveGateSteps(input: RunPreflightInput): GateSteps {
   const { config, gateProfileId, workspaceId } = input;
-  return Effect.try({
-    try: () => resolveGateProfile(config, gateProfileId, workspaceId),
-    catch: (err) =>
-      new UnsafeGitStateError({
-        message: err instanceof Error ? err.message : String(err),
-        repoPath: config.repoRoot,
-      }),
-  });
+  return Effect.suspend(() =>
+    Result.match(resolveGateProfileById(config.raw, gateProfileId, workspaceId), {
+      onFailure: (u) =>
+        Effect.fail(
+          new GateProfileUndefinedError({
+            id: u.id,
+            defined: u.defined,
+            message: undefinedGateProfileMessage(u),
+          }),
+        ),
+      onSuccess: (steps) => Effect.succeed(steps),
+    }),
+  );
 }
 
-type GateSteps = Effect.Effect<readonly GateStep[], UnsafeGitStateError>;
+type GateSteps = Effect.Effect<readonly GateStep[], GateProfileUndefinedError>;
 
 type LocatedSections = Effect.Effect<PlanSections, PlanSectionsPreflightError>;
 

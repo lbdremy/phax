@@ -2,6 +2,10 @@ import { describe, expect, it } from "vitest";
 import { Result } from "effect";
 import { resolveGateProfile } from "../../src/app/gates.js";
 import {
+  resolveGateProfileById,
+  undefinedGateProfileMessage,
+} from "../../src/domain/gate/gateProfile.js";
+import {
   decodePhaxConfig,
   resolveAuthoringConfig,
   resolveCodeReviewConfig,
@@ -68,7 +72,7 @@ describe("resolveGateProfile", () => {
   it("throws when the profile does not exist", () => {
     const config = makeConfig();
     expect(() => resolveGateProfile(config, "nonexistent")).toThrow(
-      'Gate profile "nonexistent" not found or empty',
+      'gate profile "nonexistent" is not defined in phax.json (defined: fast, full)',
     );
   });
 
@@ -118,6 +122,149 @@ describe("resolveGateProfile", () => {
     });
     const steps = resolveGateProfile(config, "fast", "backend");
     expect(steps).toEqual([step("pnpm test")]);
+  });
+});
+
+type Profiles = Record<string, readonly GateStep[]>;
+type Row = {
+  readonly name: string;
+  readonly topLevel: Profiles;
+  readonly workspace: Profiles | undefined;
+  readonly workspaceId: string | undefined;
+  readonly expected: readonly { readonly id: string; readonly steps: readonly GateStep[] }[];
+};
+
+// The schema refuses an empty profile, but the rule must still treat one as undefined.
+function gateConfig(topLevel: Profiles, workspace: Profiles | undefined) {
+  return {
+    gateProfiles: topLevel,
+    workspaces: [{ id: "ws", ...(workspace === undefined ? {} : { gateProfiles: workspace }) }],
+  };
+}
+
+const A = step("a");
+const B = step("b");
+const W = step("w");
+
+const ROWS: readonly Row[] = [
+  {
+    name: "top-level entries in phax.json order",
+    topLevel: { light: [A], standard: [B] },
+    workspace: undefined,
+    workspaceId: undefined,
+    expected: [
+      { id: "light", steps: [A] },
+      { id: "standard", steps: [B] },
+    ],
+  },
+  {
+    name: "an empty top-level entry is not defined",
+    topLevel: { empty: [], standard: [B] },
+    workspace: undefined,
+    workspaceId: undefined,
+    expected: [{ id: "standard", steps: [B] }],
+  },
+  {
+    name: "a non-empty workspace entry replaces the top-level one, keeping its position",
+    topLevel: { light: [A], standard: [B] },
+    workspace: { light: [W] },
+    workspaceId: "ws",
+    expected: [
+      { id: "light", steps: [W] },
+      { id: "standard", steps: [B] },
+    ],
+  },
+  {
+    name: "an empty workspace entry leaves the top-level one",
+    topLevel: { light: [A] },
+    workspace: { light: [] },
+    workspaceId: "ws",
+    expected: [{ id: "light", steps: [A] }],
+  },
+  {
+    name: "a non-empty workspace entry defines an empty top-level id",
+    topLevel: { light: [], standard: [B] },
+    workspace: { light: [W] },
+    workspaceId: "ws",
+    expected: [
+      { id: "light", steps: [W] },
+      { id: "standard", steps: [B] },
+    ],
+  },
+  {
+    name: "workspace-only ids come last; an empty one is not defined",
+    topLevel: { standard: [B] },
+    workspace: { extra: [W], none: [] },
+    workspaceId: "ws",
+    expected: [
+      { id: "standard", steps: [B] },
+      { id: "extra", steps: [W] },
+    ],
+  },
+  {
+    name: "the workspace layer is ignored without a workspace id",
+    topLevel: { standard: [B] },
+    workspace: { extra: [W], standard: [W] },
+    workspaceId: undefined,
+    expected: [{ id: "standard", steps: [B] }],
+  },
+  {
+    name: "the workspace layer is ignored for an unknown workspace id",
+    topLevel: { standard: [B] },
+    workspace: { extra: [W] },
+    workspaceId: "other",
+    expected: [{ id: "standard", steps: [B] }],
+  },
+  {
+    name: "nothing defined",
+    topLevel: { empty: [] },
+    workspace: undefined,
+    workspaceId: undefined,
+    expected: [],
+  },
+];
+
+describe("resolveGateProfileById", () => {
+  // The refusal lists the defined ids in the rule's order.
+  it.each(ROWS)("defines exactly the expected ids, in order: $name", (row) => {
+    const config = gateConfig(row.topLevel, row.workspace);
+    expect(resolveGateProfileById(config, "no-such-profile", row.workspaceId)).toEqual(
+      Result.fail({ id: "no-such-profile", defined: row.expected.map((p) => p.id) }),
+    );
+  });
+
+  it.each(ROWS)("resolves every defined id to its steps: $name", (row) => {
+    const config = gateConfig(row.topLevel, row.workspace);
+    for (const { id, steps } of row.expected) {
+      expect(resolveGateProfileById(config, id, row.workspaceId)).toEqual(Result.succeed(steps));
+    }
+  });
+
+  it("refuses an undefined id, naming it and every defined id", () => {
+    const config = gateConfig({ light: [A], standard: [B] }, { extra: [W] });
+    expect(resolveGateProfileById(config, "heavy", "ws")).toEqual(
+      Result.fail({ id: "heavy", defined: ["light", "standard", "extra"] }),
+    );
+  });
+
+  it("refuses an id whose only entry is empty", () => {
+    const config = gateConfig({ empty: [], standard: [B] }, undefined);
+    expect(resolveGateProfileById(config, "empty", undefined)).toEqual(
+      Result.fail({ id: "empty", defined: ["standard"] }),
+    );
+  });
+});
+
+describe("undefinedGateProfileMessage", () => {
+  it.each([
+    [[], 'gate profile "light" is not defined in phax.json (defined: none)'],
+    [["standard"], 'gate profile "light" is not defined in phax.json (defined: standard)'],
+    [
+      ["standard", "full", "extra"],
+      'gate profile "light" is not defined in phax.json (defined: standard, full, extra)',
+    ],
+  ] as const)("defined %j", (defined, expected) => {
+    expect(undefinedGateProfileMessage({ id: "light", defined })).toBe(expected);
   });
 });
 

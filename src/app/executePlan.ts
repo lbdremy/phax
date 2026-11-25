@@ -36,6 +36,7 @@ import {
   AcceptanceCommitMissingError,
   AcceptancePreflightError,
   type PlanSectionsPreflightError,
+  type GateProfileUndefinedError,
   RateLimitError,
   RecordsDestinationRefusedError,
   RecordsSyncRequiredError,
@@ -420,6 +421,7 @@ export type ExecutePlanError =
   | SkillEditProtectedError
   | ModelPreflightError
   | PlanSectionsPreflightError
+  | GateProfileUndefinedError
   | AssignmentPreflightError
   | InteractivePreflightError
   | AcceptancePreflightError

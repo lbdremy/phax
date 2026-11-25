@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadConfig } from "../../src/app/loadConfig.js";
-import { resolveGateProfile } from "../../src/app/gates.js";
+import { resolveGateProfileById } from "../../src/domain/gate/gateProfile.js";
 import { loadModelRouting } from "../../src/app/loadRouting.js";
 import { loadOrExtractPlan } from "../../src/app/loadOrExtractPlan.js";
 import { reconcileRecordsSync } from "../../src/app/recordsSync.js";
@@ -92,11 +92,11 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
   const fakes = await import("../../src/infra/fakes/backend.js");
   return { ...actual, makeNodeBackendLayer: vi.fn(() => fakes.makeFakeBackend().layer) };
 });
-// A phax.json that decodes cannot make gate profile resolution refuse, so the
-// gate-profile scenario forces a throw through this pass-through spy.
-vi.mock("../../src/app/gates.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../src/app/gates.js")>();
-  return { ...actual, resolveGateProfile: vi.fn(actual.resolveGateProfile) };
+// `phax run` still picks phax.json's first profile, which is always defined, so
+// the gate-profile scenario forces a refusal through this pass-through spy.
+vi.mock("../../src/domain/gate/gateProfile.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../src/domain/gate/gateProfile.js")>();
+  return { ...actual, resolveGateProfileById: vi.fn(actual.resolveGateProfileById) };
 });
 // A deterministically parsed phase is always locatable, so the phase-sections
 // scenario simulates a model-extracted plan through this pass-through spy.
@@ -225,12 +225,13 @@ const SCENARIOS = {
   },
   "gate-profile": {
     arrange: () => {
-      vi.mocked(resolveGateProfile).mockImplementationOnce(() => {
-        throw new Error(`Gate profile "standard" not found or empty`);
-      });
+      vi.mocked(resolveGateProfileById).mockImplementationOnce((_config, id) =>
+        Result.fail({ id, defined: [] }),
+      );
     },
-    exitCode: 3,
-    errorLine: () => `phax run failed: Gate profile "standard" not found or empty`,
+    exitCode: 2,
+    errorLine: () =>
+      `phax run failed: gate profile "standard" is not defined in phax.json (defined: none)`,
   },
   "required-commands": {
     fixture: { plan: { requiredCommands: ["make deploy"] } },
