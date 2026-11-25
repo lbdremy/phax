@@ -104,6 +104,172 @@ const NAME_PLACES: ReadonlyArray<Place> = [
     reader: "name",
     text: pageDescription("/compare/openspec-vs-phax"),
   },
+  {
+    label: "docs/comparisons/claude-code-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/claude-code-vs-phax.md"), ONE_LINE_DIFFERENCE)
+      .paragraph,
+  },
+  {
+    label: "docs/comparisons/claude-code-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/claude-code-vs-phax.md"),
+      "So Claude Code is closer",
+    ),
+  },
+  {
+    label: "/compare/claude-code-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/claude-code-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/codex-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/codex-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/codex-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/codex-vs-phax.md"), "So Codex is closer"),
+  },
+  {
+    label: "/compare/codex-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/codex-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/kiro-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/kiro-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/kiro-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/kiro-vs-phax.md"), "So Kiro is closer"),
+  },
+  {
+    label: "/compare/kiro-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/kiro-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/bmad-loop-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/bmad-loop-vs-phax.md"), ONE_LINE_DIFFERENCE)
+      .paragraph,
+  },
+  {
+    label: "docs/comparisons/bmad-loop-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/bmad-loop-vs-phax.md"),
+      "So BMad Loop is closer",
+    ),
+  },
+  {
+    label: "/compare/bmad-loop-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/bmad-loop-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/archon-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/archon-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/archon-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/archon-vs-phax.md"), "So Archon is closer"),
+  },
+  {
+    label: "/compare/archon-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/archon-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/zeroshot-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/zeroshot-vs-phax.md"), ONE_LINE_DIFFERENCE)
+      .paragraph,
+  },
+  {
+    label: "docs/comparisons/zeroshot-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/zeroshot-vs-phax.md"),
+      "So zeroshot is closer",
+    ),
+  },
+  {
+    label: "/compare/zeroshot-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/zeroshot-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/fabro-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/fabro-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/fabro-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/fabro-vs-phax.md"), "So Fabro is closer"),
+  },
+  {
+    label: "/compare/fabro-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/fabro-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/bernstein-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/bernstein-vs-phax.md"), ONE_LINE_DIFFERENCE)
+      .paragraph,
+  },
+  {
+    label: "docs/comparisons/bernstein-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/bernstein-vs-phax.md"),
+      "So Bernstein is closer",
+    ),
+  },
+  {
+    label: "/compare/bernstein-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/bernstein-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/goose-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/goose-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/goose-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/goose-vs-phax.md"), "So Goose is closer"),
+  },
+  {
+    label: "/compare/goose-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/goose-vs-phax"),
+  },
+  {
+    label: "docs/comparisons/entire-vs-phax.md",
+    reader: "name",
+    text: sectionOpening(read("docs/comparisons/entire-vs-phax.md"), ONE_LINE_DIFFERENCE).paragraph,
+  },
+  {
+    label: "docs/comparisons/entire-vs-phax.md key distinction",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/entire-vs-phax.md"), "So Entire is closer"),
+  },
+  {
+    label: "/compare/entire-vs-phax description",
+    reader: "name",
+    text: pageDescription("/compare/entire-vs-phax"),
+  },
 ];
 
 /**
@@ -126,6 +292,42 @@ const UNNAMED_SENTENCES: ReadonlyArray<Place> = [
       read("docs/comparisons/openspec-vs-phax.md"),
       "They are composable",
     ),
+  },
+  {
+    label: "docs/comparisons/kiro-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/kiro-vs-phax.md"), "They are composable"),
+  },
+  {
+    label: "docs/comparisons/bmad-loop-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/bmad-loop-vs-phax.md"),
+      "They are composable",
+    ),
+  },
+  {
+    label: "docs/comparisons/archon-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/archon-vs-phax.md"), "They are composable"),
+  },
+  {
+    label: "docs/comparisons/zeroshot-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(
+      read("docs/comparisons/zeroshot-vs-phax.md"),
+      "They are composable",
+    ),
+  },
+  {
+    label: "docs/comparisons/goose-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/goose-vs-phax.md"), "They are composable"),
+  },
+  {
+    label: "docs/comparisons/entire-vs-phax.md composability note",
+    reader: "name",
+    text: paragraphStartingWith(read("docs/comparisons/entire-vs-phax.md"), "They are composable"),
   },
 ];
 
