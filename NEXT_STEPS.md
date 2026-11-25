@@ -548,6 +548,11 @@ desktop — none is promised by the announcement.
       same agent ran `pnpm test`, the site build and `deno:smoke` at once, and a file failed to load.
       Keep Deno from touching `node_modules` (`nodeModulesDir: "none"` or a separate dir), and tell
       phase agents not to run the gate's commands concurrently.
+- [ ] **`deno check` fails on main, and nothing runs it.** Found 2026-11-25 reviewing
+      `launcher-release-fixes` (#262, F13): `deno check src/cli/main.ts` reports the same 5 type
+      errors on main (`nodeModulesDir: "auto"`) and on the run branch (`"manual"`), so the run did
+      not cause them. No gate step, CI job or test runs `pnpm deno:check`, which is how they went
+      unnoticed. Fix the 5 errors, then add `deno:check` to CI or a gate profile.
 - [ ] **`phax artifact approve` approves a plan whose slug differs from its spec's.** Found
       2026-10-25 while verifying #163: `artifact new plan tally --spec …-tally-counter.md` makes a
       plan that `phax plans lint` refuses (`slug "tally" differs from source spec slug
