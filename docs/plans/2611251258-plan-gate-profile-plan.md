@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611251202-plan-gate-profile.md
 completes-spec: true
+approved:
+  date: 2026-11-25
+  baseline: 961064d
 ---
 # Plan gate profile
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611251258-plan-gate-profile-plan.md",
+  "planFingerprint": "450d3a3c42b68a585f8c5795d87d9aba1b05078d4373cbe36a77eeae7757ed1e",
+  "approvedAt": "2026-11-25T16:20:57.802Z",
+  "baseline": "961064d89550c1fbe20345cdf15068731a71cc97",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611251202-plan-gate-profile.md",
+    "fingerprint": "4f4fef132c66a716aeccd5f9888b37540d87912bbf17ead10437685e72ea1653"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
