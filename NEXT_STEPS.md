@@ -107,13 +107,18 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       a pair no Codex model anchors), which hold back "Provider coverage on record" for 1.0, and
       the Vibe "loose config" case the operator runs once with a key. Before security phase 5,
       which also edits `loadConfig.ts`.
-- [ ] **`plan-gate-profile`** — `docs/briefs/plan-gate-profile.md` (2026-11-25), spec to author.
-      A plan declares the gate profile that verifies its run; `phax plans lint` and the preflight
-      refuse one `phax.json` does not define, and `phax run` stops taking the first profile listed
-      (the Effect 4 migration reordered `phax.json` twice to run its own). It makes the lane
-      outside `src/` able to run under a light profile. `src/cli/definitions/run.ts`,
-      `src/app/lintPlan.ts`, the plan's schemas and extraction, the `phax-planning` skill; one line
-      of `resume.ts`, so before security phase 2. `phax-do` reuses it (`--gate <profile>`).
+- [ ] **`plan-gate-profile`** — spec `docs/specs/2611251202-plan-gate-profile.md` Approved 2026-11-25;
+      plan `docs/plans/2611251258-plan-gate-profile-plan.md` decided and lint-clean, Draft (8 phases).
+      A plan declares the gate profile that verifies its run (`## Gate profile`), lint has a
+      `gate-profile` check, `phax run` stops taking the first profile listed, phase records name the
+      profile, and `migrate-documents --gate-profile` brings older plan sidecars forward. Moves four
+      formats (phax-plan, plan-document, phase-record-manifest, plan-lint). `phax plans overlap`
+      with `security-high-fixes`: 15 shared files (`resume.ts`, `run.ts`, `executePlan.ts`, the
+      records), so it runs after that merge; approve then. Before the run the operator lifts
+      `tests/unit/architecturalGuards*.test.ts` from `protectedPaths` (q-closure-guard): before
+      merge, its diff must be exactly four frozen-module paths added to `CLOSURE_SRC_ALLOWLIST`, and
+      the protection comes back after the merge. Start it with `--allow-skill-edits`. `phax-do`
+      reuses it (`--gate <profile>`).
 
 ### Wave 3
 
