@@ -76,6 +76,14 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       Code and Vibe" (the `git diff --output` of #176's review). The spike answers what the gates
       must write (worktree, tmp, `node_modules`, pnpm and Deno caches, `~/.phax`), whether Claude
       Code's native Bash sandbox covers the allowed commands, Vibe's equivalent, and CI on Linux.
+      It also takes the main checkout from the run's state, not the invocation's directory (#265's
+      review, F3 and F6, named as residuals in `docs/security.md`): `phax enter-phase` on another
+      project's run builds an unrooted git layer, so its git calls in that phase worktree skip the
+      `.git` check and the `-c` settings; and `config.repoRoot` comes from `git rev-parse
+      --show-toplevel` in the current directory, so phax run from inside a phase worktree takes that
+      worktree for the main checkout (only the phase guard, keyed on `.phax-context`, stops it). Root
+      the layer at the run's recorded repository, or refuse a root whose git-dir is not its
+      common-dir.
       Placed before security phase 2.
 - [ ] **`finding-fix-identity`** — `docs/specs/2611220956-finding-fix-identity.md`, Approved
       2026-11-22, no open question; plan to author. Its git port gains (ancestry, trailer search,
