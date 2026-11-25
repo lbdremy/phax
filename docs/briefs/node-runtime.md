@@ -54,13 +54,13 @@ Node 26 became LTS on 2026-10-28 and is supported until April 2029. It is the fi
 - **CI and release**: Deno from `mise.toml` (installed by `jdx/mise-action`), `pnpm deno:smoke` and `pnpm deno:compile` in
   `.github/workflows/ci.yml`; the same Deno, `deno:smoke`, `deno:build-binaries` and `deno run … scripts/prepare-npm.ts` in
   `.github/workflows/release.yml`; the release flow in `docs/release.md`.
-- **The npm launcher**: `npm/bin/phax` and `npm/lib/resolveBinary.mts` download the matching release binary on first
+- **The npm launcher**: `npm/bin/phax` downloads the matching release binary on first
   run, verify it against its `.sha256` sidecar and cache it under `~/.phax/bin/<version>/` (`docs/security.md`,
   "Verified binary installs").
 - **The documented posture**: the permission table in `CONTRIBUTING.md` and the release audit in `docs/security.md` and
   `scripts/security/` (`release-audit.sh` names `pnpm deno:build-binaries`).
-- **An open defect Deno causes**: `NEXT_STEPS.md`, "Deno relinks `node_modules` in phase worktrees past the lockfile".
-  It disappears with Deno.
+- **A defect Deno caused, now fixed**: Deno relinked `node_modules` in phase worktrees past the lockfile; since
+  `launcher-release-fixes` (#262) `deno.json` sets `nodeModulesDir: "manual"` and leaves `node_modules` to pnpm.
 
 ## What is settled (do not reopen)
 

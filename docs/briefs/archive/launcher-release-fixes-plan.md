@@ -1,7 +1,7 @@
-Write the phax plan "Launcher release fixes" for the approved spec `docs/specs/2611231919-launcher-release-fixes.md`.
+Write the phax plan "Launcher release fixes" for the approved spec `docs/specs/archive/2611231919-launcher-release-fixes.md`.
 It is the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/launcher-release-fixes.md`. These are settled; do
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/launcher-release-fixes.md`. These are settled; do
 not reopen them:
 - the operator's verdicts of 2026-11-24 in §9b: q-cache-trust `trust-path`, q-redirect-hosts `github-suffix`,
   q-launcher-tests `bin-exports`, q-workflow-edit `maintainer-first`, q-frozen-where `config-frozen`,

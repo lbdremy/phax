@@ -5,11 +5,13 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-11-23. Since the previous prune (2026-11-10), these landed and left the queue:
+Last pruned 2026-11-25. Since the previous prune (2026-11-10), these landed and left the queue:
 `artifact-revise` (#229), `plan-path-canonical` (#230, #231), `property-tests` (#232–#236, spec
 completed 2026-11-16), `finding-ids-and-fates` (#239, #242, #244), `code-repository` (#241),
 `vibe-model-flags` (#248), `test-worlds-built-once` (#253), `bounded-test-spawns` (#256),
-`positioning` (#257), `plan-parser-nesting-time` (#258), `gate-step-times` (#260), the lint and knip baselines with their
+`positioning` (#257), `plan-parser-nesting-time` (#258), `gate-step-times` (#260),
+`launcher-release-fixes` (#261, #262: SEC-26, SEC-28, SEC-29, the shim forwarding SIGINT, Deno no longer
+relinking `node_modules`), the lint and knip baselines with their
 first clean-ups (#254, #255), and the gate measure of 2026-11-22 (`pnpm test` is 95 % of a gate
 attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and plan abandoned).
 
@@ -55,12 +57,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
         `brief-NN.json`) and the Small follow-up "a phase agent commits phax's own `.gitignore`
         line" (write the rule to the worktree's `.git/info/exclude`), same function.
       Disjoint from `gate-step-times` but for the regenerated files.
-- [ ] **Lane outside `src/`: `launcher-release-fixes`** — `docs/briefs/launcher-release-fixes.md`
-      (2026-11-23), spec to author. SEC-26 (the launcher's
-      `mkdtemp`, bounded redirects, timeouts), SEC-28 (the docs-deploy ref), SEC-29 (Deno's lock
-      frozen), and the Small follow-up "the npm `phax` shim does not forward SIGINT" (a Ctrl-C
-      leaves the binary running the phase), all in `npm/bin/phax`, `.github/workflows/` and
-      `deno.json`. The maintainer reviews every release-pipeline change and cuts the release.
 
 ### Wave 2 — after the security slice merges
 
@@ -83,8 +79,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 - [ ] **Small fixes, one batch** — to plan straight from this list, each in its own file:
       - Most `phax resume` hints outside network and handoff still lack `--yes`
         (`src/app/resumeInstructions.ts`), with SEC-30 (literal pathspecs, same file).
-      - Deno relinks `node_modules` in phase worktrees past the lockfile (`deno.json`
-        `nodeModulesDir: "auto"`).
       - `phax open` claims an `$EDITOR` fallback it does not have
         (`src/cli/definitions/sessions.ts`).
       - `phax-decide-review` points at a command that does not exist, and teach the reserved
@@ -545,13 +539,6 @@ desktop — none is promised by the announcement.
       agent deleted the committed `-E` file after its commit, without committing the deletion, and
       the cleanup refused the dirty worktree, failing the phase. Say which paths are dirty and how to
       recover (`git checkout` then `phax resume`), or commit-or-restore after the handoff turn.
-- [ ] **Deno relinks `node_modules` in phase worktrees past the lockfile.** Found 2026-10-26
-      reviewing #166: with `nodeModulesDir: "auto"` (`deno.json`), a `pnpm deno:smoke` in a phase
-      worktree relinked `node_modules/oxlint` to 1.69.0 while `pnpm-lock.yaml` pins 1.64.0, so the
-      phase's lint reported errors main does not have, and the agent "fixed" unrelated tests. The
-      same agent ran `pnpm test`, the site build and `deno:smoke` at once, and a file failed to load.
-      Keep Deno from touching `node_modules` (`nodeModulesDir: "none"` or a separate dir), and tell
-      phase agents not to run the gate's commands concurrently.
 - [ ] **`deno check` fails on main, and nothing runs it.** Found 2026-11-25 reviewing
       `launcher-release-fixes` (#262, F13): `deno check src/cli/main.ts` reports the same 5 type
       errors on main (`nodeModulesDir: "auto"`) and on the run branch (`"manual"`), so the run did
@@ -564,11 +551,6 @@ desktop — none is promised by the announcement.
       reports as an error, or at least this one. Since #164 the same holds for a plan with a
       test line that departs from the format: `approve` accepts it, and `phax run` and
       `phax plans status` then refuse it.
-- [ ] **The npm `phax` shim does not forward SIGINT to its binary.** Found 2026-10-25 while
-      verifying #164 with the released 0.27.0: a SIGINT to the node shim left
-      `~/.phax/bin/0.27.0/phax-darwin-arm64` running, and it went on with the phase (a session,
-      the gate, a fix attempt) until the binary itself was signalled. Forward SIGINT and SIGTERM
-      to the child and exit with its status.
 - [ ] **The cost ledger drops interrupted provider calls.** Found 2026-10-25 while verifying #163:
       a run SIGINT-ed twice (once in each of two handoff turns) has 4 ledger entries for 6
       provider invocations. Check whether an interrupted turn's usage is ever written, and write
