@@ -4879,6 +4879,181 @@
         "ok": false,
         "refusal": "verifiedSurfaces.0: Expected \"local\" | \"structural\" | \"product\" | \"acceptance\", actual \"bogus-value\""
       }
+    },
+    {
+      "name": "accepts a record naming its gate profile",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
+        "runId": "run-0001",
+        "phaseId": "phase-01",
+        "shape": "full",
+        "sourceSha": "abc1234",
+        "model": "example-model",
+        "effort": "high",
+        "provider": "claude-code",
+        "userConfig": "loaded",
+        "gateProfile": "light",
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1000,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 200,
+            "outputTokens": 300,
+            "totalCostUsd": 0.01
+          }
+        },
+        "verifiedSurfaces": [
+          "local",
+          "structural"
+        ],
+        "acceptance": null,
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
+          "acceptance": null,
+          "effort": "high",
+          "gateProfile": "light",
+          "mode": "headless",
+          "model": "example-model",
+          "outcome": "committed",
+          "phaseId": "phase-01",
+          "provider": "claude-code",
+          "runId": "run-0001",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "stop": null,
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "inputTokens": 1000,
+              "outputTokens": 300,
+              "provider": "claude-code",
+              "totalCostUsd": 0.01
+            }
+          },
+          "userConfig": "loaded",
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ]
+        }
+      }
+    },
+    {
+      "name": "accepts a record whose gate profile is null",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
+        "runId": "run-0001",
+        "phaseId": "phase-01",
+        "shape": "full",
+        "sourceSha": "abc1234",
+        "model": "example-model",
+        "effort": "high",
+        "provider": "claude-code",
+        "userConfig": "loaded",
+        "gateProfile": null,
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1000,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 200,
+            "outputTokens": 300,
+            "totalCostUsd": 0.01
+          }
+        },
+        "verifiedSurfaces": [
+          "local",
+          "structural"
+        ],
+        "acceptance": null,
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": true,
+        "shape": "next",
+        "value": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
+          "acceptance": null,
+          "effort": "high",
+          "gateProfile": null,
+          "mode": "headless",
+          "model": "example-model",
+          "outcome": "committed",
+          "phaseId": "phase-01",
+          "provider": "claude-code",
+          "runId": "run-0001",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "stop": null,
+          "usage": {
+            "available": true,
+            "usage": {
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "inputTokens": 1000,
+              "outputTokens": 300,
+              "provider": "claude-code",
+              "totalCostUsd": 0.01
+            }
+          },
+          "userConfig": "loaded",
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ]
+        }
+      }
+    },
+    {
+      "name": "refuses a next-shaped record without gateProfile",
+      "input": {
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
+        "runId": "run-0001",
+        "phaseId": "phase-01",
+        "shape": "full",
+        "sourceSha": "abc1234",
+        "model": "example-model",
+        "effort": "high",
+        "provider": "claude-code",
+        "userConfig": "loaded",
+        "outcome": "committed",
+        "usage": {
+          "available": true,
+          "usage": {
+            "provider": "claude-code",
+            "inputTokens": 1000,
+            "cacheCreationInputTokens": 0,
+            "cacheReadInputTokens": 200,
+            "outputTokens": 300,
+            "totalCostUsd": 0.01
+          }
+        },
+        "verifiedSurfaces": [
+          "local",
+          "structural"
+        ],
+        "acceptance": null,
+        "mode": "headless",
+        "stop": null
+      },
+      "expected": {
+        "ok": false,
+        "refusal": "gateProfile: is missing"
+      }
     }
   ],
   "shapes": {
@@ -23374,6 +23549,4162 @@
         "expected": {
           "ok": false,
           "refusal": "verifiedSurfaces[0]: Expected \"local\" | \"structural\" | \"product\" | \"acceptance\", actual \"bogus-value\""
+        }
+      }
+    ],
+    "0.34.0": [
+      {
+        "name": "accepts a document setting every field",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "role": "acceptance"
+            },
+            "effort": "high",
+            "mode": "headless",
+            "model": "example-model",
+            "outcome": "committed",
+            "phaseId": "phase-01",
+            "provider": "claude-code",
+            "runId": "run-0001",
+            "shape": "full",
+            "sourceSha": "abc1234",
+            "stop": {
+              "cause": "held",
+              "closedBy": {
+                "email": "text-9",
+                "name": "text-8"
+              },
+              "outcome": "corrected",
+              "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+              "sessions": [
+                {
+                  "effort": "text-11",
+                  "model": "text-10",
+                  "origin": "first-turn",
+                  "provider": "claude-code",
+                  "sessionId": "a1",
+                  "transcript": {
+                    "detail": "text-13",
+                    "reason": "not-found",
+                    "status": "missing"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "inputTokens": 1000,
+                "outputTokens": 300,
+                "provider": "codex-cli",
+                "reasoningOutputTokens": 1
+              }
+            },
+            "userConfig": "loaded",
+            "verifiedSurfaces": [
+              "local"
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document setting every field, variant 2",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "costUsd": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing",
+            "acceptancePhase": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+            "acceptance": {
+              "acceptancePhase": "phase-01",
+              "role": "passing"
+            },
+            "effort": "high",
+            "mode": "headless",
+            "model": "example-model",
+            "outcome": "committed",
+            "phaseId": "phase-01",
+            "provider": "claude-code",
+            "runId": "run-0001",
+            "shape": "full",
+            "sourceSha": "abc1234",
+            "stop": {
+              "cause": "declared",
+              "closedBy": {
+                "email": "text-8",
+                "name": "text-7"
+              },
+              "outcome": "corrected",
+              "sessions": [
+                {
+                  "effort": "text-10",
+                  "model": "text-9",
+                  "origin": "first-turn",
+                  "provider": "claude-code",
+                  "sessionId": "a1",
+                  "transcript": {
+                    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "status": "captured"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "available": true,
+              "usage": {
+                "cachedInputTokens": 1,
+                "costUsd": 1,
+                "inputTokens": 1000,
+                "outputTokens": 300,
+                "provider": "mistral-vibe"
+              }
+            },
+            "userConfig": "loaded",
+            "verifiedSurfaces": [
+              "local"
+            ]
+          }
+        }
+      },
+      {
+        "name": "accepts a document with only its required fields",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-12"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": true,
+          "value": {
+            "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+            "acceptance": {
+              "passedBy": "phase-01",
+              "role": "acceptance"
+            },
+            "effort": "high",
+            "mode": "headless",
+            "model": "example-model",
+            "outcome": "committed",
+            "phaseId": "phase-01",
+            "provider": "claude-code",
+            "runId": "run-0001",
+            "shape": "full",
+            "stop": {
+              "cause": "held",
+              "closedBy": {
+                "email": "text-8",
+                "name": "text-7"
+              },
+              "outcome": "corrected",
+              "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+              "sessions": [
+                {
+                  "effort": "text-10",
+                  "model": "text-9",
+                  "origin": "first-turn",
+                  "provider": "claude-code",
+                  "sessionId": "a1",
+                  "transcript": {
+                    "detail": "text-12",
+                    "reason": "not-found",
+                    "status": "missing"
+                  }
+                }
+              ]
+            },
+            "usage": {
+              "available": true,
+              "usage": {
+                "cacheCreationInputTokens": 0,
+                "cacheReadInputTokens": 200,
+                "inputTokens": 1000,
+                "outputTokens": 300,
+                "provider": "claude-code",
+                "totalCostUsd": 0.01
+              }
+            },
+            "userConfig": "loaded",
+            "verifiedSurfaces": [
+              "local"
+            ]
+          }
+        }
+      },
+      {
+        "name": "refuses a document missing runId",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: is missing"
+        }
+      },
+      {
+        "name": "refuses an unexpected key",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null,
+          "unexpectedKey": 1
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "unexpectedKey: is unexpected, expected: \"$schema\" | \"runId\" | \"phaseId\" | \"shape\" | \"sourceSha\" | \"model\" | \"effort\" | \"provider\" | \"userConfig\" | \"outcome\" | \"usage\" | \"verifiedSurfaces\" | \"acceptance\" | \"mode\" | \"stop\""
+        }
+      },
+      {
+        "name": "refuses runId of the wrong type",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": 42,
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected string, actual 42"
+        }
+      },
+      {
+        "name": "refuses shape outside its values",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "bogus-value",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "refuses runId when empty",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema pattern",
+        "input": {
+          "$schema": "",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: Expected a string matching the pattern ^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint $schema required",
+        "input": {
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "$schema: is missing"
+        }
+      },
+      {
+        "name": "constraint acceptance required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance: is missing"
+        }
+      },
+      {
+        "name": "constraint acceptance.acceptancePhase pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "costUsd": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing",
+            "acceptancePhase": ""
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.acceptancePhase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint acceptance.acceptancePhase required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "costUsd": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.acceptancePhase: is missing"
+        }
+      },
+      {
+        "name": "constraint acceptance.passedBy pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": ""
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.passedBy: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint acceptance.passedBy required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.passedBy: is missing"
+        }
+      },
+      {
+        "name": "constraint acceptance.role enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "bogus-value",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.role: Expected \"acceptance\" | \"passing\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint acceptance.role required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "acceptance.role: is missing"
+        }
+      },
+      {
+        "name": "constraint effort minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint effort required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "effort: is missing"
+        }
+      },
+      {
+        "name": "constraint mode enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "bogus-value",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "mode: Expected \"headless\" | \"interactive\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint mode required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "mode: is missing"
+        }
+      },
+      {
+        "name": "constraint model minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint model required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "model: is missing"
+        }
+      },
+      {
+        "name": "constraint outcome enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "bogus-value",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: Expected \"committed\" | \"failed\" | \"abandoned\" | \"interrupted\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint outcome required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "outcome: is missing"
+        }
+      },
+      {
+        "name": "constraint phaseId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint phaseId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "phaseId: is missing"
+        }
+      },
+      {
+        "name": "constraint provider enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "bogus-value",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint provider required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "provider: is missing"
+        }
+      },
+      {
+        "name": "constraint runId minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint runId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "runId: is missing"
+        }
+      },
+      {
+        "name": "constraint shape enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "bogus-value",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shape: Expected \"full\" | \"skeleton\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint shape required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "shape: is missing"
+        }
+      },
+      {
+        "name": "constraint sourceSha minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "sourceSha: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless"
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.cause enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "bogus-value",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.cause: Expected \"declared\" | \"held\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.cause required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.cause: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.closedBy required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.closedBy: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.email minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": ""
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.closedBy.email: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.email required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.closedBy.email: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.name minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.closedBy.name: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.closedBy.name required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.closedBy.name: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.outcome enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "bogus-value",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: Expected \"unchanged\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.outcome required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.outcome: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.reviewCommit pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.reviewCommit required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.reviewCommit: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            }
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].effort minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].effort: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].effort required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].effort: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].model minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].model: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].model required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].model: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].origin enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "bogus-value",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].origin: Expected \"first-turn\" | \"new-session\" | \"builder\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].origin required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].origin: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].provider enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "bogus-value",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].provider required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].provider: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].sessionId pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].sessionId required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].sessionId: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn"
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.detail minLength",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": ""
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.detail: Expected a non empty string, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.detail required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.detail: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.reason enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "bogus-value",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.reason: Expected \"not-found\" | \"unreadable\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.reason required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.reason: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.sha256 pattern",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "costUsd": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing",
+            "acceptancePhase": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured",
+                  "sha256": ""
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.sha256 required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "costUsd": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing",
+            "acceptancePhase": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.sha256: is missing"
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.status enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "bogus-value",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.status: Expected \"captured\" | \"missing\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint stop.sessions[].transcript.status required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "stop.sessions[0].transcript.status: is missing"
+        }
+      },
+      {
+        "name": "constraint usage required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.available enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": "bogus-value",
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.available: Expected true | false, actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint usage.available required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.available: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.cacheCreationInputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.cacheCreationInputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.cachedInputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "outputTokens": 300,
+              "reasoningOutputTokens": 1
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.cachedInputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.cacheReadInputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.cacheReadInputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.costUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "mistral-vibe",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "passing",
+            "acceptancePhase": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "declared",
+            "outcome": "corrected",
+            "closedBy": {
+              "name": "text-7",
+              "email": "text-8"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-9",
+                "effort": "text-10",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "captured",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.costUsd: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.inputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.inputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.outputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.outputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.provider enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "bogus-value",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.provider: Expected \"claude-code\" | \"codex-cli\" | \"mistral-vibe\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint usage.usage.provider required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.provider: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.reasoningOutputTokens required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "codex-cli",
+              "inputTokens": 1000,
+              "cachedInputTokens": 1,
+              "outputTokens": 300
+            }
+          },
+          "verifiedSurfaces": [
+            "local"
+          ],
+          "acceptance": {
+            "role": "acceptance",
+            "passedBy": "phase-01"
+          },
+          "mode": "headless",
+          "stop": {
+            "cause": "held",
+            "outcome": "corrected",
+            "reviewCommit": "0123456789abcdef0123456789abcdef01234567",
+            "closedBy": {
+              "name": "text-8",
+              "email": "text-9"
+            },
+            "sessions": [
+              {
+                "provider": "claude-code",
+                "model": "text-10",
+                "effort": "text-11",
+                "sessionId": "a1",
+                "origin": "first-turn",
+                "transcript": {
+                  "status": "missing",
+                  "reason": "not-found",
+                  "detail": "text-13"
+                }
+              }
+            ]
+          }
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.reasoningOutputTokens: is missing"
+        }
+      },
+      {
+        "name": "constraint usage.usage.totalCostUsd required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "usage.usage.totalCostUsd: is missing"
+        }
+      },
+      {
+        "name": "constraint verifiedSurfaces required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verifiedSurfaces: is missing"
+        }
+      },
+      {
+        "name": "constraint verifiedSurfaces[] enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "loaded",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "bogus-value",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "verifiedSurfaces[0]: Expected \"local\" | \"structural\" | \"product\" | \"acceptance\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint userConfig enum",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "userConfig": "bogus-value",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "userConfig: Expected \"excluded\" | \"loaded\", actual \"bogus-value\""
+        }
+      },
+      {
+        "name": "constraint userConfig required",
+        "input": {
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "runId": "run-0001",
+          "phaseId": "phase-01",
+          "shape": "full",
+          "sourceSha": "abc1234",
+          "model": "example-model",
+          "effort": "high",
+          "provider": "claude-code",
+          "outcome": "committed",
+          "usage": {
+            "available": true,
+            "usage": {
+              "provider": "claude-code",
+              "inputTokens": 1000,
+              "cacheCreationInputTokens": 0,
+              "cacheReadInputTokens": 200,
+              "outputTokens": 300,
+              "totalCostUsd": 0.01
+            }
+          },
+          "verifiedSurfaces": [
+            "local",
+            "structural"
+          ],
+          "acceptance": null,
+          "mode": "headless",
+          "stop": null
+        },
+        "expected": {
+          "ok": false,
+          "refusal": "userConfig: is missing"
         }
       }
     ]

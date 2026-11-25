@@ -314,6 +314,7 @@ describe(
         effort: selected.thinking ?? "medium",
         provider: selected.provider,
         userConfig: "loaded",
+        gateProfile: "standard",
         outcome: "committed",
         usage: { available: false },
         verifiedSurfaces: expect.any(Array),

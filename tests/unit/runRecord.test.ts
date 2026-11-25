@@ -22,6 +22,7 @@ const baseManifest = {
   effort: "high",
   provider: "claude-code" as const,
   userConfig: "loaded" as const,
+  gateProfile: "standard",
   outcome: "committed" as const,
   usage: UNAVAILABLE_TOKEN_USAGE,
   verifiedSurfaces: [] as const,
@@ -232,6 +233,30 @@ describe("RunRecordManifestSchema", () => {
   it("writes userConfig right after provider", () => {
     const keys = Object.keys(encodeRunRecordManifest(baseManifest));
     expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
+  });
+
+  it("requires gateProfile, refusing a manifest without it by naming the field", () => {
+    const { gateProfile: _gateProfile, ...withoutGateProfile } = baseManifest;
+    const result = decodeRunRecordManifestFile(withoutGateProfile);
+    expect(Result.isFailure(result)).toBe(true);
+    if (Result.isFailure(result)) expect(String(result.failure)).toContain("gateProfile");
+  });
+
+  it.each(["light", null])("decodes gateProfile %j as recorded", (gateProfile) => {
+    const result = decodeRunRecordManifestFile({ ...baseManifest, gateProfile });
+    expect(Result.isSuccess(result)).toBe(true);
+    if (Result.isSuccess(result)) expect(result.success.gateProfile).toBe(gateProfile);
+  });
+
+  it.each(["", 42, true])("refuses the gateProfile %j", (value) => {
+    expect(
+      Result.isFailure(decodeRunRecordManifestFile({ ...baseManifest, gateProfile: value })),
+    ).toBe(true);
+  });
+
+  it("writes gateProfile right after userConfig", () => {
+    const keys = Object.keys(encodeRunRecordManifest(baseManifest));
+    expect(keys[keys.indexOf("userConfig") + 1]).toBe("gateProfile");
   });
 
   it("rejects a v1 manifest (no verifiedSurfaces field)", () => {

@@ -127,6 +127,8 @@ const PhaseExplained = Schema.Struct({
   provider: ProviderIdSchema,
   model: Schema.String,
   effort: Schema.String,
+  /** The gate profile that gated the phase's run, null for a record that did not record it. */
+  gateProfile: Schema.NullOr(Schema.String),
   /** Whether the commit explained is the phase's own or a held phase's review commit. */
   addressedBy: Schema.Literals(["phase-commit", "review-commit"]),
   stop: RecordStopSchema,
@@ -357,6 +359,7 @@ function phaseFacts(record: ExplainedRecord, flags: Flags): PhaseFacts {
     provider: manifest.provider,
     model: manifest.model,
     effort: manifest.effort,
+    gateProfile: manifest.gateProfile,
     addressedBy: record.addressedBy,
     stop: manifest.stop,
     shape: manifest.shape,
@@ -650,6 +653,7 @@ function renderPhase(facts: PhaseFacts): string[] {
   const surfacesLabel =
     facts.verifiedSurfaces.length > 0 ? facts.verifiedSurfaces.join(", ") : "(none)";
   lines.push(
+    `profile  ${facts.gateProfile ?? "(not recorded)"}`,
     `gates    ${facts.outcome} after ${facts.checksAttemptCount} attempt(s)   surfaces  ${surfacesLabel}`,
     ...gateAttemptLines(facts.gateAttempts),
   );

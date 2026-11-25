@@ -217,6 +217,39 @@ const UserConfigSchema = Schema.Literals(["excluded", "loaded"]).annotate({
 export type UserConfig = Schema.Schema.Type<typeof UserConfigSchema>;
 
 /**
+ * The id of the gate profile that gated the phase's run, or null for a record
+ * written before phax recorded it. phax always writes a string.
+ */
+const GateProfileSchema = Schema.NullOr(Schema.NonEmptyString).annotate({
+  description:
+    "The id of the gate profile that gated the phase's run, or null for a record written before phax recorded it. phax always writes a string.",
+});
+
+/**
+ * A phase manifest of a frozen shape, which recorded no `gateProfile`, with
+ * `gateProfile: null` (not recorded) right after `userConfig`: phax did not
+ * record the profile then, and none is ever guessed.
+ */
+export function withUnrecordedGateProfile(
+  manifest: Omit<RunRecordManifest, "gateProfile">,
+): RunRecordManifest {
+  const { runId, phaseId, shape, sourceSha, model, effort, provider, userConfig, ...tail } =
+    manifest;
+  return {
+    runId,
+    phaseId,
+    shape,
+    ...(sourceSha !== undefined ? { sourceSha } : {}),
+    model,
+    effort,
+    provider,
+    userConfig,
+    gateProfile: null,
+    ...tail,
+  };
+}
+
+/**
  * A phase manifest of a frozen shape, which recorded no `userConfig`, with
  * `userConfig: "loaded"` inserted right after `provider`: every phax before
  * the field loaded the user layer for every provider.
@@ -250,6 +283,7 @@ const runRecordManifestFields = {
   effort: Schema.NonEmptyString,
   provider: ProviderIdSchema,
   userConfig: UserConfigSchema,
+  gateProfile: GateProfileSchema,
   outcome: RecordPhaseOutcomeSchema,
   usage: TokenUsageSchema,
   verifiedSurfaces: Schema.Array(RecordedSurfaceSchema),

@@ -13,6 +13,7 @@ const baseInput: AssembleRecordInput = {
   transcriptEnabled: true,
   model: "claude-sonnet-5",
   effort: "high",
+  gateProfile: "standard",
   provider: "claude-code",
   outcome: "committed",
   usage: UNAVAILABLE_TOKEN_USAGE,

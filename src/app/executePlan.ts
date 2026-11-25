@@ -563,6 +563,9 @@ export function executePlan(
         provider: args.provider,
         model: args.model,
         effort: args.effort,
+        // The run's gate profile: the one `phax run` resolved, or the one
+        // `phax resume` read from run-status.json.
+        gateProfile: gateProfileId,
         outcome: args.outcome,
         acceptance: recordAcceptanceRole(acceptanceRoleOf(plan.phases, args.phaseId)),
         mode: args.mode,

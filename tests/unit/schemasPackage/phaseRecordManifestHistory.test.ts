@@ -67,10 +67,12 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     const result = parsePhaseRecordManifest(preSchema);
     if (!result.ok) throw new Error("expected a pre-schema manifest");
     const latest = toLatestPhaseRecordManifest(result.value);
-    // Older than the role, `mode`, `stop` and `userConfig`: lifted with the only values true of it.
+    // Older than the role, `mode`, `stop`, `userConfig` and `gateProfile`: lifted with the
+    // only values true of it, the gate profile not recorded.
     expect(latest).toEqual({
       ...withoutKey(preSchema, "version"),
       userConfig: "loaded",
+      gateProfile: null,
       acceptance: null,
       mode: "headless",
       stop: null,
@@ -81,8 +83,11 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
   it("lifts a manifest stamped 0.17.0 to acceptance null, mode headless, stop null and userConfig loaded, and keeps its surfaces", () => {
     const stamped = withKey(
       withoutKey(
-        withoutKey(withoutKey(withoutKey(written, "acceptance"), "mode"), "stop"),
-        "userConfig",
+        withoutKey(
+          withoutKey(withoutKey(withoutKey(written, "acceptance"), "mode"), "stop"),
+          "userConfig",
+        ),
+        "gateProfile",
       ),
       "$schema",
       schemaUrl("phase-record-manifest", "0.17.0"),
@@ -94,29 +99,67 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     expect(latest).toEqual({
       ...withoutKey(stamped, "$schema"),
       userConfig: "loaded",
+      gateProfile: null,
       acceptance: null,
       mode: "headless",
       stop: null,
     });
   });
 
+  const unprofiled = withoutKey(written, "gateProfile");
   it.each([
-    ["0.26.0", withOracleRole(withoutKey(written, "userConfig"))],
-    ["0.30.0", withOracleRole(withoutKey(written, "userConfig"))],
-    ["0.33.0", withoutKey(written, "userConfig")],
+    ["0.26.0", withOracleRole(withoutKey(unprofiled, "userConfig"))],
+    ["0.30.0", withOracleRole(withoutKey(unprofiled, "userConfig"))],
+    ["0.33.0", withoutKey(unprofiled, "userConfig")],
   ])(
-    "lifts a manifest stamped %s to the latest, with userConfig loaded right after provider",
+    "lifts a manifest stamped %s to the latest, with userConfig loaded right after provider and gateProfile null after it",
     (release, document) => {
       const stamped = withKey(document, "$schema", schemaUrl("phase-record-manifest", release));
       const result = parsePhaseRecordManifest(stamped);
       if (!result.ok) throw new Error(`expected a ${release} manifest`);
       expect(result.shape).toBe(release);
       const latest = toLatestPhaseRecordManifest(result.value);
-      expect(latest).toEqual({ ...withoutKey(written, "$schema"), userConfig: "loaded" });
+      expect(latest).toEqual({
+        ...withoutKey(written, "$schema"),
+        userConfig: "loaded",
+        gateProfile: null,
+      });
       const keys = Object.keys(latest);
       expect(keys[keys.indexOf("provider") + 1]).toBe("userConfig");
+      expect(keys[keys.indexOf("userConfig") + 1]).toBe("gateProfile");
     },
   );
+
+  it.each(["excluded", "loaded"])(
+    "lifts a manifest stamped 0.34.0 with userConfig %s to gateProfile null right after it",
+    (userConfig) => {
+      const stamped = withKey(
+        withKey(unprofiled, "userConfig", userConfig),
+        "$schema",
+        schemaUrl("phase-record-manifest", "0.34.0"),
+      );
+      const result = parsePhaseRecordManifest(stamped);
+      if (!result.ok) throw new Error("expected a 0.34.0 manifest");
+      expect(result.shape).toBe("0.34.0");
+      const latest = toLatestPhaseRecordManifest(result.value);
+      expect(latest).toEqual({ ...withoutKey(stamped, "$schema"), gateProfile: null });
+      const keys = Object.keys(latest);
+      expect(keys[keys.indexOf("userConfig") + 1]).toBe("gateProfile");
+    },
+  );
+
+  it("refuses a gateProfile in a manifest stamped 0.34.0, where it was never written", () => {
+    const stamped = withKey(written, "$schema", schemaUrl("phase-record-manifest", "0.34.0"));
+    expect(parsePhaseRecordManifest(stamped).ok).toBe(false);
+  });
+
+  it("keeps the gate profile a current manifest recorded, a string or null", () => {
+    for (const gateProfile of ["light", null]) {
+      const result = parsePhaseRecordManifest(withKey(written, "gateProfile", gateProfile));
+      if (!result.ok) throw new Error("expected a current manifest");
+      expect(toLatestPhaseRecordManifest(result.value)).toMatchObject({ gateProfile });
+    }
+  });
 
   it("keeps the userConfig a current manifest recorded", () => {
     for (const userConfig of ["excluded", "loaded"]) {
@@ -126,18 +169,18 @@ describe("toLatestPhaseRecordManifest (ac-to-latest)", () => {
     }
   });
 
-  it("refuses a manifest stamped at the current release without mode, stop or userConfig", () => {
-    for (const key of ["mode", "stop", "userConfig"]) {
+  it("refuses a manifest stamped at the current release without mode, stop, userConfig or gateProfile", () => {
+    for (const key of ["mode", "stop", "userConfig", "gateProfile"]) {
       expect(parsePhaseRecordManifest(withoutKey(written, key)).ok).toBe(false);
     }
   });
 
-  it("gives the same value for the pre-schema manifest and the one phax writes", () => {
+  it("gives the same value for the pre-schema manifest and the one phax writes, but its gate profile", () => {
     const before = parsePhaseRecordManifest(preSchema);
     const after = parsePhaseRecordManifest(written);
     if (!before.ok || !after.ok) throw new Error("expected both manifests to parse");
     const latest = toLatestPhaseRecordManifest(after.value);
-    expect(latest).toEqual(toLatestPhaseRecordManifest(before.value));
+    expect({ ...latest, gateProfile: null }).toEqual(toLatestPhaseRecordManifest(before.value));
     expect(latest).not.toHaveProperty("$schema");
   });
 

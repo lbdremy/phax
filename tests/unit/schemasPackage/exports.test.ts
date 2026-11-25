@@ -137,6 +137,7 @@ describe("schemas package entry", () => {
       "PhaseRecordManifestV0_26_0Schema",
       "PhaseRecordManifestV0_30_0Schema",
       "PhaseRecordManifestV0_33_0Schema",
+      "PhaseRecordManifestV0_34_0Schema",
       "PhaseStatusPreSchemaSchema",
       "PhaseStatusSchema",
       "PhaseStatusV0_17_0Schema",

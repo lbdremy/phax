@@ -4,7 +4,7 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
         "runId": "run-0001",
         "phaseId": "phase-01",
         "shape": "full",
@@ -13,6 +13,7 @@
         "effort": "high",
         "provider": "claude-code",
         "userConfig": "loaded",
+        "gateProfile": "standard",
         "outcome": "committed",
         "usage": {
           "available": true,
@@ -36,9 +37,10 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
           "acceptance": null,
           "effort": "high",
+          "gateProfile": "standard",
           "mode": "headless",
           "model": "example-model",
           "outcome": "committed",
@@ -70,7 +72,7 @@
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
         "runId": "run-0001",
         "phaseId": "phase-01",
         "shape": "full",
@@ -79,6 +81,7 @@
         "effort": "high",
         "provider": "claude-code",
         "userConfig": "loaded",
+        "gateProfile": "standard",
         "outcome": "committed",
         "usage": {
           "available": true,
@@ -125,12 +128,13 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
           "acceptance": {
             "passedBy": "phase-01",
             "role": "acceptance"
           },
           "effort": "high",
+          "gateProfile": "standard",
           "mode": "headless",
           "model": "example-model",
           "outcome": "committed",
@@ -182,7 +186,7 @@
     {
       "name": "accepts a document setting every field, variant 2",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
         "runId": "run-0001",
         "phaseId": "phase-01",
         "shape": "full",
@@ -191,6 +195,7 @@
         "effort": "high",
         "provider": "claude-code",
         "userConfig": "loaded",
+        "gateProfile": "standard",
         "outcome": "committed",
         "usage": {
           "available": true,
@@ -235,12 +240,13 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
           "acceptance": {
             "acceptancePhase": "phase-01",
             "role": "passing"
           },
           "effort": "high",
+          "gateProfile": "standard",
           "mode": "headless",
           "model": "example-model",
           "outcome": "committed",
@@ -290,7 +296,7 @@
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
         "runId": "run-0001",
         "phaseId": "phase-01",
         "shape": "full",
@@ -298,6 +304,7 @@
         "effort": "high",
         "provider": "claude-code",
         "userConfig": "loaded",
+        "gateProfile": "standard",
         "outcome": "committed",
         "usage": {
           "available": true,
@@ -345,12 +352,13 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/phase-record-manifest/0.43.0.json",
           "acceptance": {
             "passedBy": "phase-01",
             "role": "acceptance"
           },
           "effort": "high",
+          "gateProfile": "standard",
           "mode": "headless",
           "model": "example-model",
           "outcome": "committed",

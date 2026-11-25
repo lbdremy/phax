@@ -50,6 +50,7 @@ const phaseManifest = {
   effort: "high",
   provider: "claude-code",
   userConfig: "loaded",
+  gateProfile: "standard",
   outcome: "committed",
   usage: { available: false },
   verifiedSurfaces: ["local"],

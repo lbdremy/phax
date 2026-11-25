@@ -65,6 +65,7 @@ describe("Vibe model ids in records and cost ledgers", () => {
       provider: "mistral-vibe",
       model,
       effort: "high",
+      gateProfile: "standard",
       outcome: "committed",
       acceptance: null,
       mode: "headless",

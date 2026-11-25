@@ -1,0 +1,876 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax phase record manifest",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/phase-record-manifest\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The phase-record-manifest format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/phase-record-manifest/<X.Y.Z>.json"
+    },
+    "runId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "phaseId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "shape": {
+      "type": "string",
+      "enum": [
+        "full",
+        "skeleton"
+      ]
+    },
+    "sourceSha": {
+      "type": "string",
+      "minLength": 1
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1
+    },
+    "effort": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "claude-code",
+        "codex-cli",
+        "mistral-vibe"
+      ]
+    },
+    "userConfig": {
+      "type": "string",
+      "enum": [
+        "excluded",
+        "loaded"
+      ],
+      "description": "Whether the operator's user-level provider configuration was loaded for the phase's headless sessions."
+    },
+    "gateProfile": {
+      "anyOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "The id of the gate profile that gated the phase's run, or null for a record written before phax recorded it. phax always writes a string."
+    },
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "committed",
+        "failed",
+        "abandoned",
+        "interrupted"
+      ]
+    },
+    "usage": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                true
+              ]
+            },
+            "usage": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "claude-code"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cacheCreationInputTokens": {
+                      "type": "number"
+                    },
+                    "cacheReadInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "totalCostUsd": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cacheCreationInputTokens",
+                    "cacheReadInputTokens",
+                    "outputTokens",
+                    "totalCostUsd"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "codex-cli"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cachedInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "reasoningOutputTokens": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cachedInputTokens",
+                    "outputTokens",
+                    "reasoningOutputTokens"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "provider": {
+                      "type": "string",
+                      "enum": [
+                        "mistral-vibe"
+                      ]
+                    },
+                    "inputTokens": {
+                      "type": "number"
+                    },
+                    "cachedInputTokens": {
+                      "type": "number"
+                    },
+                    "outputTokens": {
+                      "type": "number"
+                    },
+                    "costUsd": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "provider",
+                    "inputTokens",
+                    "cachedInputTokens",
+                    "outputTokens",
+                    "costUsd"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "available",
+            "usage"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "available": {
+              "type": "boolean",
+              "enum": [
+                false
+              ]
+            }
+          },
+          "required": [
+            "available"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "verifiedSurfaces": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "local",
+          "structural",
+          "product",
+          "acceptance"
+        ]
+      }
+    },
+    "acceptance": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "acceptance"
+              ]
+            },
+            "passedBy": {
+              "type": "string",
+              "pattern": "^phase-\\d{2}$"
+            }
+          },
+          "required": [
+            "role",
+            "passedBy"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "passing"
+              ]
+            },
+            "acceptancePhase": {
+              "type": "string",
+              "pattern": "^phase-\\d{2}$"
+            }
+          },
+          "required": [
+            "role",
+            "acceptancePhase"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "headless",
+        "interactive"
+      ]
+    },
+    "stop": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "cause": {
+              "type": "string",
+              "enum": [
+                "declared"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "corrected"
+              ]
+            },
+            "closedBy": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "email": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "additionalProperties": false,
+              "description": "The git identity of the checkout that closed the stop."
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "claude-code",
+                      "codex-cli",
+                      "mistral-vibe"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effort": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "first-turn",
+                      "new-session",
+                      "builder"
+                    ]
+                  },
+                  "transcript": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "captured"
+                            ]
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "The sha256 of the transcript copy's bytes."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "sha256"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "missing"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "not-found",
+                              "unreadable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "reason",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model",
+                  "effort",
+                  "sessionId",
+                  "origin",
+                  "transcript"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "cause",
+            "outcome",
+            "closedBy",
+            "sessions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cause": {
+              "type": "string",
+              "enum": [
+                "declared"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "unchanged"
+              ]
+            },
+            "closedBy": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "email": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "additionalProperties": false,
+              "description": "The git identity of the checkout that closed the stop."
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "claude-code",
+                      "codex-cli",
+                      "mistral-vibe"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effort": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "first-turn",
+                      "new-session",
+                      "builder"
+                    ]
+                  },
+                  "transcript": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "captured"
+                            ]
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "The sha256 of the transcript copy's bytes."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "sha256"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "missing"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "not-found",
+                              "unreadable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "reason",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model",
+                  "effort",
+                  "sessionId",
+                  "origin",
+                  "transcript"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "cause",
+            "outcome",
+            "closedBy",
+            "sessions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cause": {
+              "type": "string",
+              "enum": [
+                "held"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "corrected"
+              ]
+            },
+            "reviewCommit": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+              "description": "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256)."
+            },
+            "closedBy": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "email": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "additionalProperties": false,
+              "description": "The git identity of the checkout that closed the stop."
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "claude-code",
+                      "codex-cli",
+                      "mistral-vibe"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effort": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "first-turn",
+                      "new-session",
+                      "builder"
+                    ]
+                  },
+                  "transcript": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "captured"
+                            ]
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "The sha256 of the transcript copy's bytes."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "sha256"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "missing"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "not-found",
+                              "unreadable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "reason",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model",
+                  "effort",
+                  "sessionId",
+                  "origin",
+                  "transcript"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "cause",
+            "outcome",
+            "reviewCommit",
+            "closedBy",
+            "sessions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "cause": {
+              "type": "string",
+              "enum": [
+                "held"
+              ]
+            },
+            "outcome": {
+              "type": "string",
+              "enum": [
+                "unchanged"
+              ]
+            },
+            "closedBy": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "email": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "name",
+                "email"
+              ],
+              "additionalProperties": false,
+              "description": "The git identity of the checkout that closed the stop."
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "claude-code",
+                      "codex-cli",
+                      "mistral-vibe"
+                    ]
+                  },
+                  "model": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "effort": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "sessionId": {
+                    "$ref": "#/$defs/SafeSessionId"
+                  },
+                  "origin": {
+                    "type": "string",
+                    "enum": [
+                      "first-turn",
+                      "new-session",
+                      "builder"
+                    ]
+                  },
+                  "transcript": {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "captured"
+                            ]
+                          },
+                          "sha256": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{64}$",
+                            "description": "The sha256 of the transcript copy's bytes."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "sha256"
+                        ],
+                        "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "missing"
+                            ]
+                          },
+                          "reason": {
+                            "type": "string",
+                            "enum": [
+                              "not-found",
+                              "unreadable"
+                            ]
+                          },
+                          "detail": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "reason",
+                          "detail"
+                        ],
+                        "additionalProperties": false
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model",
+                  "effort",
+                  "sessionId",
+                  "origin",
+                  "transcript"
+                ],
+                "additionalProperties": false
+              }
+            }
+          },
+          "required": [
+            "cause",
+            "outcome",
+            "closedBy",
+            "sessions"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "$schema",
+    "runId",
+    "phaseId",
+    "shape",
+    "model",
+    "effort",
+    "provider",
+    "userConfig",
+    "gateProfile",
+    "outcome",
+    "usage",
+    "verifiedSurfaces",
+    "acceptance",
+    "mode",
+    "stop"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "SafeSessionId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "description": "A provider session id: a letter or digit, then letters, digits, `.`, `_` or `-`. `.`, `..` and any slash are refused."
+    }
+  }
+}

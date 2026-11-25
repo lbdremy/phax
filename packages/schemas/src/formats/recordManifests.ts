@@ -86,6 +86,11 @@ import {
   decodePhaseRecordManifestV0_33_0,
   type PhaseRecordManifestV0_33_0,
 } from "../../../../src/schemas/history/phase-record-manifest/0.33.0.js";
+import {
+  PhaseRecordManifestV0_34_0Schema,
+  decodePhaseRecordManifestV0_34_0,
+  type PhaseRecordManifestV0_34_0,
+} from "../../../../src/schemas/history/phase-record-manifest/0.34.0.js";
 import { liftRecordRole, liftVerifiedSurfaces } from "../../../../src/schemas/acceptanceLift.js";
 import {
   PhaseRecordManifestPreSchemaSchema,
@@ -97,6 +102,7 @@ import {
   decodeRunRecordManifestFile,
   liftFrozenTokenUsage,
   withLoadedUserConfig,
+  withUnrecordedGateProfile,
   type RunRecordManifest,
   type RunRecordManifestFile,
 } from "../../../../src/schemas/runRecord.js";
@@ -131,6 +137,7 @@ export type PhaseRecordManifestShapes = {
   "0.26.0": PhaseRecordManifestV0_26_0;
   "0.30.0": PhaseRecordManifestV0_30_0;
   "0.33.0": PhaseRecordManifestV0_33_0;
+  "0.34.0": PhaseRecordManifestV0_34_0;
 } & {
   [K in CurrentShapeName<"phase-record-manifest">]: PhaseRecordManifest;
 };
@@ -162,6 +169,10 @@ export const phaseRecordManifestFormat = defineFormat<PhaseRecordManifestShapes>
       "0.33.0",
       { schema: PhaseRecordManifestV0_33_0Schema, decode: decodePhaseRecordManifestV0_33_0 },
     ],
+    [
+      "0.34.0",
+      { schema: PhaseRecordManifestV0_34_0Schema, decode: decodePhaseRecordManifestV0_34_0 },
+    ],
   ],
   current: {
     name: CURRENT_SHAPES["phase-record-manifest"],
@@ -186,8 +197,11 @@ export type LatestPhaseRecordManifest = RunRecordManifest;
  * (`liftVerifiedSurfaces`), as phax's reader does. A shape older than 0.34.0
  * recorded no `userConfig`: it gets `userConfig: "loaded"` after `provider`,
  * because every phax that wrote one loaded the user layer for every provider.
- * A Vibe usage a shape older than 0.30.0 recorded counted a whole session from
- * the session's `meta.json`: it becomes `{ available: false }`.
+ * No shape older than the current one recorded the run's gate profile: every
+ * one gets `gateProfile: null` (not recorded) after `userConfig`, as phax's
+ * reader gives it, never a guessed id. A Vibe usage a shape older than 0.30.0
+ * recorded counted a whole session from the session's `meta.json`: it becomes
+ * `{ available: false }`.
  */
 export function toLatestPhaseRecordManifest(
   value:
@@ -196,19 +210,24 @@ export function toLatestPhaseRecordManifest(
     | PhaseRecordManifestV0_26_0
     | PhaseRecordManifestV0_30_0
     | PhaseRecordManifestV0_33_0
+    | PhaseRecordManifestV0_34_0
     | PhaseRecordManifest,
 ): LatestPhaseRecordManifest {
-  if ("userConfig" in value) {
+  if ("gateProfile" in value) {
     const { $schema: _schema, ...recorded } = value;
     return recorded;
   }
+  if ("userConfig" in value) {
+    const { $schema: _schema, ...recorded } = value;
+    return withUnrecordedGateProfile(recorded);
+  }
   if ("acceptance" in value) {
     const { $schema: _schema, ...recorded } = value;
-    return withLoadedUserConfig(recorded);
+    return liftUnconfigured(recorded);
   }
   if ("oracle" in value) {
     const { $schema: _schema, usage, verifiedSurfaces, oracle, mode, stop, ...recorded } = value;
-    return withLoadedUserConfig({
+    return liftUnconfigured({
       ...recorded,
       usage: liftFrozenTokenUsage(usage),
       verifiedSurfaces: liftVerifiedSurfaces(verifiedSurfaces),
@@ -219,7 +238,7 @@ export function toLatestPhaseRecordManifest(
   }
   if ("$schema" in value) {
     const { $schema: _schema, usage, ...recorded } = value;
-    return withLoadedUserConfig({
+    return liftUnconfigured({
       ...recorded,
       usage: liftFrozenTokenUsage(usage),
       acceptance: null,
@@ -228,13 +247,23 @@ export function toLatestPhaseRecordManifest(
     });
   }
   const { version: _version, usage, ...recorded } = value;
-  return withLoadedUserConfig({
+  return liftUnconfigured({
     ...recorded,
     usage: liftFrozenTokenUsage(usage),
     acceptance: null,
     mode: "headless",
     stop: null,
   });
+}
+
+/**
+ * A manifest of a shape older than 0.34.0: `userConfig: "loaded"` after
+ * `provider`, then `gateProfile: null` after it.
+ */
+function liftUnconfigured(
+  manifest: Omit<RunRecordManifest, "userConfig" | "gateProfile">,
+): LatestPhaseRecordManifest {
+  return withUnrecordedGateProfile(withLoadedUserConfig(manifest));
 }
 
 // ── authoring record manifest

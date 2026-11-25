@@ -271,6 +271,7 @@ describe("explain's address: which trailers name a record", () => {
       effort: "high",
       provider: "claude-code",
       userConfig: "loaded",
+      gateProfile: "standard",
       outcome: "committed",
       usage: { available: false },
       verifiedSurfaces: [],

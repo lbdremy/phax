@@ -648,6 +648,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
       provider: "claude-code",
       model: "example-model",
       effort: "medium",
+      gateProfile: "standard",
       outcome: "committed",
       acceptance: null,
       mode: "headless",
