@@ -387,7 +387,10 @@ describe("review and publication commands", () => {
       );
 
       expect(result.code).toBe(3);
-      expect(result.outLines).toEqual([`Starting code review session in ${worktreePath}`]);
+      expect(result.outLines).toEqual([
+        "review skill: bundled",
+        `Starting code review session in ${worktreePath}`,
+      ]);
       expect(t.session.impl.invocations).toHaveLength(1);
     });
   });

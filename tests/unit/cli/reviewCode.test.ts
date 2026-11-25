@@ -153,6 +153,7 @@ const accepted = (
       reviewPath: "/run/code-review.json",
       sessionPath: "/run/code-review-session.json",
       session: { provider, sessionId: "session-cr", worktreePath: "/wt/phase-02" },
+      skill: { source: "bundled", baseShort: "a1b2c3d", changedByRun: false },
     },
     record: { kind: "no-entry" },
     push: { kind: "no-record" },
@@ -187,7 +188,7 @@ describe("runReviewCode --headless", () => {
     const code = await runReviewCode(SHORT_NAME, { headless: true }, out);
 
     expect(code).toBe(0);
-    expect(errors).toEqual([]);
+    expect(errors).toEqual(["review skill: bundled"]);
     expect(lines).toEqual([
       "Code review: 2 findings (1 bug, 1 concern)",
       "Findings: /run/code-review.json",
@@ -285,7 +286,7 @@ describe("runReviewCode --headless", () => {
 
     expect(code).toBe(0);
     expect(lines[0]).toBe("Code review: 1 finding (1 bug)");
-    const warning = errors[0];
+    const warning = errors[1];
     expect(warning).toContain("code-review");
     expect(warning).toContain("disk full");
     expect(warning).toContain(`phax review-code ${SHORT_NAME} --headless`);

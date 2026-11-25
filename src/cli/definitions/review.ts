@@ -11,7 +11,12 @@ import * as Schema from "effect/Schema";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { prepareCodeReviewSession, reviewCodeAndRecord } from "../../app/reviewCode.js";
+import {
+  prepareCodeReviewSession,
+  REVIEW_SKILL_PATH,
+  reviewCodeAndRecord,
+  type CodeReviewSkillFact,
+} from "../../app/reviewCode.js";
 import { reviewComplianceAndRecord } from "../../app/reviewCompliance.js";
 import {
   reviewEntryNotice,
@@ -326,6 +331,26 @@ const ReviewComplianceOutput = Schema.Struct({
   warnings: Schema.Array(Schema.String),
   written: Schema.Array(Written),
 });
+
+/** The lines that say which review skill a code review follows, and whether the run changed it. */
+function reviewSkillLines(skill: CodeReviewSkillFact): string[] {
+  const lines =
+    skill.source === "project"
+      ? [`review skill: project, as of base ${skill.baseShort ?? "unknown"} (${REVIEW_SKILL_PATH})`]
+      : [
+          skill.baseShort === null
+            ? "review skill: bundled (the run base is unknown)"
+            : "review skill: bundled",
+        ];
+  if (skill.changedByRun) {
+    lines.push(
+      `! this run changed ${REVIEW_SKILL_PATH}; the review follows ${
+        skill.source === "project" ? "the base copy" : "the bundled skill"
+      }`,
+    );
+  }
+  return lines;
+}
 
 /** The output port a review's use case writes through: its lines on stdout (said), its warnings
  *  on stderr (progress), as they happen. */
@@ -649,7 +674,10 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       findingsPath: review.reviewPath,
       fixHint: codeReviewFixHint(findings.length, review.session, retryRef) ?? null,
       notice: reviewEntryNotice(outcome) ?? null,
-      warnings: [...reviewEntryWarnings(outcome, "code-review", retryCommand)],
+      warnings: [
+        ...reviewSkillLines(review.skill),
+        ...reviewEntryWarnings(outcome, "code-review", retryCommand),
+      ],
       written: yield* writtenRecords([review.reviewPath, review.sessionPath], config.repoRoot),
     };
     return answer;
@@ -681,7 +709,11 @@ function runInteractive(
         });
       }).pipe(
         Effect.provide(
-          Layer.mergeAll(makeRepoRootedFileSystemLayer(config), NoopSystemTelemetryLayer),
+          Layer.mergeAll(
+            makeRepoRootedFileSystemLayer(config),
+            NoopSystemTelemetryLayer,
+            deps.gitLayer ?? makeNodeGitLayer({ repoRoot: config.repoRoot }),
+          ),
         ),
       ),
     );
@@ -698,6 +730,9 @@ function runInteractive(
     const { invocation, mode } = result;
     // The render is empty: the lines of the session's start are said as it begins.
     if (crossProject) yield* call.say(`Target: ${qualifiedName}`);
+    if (result.skill !== null) {
+      for (const line of reviewSkillLines(result.skill)) yield* call.say(line);
+    }
     yield* call.say(
       mode === "new"
         ? `Starting code review session in ${invocation.cwd}`
