@@ -20,6 +20,16 @@ export function attemptNumberOf(name: string): number | undefined {
   return match?.[1] === undefined ? undefined : Number(match[1]);
 }
 
+/** Whether `name` is a per-attempt file: any `checks-attempt-NN.*` file above or `fix-attempt-NN.jsonl`. */
+export function isAttemptFile(name: string): boolean {
+  return CHECKS_FILE.test(name) || FIX_TRANSCRIPT.test(name);
+}
+
+/** Whether `name` is an attempt's gate log `checks-attempt-NN.log` or fix transcript `fix-attempt-NN.jsonl`. */
+export function isAttemptTranscript(name: string): boolean {
+  return ATTEMPT_LOG.test(name) || FIX_TRANSCRIPT.test(name);
+}
+
 /**
  * The number of the next gate attempt: one above the highest number on any
  * per-attempt file, so no existing file is ever overwritten, or 1.
