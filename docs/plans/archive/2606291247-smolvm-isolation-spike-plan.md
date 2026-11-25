@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Abandoned
 source-spec: null
 approved:
   date: 2026-09-08
