@@ -15,6 +15,7 @@ import { makeFakeBackend } from "../../src/infra/fakes/backend.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { makeFakeGitHub } from "../../src/infra/fakes/github.js";
+import { phaseStatus } from "../helpers/phaseStatusFixture.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { BranchName } from "../../src/domain/branded.js";
 import type { ResolvedRecordsConfig } from "../../src/schemas/recordsConfig.js";
@@ -143,9 +144,12 @@ function setup() {
   /** What the use case printed through the output port. */
   const warnings: string[] = [];
   const output = { log() {}, warn: (m: string) => void warnings.push(m), error() {} };
-  const review = (provider: "claude-code" | "codex-cli" | "mistral-vibe" = "claude-code") =>
+  const review = (
+    provider: "claude-code" | "codex-cli" | "mistral-vibe" = "claude-code",
+    runInfo: RunReviewInfo = info,
+  ) =>
     Effect.runPromise(
-      reviewCodeHeadless(info, config, resolutionOn(provider), security, {
+      reviewCodeHeadless(runInfo, config, resolutionOn(provider), security, {
         bundledReviewSkill,
         nowIso,
         output,
@@ -435,15 +439,38 @@ describe("reviewCodeHeadless", () => {
     expect(prompt).toContain("`architecture`");
   });
 
-  it("prefers the project's copy of the phax-review skill on the run's branch", async () => {
+  it("prefers the project's copy of the phax-review skill at the run base", async () => {
     const t = setup();
-    t.fs.impl.setFile(
-      `${worktreePath}/.claude/skills/phax-review/SKILL.md`,
-      "---\nname: phax-review\n---\n\n# Project doctrine\n",
+    const skillPath = ".claude/skills/phax-review/SKILL.md";
+    const base = t.git.impl.addFakeCommit({ parent: null, paths: [skillPath] });
+    const tree = t.git.impl.fakeCommits.get(base)?.tree ?? "";
+    const oid = t.git.impl.fakeTrees.get(tree)?.[0]?.oid ?? "";
+    t.git.impl.fakeBlobs.set(
+      oid,
+      new TextEncoder().encode("---\nname: phax-review\n---\n\n# Project doctrine\n"),
     );
+    t.git.impl.fakeRefs.set("refs/heads/feature/my-run", base);
+    // A rewrite in the worktree is never read.
+    t.fs.impl.setFile(`${worktreePath}/${skillPath}`, "# Rewritten in the worktree\n");
     t.session("session-e", answerOf());
 
-    await t.review();
+    await t.review("claude-code", {
+      ...info,
+      phaseStatuses: [
+        phaseStatus({
+          phaseId: "phase-01",
+          phaseIndex: 0,
+          state: "review_open",
+          model: "example-model",
+          effort: "medium",
+          createdAt: nowIso,
+          updatedAt: nowIso,
+          branchName: "phax/my-run--phase-01",
+          base,
+          worktreePath,
+        }),
+      ],
+    });
 
     const prompt = t.backend.impl.runCalls[0]?.prompt ?? "";
     expect(prompt).toContain("Project doctrine");

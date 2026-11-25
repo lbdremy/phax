@@ -236,6 +236,8 @@ describe("runReviewCode", () => {
     expect(call[1]).toContain("--effort");
     expect(call[1]).toContain("high");
     expect(logs.some((l) => l.toLowerCase().includes("starting"))).toBe(true);
+    // The worktree is no repository, so the base holds no skill: the bundled one is followed.
+    expect(logs).toContain("review skill: bundled");
   });
 
   it("--model/--effort overrides: spawned argv uses overridden values", async () => {

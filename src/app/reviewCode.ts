@@ -87,6 +87,8 @@ export interface PrepareCodeReviewResultReady {
     readonly cwd: string;
   };
   readonly mode: "new" | "resume";
+  /** The skill the new prompt follows; null on resume, whose session holds its instructions. */
+  readonly skill: CodeReviewSkillFact | null;
 }
 
 export interface PrepareCodeReviewResultUnsupported {
@@ -115,7 +117,7 @@ export function prepareCodeReviewSession(
     /** The bundled `phax-review` SKILL.md, read by the caller. */
     readonly bundledReviewSkill: string;
   },
-): Effect.Effect<PrepareCodeReviewResult, FsError, FileSystem | SystemTelemetry> {
+): Effect.Effect<PrepareCodeReviewResult, FsError, FileSystem | Git | SystemTelemetry> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
     const telemetry = yield* SystemTelemetry;
@@ -197,6 +199,7 @@ export function prepareCodeReviewSession(
         kind: "ready",
         invocation,
         mode: "resume",
+        skill: null,
       } satisfies PrepareCodeReviewResult;
     }
 
@@ -339,7 +342,68 @@ export function prepareCodeReviewSession(
       kind: "ready",
       invocation,
       mode: "new",
+      skill: worklist.skill,
     } satisfies PrepareCodeReviewResult;
+  });
+}
+
+/** Where the project's review skill lives, relative to a repository root. */
+export const REVIEW_SKILL_PATH = `.claude/skills/${PHAX_REVIEW_SKILL}/SKILL.md`;
+
+/** Which review skill was followed and whether the run touched the project's copy. In memory only. */
+export interface CodeReviewSkillFact {
+  readonly source: "project" | "bundled";
+  /** Abbreviated run base sha, or null when the run records no base. */
+  readonly baseShort: string | null;
+  readonly changedByRun: boolean;
+}
+
+/**
+ * The review doctrine: the project's skill as a regular blob (100644, 100755)
+ * of the run base's tree, else the bundled skill. The worktree's copy is never
+ * read — a phase agent can rewrite it. The fact says whether the run changed
+ * the path (mode or oid, added or removed) between the base and the branch tip.
+ */
+function resolveReviewSkill(
+  info: RunReviewInfo,
+  bundledReviewSkill: string,
+): Effect.Effect<{ doctrine: CodeReviewDoctrine; skill: CodeReviewSkillFact }, never, Git> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const base = info.phaseStatuses.toSorted((a, b) => a.phaseIndex - b.phaseIndex)[0]?.base;
+    const bundled: CodeReviewDoctrine = { source: "bundled", text: bundledReviewSkill };
+    if (base === undefined || base === null || base === "") {
+      return {
+        doctrine: bundled,
+        skill: { source: "bundled", baseShort: null, changedByRun: false },
+      };
+    }
+    const entryAt = (treeish: string) =>
+      git.readTree(info.worktreePath, treeish).pipe(
+        Effect.map((entries) => entries.find((e) => e.path === REVIEW_SKILL_PATH) ?? null),
+        Effect.catch(() => Effect.succeed(null)),
+      );
+    const baseEntry = yield* entryAt(base);
+    const tipEntry = yield* entryAt(info.branch);
+    let doctrine = bundled;
+    if (
+      baseEntry !== null &&
+      baseEntry.type === "blob" &&
+      (baseEntry.mode === "100644" || baseEntry.mode === "100755")
+    ) {
+      const bytes = yield* git
+        .readBlob(info.worktreePath, baseEntry.oid)
+        .pipe(Effect.catch(() => Effect.succeed(null)));
+      if (bytes !== null) doctrine = { source: "project", text: new TextDecoder().decode(bytes) };
+    }
+    return {
+      doctrine,
+      skill: {
+        source: doctrine.source,
+        baseShort: base.slice(0, 7),
+        changedByRun: baseEntry?.mode !== tipEntry?.mode || baseEntry?.oid !== tipEntry?.oid,
+      },
+    };
   });
 }
 
@@ -349,6 +413,7 @@ export interface CodeReviewWorklist {
   readonly compliance?: NonNullable<BuildCodeReviewPromptInput["compliance"]>;
   readonly complianceMissing: boolean;
   readonly doctrine: CodeReviewDoctrine;
+  readonly skill: CodeReviewSkillFact;
 }
 
 /**
@@ -362,7 +427,7 @@ export interface CodeReviewWorklist {
 export function loadCodeReviewWorklist(
   info: RunReviewInfo,
   bundledReviewSkill: string,
-): Effect.Effect<CodeReviewWorklist, FsError, FileSystem> {
+): Effect.Effect<CodeReviewWorklist, FsError, FileSystem | Git> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -414,23 +479,14 @@ export function loadCodeReviewWorklist(
       }
     }
 
-    // The project's copy of the review skill, on the run's branch, replaces the bundled one.
-    const projectSkillPath = join(
-      info.worktreePath,
-      ".claude",
-      "skills",
-      PHAX_REVIEW_SKILL,
-      "SKILL.md",
-    );
-    const doctrine: CodeReviewDoctrine = (yield* fs.exists(projectSkillPath))
-      ? { source: "project", text: yield* fs.readText(projectSkillPath) }
-      : { source: "bundled", text: bundledReviewSkill };
+    const { doctrine, skill } = yield* resolveReviewSkill(info, bundledReviewSkill);
 
     return {
       attentionPoints,
       ...(complianceBlock !== undefined ? { compliance: complianceBlock } : {}),
       complianceMissing,
       doctrine,
+      skill,
     };
   });
 }
@@ -451,6 +507,7 @@ export type HeadlessCodeReviewResult =
       /** The review session record written beside the review (code-review-session.json). */
       readonly sessionPath: string;
       readonly session: CodeReviewSession;
+      readonly skill: CodeReviewSkillFact;
     }
   | {
       readonly kind: "failed";
@@ -664,6 +721,7 @@ export function reviewCodeHeadless(
       reviewPath,
       sessionPath,
       session,
+      skill: worklist.skill,
     } satisfies HeadlessCodeReviewResult;
   }).pipe(
     Effect.tap((result) =>

@@ -5,6 +5,7 @@ import { Effect, Result, Layer } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { prepareCodeReviewSession } from "../../src/app/reviewCode.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
+import { makeFakeGit } from "../../src/infra/fakes/git.js";
 import { NoopSystemTelemetryLayer } from "../../src/ports/systemTelemetry.js";
 import type { RunReviewInfo } from "../../src/domain/runReviewInfo.js";
 import type { BranchName } from "../../src/domain/branded.js";
@@ -16,7 +17,7 @@ import { resolveRun } from "../../src/app/resolveRunInfo.js";
 import { decodeShortName } from "../../src/domain/branded.js";
 import { currentSchemaUrl } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { phaseStatus, phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 
 const stateRoot = "/fake-state";
 const shortName = "test-run";
@@ -160,8 +161,37 @@ const validComplianceJson = JSON.stringify({
   pointers: ["Possible bug at src/foo.ts line 42"],
 });
 
-function makeLayer(fs: ReturnType<typeof makeFakeFileSystem>) {
-  return Layer.mergeAll(fs.layer, NoopSystemTelemetryLayer);
+function makeLayer(
+  fs: ReturnType<typeof makeFakeFileSystem>,
+  git: ReturnType<typeof makeFakeGit> = makeFakeGit(),
+) {
+  return Layer.mergeAll(fs.layer, NoopSystemTelemetryLayer, git.layer);
+}
+
+/** A run base commit whose tree holds the project review skill, and the run branch at it. */
+function seedSkillAtBase(git: ReturnType<typeof makeFakeGit>, text: string): RunReviewInfo {
+  const skillPath = ".claude/skills/phax-review/SKILL.md";
+  const base = git.impl.addFakeCommit({ parent: null, paths: [skillPath] });
+  const tree = git.impl.fakeCommits.get(base)?.tree ?? "";
+  const oid = git.impl.fakeTrees.get(tree)?.[0]?.oid ?? "";
+  git.impl.fakeBlobs.set(oid, new TextEncoder().encode(text));
+  git.impl.fakeRefs.set("refs/heads/feature/test-run", base);
+  return makeInfo({
+    phaseStatuses: [
+      phaseStatus({
+        phaseId: "phase-01",
+        phaseIndex: 0,
+        state: "review_open",
+        model: "example-model",
+        effort: "medium",
+        createdAt: nowIso,
+        updatedAt: nowIso,
+        branchName: "phax/example-run--phase-01",
+        base,
+        worktreePath,
+      }),
+    ],
+  });
 }
 
 describe("prepareCodeReviewSession", () => {
@@ -340,23 +370,33 @@ describe("prepareCodeReviewSession", () => {
     expect(promptContent).toContain("# Bundled review doctrine");
   });
 
-  it("new session: the worktree's project copy of the review skill replaces the bundled one", async () => {
+  it("new session: the run base's project copy of the review skill replaces the bundled one", async () => {
     const fs = makeFakeFileSystem();
+    const git = makeFakeGit();
     fs.impl.setFile(bindingPath, JSON.stringify(claudeBinding));
+    const info = seedSkillAtBase(git, "---\nname: phax-review\n---\n\n# Project review doctrine\n");
+    // A rewrite in the worktree is never read.
     fs.impl.setFile(
       `${worktreePath}/.claude/skills/phax-review/SKILL.md`,
-      "---\nname: phax-review\n---\n\n# Project review doctrine\n",
+      "# Rewritten in the worktree\n",
     );
 
     const result = await Effect.runPromise(
-      prepareCodeReviewSession(makeInfo(), defaultConfig, {
+      prepareCodeReviewSession(info, defaultConfig, {
         newSession: false,
         nowIso,
         bundledReviewSkill,
-      }).pipe(Effect.provide(makeLayer(fs))),
+      }).pipe(Effect.provide(makeLayer(fs, git))),
     );
 
     expect(result.kind).toBe("ready");
+    if (result.kind === "ready") {
+      expect(result.skill).toEqual({
+        source: "project",
+        baseShort: info.phaseStatuses[0]?.base.slice(0, 7),
+        changedByRun: false,
+      });
+    }
     const promptContent = fs.impl.getFile(promptFilePath);
     expect(promptContent).toContain("## Review doctrine — `phax-review` (project)");
     expect(promptContent).toContain("# Project review doctrine");
