@@ -40,6 +40,10 @@ through the same use case.
 4. **Same use case as `run`.** The intent becomes a one-phase extracted plan, kept with the run, so everything
    downstream (status, resume, review, records, publish) works unchanged.
 5. **Runs stay autonomous.** `phax do` never stops to ask.
+6. **The caller names the gate profile** (operator, 2026-11-25). A task can say which of the project's gate
+   profiles verifies it (`--gate <profile>`), as a plan declares its own (`docs/briefs/plan-gate-profile.md`):
+   a docs task under a light profile, a code task under the full one. An unknown profile is refused before the
+   worktree is made, and the profile is recorded with the run and its one-phase plan.
 
 ## Questions for the spec's §9
 
@@ -50,6 +54,9 @@ through the same use case.
 - Whether phax may derive the planned files from the intent with a cheap planning turn, or the caller must give
   them (the first slice likely requires them).
 - Model and effort: the caller's flags, `phax.json` defaults, or the catalog's.
+- The gate profile when the caller names none: the default `plan-gate-profile` settles for plans, the first one
+  `phax.json` lists, or a refusal. And whether the bound above depends on the profile (a light profile allowing
+  fewer files).
 - Where the intent and the generated one-phase plan are kept (the run folder, the records branch), and how the
   release notes and `phax records explain` name such a run.
 - Whether one `phax do` may run while a plan's run is in progress in the same project (the run lock, `phax plans
