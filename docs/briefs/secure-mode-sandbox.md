@@ -81,7 +81,14 @@ the operator runs it (as `docs/plans/archive/` spike plans did). It answers:
    no provider's sandbox covers them: with Codex too, `pnpm test` runs today with the user's rights (operator,
    2026-11-25). Only the agent's own commands differ: Codex keeps its own sandbox for them (Seatbelt, or
    bubblewrap and seccomp, `.git` read-only), and phax does not stack another on it.
-5. **A host that cannot sandbox is refused, not silently run unconfined.** Whether the refusal can be waived, and how
+5. **One policy, three places** (operator, 2026-11-25, to confirm by the spike's question 4). The same writes,
+   denied reads and network apply to the gate steps (under `srt`), to Vibe (the `vibe` process under `srt`, so its
+   commands inherit it) and to Claude Code through its own native sandbox, turned on by phax for each session
+   (`--settings`, never the user's `~/.claude`) and made strict: `allowUnsandboxedCommands: false`,
+   `failIfUnavailable: true`, the agents' credential directories denied for reading, the package caches writable.
+   Claude Code's file tools, hooks and MCP stay outside its sandbox; phax already keeps MCP off and the file tools
+   to the worktree.
+6. **A host that cannot sandbox is refused, not silently run unconfined.** Whether the refusal can be waived, and how
    it is recorded, is a question for the spec.
 
 ## Questions for the spec's §9 (after the spike)
