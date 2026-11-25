@@ -170,6 +170,10 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12),
       spec to author: the operator lets one phase change a protected path, granted when the phase
       is resumed and recorded with it. Keep it consistent with `gate-tolerances`.
+- [ ] **`watched-paths`** — `docs/briefs/watched-paths.md` (2026-11-25), spec to author: files a
+      phase may change only if its plan names them, shown at the plan's approval, red when changed
+      unplanned, listed in the pull request. Shares its plan-lint probe with
+      `protected-path-exceptions`, so after it.
 - [ ] **The project doctrine, then the knowledge index**:
       - [ ] **`project-doctrine`** — `docs/specs/2611051057-project-doctrine.md`, Draft
             (2026-11-05), 10 open questions kept for the operator to think over (brief:
