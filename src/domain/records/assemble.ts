@@ -10,6 +10,7 @@ import type {
 } from "../../schemas/runRecord.js";
 import type { RecordedSurface } from "../../schemas/surface.js";
 import { isArchivedTranscript } from "../session/failureArchive.js";
+import { isPhaseRecordFile, isTranscriptClassFile } from "./phaseRecordFiles.js";
 import { isStopArtifact } from "./stopArtifacts.js";
 import { userConfigOf } from "./userConfig.js";
 import { isVibeExportDir } from "./usage.js";
@@ -45,9 +46,6 @@ export interface AssembledRecord {
   readonly artifactPaths: readonly string[];
 }
 
-/** A phase session's one transcript. */
-const PHASE_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([TRANSCRIPT_FILE]);
-
 /**
  * Decide which of a session folder's files a record carries, and its shape.
  *
@@ -58,8 +56,9 @@ const PHASE_TRANSCRIPT_FILES: ReadonlySet<string> = new Set([TRANSCRIPT_FILE]);
  * provider actually produced one. The transcripts are kept or dropped
  * together. An earlier failed session's archived transcript
  * (`output.failed-NN.jsonl`) is another session's and never carried; its
- * archived `agent-error.failed-NN.log` is, as `agent-error.log` is. Shared by
- * phase and authoring records.
+ * archived `agent-error.failed-NN.log` is, as `agent-error.log` is. Used by
+ * authoring, decision and revision records; a phase record selects through
+ * its own allowlist (`selectPhaseRecordArtifacts`).
  */
 export function selectRecordArtifacts(
   files: readonly string[],
@@ -75,19 +74,36 @@ export function selectRecordArtifacts(
 }
 
 /**
+ * Decide which of a phase folder's files its record carries, and its shape
+ * (SEC-02). Only allowlisted names are carried (`phaseRecordFiles.ts`). Two
+ * questions, two answers: the `records.transcript` toggle alone decides the
+ * transcript-class files (all dropped when off, all kept when on, whatever the
+ * shape); `output.jsonl` alone decides the shape (full when the toggle is on
+ * and it is present, skeleton otherwise).
+ */
+function selectPhaseRecordArtifacts(
+  files: readonly string[],
+  transcriptEnabled: boolean,
+): { readonly shape: RecordShape; readonly artifactPaths: readonly string[] } {
+  const artifactPaths = files
+    // A stop's files are the review's, never the agent's work; its transcript
+    // copies (`interactive-transcripts/`) are among them, whatever the toggle.
+    .filter((file) => !isStopArtifact(file) && !isVibeExportDir(file))
+    .filter((file) => !isArchivedTranscript(file))
+    .filter((file) => isPhaseRecordFile(file))
+    .filter((file) => transcriptEnabled || !isTranscriptClassFile(file))
+    .toSorted((a, b) => a.localeCompare(b));
+  const shape = transcriptEnabled && files.includes(TRANSCRIPT_FILE) ? "full" : "skeleton";
+  return { shape, artifactPaths };
+}
+
+/**
  * Decide what a phase's record carries and assemble its manifest. Assembly is
  * pure: the writer performs no selection of its own, it only hashes and
  * commits what this returns.
  */
 export function assembleRecord(input: AssembleRecordInput): AssembledRecord {
-  // A stop's files are the review's, never the agent's work. Its transcript
-  // copies (`interactive-transcripts/`) are among them, so `records.transcript`
-  // decides only about `output.jsonl`.
-  const { shape, artifactPaths } = selectRecordArtifacts(
-    input.files.filter((file) => !isStopArtifact(file) && !isVibeExportDir(file)),
-    input.transcriptEnabled,
-    PHASE_TRANSCRIPT_FILES,
-  );
+  const { shape, artifactPaths } = selectPhaseRecordArtifacts(input.files, input.transcriptEnabled);
 
   const manifest: RunRecordManifest = {
     runId: input.runId,

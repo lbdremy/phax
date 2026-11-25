@@ -78,25 +78,31 @@ describe("assembleRecord", () => {
     expect(artifactPaths).not.toContain("output.jsonl");
   });
 
-  it("carries an archived failure's log but never its archived transcript", () => {
+  it("carries an archived failure's log only with transcripts on, and never its archived transcript", () => {
     const files = [...baseInput.files, "agent-error.failed-01.log", "output.failed-01.jsonl"];
-    for (const transcriptEnabled of [true, false]) {
-      const { artifactPaths } = assembleRecord({ ...baseInput, files, transcriptEnabled });
-      expect(artifactPaths).toContain("agent-error.failed-01.log");
-      expect(artifactPaths).not.toContain("output.failed-01.jsonl");
-    }
+    const on = assembleRecord({ ...baseInput, files, transcriptEnabled: true }).artifactPaths;
+    expect(on).toContain("agent-error.failed-01.log");
+    expect(on).not.toContain("output.failed-01.jsonl");
+    const off = assembleRecord({ ...baseInput, files, transcriptEnabled: false }).artifactPaths;
+    expect(off).not.toContain("agent-error.failed-01.log");
+    expect(off).not.toContain("output.failed-01.jsonl");
   });
 
-  it("carries every checks-attempt-NN.log from a phase that took several fix-loop attempts", () => {
-    const files = [
-      "prompt.md",
-      "diff.patch",
-      "status.json",
-      "checks-attempt-01.log",
-      "checks-attempt-02.log",
-      "checks-attempt-03.log",
-    ];
-    const { artifactPaths } = assembleRecord({ ...baseInput, files, transcriptEnabled: false });
+  const SEVERAL_ATTEMPTS = [
+    "prompt.md",
+    "diff.patch",
+    "status.json",
+    "checks-attempt-01.log",
+    "checks-attempt-02.log",
+    "checks-attempt-03.log",
+  ];
+
+  it("carries every checks-attempt-NN.log from a phase that took several fix-loop attempts, with transcripts on", () => {
+    const { artifactPaths, manifest } = assembleRecord({
+      ...baseInput,
+      files: SEVERAL_ATTEMPTS,
+      transcriptEnabled: true,
+    });
     expect(artifactPaths).toEqual([
       "checks-attempt-01.log",
       "checks-attempt-02.log",
@@ -105,6 +111,17 @@ describe("assembleRecord", () => {
       "prompt.md",
       "status.json",
     ]);
+    // No output.jsonl: the shape stays skeleton, but the toggle keeps the logs.
+    expect(manifest.shape).toBe("skeleton");
+  });
+
+  it("carries no checks-attempt-NN.log with transcripts off", () => {
+    const { artifactPaths } = assembleRecord({
+      ...baseInput,
+      files: SEVERAL_ATTEMPTS,
+      transcriptEnabled: false,
+    });
+    expect(artifactPaths).toEqual(["diff.patch", "prompt.md", "status.json"]);
   });
 
   it("carries none of a vibe turn's export directories", () => {
@@ -261,13 +278,23 @@ describe("selectRecordArtifacts", () => {
     expect(assembleRecord(baseInput).manifest.acceptance).toBeNull();
   });
 
-  it("a phase record treats only output.jsonl as its transcript", () => {
-    const { artifactPaths, manifest } = assembleRecord({
+  it("a phase record carries no retry-output.jsonl, which is outside its allowlist", () => {
+    for (const transcriptEnabled of [true, false]) {
+      const { artifactPaths } = assembleRecord({
+        ...baseInput,
+        files: ["output.jsonl", "retry-output.jsonl"],
+        transcriptEnabled,
+      });
+      expect(artifactPaths).toEqual(transcriptEnabled ? ["output.jsonl"] : []);
+    }
+  });
+
+  it("a phase record's shape is decided by output.jsonl alone", () => {
+    const { manifest } = assembleRecord({
       ...baseInput,
-      files: ["output.jsonl", "retry-output.jsonl"],
-      transcriptEnabled: false,
+      files: ["fix-attempt-01.jsonl", "handoff-generation.jsonl", "prompt.md"],
+      transcriptEnabled: true,
     });
-    expect(artifactPaths).toEqual(["retry-output.jsonl"]);
     expect(manifest.shape).toBe("skeleton");
   });
 });

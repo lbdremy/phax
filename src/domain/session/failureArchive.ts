@@ -27,6 +27,11 @@ export function nextFailureNumber(names: readonly string[]): number {
   return Math.max(0, ...taken) + 1;
 }
 
+/** Whether `name`, an entry of a session folder, is an archived failure's `agent-error.failed-NN.log`. */
+export function isArchivedFailureLog(name: string): boolean {
+  return ARCHIVED_LOG.test(name);
+}
+
 /** `agent-error.failed-NN.log`. */
 export function archivedLogName(n: number): string {
   return `agent-error.failed-${twoDigits(n)}.log`;
