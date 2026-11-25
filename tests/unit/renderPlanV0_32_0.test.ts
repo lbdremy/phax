@@ -12,7 +12,7 @@ import { decodePlanDocumentV0_28_0 } from "../../src/schemas/history/plan-docume
 import { decodePlanDocumentV0_32_0 } from "../../src/schemas/history/plan-document/0.32.0.js";
 import type { PlanDocumentV0_32_0Value } from "../../src/schemas/persisted.js";
 import { schemaUrl } from "../../src/schemas/schemaUrl.js";
-import { validDocuments } from "./schemasPackage/documents.js";
+import { validDocuments, withoutGateProfile } from "./schemasPackage/documents.js";
 
 // The frozen plan rendering of plan-document 0.32.0, which also renders a
 // 0.28.0 sidecar's own body: the layout phax 0.28.0 to 0.32.0 wrote, its
@@ -47,7 +47,8 @@ function frozen28(sidecarText: string): PlanDocumentV0_32_0Value {
 
 /** A plan document as a 0.32.0 sidecar carried it: phase-01 an oracle phase, its lines in the loop `oracle`. */
 function plan0_32_0(): PlanDocumentV0_32_0Value {
-  const { $schema: _schema, ...doc } = validDocuments["plan-document"] as Record<string, unknown>;
+  // A 0.32.0 sidecar's run declares no gate profile.
+  const { $schema: _schema, ...doc } = withoutGateProfile(validDocuments["plan-document"]);
   const [first] = doc["phases"] as Array<Record<string, unknown>>;
   const { acceptance: _acceptance, ...firstPhase } = first!;
   return {
@@ -102,11 +103,12 @@ describe("renderPlanBodyV0_32_0", () => {
     );
   });
 
-  it("differs from the current rendering in the header lines and the test lines' loop only", () => {
+  it("differs from the current rendering in the header lines, the test lines' loop and the Gate profile section only", () => {
     const value = plan0_32_0();
     const lifted = liftPlanDocument(value);
-    expect(renderPlanBody(lifted)).toBe(
+    expect(renderPlanBody({ ...lifted, run: { ...lifted.run, gateProfile: "standard" } })).toBe(
       renderPlanBodyV0_32_0(value)
+        .replace("## Required commands", "## Gate profile\n\n`standard`\n\n## Required commands")
         .replace("**Oracle phase:** discharged by", "**Acceptance phase:** passed by")
         .replace("**Oracle files:**", "**Acceptance test files:**")
         .replace("· oracle · AC-1", "· acceptance · AC-1"),
@@ -128,6 +130,7 @@ describe("migrate-documents over a 0.32.0 sidecar", () => {
       sidecarPath: "docs/plans/2610010000-example-plan.json",
       md,
       sidecarJson: sidecarJson(),
+      gateProfile: "standard",
     });
 
   it("migrates the unedited own-shape body and rewrites its test line with the loop acceptance", () => {
@@ -164,6 +167,7 @@ describe("migrate-documents over a 0.32.0 sidecar", () => {
         sidecarPath: "docs/plans/2610010000-example-plan.json",
         md: frontmatter + renderPlanBodyV0_32_0(reserved),
         sidecarJson: JSON.stringify({ ...reserved, $schema: schemaUrl("plan-document", release) }),
+        gateProfile: "standard",
       });
       expect(decision.kind).toBe("refuse");
       if (decision.kind !== "refuse") return;

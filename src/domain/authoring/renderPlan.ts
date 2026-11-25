@@ -11,8 +11,10 @@ import {
 // Renders a plan document to the phax-planning shape. The deterministic parser
 // (src/domain/plan/parsePlanMarkdown.ts) is the oracle: rendering then parsing
 // yields the document's projection. Extracted values are therefore emitted in
-// forms whose flattened text is exactly the value — file paths, required
-// commands and the commit subject as code spans, the run title with its inline
+// forms whose flattened text is exactly the value — file paths, the gate
+// profile (its own `## Gate profile` section, just before `## Required
+// commands`), required commands and the commit subject as code spans, the run
+// title with its inline
 // markup escaped — while informational prose (a phase's assignment reason
 // included) is emitted as given. A phase's test lines are written verbatim in
 // the line format, so `readTestStrategyText` of the rendered `### Test
@@ -129,6 +131,7 @@ export function renderPlanBody(doc: PlanDocument): string {
   const blocks = [
     `# ${escapeInline(headingText(run.title))}`,
     preamble.summary,
+    `## Gate profile\n\n${inlineCode(run.gateProfile)}`,
     `## Required commands\n\n${codeList(run.requiredCommands)}`,
     preamble.requiredCommandsNote,
     ...(preamble.technicalArbitrations.length === 0

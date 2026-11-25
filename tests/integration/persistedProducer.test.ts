@@ -203,7 +203,12 @@ const PLAN_DOCUMENT = {
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
   completesSpec: true,
-  run: { shortName: SHORT_NAME, title: "Example run", requiredCommands: [] },
+  run: {
+    shortName: SHORT_NAME,
+    title: "Example run",
+    requiredCommands: [],
+    gateProfile: "standard",
+  },
   preamble: {
     summary: "An example plan.",
     requiredCommandsNote: "No command beyond the gate.",

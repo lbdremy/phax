@@ -151,6 +151,7 @@ function planSidecar(run: { shortName: string; title: string }): string {
     shortName: run.shortName,
     title: run.title,
     requiredCommands: [],
+    gateProfile: "standard",
   });
   return `${JSON.stringify(document, null, 2)}\n`;
 }

@@ -454,14 +454,18 @@ const preambleBody: fc.Arbitrary<PreambleBody> = record<PreambleBody>({
 // the lone item `(none)` (`required-command-is-a-trimmed-line`).
 const commandList = fc.array(wordLine(PROSE_TOKENS), { maxLength: 3 });
 
+// A gate profile id from a small fixed set: a run of non-whitespace characters without a backtick.
+const gateProfileId = fc.constantFrom("standard", "light", "full", "ci-gate.v2");
+
 // The short name slugifies to what the title does: the slug itself, or the title (`slugifyShortName`
 // of both sides is what finalize compares).
 const runPiece = fc
-  .tuple(wordLine(INLINE_TOKENS), fc.boolean(), commandList)
-  .map(([title, slugged, commands]): PlanDocument["run"] => ({
+  .tuple(wordLine(INLINE_TOKENS), fc.boolean(), commandList, gateProfileId)
+  .map(([title, slugged, commands, gateProfile]): PlanDocument["run"] => ({
     shortName: slugged ? slugifyShortName(title) : title,
     title,
     requiredCommands: commands,
+    gateProfile,
   }));
 
 type LineageBody = PlanDocumentLineage;

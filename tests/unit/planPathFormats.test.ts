@@ -74,17 +74,21 @@ const phase = (id: string): Doc => ({
   effort: "medium",
 });
 
-/** A two-phase plan document at `$schema`, its phases' lists as given. */
+/**
+ * A two-phase plan document at `$schema`, its phases' lists as given. At the
+ * current stamp its run declares a gate profile; no older shape recorded one.
+ */
 function planDocument(
   $schema: string,
   lists: { readonly [id: string]: Partial<Record<List, readonly string[]>> } = {},
 ): Doc {
+  const run = { shortName: "widget", title: "Widget", requiredCommands: [] };
   return {
     $schema,
     kind: "plan",
     sourceSpec: null,
     completesSpec: null,
-    run: { shortName: "widget", title: "Widget", requiredCommands: [] },
+    run: $schema === currentSchemaUrl("plan-document") ? { ...run, gateProfile: "standard" } : run,
     preamble: {
       summary: "Two steps.",
       requiredCommandsNote: "No extra commands.",
@@ -252,14 +256,14 @@ describe("ac-older-sidecar: a plan sidecar stamped 0.33.0", () => {
   const at0_33_0 = (lists?: Parameters<typeof planDocument>[1]) =>
     planDocument(schemaUrl("plan-document", "0.33.0"), lists);
 
-  it("lifts unchanged when its paths are canonical", () => {
+  it("lifts unchanged when its paths are canonical, declaring no gate profile", () => {
     const input = at0_33_0({ "phase-02": { plannedFilesToEdit: ["src/x.ts"] } });
     const read = readDocumentSidecar("plan", "plan.json", input);
     if (Result.isFailure(read)) throw new Error(read.failure.message);
     expect(read.success.shape).toBe("0.33.0");
     if (read.success.shape === "current") return;
     const { $schema: _schema, ...value } = input;
-    expect(read.success.lift).toEqual({ kind: "lifted", document: value });
+    expect(read.success.lift).toEqual({ kind: "missing-gate-profile", document: value });
   });
 
   it("is a refused lift at ./src/x.ts, the path never rewritten", () => {
@@ -333,11 +337,10 @@ describe("the frozen 0.33.0 decoders keep a path as written", () => {
       "phase-01": { plannedFilesToEdit: ["./src/x.ts"] },
     });
     expect(Result.isSuccess(decodePlanDocumentV0_33_0(document))).toBe(true);
-    expect(
-      Result.isFailure(
-        decodePlanDocumentFile({ ...document, $schema: currentSchemaUrl("plan-document") }),
-      ),
-    ).toBe(true);
+    const atCurrent = planDocument(currentSchemaUrl("plan-document"), {
+      "phase-01": { plannedFilesToEdit: ["./src/x.ts"] },
+    });
+    expect(Result.isFailure(decodePlanDocumentFile(atCurrent))).toBe(true);
 
     const plan = {
       $schema: schemaUrl("phax-plan", "0.33.0"),
@@ -413,7 +416,9 @@ describe("phax's readers and the schemas package agree on every current-shape co
     const documents = file.current.filter(
       (c) => (c.input as Doc | null)?.["$schema"] === currentSchemaUrl(id),
     );
-    expect(documents.length).toBeGreaterThan(10);
+    // A format whose stamp just moved holds its next-shaped cases alone: the
+    // plan document's three (an accepted one and two refused ones).
+    expect(documents.length).toBeGreaterThanOrEqual(3);
     for (const { name, input } of documents) {
       expect(parse(input), name).toEqual(decode(input));
     }

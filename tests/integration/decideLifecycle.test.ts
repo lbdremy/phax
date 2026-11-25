@@ -239,7 +239,12 @@ function planDocument(
     kind: "plan",
     sourceSpec: null,
     completesSpec: null,
-    run: { shortName: "log-rotation", title: "Log rotation", requiredCommands: [] },
+    run: {
+      shortName: "log-rotation",
+      title: "Log rotation",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     preamble: {
       summary: "Two phases: the rotation, then its docs.",
       requiredCommandsNote: "No extra commands.",
@@ -566,6 +571,7 @@ describe("decide on a lifted spec after migration", { timeout: 30_000 }, () => {
           extractPlanModel: MODEL,
           extractPlanEffort: EFFORT,
           nowIso: NOW,
+          gateProfile: null,
         }).pipe(
           Effect.provide(
             Layer.mergeAll(

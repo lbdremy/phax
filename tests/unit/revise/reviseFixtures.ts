@@ -160,7 +160,12 @@ function planDocument(
     kind: "plan",
     sourceSpec: SOURCE_SPEC,
     completesSpec: false,
-    run: { shortName: "log-rotation", title: "Log rotation", requiredCommands: [] },
+    run: {
+      shortName: "log-rotation",
+      title: "Log rotation",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     preamble: {
       summary,
       requiredCommandsNote: "No extra commands.",

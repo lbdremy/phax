@@ -10,6 +10,7 @@ import {
 import { renderPlanBody } from "../../../src/domain/authoring/renderPlan.js";
 import { renderPlanBodyV0_25_0 } from "../../../src/domain/authoring/renderPlanV0_25_0.js";
 import { renderPlanBodyV0_26_0 } from "../../../src/domain/authoring/renderPlanV0_26_0.js";
+import { renderPlanBodyV0_38_0 } from "../../../src/domain/authoring/renderPlanV0_38_0.js";
 import { renderSpecBody } from "../../../src/domain/authoring/renderSpec.js";
 import { renderSpecBodyV0_17_0 } from "../../../src/domain/authoring/renderSpecV0_17_0.js";
 import { renderSpecBodyV0_25_0 } from "../../../src/domain/authoring/renderSpecV0_25_0.js";
@@ -20,10 +21,13 @@ import {
   type SpecDocumentV0_17_0Value,
   type SpecDocumentV0_25_0Value,
   currentSchemaUrl,
-  readPlanDocumentFile,
+  readDocumentSidecar,
   readSpecDocumentFile,
 } from "../../../src/schemas/persisted.js";
-import type { PlanDocument } from "../../../src/schemas/planDocument.js";
+import type {
+  PlanDocument,
+  PlanDocumentWithoutGateProfile,
+} from "../../../src/schemas/planDocument.js";
 import type { OpenQuestion } from "../../../src/schemas/questions.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
@@ -203,21 +207,39 @@ const PLAN_0_26_0_PROSE = {
   })),
 } as unknown as PlanDocumentV0_26_0Value;
 
-function decidePlan(md: string, sidecarJson: string): DocumentMigrationDecision {
+// Every older plan sidecar declares no gate profile: it migrates with the one the operator names.
+function decidePlan(
+  md: string,
+  sidecarJson: string,
+  gateProfile: string | null = "standard",
+): DocumentMigrationDecision {
   return decideDocumentMigration({
     kind: "plan",
     path: PLAN,
     sidecarPath: PLAN_SIDECAR,
     md,
     sidecarJson,
+    gateProfile,
   });
 }
 
-function liftedPlan(): PlanDocument {
-  const read = readPlanDocumentFile(PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
+// The 0.20.0 plan lifted: every recorded fact, and no gate profile.
+function liftedPlan(): PlanDocumentWithoutGateProfile {
+  const read = readDocumentSidecar("plan", PLAN_SIDECAR, JSON.parse(PLAN_0_20_0_JSON));
   if (Result.isFailure(read)) throw new Error(read.failure.message);
-  return read.success;
+  const sidecar = read.success;
+  if (sidecar.shape === "current" || sidecar.lift.kind !== "missing-gate-profile") {
+    throw new Error("the 0.20.0 plan lifts without a gate profile");
+  }
+  return sidecar.lift.document;
 }
+
+// The lifted plan declaring `gateProfile`, as a migration writes it.
+function declaring(document: PlanDocumentWithoutGateProfile, gateProfile: string): PlanDocument {
+  return { ...document, run: { ...document.run, gateProfile } };
+}
+
+const GATE_PROFILE_SECTION = "## Gate profile\n\n`standard`\n\n## Required commands";
 
 function migrated(decision: DocumentMigrationDecision): DocumentMigration {
   if (decision.kind !== "migrate") throw new Error(`refused: ${decision.refusal.problem}`);
@@ -231,6 +253,7 @@ function decideSpec(md: string, sidecarJson: string): DocumentMigrationDecision 
     sidecarPath: SPEC_SIDECAR,
     md,
     sidecarJson,
+    gateProfile: null,
   });
 }
 
@@ -372,63 +395,43 @@ describe("decideDocumentMigration — specs", () => {
 });
 
 describe("decideDocumentMigration — plans", () => {
-  it("rewrites a 0.20.0 plan with empty preamble questions, keeping its body byte for byte", () => {
-    const md = PLAN_FRONTMATTER + renderPlanBody(liftedPlan());
-    const m = migrated(
-      decideDocumentMigration({
-        kind: "plan",
-        path: PLAN,
-        sidecarPath: PLAN_SIDECAR,
-        md,
-        sidecarJson: PLAN_0_20_0_JSON,
-      }),
-    );
+  it("rewrites a 0.20.0 plan with empty preamble questions and the named gate profile, adding only its section to the body", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_38_0(liftedPlan());
+    const m = migrated(decidePlan(md, PLAN_0_20_0_JSON));
 
     expect(m.status).toBe("Approved");
     expect(m.fromShape).toBe("0.20.0");
-    expect(m.md).toBe(md);
-    expect(m.bodyChanged).toBe(false);
+    expect(m.md).toBe(PLAN_FRONTMATTER + renderPlanBody(declaring(liftedPlan(), "standard")));
+    expect(m.md).toBe(md.replace("## Required commands", GATE_PROFILE_SECTION));
+    expect(m.bodyChanged).toBe(true);
     expect(m.questions).toEqual({ open: [], arbitrated: 0, lifted: 0 });
     expect(m.summariesToWrite).toBe(0);
     const sidecar = JSON.parse(m.sidecarText) as {
       $schema: string;
       sourceSpec: unknown;
       completesSpec: unknown;
+      run: Record<string, unknown>;
       preamble: Record<string, unknown>;
     };
     expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
+    expect(sidecar.run["gateProfile"]).toBe("standard");
+    expect(Object.keys(sidecar.run).at(-1)).toBe("gateProfile");
     expect(sidecar.preamble["openQuestions"]).toEqual([]);
     expect(sidecar.preamble["arbitratedQuestions"]).toEqual([]);
     expect([sidecar.sourceSpec, sidecar.completesSpec]).toEqual([null, null]);
   });
 
-  it("keeps a 0.20.0 plan's md untouched even when its body differs only in trailing whitespace", () => {
-    const md = `${PLAN_FRONTMATTER}${renderPlanBody(liftedPlan())}\n\n`;
-    const m = migrated(
-      decideDocumentMigration({
-        kind: "plan",
-        path: PLAN,
-        sidecarPath: PLAN_SIDECAR,
-        md,
-        sidecarJson: PLAN_0_20_0_JSON,
-      }),
-    );
-    expect(m.md).toBe(md);
-    expect(m.bodyChanged).toBe(false);
+  it("compares a 0.20.0 plan's body as agreement does: trailing whitespace is not a hand edit", () => {
+    const md = `${PLAN_FRONTMATTER}${renderPlanBodyV0_38_0(liftedPlan())}\n\n`;
+    const m = migrated(decidePlan(md, PLAN_0_20_0_JSON));
+    expect(m.md).toBe(PLAN_FRONTMATTER + renderPlanBody(declaring(liftedPlan(), "standard")));
+    expect(m.bodyChanged).toBe(true);
   });
 
   it("rewrites a 0.25.0 plan whose body is its 0.25.0 rendering, its Model reason line becoming an Assignment reason line", () => {
     const md = PLAN_FRONTMATTER + renderPlanBodyV0_25_0(PLAN_0_25_0);
     expect(md).toContain(`**Model reason:** ${REASON}`);
-    const m = migrated(
-      decideDocumentMigration({
-        kind: "plan",
-        path: PLAN,
-        sidecarPath: PLAN_SIDECAR,
-        md,
-        sidecarJson: PLAN_0_25_0_JSON,
-      }),
-    );
+    const m = migrated(decidePlan(md, PLAN_0_25_0_JSON));
 
     expect(m.fromShape).toBe("0.25.0");
     expect(m.bodyChanged).toBe(true);
@@ -448,13 +451,7 @@ describe("decideDocumentMigration — plans", () => {
     const md =
       PLAN_FRONTMATTER +
       renderPlanBodyV0_25_0(PLAN_0_25_0).replace("Do the step.", "Do the step, by hand.");
-    const decision = decideDocumentMigration({
-      kind: "plan",
-      path: PLAN,
-      sidecarPath: PLAN_SIDECAR,
-      md,
-      sidecarJson: PLAN_0_25_0_JSON,
-    });
+    const decision = decidePlan(md, PLAN_0_25_0_JSON);
     expect(decision.kind).toBe("refuse");
     if (decision.kind === "refuse") {
       expect(decision.refusal.problem).toBe(
@@ -463,13 +460,13 @@ describe("decideDocumentMigration — plans", () => {
     }
   });
 
-  it("migrates a 0.26.0 plan whose test strategies follow the line format to their lines, its body unchanged", () => {
+  it("migrates a 0.26.0 plan whose test strategies follow the line format to their lines, its body gaining only the Gate profile section", () => {
     const md = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(PLAN_0_26_0);
     const m = migrated(decidePlan(md, PLAN_0_26_0_JSON));
 
     expect(m.fromShape).toBe("0.26.0");
-    expect(m.md).toBe(md);
-    expect(m.bodyChanged).toBe(false);
+    expect(m.md).toBe(md.replace("## Required commands", GATE_PROFILE_SECTION));
+    expect(m.bodyChanged).toBe(true);
     const sidecar = JSON.parse(m.sidecarText) as {
       $schema: string;
       phases: Array<Record<string, unknown>>;
@@ -518,15 +515,55 @@ describe("decideDocumentMigration — plans", () => {
       phases: PLAN_0_26_0.phases.map((phase) => ({ ...phase, assignmentReason: null })),
     } as unknown as PlanDocumentV0_26_0Value;
     const own = PLAN_FRONTMATTER + renderPlanBodyV0_26_0(unreasoned);
-    expect(migrated(decidePlan(own, PLAN_0_20_0_JSON)).md).toBe(own);
+    expect(migrated(decidePlan(own, PLAN_0_20_0_JSON)).md).toBe(
+      own.replace("## Required commands", GATE_PROFILE_SECTION),
+    );
   });
 
-  // ac-older-sidecar: a 0.33.0 plan's body is the current body, so it migrates
+  // q-older-sidecar: an older plan sidecar declares no gate profile, and phax never invents one.
+  it("refuses an older plan given no gate profile, naming the flag, after its lift's own checks", () => {
+    const md = PLAN_FRONTMATTER + renderPlanBodyV0_38_0(liftedPlan());
+    expect(decidePlan(md, PLAN_0_20_0_JSON, null)).toEqual({
+      kind: "refuse",
+      refusal: {
+        path: PLAN,
+        problem: "declares no gate profile (run.gateProfile)",
+        remedy:
+          "Rerun with --gate-profile <id>, naming one of phax.json's gate profiles; an Approved plan then needs approving again.",
+      },
+    });
+    const prose = json({ $schema: schemaUrl("plan-document", "0.26.0"), ...PLAN_0_26_0_PROSE });
+    const decision = decidePlan(md, prose, null);
+    expect(decision.kind === "refuse" && decision.refusal.problem).toBe(
+      `phase-02 testStrategy line 1 departs from the test line format: "${PROSE}"`,
+    );
+  });
+
+  it("refuses an older plan given no gate profile before comparing its body", () => {
+    const decision = decidePlan(`${PLAN_FRONTMATTER}# Edited by hand\n`, PLAN_0_20_0_JSON, null);
+    expect(decision.kind === "refuse" && decision.refusal.problem).toBe(
+      "declares no gate profile (run.gateProfile)",
+    );
+  });
+
+  it("migrates a spec whatever gate profile is named: a spec ignores it", () => {
+    const named = decideDocumentMigration({
+      kind: "spec",
+      path: SPEC,
+      sidecarPath: SPEC_SIDECAR,
+      md: OLDER_SPEC_MD,
+      sidecarJson: SPEC_0_17_0_JSON,
+      gateProfile: "standard",
+    });
+    expect(named).toEqual(decideSpec(OLDER_SPEC_MD, SPEC_0_17_0_JSON));
+  });
+
+  // ac-older-sidecar: a 0.33.0 plan's body is the 0.38.0 body, so it migrates
   // when its paths are canonical and is refused, naming the path, when not.
   describe("a 0.33.0 plan sidecar", () => {
-    const at0_33_0 = (document: PlanDocument) =>
+    const at0_33_0 = (document: PlanDocumentWithoutGateProfile) =>
       json({ $schema: schemaUrl("plan-document", "0.33.0"), ...document });
-    const withEdit = (paths: readonly string[]): PlanDocument => {
+    const withEdit = (paths: readonly string[]): PlanDocumentWithoutGateProfile => {
       const document = liftedPlan();
       return {
         ...document,
@@ -537,14 +574,14 @@ describe("decideDocumentMigration — plans", () => {
       };
     };
 
-    it("migrates one whose paths are canonical to the current stamp, its body unchanged", () => {
+    it("migrates one whose paths are canonical to the current stamp, its body gaining only the Gate profile section", () => {
       const document = withEdit(["src/x.ts"]);
-      const md = PLAN_FRONTMATTER + renderPlanBody(document);
+      const md = PLAN_FRONTMATTER + renderPlanBodyV0_38_0(document);
       const m = migrated(decidePlan(md, at0_33_0(document)));
 
       expect(m.fromShape).toBe("0.33.0");
-      expect(m.md).toBe(md);
-      expect(m.bodyChanged).toBe(false);
+      expect(m.md).toBe(md.replace("## Required commands", GATE_PROFILE_SECTION));
+      expect(m.bodyChanged).toBe(true);
       const sidecar = JSON.parse(m.sidecarText) as { $schema: string };
       expect(sidecar.$schema).toBe(currentSchemaUrl("plan-document"));
       expect(sidecar.$schema).not.toBe(schemaUrl("plan-document", "0.33.0"));
@@ -552,7 +589,7 @@ describe("decideDocumentMigration — plans", () => {
 
     it("refuses one holding ./src/x.ts, naming phase-02, plannedFilesToEdit, the path and the remedy", () => {
       const document = withEdit(["src/y.ts", "./src/x.ts"]);
-      const md = PLAN_FRONTMATTER + renderPlanBody(document);
+      const md = PLAN_FRONTMATTER + renderPlanBodyV0_38_0(document);
       expect(decidePlan(md, at0_33_0(document))).toEqual({
         kind: "refuse",
         refusal: {
@@ -596,13 +633,10 @@ describe("decideDocumentMigration — plans", () => {
       sourceSpec: "docs/specs/2609251400-plan-prune.md",
       completesSpec: true,
     };
-    const decision = decideDocumentMigration({
-      kind: "plan",
-      path: PLAN,
-      sidecarPath: PLAN_SIDECAR,
-      md: "---\nstatus: Draft\nsource-spec: docs/specs/2609251400-plan-prune.md\ncompletes-spec: true\n---\n# Plan\n",
-      sidecarJson: json({ $schema: schemaUrl("plan-document", "0.19.0"), ...older }),
-    });
+    const decision = decidePlan(
+      "---\nstatus: Draft\nsource-spec: docs/specs/2609251400-plan-prune.md\ncompletes-spec: true\n---\n# Plan\n",
+      json({ $schema: schemaUrl("plan-document", "0.19.0"), ...older }),
+    );
     expect(decision.kind).toBe("refuse");
     if (decision.kind === "refuse") {
       expect(decision.refusal.problem).toMatch(/^has an invalid sidecar \(.*completesSpec/);
@@ -619,13 +653,7 @@ describe("groupMigratedArtifacts", () => {
       path: "docs/specs/2609271000-cache-keys.md",
     };
     const plan = migrated(
-      decideDocumentMigration({
-        kind: "plan",
-        path: PLAN,
-        sidecarPath: PLAN_SIDECAR,
-        md: PLAN_FRONTMATTER + renderPlanBody(liftedPlan()),
-        sidecarJson: PLAN_0_20_0_JSON,
-      }),
+      decidePlan(PLAN_FRONTMATTER + renderPlanBodyV0_38_0(liftedPlan()), PLAN_0_20_0_JSON),
     );
 
     const groups = groupMigratedArtifacts([

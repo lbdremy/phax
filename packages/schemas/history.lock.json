@@ -55,6 +55,7 @@
   "src/schemas/history/plan-document/0.28.0.ts": "beacbf66549ac0e5a3cd24df951f2c3a36a5baec52e857827d88cde0122fca6c",
   "src/schemas/history/plan-document/0.32.0.ts": "6fd20baa886c5971745571f267645812cdd1057eafaf0db631cffcb49d4753e3",
   "src/schemas/history/plan-document/0.33.0.ts": "84a329455837c7cf2d6dde1318b336a83611ac4515cdc2deca9d23b601800fe0",
+  "src/schemas/history/plan-document/0.38.0.ts": "0b34da98e8bbc4e263a17a0696b38ff25cb00b6ab451c57d8b0671919dc08376",
   "src/schemas/history/plan-document/pre-schema.ts": "474d9c43cf9ccf970a8b3cd2540631e547d39e9851b9a9bd3c20518a684055c8",
   "src/schemas/history/registry/0.17.0.ts": "b405c599ee0a09ffdb9d023cd1cae1f98d66bcf36079b5241ee62c21f7b27fcc",
   "src/schemas/history/registry/pre-schema.ts": "8b9f030f81fbebbdb0af4e166880ea23518859bfe70f66e8dc7441cc430704a1",

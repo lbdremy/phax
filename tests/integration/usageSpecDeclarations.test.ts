@@ -117,6 +117,8 @@ const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   // code-repository: a plan approval also records the code baseline of a linked project.
   "artifact approve",
   "artifact decide",
+  // plan-gate-profile: an older plan sidecar migrates only with --gate-profile <id>.
+  "artifact migrate-documents",
   "artifact schema",
   "plans overview",
   // code-repository: ground-changed is judged in the code repository under a code link.
@@ -146,6 +148,10 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["records sync", "flag --replay "],
   // records-branch-tip: the summary says sync now also brings the local records branch level.
   ["records sync", 'help "'],
+  // plan-gate-profile (q-older-sidecar): migrate-documents names the profile an older plan
+  // sidecar declares once migrated.
+  ["artifact migrate-documents", "flag --gate-profile "],
+  ["artifact migrate-documents", 'example "phax artifact migrate-documents --gate-profile '],
 ];
 
 /** q-security-bare (refuse-bare): `security` and `security status` no longer declare their own

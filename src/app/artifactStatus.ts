@@ -167,15 +167,17 @@ function authoringOf(sidecar: Sidecar | null): ArtifactAuthoring {
 }
 
 // The question arrays of a sidecar as read: a spec's, a current plan's or a
-// lifted plan's preamble. A plan whose lift is refused keeps the questions
-// its frozen value recorded: 0.25.0 to 0.33.0 carry them, older shapes none.
+// lifted plan's preamble (a lift that declares no gate profile carries every
+// other fact). A plan whose lift is refused keeps the questions its frozen
+// value recorded: 0.25.0 to 0.38.0 carry them, older shapes none.
 type QuestionArrays = Parameters<typeof summarizeDocumentQuestions>[0];
 
 function questionArrays(read: DocumentSidecar): QuestionArrays {
   if (read.kind === "spec") return read.document;
   if (read.shape === "current") return read.document.preamble;
-  if (read.lift.kind === "lifted") return read.lift.document.preamble;
+  if (read.lift.kind === "missing-gate-profile") return read.lift.document.preamble;
   if (
+    read.shape === "0.38.0" ||
     read.shape === "0.33.0" ||
     read.shape === "0.32.0" ||
     read.shape === "0.28.0" ||

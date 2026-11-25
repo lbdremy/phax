@@ -77,6 +77,7 @@ describe("migrate-documents over the interactive-phases plan, made live", () => 
       sidecarPath: `docs/plans/${INTERACTIVE_PHASES}.json`,
       md: live,
       sidecarJson: sidecarText,
+      gateProfile: "standard",
     });
     expect(decision.kind).toBe("refuse");
     if (decision.kind !== "refuse") return;

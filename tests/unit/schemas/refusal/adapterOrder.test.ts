@@ -70,7 +70,12 @@ const typicalPlanDocument = {
   kind: "plan",
   sourceSpec: null,
   completesSpec: null,
-  run: { shortName: "example-run", title: "Example run", requiredCommands: [] },
+  run: {
+    shortName: "example-run",
+    title: "Example run",
+    requiredCommands: [],
+    gateProfile: "standard",
+  },
   preamble: {
     summary: "An example plan.",
     requiredCommandsNote: "No command beyond the gate.",

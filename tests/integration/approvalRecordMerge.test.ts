@@ -361,7 +361,12 @@ describe("Plan approval writes its own record file", () => {
       kind: "plan",
       sourceSpec: null,
       completesSpec: null,
-      run: { shortName: "alpha-feature", title: "Alpha feature", requiredCommands: [] },
+      run: {
+        shortName: "alpha-feature",
+        title: "Alpha feature",
+        requiredCommands: [],
+        gateProfile: "standard",
+      },
       preamble: {
         summary: "One phase: the alpha command.",
         requiredCommandsNote: "No extra commands.",

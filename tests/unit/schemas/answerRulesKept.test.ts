@@ -41,7 +41,7 @@ import {
   decodeAuthoredSpecDocument,
   decodeSpecDocumentFile,
 } from "../../../src/schemas/specDocument.js";
-import { validDocuments, withOracleKey } from "../schemasPackage/documents.js";
+import { validDocuments, withOracleKey, withoutGateProfile } from "../schemasPackage/documents.js";
 
 type Decode = (input: unknown) => Result.Result<unknown, Schema.SchemaError>;
 type Body = Readonly<Record<string, unknown>>;
@@ -163,7 +163,8 @@ function withOldLoops(body: Body): Body {
       ),
     }),
   );
-  return { ...body, phases };
+  // The frozen shape's run declares no gate profile.
+  return { ...withoutGateProfile(body), phases };
 }
 
 const complianceReview: Body = {

@@ -1786,7 +1786,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -1795,7 +1795,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -1913,7 +1914,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "completesSpec": true,
           "kind": "plan",
           "phases": [
@@ -2028,6 +2029,7 @@
             "technicalArbitrations": []
           },
           "run": {
+            "gateProfile": "standard",
             "requiredCommands": [
               "pnpm gen:usage-spec"
             ],
@@ -2043,7 +2045,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": null,
           "completesSpec": null,
@@ -2052,7 +2054,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2170,7 +2173,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "completesSpec": null,
           "kind": "plan",
           "phases": [
@@ -2285,6 +2288,7 @@
             "technicalArbitrations": []
           },
           "run": {
+            "gateProfile": "standard",
             "requiredCommands": [
               "pnpm gen:usage-spec"
             ],
@@ -2300,7 +2304,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "run": {
@@ -2308,7 +2312,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2567,7 +2572,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2576,7 +2581,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2651,7 +2657,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2660,7 +2666,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2784,7 +2791,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2793,7 +2800,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2859,7 +2867,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2868,7 +2876,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -2942,7 +2951,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -2951,7 +2960,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -3025,7 +3035,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3034,7 +3044,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -3228,7 +3239,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3237,7 +3248,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",
@@ -3363,7 +3375,7 @@
       "input": {
         "decoder": "plan",
         "raw": {
-          "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
           "kind": "plan",
           "sourceSpec": "docs/specs/2609230835-headless-authoring.md",
           "completesSpec": true,
@@ -3372,7 +3384,8 @@
             "title": "Headless authoring",
             "requiredCommands": [
               "pnpm gen:usage-spec"
-            ]
+            ],
+            "gateProfile": "standard"
           },
           "preamble": {
             "summary": "Core to surface.",

@@ -127,7 +127,12 @@ const PLAN_DOCUMENT = {
   kind: "plan",
   sourceSpec: SOURCE_SPEC,
   completesSpec: true,
-  run: { shortName: "plan-prune", title: "Plan prune", requiredCommands: [] },
+  run: {
+    shortName: "plan-prune",
+    title: "Plan prune",
+    requiredCommands: [],
+    gateProfile: "standard",
+  },
   preamble: {
     summary: "One phase: the prune command.",
     requiredCommandsNote: "No extra commands.",

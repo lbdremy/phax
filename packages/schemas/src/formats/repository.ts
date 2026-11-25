@@ -11,12 +11,14 @@
 // `assignmentReason`, its 0.26.0 shape, written before test lines, and the
 // spec document's 0.27.0 and the plan document's 0.28.0 shapes, written before
 // the `$schema` const and the strict answer, the plan document's 0.32.0
-// shape, written before the `acceptance` loop, and its 0.33.0 shape, written
-// before plan paths were canonical, as releases, and lift them as phax's
-// reader does, except that an older test
-// strategy that is not wholly in the line format lifts to `Unknown`, and an
-// older plan's file lists are kept as written, where phax's reader refuses the
-// lift of a non-canonical one. Each current shape, named by
+// shape, written before the `acceptance` loop, its 0.33.0 shape, written
+// before plan paths were canonical, and its 0.38.0 shape, written before the
+// gate profile, as releases, and lift them as phax's reader does, except that
+// an older test strategy that is not wholly in the line format lifts to
+// `Unknown`, and an older plan's file lists are kept as written, where phax's
+// reader refuses the lift of a non-canonical one. An older plan lifts under a
+// type of its own (`LiftedPlanDocument`), never the latest: it recorded no
+// gate profile, and none is invented. Each current shape, named by
 // `CURRENT_SHAPES` (`next` until a release renames it), is phax's own file
 // schema and decoder. The package declares none of its own.
 import { Array as Arr } from "effect";
@@ -85,6 +87,11 @@ import {
   decodePlanDocumentV0_33_0,
   type PlanDocumentV0_33_0,
 } from "../../../../src/schemas/history/plan-document/0.33.0.js";
+import {
+  PlanDocumentV0_38_0Schema,
+  decodePlanDocumentV0_38_0,
+  type PlanDocumentV0_38_0,
+} from "../../../../src/schemas/history/plan-document/0.38.0.js";
 import {
   PlanDocumentPreSchemaSchema,
   decodePlanDocumentPreSchema,
@@ -453,6 +460,7 @@ export type PlanDocumentShapes = {
   "0.28.0": PlanDocumentV0_28_0;
   "0.32.0": PlanDocumentV0_32_0;
   "0.33.0": PlanDocumentV0_33_0;
+  "0.38.0": PlanDocumentV0_38_0;
 } & {
   [K in CurrentShapeName<"plan-document">]: PlanDocumentFile;
 };
@@ -472,6 +480,7 @@ export const planDocumentFormat = defineFormat<PlanDocumentShapes>({
     ["0.28.0", { schema: PlanDocumentV0_28_0Schema, decode: decodePlanDocumentV0_28_0 }],
     ["0.32.0", { schema: PlanDocumentV0_32_0Schema, decode: decodePlanDocumentV0_32_0 }],
     ["0.33.0", { schema: PlanDocumentV0_33_0Schema, decode: decodePlanDocumentV0_33_0 }],
+    ["0.38.0", { schema: PlanDocumentV0_38_0Schema, decode: decodePlanDocumentV0_38_0 }],
   ],
   current: {
     name: CURRENT_SHAPES["plan-document"],
@@ -492,18 +501,29 @@ export type LatestPlanPhase = Omit<PlanDocumentPhase, "testStrategy"> & {
   readonly testStrategy: PlanDocumentPhase["testStrategy"] | Unknown;
 };
 
-type LatestPlanBody = Omit<PlanDocument, "sourceSpec" | "completesSpec" | "phases"> & {
+/**
+ * The latest plan document: phax's in-memory value, with no `version` and no
+ * `$schema`. Its run declares the gate profile that verifies it; only a
+ * document at the current shape becomes one.
+ */
+export type LatestPlanDocument = PlanDocument;
+
+type LiftedPlanBody = Omit<PlanDocument, "sourceSpec" | "completesSpec" | "phases" | "run"> & {
+  readonly run: Omit<PlanDocument["run"], "gateProfile">;
   readonly phases: readonly [LatestPlanPhase, ...LatestPlanPhase[]];
 };
 
 /**
- * The latest plan document: phax's in-memory value, with no `version` and no
- * `$schema`. A document older than `completesSpec` that names a source spec
- * never said whether its plan completes it: its `completesSpec` is `Unknown`.
+ * A plan document older than the gate profile (0.38.0 and earlier), upgraded
+ * under a type of its own: every recorded fact lifted to the latest shape, but
+ * its run declares no gate profile, since none recorded one, and it is never a
+ * `LatestPlanDocument`. A document older than `completesSpec` that names a
+ * source spec never said whether its plan completes it: its `completesSpec` is
+ * `Unknown`.
  */
-export type LatestPlanDocument =
-  | (LatestPlanBody & PlanDocumentLineage)
-  | (LatestPlanBody & {
+export type LiftedPlanDocument =
+  | (LiftedPlanBody & PlanDocumentLineage)
+  | (LiftedPlanBody & {
       readonly sourceSpec: string;
       readonly completesSpec: Unknown;
     });
@@ -532,17 +552,36 @@ function liftTestStrategy(text: string): LatestPlanPhase["testStrategy"] {
  * line format, and `Unknown` otherwise. A 0.28.0 or 0.32.0 document's test
  * lines keep every coordinate, and their loop `oracle` becomes `acceptance`; a
  * phase of theirs holding a criterion `acceptance` has an `Unknown`
- * `testStrategy`, since 0.33.0 reserves that word. A 0.33.0 document lifts
- * like the current one. Every older shape keeps its file lists as written,
- * canonical or not: the package reads plans, it never runs one, so a latest
- * plan read from an older document may hold a non-canonical spelling.
+ * `testStrategy`, since 0.33.0 reserves that word. A 0.33.0 or 0.38.0
+ * document's facts are the current ones. Every older shape keeps its file
+ * lists as written, canonical or not: the package reads plans, it never runs
+ * one, so a plan read from an older document may hold a non-canonical
+ * spelling. No shape before the current one recorded a gate profile, and the
+ * package never invents one: every older shape upgrades to a
+ * `LiftedPlanDocument`, whose run declares none, and only a current document
+ * becomes a `LatestPlanDocument`, its `$schema` dropped.
  */
-export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocument {
+export function toLatestPlanDocument(value: PlanDocumentFile): LatestPlanDocument;
+export function toLatestPlanDocument(value: OlderPlanDocument): LiftedPlanDocument;
+export function toLatestPlanDocument(
+  value: PlanDocumentParsed,
+): LatestPlanDocument | LiftedPlanDocument;
+export function toLatestPlanDocument(
+  value: PlanDocumentParsed,
+): LatestPlanDocument | LiftedPlanDocument {
   if (isCurrentPlanDocument(value)) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
+  return liftOlderPlanDocument(value);
+}
+
+function liftOlderPlanDocument(value: OlderPlanDocument): LiftedPlanDocument {
+  if (hasTestLines(value)) {
     const { $schema: _schema, ...recorded } = value;
     // A 0.28.0 or 0.32.0 document carries test lines with the loop `oracle` and
     // phases with the `oracle` key: lifted to `acceptance` and `passedBy`
-    // (`liftPlanDocument`); a current one is kept. A phase holding a line whose
+    // (`liftPlanDocument`); a 0.33.0 or 0.38.0 one is kept. A phase holding a line whose
     // criterion is `acceptance`, a word 0.33.0 reserves, has no current lines:
     // its `testStrategy` is `Unknown` (`newlyReservedCriterionAt`).
     const lifted = liftPlanDocument(recorded);
@@ -601,7 +640,8 @@ export function toLatestPlanDocument(value: PlanDocumentParsed): LatestPlanDocum
   return withUnrecordedCompletesSpec({ ...recorded, preamble, phases });
 }
 
-type PlanDocumentParsed =
+/** Every plan document shape before the current one: none recorded a gate profile. */
+type OlderPlanDocument =
   | PlanDocumentPreSchema
   | PlanDocumentV0_17_0
   | PlanDocumentV0_20_0
@@ -610,36 +650,42 @@ type PlanDocumentParsed =
   | PlanDocumentV0_28_0
   | PlanDocumentV0_32_0
   | PlanDocumentV0_33_0
-  | PlanDocumentFile;
+  | PlanDocumentV0_38_0;
+
+type PlanDocumentParsed = OlderPlanDocument | PlanDocumentFile;
+
+/** Whether a parsed plan document is the current shape: the only one whose run declares a gate profile. */
+function isCurrentPlanDocument(value: PlanDocumentParsed): value is PlanDocumentFile {
+  return "gateProfile" in value.run;
+}
 
 /**
- * Whether a parsed plan document carries test lines: the current shape, the
- * 0.33.0 one (the current shape before plan paths were canonical), the 0.32.0
- * one, or the 0.28.0 one, which is the 0.32.0 shape under a release-pattern
- * `$schema`.
+ * Whether an older plan document carries test lines: the 0.38.0 shape, the
+ * 0.33.0 one (before plan paths were canonical), the 0.32.0 one, or the 0.28.0
+ * one, which is the 0.32.0 shape under a release-pattern `$schema`.
  */
-function isCurrentPlanDocument(
-  value: PlanDocumentParsed,
-): value is PlanDocumentFile | PlanDocumentV0_28_0 | PlanDocumentV0_32_0 | PlanDocumentV0_33_0 {
+function hasTestLines(
+  value: OlderPlanDocument,
+): value is PlanDocumentV0_28_0 | PlanDocumentV0_32_0 | PlanDocumentV0_33_0 | PlanDocumentV0_38_0 {
   return Array.isArray(value.phases[0].testStrategy);
 }
 
-/** Whether a parsed plan document is the 0.26.0 shape: phases with `mode` beside a string `testStrategy`. */
-function isPlanDocumentV0_26_0(value: PlanDocumentParsed): value is PlanDocumentV0_26_0 {
+/** Whether an older plan document is the 0.26.0 shape: phases with `mode` beside a string `testStrategy`. */
+function isPlanDocumentV0_26_0(value: OlderPlanDocument): value is PlanDocumentV0_26_0 {
   const [phase] = value.phases;
   return "mode" in phase && typeof phase.testStrategy === "string";
 }
 
-/** Whether a parsed plan document is the 0.25.0 shape: questions in the preamble, phases with `modelReason`. */
-function isPlanDocumentV0_25_0(value: PlanDocumentParsed): value is PlanDocumentV0_25_0 {
+/** Whether an older plan document is the 0.25.0 shape: questions in the preamble, phases with `modelReason`. */
+function isPlanDocumentV0_25_0(value: OlderPlanDocument): value is PlanDocumentV0_25_0 {
   return "openQuestions" in value.preamble && "modelReason" in value.phases[0];
 }
 
 function withUnrecordedCompletesSpec(
-  recorded: LatestPlanBody & {
+  recorded: LiftedPlanBody & {
     readonly sourceSpec: string | null;
   },
-): LatestPlanDocument {
+): LiftedPlanDocument {
   const { sourceSpec } = recorded;
   return sourceSpec === null
     ? { ...recorded, sourceSpec, completesSpec: null }

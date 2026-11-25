@@ -8,7 +8,7 @@ import { Array as Arr } from "effect";
 import type { AcceptanceRequest } from "./acceptanceRequest.js";
 import type { UntimedGateStep } from "./gateTimeLift.js";
 import type { PhaseAcceptance, PhaxPlan, PhaxPlanPhase } from "./phaxPlan.js";
-import type { PlanDocument, PlanDocumentPhase } from "./planDocument.js";
+import type { PlanDocumentPhase, PlanDocumentWithoutGateProfile } from "./planDocument.js";
 import type { ExtractionPlan, PlanExtractionAnswer } from "./planExtraction.js";
 import type { RecordAcceptanceRole } from "./runRecord.js";
 import type { PhaseStop, RunHold } from "./status.js";
@@ -53,10 +53,10 @@ export interface TestLineToLift {
 
 /**
  * A plan document, `$schema` dropped, whose test lines may still be in a shape
- * before 0.33.0 (0.28.0 or 0.32.0): the current document with each phase's
- * `testStrategy` widened to `TestLineToLift`.
+ * before 0.33.0 (0.28.0 or 0.32.0): the current document without its gate
+ * profile, each phase's `testStrategy` widened to `TestLineToLift`.
  */
-export type PlanDocumentToLift = DistributiveOmit<PlanDocument, "phases"> & {
+export type PlanDocumentToLift = DistributiveOmit<PlanDocumentWithoutGateProfile, "phases"> & {
   readonly phases: Arr.NonEmptyReadonlyArray<
     Omit<PlanDocumentPhase, "testStrategy" | "acceptance"> &
       PhaseKeyToLift & { readonly testStrategy: ReadonlyArray<TestLineToLift> }
@@ -153,8 +153,11 @@ export function liftPhaseKey<P extends object>(
   };
 }
 
-/** A plan document of a shape before 0.33.0: every phase's key and test lines lifted. */
-export function liftPlanDocument(doc: PlanDocumentToLift): PlanDocument {
+/**
+ * A plan document of a shape before 0.33.0: every phase's key and test lines
+ * lifted. Its run keeps what it recorded, which names no gate profile.
+ */
+export function liftPlanDocument(doc: PlanDocumentToLift): PlanDocumentWithoutGateProfile {
   return {
     ...doc,
     phases: Arr.map(doc.phases, (phase) =>
