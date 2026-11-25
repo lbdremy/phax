@@ -213,6 +213,7 @@ function planOf(phases: readonly PlannedPhase[]): { plan: PhaxPlan; planMd: stri
       title: "Invoice export",
       branch: `phax/${RUN_SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: planned as unknown as PhaxPlan["phases"],
   } satisfies PhaxPlan;

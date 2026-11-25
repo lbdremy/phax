@@ -747,6 +747,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/phax-plan/0.28.0.ts",
   "src/schemas/history/phax-plan/0.32.0.ts",
   "src/schemas/history/phax-plan/0.33.0.ts",
+  "src/schemas/history/phax-plan/0.38.0.ts",
   "src/schemas/history/phax-plan/pre-schema.ts",
   "src/schemas/history/plan-approval-record/0.19.0.ts",
   "src/schemas/history/plan-approval-record/0.25.0.ts",

@@ -117,7 +117,9 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -183,7 +185,9 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 
@@ -252,7 +256,9 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
     const { layer } = makeLayers();
 
@@ -321,7 +327,9 @@ describe("executePlan — model preflight", () => {
       ],
     } as const;
 
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
     const { layer, fakeBackend } = makeLayers();
 

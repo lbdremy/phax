@@ -283,7 +283,9 @@ async function seedHandoffs(phaseIds: readonly string[]): Promise<void> {
 }
 
 async function startRun(rawPlan: unknown, brief: BriefConfig | undefined, layers: Fakes["layers"]) {
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+  ).plan;
   const config = makeConfig(brief);
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config).pipe(Effect.provide(layers)),

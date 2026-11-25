@@ -329,6 +329,7 @@ describe("projectExtractedPlan", () => {
         shortName: "headless-authoring",
         title: "Headless authoring",
         requiredCommands: ["pnpm gen:usage-spec"],
+        gateProfile: "standard",
       },
       phases: [1, 2].map((n) => ({
         id: `phase-0${n}`,

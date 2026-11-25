@@ -165,7 +165,9 @@ describe.skipIf(!shouldRun)("E2E semantic trace — per-provider snapshots", () 
 
   for (const testCase of CASES) {
     it(`pins the semantic trace for ${testCase.name}`, async () => {
-      const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+      const plan = Result.getOrThrow(
+        liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+      ).plan;
 
       const config: ResolvedConfig = {
         raw: {

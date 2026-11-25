@@ -18,6 +18,10 @@ const NOW_ISO = "2026-06-29T00:00:00.000Z";
 
 const PLAN_MD = `# Plan — My Test Run
 
+## Gate profile
+
+\`standard\`
+
 ## phase-01 — First Phase {#phase-01-first-phase}
 
 Phase description.
@@ -91,7 +95,7 @@ describe("loadOrExtractPlan — extraction is not gated by lifecycle status", ()
     const fakeFs = makeFakeFileSystem();
     const fakeBackend = makeFakeBackend();
 
-    const draftPlanMd = `---\nstatus: Draft\nsource-spec: null\n---\n# Plan — My Test Run\n\n## phase-01 — First Phase {#phase-01-first-phase}\n\nPhase description.\n`;
+    const draftPlanMd = `---\nstatus: Draft\nsource-spec: null\n---\n# Plan — My Test Run\n\n## Gate profile\n\n\`standard\`\n\n## phase-01 — First Phase {#phase-01-first-phase}\n\nPhase description.\n`;
     fakeFs.impl.setFile(PLAN_MD_PATH, draftPlanMd);
     fakeBackend.impl.addCompletionResponse({ finalText: EXTRACTED_JSON });
 

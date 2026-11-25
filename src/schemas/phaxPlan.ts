@@ -90,7 +90,7 @@ export const answerPhaseFields = {
  * empty string, carrying the description: a second check would render under
  * `allOf`, outside a provider's strict structured output.
  */
-export const GateProfileId = Schema.String.check(
+const GateProfileId = Schema.String.check(
   isExportedPattern(/^[^\s`]+$/, {
     message: "a gate profile id is a run of non-whitespace characters holding no backtick",
     description:
@@ -98,13 +98,23 @@ export const GateProfileId = Schema.String.check(
   }),
 );
 
-export const ExtractedRunSchema = Schema.Struct({
+// What the extraction model emits for the run: the extracted run without the
+// declared gate profile, which phax reads from plan.md's `## Gate profile`
+// section itself (`readPlanGateProfile`), as it reads a phase's mode and
+// acceptance. The phax-plan-extraction answer (planExtraction.ts) carries
+// exactly these.
+export const answerRunFields = {
   // Loose on purpose: the model is unreliable at emitting a valid slug, so we
   // accept any non-empty string here and slugify it ourselves in
   // `finalizeExtractedPlan` (see `slugifyShortName`).
   shortName: NonEmptyString,
   title: NonEmptyString,
   requiredCommands: Schema.Array(Schema.String),
+};
+
+export const ExtractedRunSchema = Schema.Struct({
+  ...answerRunFields,
+  gateProfile: GateProfileId,
 });
 
 // The persisted phase: the extracted fields plus the heading-derived `title`.
@@ -139,6 +149,7 @@ const phaxPlanFields = {
     title: NonEmptyString,
     branch: NonEmptyString,
     requiredCommands: Schema.Array(Schema.String),
+    gateProfile: GateProfileId,
   }),
   phases: Schema.NonEmptyArray(PhaseSchema),
 };

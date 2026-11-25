@@ -73,6 +73,7 @@ function headlessPlan(): { plan: PhaxPlan; planMd: string } {
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: TITLES.map((title, i): PhaxPlanPhase => ({
       id: idOf(i),
@@ -91,6 +92,10 @@ function headlessPlan(): { plan: PhaxPlan; planMd: string } {
   } satisfies PhaxPlan;
   const planMd = [
     "# Invoice export",
+    "",
+    "## Gate profile",
+    "",
+    `\`${plan.run.gateProfile}\``,
     "",
     "## Required commands",
     "",

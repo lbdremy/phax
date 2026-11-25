@@ -60,6 +60,7 @@ const plan: PhaxPlan = {
     title: "My Run",
     branch: "feature/my-run",
     requiredCommands: [],
+    gateProfile: "fast",
   },
   phases: [
     {
@@ -167,6 +168,8 @@ describe("createRunFolder", () => {
     expect(Object.keys(written)[0]).toBe("$schema");
     expect(written["$schema"]).toBe(schemaUrl("phax-plan", CURRENT_STAMPS["phax-plan"]));
     expect(written).not.toHaveProperty("version");
+    // The run's gate profile is recorded at the current stamp.
+    expect(written["run"]).toMatchObject({ gateProfile: "fast" });
     const decoded = decodePhaxPlanFile(written);
     expect(Result.isSuccess(decoded)).toBe(true);
     if (Result.isSuccess(decoded)) {

@@ -70,23 +70,27 @@ const failingReport = JSON.stringify({
 const shortName = Result.getOrThrow(decodeShortName("greet"));
 
 const plan: PhaxPlan = Result.getOrThrow(
-  liftFixturePhaxPlanToCurrent("phax-plan.json", {
-    version: 1,
-    run: { shortName: "greet", title: "Greet", branch: "ai/greet", requiredCommands: [] },
-    phases: [
-      {
-        id: "phase-01",
-        title: "Phase 1",
-        model: "claude-sonnet-4-6",
-        effort: "low",
-        planMarkdownAnchor: "#phase-01",
-        plannedFilesToCreate: ["src/greet.ts"],
-        plannedFilesToEdit: [],
-        optionalFilesToEdit: [],
-        commit: { subject: "feat: greet", body: "Greet." },
-      },
-    ],
-  }),
+  liftFixturePhaxPlanToCurrent(
+    "phax-plan.json",
+    {
+      version: 1,
+      run: { shortName: "greet", title: "Greet", branch: "ai/greet", requiredCommands: [] },
+      phases: [
+        {
+          id: "phase-01",
+          title: "Phase 1",
+          model: "claude-sonnet-4-6",
+          effort: "low",
+          planMarkdownAnchor: "#phase-01",
+          plannedFilesToCreate: ["src/greet.ts"],
+          plannedFilesToEdit: [],
+          optionalFilesToEdit: [],
+          commit: { subject: "feat: greet", body: "Greet." },
+        },
+      ],
+    },
+    "full",
+  ),
 ).plan;
 
 function makeConfig(stateRoot: string): ResolvedConfig {

@@ -67,6 +67,10 @@ const validReconciliation = JSON.stringify({
 // Minimal plan.md content that finalizeExtractedPlan can derive a title from
 const planMdContent = `# My Plan
 
+## Gate profile
+
+\`standard\`
+
 ## phase-01 — Phase One {#phase-01-phase-one}
 
 Some content.
@@ -88,6 +92,7 @@ function buildMinimalExtracted() {
       shortName: "foo",
       title: "My Plan",
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: [
       {

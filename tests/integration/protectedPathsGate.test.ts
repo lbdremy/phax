@@ -206,6 +206,7 @@ function planOf(): { plan: PhaxPlan; planMd: string } {
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: [phase] as unknown as PhaxPlan["phases"],
   } satisfies PhaxPlan;

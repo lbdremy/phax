@@ -63,7 +63,18 @@ const config = {
   complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
 } as unknown as ResolvedConfig;
 
-const textOf = (path: string): string => readFileSync(path, "utf8");
+// The archived plans predate the gate-profile declaration, which every plan now carries: each is
+// read as a copy with `standard`, the profile of `config` above, declared just before its
+// `## Required commands`. The plan files themselves are never edited.
+const DECLARATION = "## Gate profile\n\n`standard`\n\n";
+
+function textOf(path: string): string {
+  const text = readFileSync(path, "utf8");
+  if (/^## Gate profile$/m.test(text)) return text;
+  const declared = text.replace(/^## Required commands$/m, `${DECLARATION}## Required commands`);
+  if (declared === text) throw new Error(`${path}: no ## Required commands to declare before`);
+  return declared;
+}
 
 function readPlan(path: string): PhaxPlan {
   const extracted = extractPlanDeterministic(textOf(path));

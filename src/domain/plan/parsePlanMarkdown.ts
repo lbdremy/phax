@@ -252,6 +252,83 @@ function extractRequiredCommands(
   );
 }
 
+// The structure errors of a plan whose preamble declares no gate profile, and
+// more than one.
+const GATE_PROFILE_MISSING = "the plan declares no gate profile (## Gate profile)";
+const GATE_PROFILE_DOUBLED = "the plan declares more than one gate profile (## Gate profile)";
+// A section holding one thing that is not one id: a code block, a quote, or a
+// word with a backtick in it.
+const GATE_PROFILE_NOT_AN_ID =
+  "the plan's gate profile is not one id written as a code span or a bare word (## Gate profile)";
+
+const GATE_PROFILE_TITLE = "gate profile";
+const GATE_PROFILE_ID_RE = /^[^\s`]+$/;
+const WHITESPACE_RE = /\s/;
+
+// The one id a `## Gate profile` section's paragraph holds: the paragraph is
+// one code span, or its flattened text is one bare word.
+function readGateProfileParagraph(paragraph: Paragraph): Result.Result<string, string> {
+  const [only, ...others] = paragraph.children;
+  const written = (
+    only?.type === "inlineCode" && others.length === 0 ? only.value : toString(paragraph)
+  ).trim();
+  if (written.length === 0) return Result.fail(GATE_PROFILE_MISSING);
+  if (WHITESPACE_RE.test(written)) return Result.fail(GATE_PROFILE_DOUBLED);
+  return GATE_PROFILE_ID_RE.test(written)
+    ? Result.succeed(written)
+    : Result.fail(GATE_PROFILE_NOT_AN_ID);
+}
+
+// Reads the preamble's `## Gate profile` sections (title matched
+// case-insensitively and trimmed, as `## Required commands` is). Each runs to
+// the next `#` or `##` heading. None, or one with nothing in it, is missing;
+// two, or one holding more than one paragraph, a list or two words, is
+// doubled.
+function readGateProfileInPreamble(
+  preamble: readonly RootContent[],
+): Result.Result<string, string> {
+  const sections: RootContent[][] = [];
+  let current: RootContent[] | null = null;
+  for (const node of preamble) {
+    if (node.type === "heading" && node.depth <= 2) {
+      current = null;
+      if (isH2(node) && toString(node).trim().toLowerCase() === GATE_PROFILE_TITLE) {
+        current = [];
+        sections.push(current);
+      }
+      continue;
+    }
+    current?.push(node);
+  }
+  const [section, ...others] = sections;
+  if (section === undefined) return Result.fail(GATE_PROFILE_MISSING);
+  if (others.length > 0) return Result.fail(GATE_PROFILE_DOUBLED);
+  const [only, ...rest] = section;
+  if (only === undefined) return Result.fail(GATE_PROFILE_MISSING);
+  if (rest.length > 0 || isList(only)) return Result.fail(GATE_PROFILE_DOUBLED);
+  return isParagraph(only) ? readGateProfileParagraph(only) : Result.fail(GATE_PROFILE_NOT_AN_ID);
+}
+
+/**
+ * The gate profile a plan.md declares in its one preamble `## Gate profile`
+ * section: the id, written as a code span or a bare word, or the structure
+ * error the plan's declaration is (`GATE_PROFILE_MISSING`,
+ * `GATE_PROFILE_DOUBLED`, or a section holding one thing that is not an id).
+ * A plan nested over the limit `readPlanTree` refuses fails with that refusal.
+ * phax reads the declaration itself on both extraction paths; the model is
+ * never asked for it.
+ */
+export function readPlanGateProfile(planMd: string): Result.Result<string, PlanValidationError> {
+  const tree = readPlanTree(planMd);
+  if (Result.isFailure(tree)) {
+    return Result.fail(new PlanValidationError({ message: tree.failure.message }));
+  }
+  return Result.mapError(
+    readGateProfileInPreamble(collectPreamble(tree.success.root)),
+    (message) => new PlanValidationError({ message }),
+  );
+}
+
 interface PhaseBlock {
   readonly heading: Heading;
   readonly body: RootContent[];
@@ -327,7 +404,7 @@ export function readPlanTestStrategies(planMd: string): readonly PhaseTestStrate
   }));
 }
 
-// Nodes before the first phase h2 — used to find "## Required commands".
+// Nodes before the first phase h2 — used to find "## Gate profile" and "## Required commands".
 function collectPreamble(root: Root): RootContent[] {
   const preamble: RootContent[] = [];
   for (const child of root.children) {
@@ -411,6 +488,7 @@ interface PlanWalkResult {
       readonly shortName: string;
       readonly title: string;
       readonly requiredCommands: readonly string[];
+      readonly gateProfile: string;
     };
     readonly phases: readonly unknown[];
   } | null;
@@ -450,6 +528,14 @@ function walkPlan(planMd: string): PlanWalkResult {
   }
 
   const preamble = collectPreamble(root);
+  const gateProfileE = readGateProfileInPreamble(preamble);
+  let gateProfile = "";
+  if (Result.isFailure(gateProfileE)) {
+    errors.push({ phase: null, message: gateProfileE.failure });
+  } else {
+    gateProfile = gateProfileE.success;
+  }
+
   const requiredCommandsE = extractRequiredCommands(preamble);
   let requiredCommands: readonly string[] = [];
   if (Result.isFailure(requiredCommandsE)) {
@@ -594,7 +680,7 @@ function walkPlan(planMd: string): PlanWalkResult {
     errors,
     candidate: {
       version: 1,
-      run: { shortName: runTitle, title: runTitle, requiredCommands },
+      run: { shortName: runTitle, title: runTitle, requiredCommands, gateProfile },
       phases,
     },
     strategies,

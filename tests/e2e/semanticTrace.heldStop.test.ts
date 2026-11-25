@@ -106,6 +106,7 @@ function planOf(): { plan: PhaxPlan; planMd: string } {
       title: "Ledger formatters",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: TITLES.map((title, i): PhaxPlanPhase => ({
       id: idOf(i),

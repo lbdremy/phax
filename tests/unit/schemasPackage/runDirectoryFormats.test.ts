@@ -35,6 +35,7 @@ import {
   withKey,
   withOracleKey,
   withOracleKeys,
+  withoutGateProfile,
   withoutKey,
   type Doc,
 } from "./documents.js";
@@ -190,7 +191,8 @@ describe.each(FORMATS)("$id", (format) => {
       const phases = (doc["phases"] as Doc[]).map((phase) =>
         Object.keys(phaseLift).reduce(withoutKey, phase),
       );
-      return { ...doc, phases };
+      // No older phax-plan recorded a gate profile, and the package invents none.
+      return { ...withoutGateProfile(doc), phases };
     };
     expect(recorded(format.toLatest(written.value as never))).toEqual(
       recorded(format.toLatest(old.value as never)),
@@ -339,7 +341,8 @@ describe("toLatestPhaxPlan", () => {
 });
 
 describe("the phax-plan's mode, oracle and test lines history", () => {
-  const current = validDocuments["phax-plan"];
+  // Every shape before the current one recorded no gate profile.
+  const current = withoutGateProfile(validDocuments["phax-plan"]);
   /** A phax-plan as phax 0.26.0 and 0.27.x wrote it: `$schema`, phases without testLines, the `oracle` key. */
   function withoutLines(release: string): Doc {
     const phases = (current["phases"] as Doc[]).map((phase) =>
@@ -390,8 +393,9 @@ describe("the phax-plan's mode, oracle and test lines history", () => {
   );
 
   it("refuses a document at the current stamp that lacks testLines", () => {
-    const phases = (current["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
-    expect(parsePhaxPlan(withKey(current, "phases", phases))).toMatchObject({ ok: false });
+    const written = validDocuments["phax-plan"];
+    const phases = (written["phases"] as Doc[]).map((phase) => withoutKey(phase, "testLines"));
+    expect(parsePhaxPlan(withKey(written, "phases", phases))).toMatchObject({ ok: false });
   });
 
   it("parses a 0.17.0 document as shape 0.17.0 through the frozen module", () => {
@@ -415,12 +419,13 @@ describe("the phax-plan's mode, oracle and test lines history", () => {
   });
 
   it("keeps an interactive phase and its acceptance tests as recorded", () => {
-    const phases = (current["phases"] as Doc[]).map((phase) => ({
+    const written = validDocuments["phax-plan"];
+    const phases = (written["phases"] as Doc[]).map((phase) => ({
       ...phase,
       mode: "interactive",
       acceptance: { passedBy: "phase-02", files: ["tests/a.test.ts"] },
     }));
-    const result = parsePhaxPlan(withKey(current, "phases", phases));
+    const result = parsePhaxPlan(withKey(written, "phases", phases));
     if (!result.ok) throw new Error("document rejected");
     expect(toLatestPhaxPlan(result.value).phases[0]).toMatchObject({
       mode: "interactive",
@@ -519,8 +524,9 @@ describe("the phax-plan's test line loop", () => {
       const result = parsePhaxPlan(old);
       expect(result).toEqual({ ok: true, shape, value: old });
       if (!result.ok) throw new Error("document rejected");
+      // No older shape recorded a gate profile, and the package invents none.
       expect(toLatestPhaxPlan(result.value)).toEqual(
-        withoutKey(withLines(current, "acceptance"), "$schema"),
+        withoutGateProfile(withoutKey(withLines(current, "acceptance"), "$schema")),
       );
     },
   );

@@ -228,7 +228,9 @@ describe("executePlan — the Gate-Log trailer", () => {
     backend: ReturnType<typeof makeFakeBackend>;
     seed?: (runPath: string, runId: string) => Promise<unknown>;
   }) {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const fakeGit = makeFakeGit();
     fakeGit.impl.setRepoIsClean(true);
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);

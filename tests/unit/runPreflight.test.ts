@@ -77,7 +77,13 @@ function makePlan(
 ): PhaxPlan {
   return {
     version: 1,
-    run: { shortName: "foo", title: "Foo", branch: "phax/foo", requiredCommands },
+    run: {
+      shortName: "foo",
+      title: "Foo",
+      branch: "phax/foo",
+      requiredCommands,
+      gateProfile: "standard",
+    },
     phases,
   } as unknown as PhaxPlan;
 }
@@ -571,7 +577,9 @@ describe("runPreflights", () => {
     expect(Result.isSuccess(result)).toBe(true);
     if (Result.isSuccess(result)) {
       const { preamble, sections } = result.success.planSections;
-      expect(preamble).toBe("# Foo\n\n## Required commands\n\n- (none)");
+      expect(preamble).toBe(
+        "# Foo\n\n## Gate profile\n\n`standard`\n\n## Required commands\n\n- (none)",
+      );
       expect([...sections.keys()]).toEqual(["phase-01", "phase-02"]);
       expect(sections.get("phase-02")).toBe(
         "## phase-02 — Phase phase-02 {#phase-02}\n\nCarry out phase-02's made-up instructions.",

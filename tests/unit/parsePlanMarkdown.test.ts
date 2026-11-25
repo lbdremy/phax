@@ -85,6 +85,8 @@ function makePlan(
   opts: {
     title?: string;
     requiredCommands?: string;
+    /** The `## Gate profile` section's text; `standard` by default, none when null. */
+    gateProfile?: string | null;
     phases?: string[];
     extraContext?: string;
   } = {},
@@ -92,10 +94,12 @@ function makePlan(
   const title = opts.title ?? "Deterministic plan";
   const rc = opts.requiredCommands ?? "- (none)";
   const phases = opts.phases ?? [makePhase()];
+  const gateProfile = opts.gateProfile === undefined ? "`standard`" : opts.gateProfile;
   return [
     `# ${title}`,
     ``,
     opts.extraContext ?? "",
+    ...(gateProfile === null ? [] : [`## Gate profile`, ``, gateProfile, ``]),
     `## Required commands`,
     ``,
     rc,
@@ -145,6 +149,7 @@ describe("extractPlanDeterministic", () => {
         shortName: "Deterministic plan",
         title: "Deterministic plan",
         requiredCommands: ["pnpm add", "pnpm test"],
+        gateProfile: "standard",
       },
       phases: [
         {
@@ -453,6 +458,50 @@ describe("extractPlanDeterministic", () => {
     expect(Result.isSuccess(frontmatterResult)).toBe(true);
     if (!Result.isSuccess(headerResult) || !Result.isSuccess(frontmatterResult)) return;
     expect(frontmatterResult.success).toEqual(headerResult.success);
+  });
+});
+
+describe("the ## Gate profile declaration", () => {
+  it("reads a declared light into run.gateProfile on the deterministic path", () => {
+    const read = readPlanDeterministic(makePlan({ gateProfile: "`light`" }));
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.plan.run).toEqual({
+      shortName: "Deterministic plan",
+      title: "Deterministic plan",
+      requiredCommands: [],
+      gateProfile: "light",
+    });
+  });
+
+  it.each([
+    ["no section", null, "the plan declares no gate profile (## Gate profile)"],
+    [
+      "two ids",
+      "`light` `standard`",
+      "the plan declares more than one gate profile (## Gate profile)",
+    ],
+  ])(
+    "reports %s as one plan-level structure error before the required commands",
+    (_, text, message) => {
+      const md = makePlan({ gateProfile: text, requiredCommands: "" });
+      expect(collectPlanStructureErrors(md)).toEqual([
+        { phase: null, message },
+        { phase: null, message: `"Required commands" section has no list` },
+      ]);
+      const read = readPlanDeterministic(md);
+      if (Result.isSuccess(read)) throw new Error("unexpected success");
+      expect(read.failure.message).toBe(message);
+    },
+  );
+
+  it("reads a section placed after the required commands, still in the preamble", () => {
+    const md = makePlan({ gateProfile: null }).replace(
+      "## phase-01",
+      "## Gate profile\n\nlight\n\n## phase-01",
+    );
+    const read = readPlanDeterministic(md);
+    if (Result.isFailure(read)) throw new Error(read.failure.message);
+    expect(read.success.plan.run.gateProfile).toBe("light");
   });
 });
 

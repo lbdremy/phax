@@ -306,6 +306,7 @@ describe("resetPhase", () => {
           title: "Refunds",
           branch: "phax/refunds",
           requiredCommands: [],
+          gateProfile: "standard",
         },
         phases: [
           planPhase("phase-01", null),
@@ -491,6 +492,7 @@ describe("resetPhase", () => {
           title: "Refunds",
           branch: "phax/refunds",
           requiredCommands: [],
+          gateProfile: "standard",
         },
         phases: [
           planPhase("phase-01", null),
@@ -915,6 +917,7 @@ describe("previewResetPhase refuses what resetPhase refuses", () => {
         title: "Refunds",
         branch: "phax/refunds",
         requiredCommands: [],
+        gateProfile: "standard",
       },
       phases,
     };

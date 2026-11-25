@@ -52,6 +52,10 @@ source-spec: null
 ---
 # Dry Run Plan
 
+## Gate profile
+
+\`fast\`
+
 ## phase-01 — First Phase {#phase-01-first}
 
 **Recommended model:** claude-sonnet-4-6

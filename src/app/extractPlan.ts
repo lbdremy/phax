@@ -9,6 +9,7 @@ import { answerJsonSchema } from "../schemas/answerSchemas.js";
 import { readPlanExtractionAnswer } from "../schemas/planExtraction.js";
 import { CURRENT_STAMPS } from "../schemas/release.js";
 import { schemaUrl } from "../schemas/schemaUrl.js";
+import { readPlanGateProfile } from "../domain/plan/parsePlanMarkdown.js";
 import { withPhaseKinds } from "../domain/plan/phaseHeader.js";
 import {
   AgentInvocationError,
@@ -119,7 +120,16 @@ export function extractPlanLlm(
     const kinded = withPhaseKinds(answer.success.plan, planMd);
     if (Result.isFailure(kinded)) return yield* Effect.fail(kinded.failure);
 
-    const decoded = decodeExtractedPlan({ version: 1, ...kinded.success });
+    // The gate profile too is phax's own reading of plan.md's `## Gate
+    // profile` section, never the model's: the answer carries none.
+    const gateProfile = readPlanGateProfile(planMd);
+    if (Result.isFailure(gateProfile)) return yield* Effect.fail(gateProfile.failure);
+
+    const decoded = decodeExtractedPlan({
+      version: 1,
+      run: { ...kinded.success.run, gateProfile: gateProfile.success },
+      phases: kinded.success.phases,
+    });
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new PlanValidationError({

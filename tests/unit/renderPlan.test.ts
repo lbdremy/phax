@@ -179,6 +179,8 @@ describe("renderPlanBody round trip through the deterministic parser", () => {
       title: "Headless authoring",
       branch: "phax/headless-authoring",
       requiredCommands: ["pnpm gen:usage-spec", "pnpm dev schema upgrade"],
+      // The sidecar's gate profile, rendered as ## Gate profile and read back by phax.
+      gateProfile: "standard",
     });
   });
 

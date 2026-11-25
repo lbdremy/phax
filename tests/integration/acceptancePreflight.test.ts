@@ -99,7 +99,13 @@ const PLAN_PATH = "docs/plans/foo.md";
 function makePlan(): PhaxPlan {
   return {
     version: 1,
-    run: { shortName: "foo", title: "Foo", branch: "phax/foo", requiredCommands: [] },
+    run: {
+      shortName: "foo",
+      title: "Foo",
+      branch: "phax/foo",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     phases: PHASE_IDS.map((id) => ({
       id,
       title: `Phase ${id}`,

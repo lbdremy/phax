@@ -17,8 +17,9 @@
 // document without `$schema` is read only by the frozen pre-schema decoder,
 // then stepped to the current shape. Six formats also read an older
 // `$schema` shape: a phax-plan stamped below its current stamp is read by the
-// frozen 0.33.0 decoder when stamped 0.33.0 or later (its file lists as
-// written), by the frozen 0.32.0 decoder when stamped 0.32.0 or later, by the frozen 0.28.0
+// frozen 0.38.0 decoder when stamped 0.38.0 or later (its run naming no gate
+// profile, and none invented), by the frozen 0.33.0 decoder when stamped
+// 0.33.0 or later (its file lists as written), by the frozen 0.32.0 decoder when stamped 0.32.0 or later, by the frozen 0.28.0
 // decoder when stamped 0.28.0 or later, by the frozen 0.26.0 decoder when
 // stamped 0.26.0 or later, and below that by the
 // frozen 0.17.0 decoder (the last two lifted with `mode: "headless"` and
@@ -86,6 +87,7 @@ import {
   liftStopStep,
   liftVerifiedSurfaces,
   newlyReservedCriterionAt,
+  type PhaxPlanRunWithoutGateProfile,
   type PlanDocumentToLift,
 } from "./acceptanceLift.js";
 import {
@@ -178,6 +180,7 @@ import { decodePhaxPlanV0_26_0 } from "./history/phax-plan/0.26.0.js";
 import { decodePhaxPlanV0_28_0 } from "./history/phax-plan/0.28.0.js";
 import { decodePhaxPlanV0_32_0, type PhaxPlanV0_32_0 } from "./history/phax-plan/0.32.0.js";
 import { decodePhaxPlanV0_33_0, type PhaxPlanV0_33_0 } from "./history/phax-plan/0.33.0.js";
+import { decodePhaxPlanV0_38_0, type PhaxPlanV0_38_0 } from "./history/phax-plan/0.38.0.js";
 import { decodePhaxPlanPreSchema, type PhaxPlanPreSchema } from "./history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "./history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalRecordV0_25_0 } from "./history/plan-approval-record/0.25.0.js";
@@ -585,6 +588,7 @@ const readPhaseStatusShape: Reader<PhaseStatus> = (file, input) => {
 /** The shape a run's `phax-plan.json` was read in. */
 export type PhaxPlanShape =
   | "current"
+  | "0.38.0"
   | "0.33.0"
   | "0.32.0"
   | "0.28.0"
@@ -593,12 +597,14 @@ export type PhaxPlanShape =
   | "pre-schema";
 
 /**
- * The plan every shape of `phax-plan.json` satisfies: its phases carry no
- * `testLines`, because a plan an older phax extracted never stated them. The
- * display and sizing readers take it, so none is told a past run tested nothing.
+ * The plan every shape of `phax-plan.json` satisfies: its run names no gate
+ * profile, because no shape before the current one recorded one and none is
+ * invented, and its phases carry no `testLines`, because a plan an older phax
+ * extracted never stated them. The display and sizing readers take it, so none
+ * is told a past run tested nothing, or was gated by a profile it never named.
  */
 export interface AnyShapePhaxPlan {
-  readonly run: PhaxPlan["run"];
+  readonly run: PhaxPlanRunWithoutGateProfile;
   readonly phases: Arr.NonEmptyReadonlyArray<Omit<PhaxPlanPhase, "testLines">>;
 }
 
@@ -629,12 +635,15 @@ function liftPhaxPlanPhases(phases: PhaxPlanV0_17_0["phases"]): AnyShapePhaxPlan
   }));
 }
 
-// A phax-plan of the 0.28.0, 0.32.0 or 0.33.0 shape without its `testLines`,
-// its phases' `oracle` key lifted to `acceptance` (a 0.33.0 phase already has
-// it) and its file lists as written: what a run started by an earlier release
-// extracted, shown or sized, never resumed.
+// A phax-plan of the 0.28.0, 0.32.0, 0.33.0 or 0.38.0 shape without its
+// `testLines`, its phases' `oracle` key lifted to `acceptance` (a 0.33.0 or
+// 0.38.0 phase already has it) and its file lists as written: what a run
+// started by an earlier release extracted, shown or sized, never resumed.
 function withoutTestLines(
-  plan: Omit<PhaxPlanV0_32_0, "$schema"> | Omit<PhaxPlanV0_33_0, "$schema">,
+  plan:
+    | Omit<PhaxPlanV0_32_0, "$schema">
+    | Omit<PhaxPlanV0_33_0, "$schema">
+    | Omit<PhaxPlanV0_38_0, "$schema">,
 ): AnyShapePhaxPlan {
   return liftPhaxPlanWithoutTestLines({
     run: plan.run,
@@ -644,8 +653,10 @@ function withoutTestLines(
 
 /**
  * Reads a run's `phax-plan.json`, reporting the shape it read: a file at the
- * current stamp by the current decoder (`current`), its file lists canonical;
- * one stamped 0.33.0 or later, below the current stamp, by the frozen 0.33.0
+ * current stamp by the current decoder (`current`), its file lists canonical
+ * and its run naming its gate profile; one stamped 0.38.0 or later, below the
+ * current stamp, by the frozen 0.38.0 decoder (`0.38.0`), whose run names no
+ * gate profile; one stamped 0.33.0 or later by the frozen 0.33.0
  * decoder (`0.33.0`), its file lists as written; one stamped 0.32.0 or later
  * by the frozen 0.32.0 decoder (`0.32.0`); one
  * stamped 0.28.0 or later by the frozen 0.28.0 decoder (`0.28.0`); one
@@ -663,6 +674,14 @@ export const readPhaxPlanFile: Reader<PhaxPlanRead> = (file, input) => {
   if (isDocumentObject(input) && isStampedBelowCurrent("phax-plan", input)) {
     // `isStampedBelowCurrent` has parsed the stamp, so the release is there.
     const release = parseSchemaUrl(input["$schema"])?.release ?? "0.0.0";
+    if (compareReleases(release, "0.38.0") >= 0) {
+      const v0_38_0 = decodePhaxPlanV0_38_0(input);
+      if (Result.isFailure(v0_38_0)) {
+        return Result.fail(readError(file, "phax-plan", formatFirstViolation(v0_38_0.failure)));
+      }
+      const { $schema: _schema, ...plan } = v0_38_0.success;
+      return Result.succeed({ shape: "0.38.0", plan: withoutTestLines(plan) });
+    }
     if (compareReleases(release, "0.33.0") >= 0) {
       const v0_33_0 = decodePhaxPlanV0_33_0(input);
       if (Result.isFailure(v0_33_0)) {

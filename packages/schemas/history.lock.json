@@ -44,6 +44,7 @@
   "src/schemas/history/phax-plan/0.28.0.ts": "aef014f5fe2324cffdc0389ca570b7139b1ea20ceb006a65a5bb00abef91c561",
   "src/schemas/history/phax-plan/0.32.0.ts": "14ea102af3cfaef81dad6a8b808d844e436d044cf7291589a57519675548194a",
   "src/schemas/history/phax-plan/0.33.0.ts": "b01fc5d47270dbeaaa65d5865ba1ce7823e67928aa82e10a1ef51433f8f37883",
+  "src/schemas/history/phax-plan/0.38.0.ts": "c09d5fc9ed881c7254885a9b9b46876c0174bd52938e27b99a0329281e68bc5a",
   "src/schemas/history/phax-plan/pre-schema.ts": "7d65bda9c1e038d20b309f9564acc79f214faaa843855cf5ba6dfc8b301b9cde",
   "src/schemas/history/plan-approval-record/0.19.0.ts": "48b813e7bdef7edc345382cf1e2d59f1253c08ec632331a906b2103d05f035bd",
   "src/schemas/history/plan-approval-record/0.25.0.ts": "7e548a7ff56b4eba7e53b6f22c8a16f3d65038a8354d1bf2ccb7294145fa63a9",

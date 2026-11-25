@@ -213,7 +213,9 @@ function makeFakes(opts: { readonly gateExitCode?: number } = {}) {
 type Fakes = ReturnType<typeof makeFakes>;
 
 async function startRun(config: ResolvedConfig, layers: Fakes["layers"]) {
-  const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+  const plan = Result.getOrThrow(
+    liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+  ).plan;
   const { runPath, runId } = await Effect.runPromise(
     createRunFolder(shortName, planMdFor(plan), plan, config, undefined, true).pipe(
       Effect.provide(layers),

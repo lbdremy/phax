@@ -168,6 +168,7 @@ function planOf(specs: readonly PhaseSpec[]): { plan: PhaxPlan; planMd: string }
       title: "Invoice export",
       branch: `phax/${SHORT}`,
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: specs.map((spec, i): PhaxPlanPhase => ({
       id: idOf(i),

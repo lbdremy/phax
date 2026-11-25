@@ -172,6 +172,7 @@ export {
   type LatestPhaseStatus,
   type LatestPhaxPlan,
   type LatestPhaxPlanPhase,
+  type LiftedPhaxPlan,
   type LatestRegistry,
   type LatestRunStatus,
   type PhaseStatusShape,
@@ -670,6 +671,10 @@ export {
   PhaxPlanV0_33_0Schema,
   type PhaxPlanV0_33_0,
 } from "../../../src/schemas/history/phax-plan/0.33.0.js";
+export {
+  PhaxPlanV0_38_0Schema,
+  type PhaxPlanV0_38_0,
+} from "../../../src/schemas/history/phax-plan/0.38.0.js";
 export {
   PhaxPlanExtractionV0_33_0Schema,
   type PhaxPlanExtractionV0_33_0,

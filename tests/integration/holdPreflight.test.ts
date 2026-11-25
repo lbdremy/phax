@@ -51,6 +51,7 @@ function makePlan(): PhaxPlan {
       title: "Invoice export",
       branch: "phax/invoice-export",
       requiredCommands: [],
+      gateProfile: "standard",
     },
     phases: [
       phase("phase-01"),

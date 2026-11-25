@@ -7,6 +7,7 @@ import { planCacheKey, EXTRACTOR_VERSION } from "../domain/planCache/key.js";
 import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
 import {
   extractPlanDeterministic,
+  readPlanGateProfile,
   readPlanTestStrategies,
   readPlanUnplannablePaths,
 } from "../domain/plan/parsePlanMarkdown.js";
@@ -59,6 +60,19 @@ export function loadOrExtractPlan(
       return yield* Effect.fail(
         new PlanValidationError({
           message: `${opts.planMdPath}: ${departure.phase} ${departureMessage(departure.departures[0]!)} — run phax plans lint ${opts.planMdPath}`,
+          path: opts.planMdPath,
+        }),
+      );
+    }
+
+    // A missing or doubled gate-profile declaration is refused before the
+    // cache and any model call: phax reads the declaration itself, and the
+    // model never guesses a profile.
+    const gateProfile = readPlanGateProfile(planMd);
+    if (Result.isFailure(gateProfile)) {
+      return yield* Effect.fail(
+        new PlanValidationError({
+          message: `${opts.planMdPath}: ${gateProfile.failure.message} — run \`phax plans lint ${opts.planMdPath}\``,
           path: opts.planMdPath,
         }),
       );

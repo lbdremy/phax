@@ -70,7 +70,9 @@ describe("executePlan — semantic telemetry end-to-end", () => {
   });
 
   it("emits the expected semantic event types for a one-phase run", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
 
     const config: ResolvedConfig = {
       raw: {

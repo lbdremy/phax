@@ -13,6 +13,10 @@ const STAMP = schemaUrl("phax-plan-extraction", CURRENT_STAMPS["phax-plan-extrac
 const PLAN_MD = [
   "# Plan — Sealed extraction test",
   "",
+  "## Gate profile",
+  "",
+  "`standard`",
+  "",
   "## phase-01 — Alpha phase {#phase-01-alpha}",
   "",
   "Some phase content.",

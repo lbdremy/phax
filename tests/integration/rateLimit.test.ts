@@ -127,7 +127,9 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("stops the run as rate_limited and writes resume-instructions.md", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -204,7 +206,9 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("classifies a usage limit and exits with code 8", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const fakeGit = makeFakeGit();
@@ -256,7 +260,9 @@ describe("executePlan — rate-limit detection and resume", () => {
   });
 
   it("resumes a rate-limited run to review_open without re-running committed phases", async () => {
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const config = makeConfig(stateRoot);
 
     const setupLayers = Layer.mergeAll(
@@ -451,7 +457,11 @@ describe("executePlan — rate-limit detection and resume", () => {
 
   it("continues gate attempt numbering after a fix attempt hit a rate limit, overwriting nothing", async () => {
     const plan = Result.getOrThrow(
-      liftFixturePhaxPlanToCurrent("phax-plan.json", { ...rawPlan, phases: [rawPlan.phases[0]] }),
+      liftFixturePhaxPlanToCurrent(
+        "phax-plan.json",
+        { ...rawPlan, phases: [rawPlan.phases[0]] },
+        "full",
+      ),
     ).plan;
     const gateCommand = "node scripts/check.mjs";
     const config: ResolvedConfig = {
@@ -601,19 +611,23 @@ describe("executePlan — rate-limit detection and resume", () => {
 
   it("counts every committed phase of the run after a limit at phase-02 of three, not this invocation's", async () => {
     const plan = Result.getOrThrow(
-      liftFixturePhaxPlanToCurrent("phax-plan.json", {
-        ...rawPlan,
-        phases: [
-          ...rawPlan.phases,
-          {
-            ...rawPlan.phases[1],
-            id: "phase-03",
-            title: "Third Phase",
-            planMarkdownAnchor: "#phase-03-third",
-            commit: { subject: "ai(phase-03): finish", body: "Finishes." },
-          },
-        ],
-      }),
+      liftFixturePhaxPlanToCurrent(
+        "phax-plan.json",
+        {
+          ...rawPlan,
+          phases: [
+            ...rawPlan.phases,
+            {
+              ...rawPlan.phases[1],
+              id: "phase-03",
+              title: "Third Phase",
+              planMarkdownAnchor: "#phase-03-third",
+              commit: { subject: "ai(phase-03): finish", body: "Finishes." },
+            },
+          ],
+        },
+        "full",
+      ),
     ).plan;
     const config = makeConfig(stateRoot);
     const worktreeOf = (id: string) => join(stateRoot, "worktrees", "test-project.my-run", id);

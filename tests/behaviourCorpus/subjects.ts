@@ -113,6 +113,7 @@ import { decodePhaxPlanV0_26_0 } from "../../src/schemas/history/phax-plan/0.26.
 import { decodePhaxPlanV0_28_0 } from "../../src/schemas/history/phax-plan/0.28.0.js";
 import { decodePhaxPlanV0_32_0 } from "../../src/schemas/history/phax-plan/0.32.0.js";
 import { decodePhaxPlanV0_33_0 } from "../../src/schemas/history/phax-plan/0.33.0.js";
+import { decodePhaxPlanV0_38_0 } from "../../src/schemas/history/phax-plan/0.38.0.js";
 import { decodePhaxPlanPreSchema } from "../../src/schemas/history/phax-plan/pre-schema.js";
 import { decodePlanApprovalRecordV0_19_0 } from "../../src/schemas/history/plan-approval-record/0.19.0.js";
 import { decodePlanApprovalRecordV0_25_0 } from "../../src/schemas/history/plan-approval-record/0.25.0.js";
@@ -545,6 +546,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("phax-plan/0.28.0", decodePhaxPlanV0_28_0, "first"),
   frozen("phax-plan/0.32.0", decodePhaxPlanV0_32_0, "first"),
   frozen("phax-plan/0.33.0", decodePhaxPlanV0_33_0, "first"),
+  frozen("phax-plan/0.38.0", decodePhaxPlanV0_38_0, "first"),
   frozen("phax-plan/pre-schema", decodePhaxPlanPreSchema, "first"),
   frozen("plan-approval-record/0.19.0", decodePlanApprovalRecordV0_19_0, "first"),
   frozen("plan-approval-record/0.25.0", decodePlanApprovalRecordV0_25_0, "first"),

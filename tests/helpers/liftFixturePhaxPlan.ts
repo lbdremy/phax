@@ -5,13 +5,15 @@ type CurrentPhaxPlanRead = Extract<PhaxPlanRead, { readonly shape: "current" }>;
 
 /**
  * Lifts a test fixture to the current `phax-plan.json` shape: `readPhaxPlanFile`,
- * then a fixture written in an older shape gets `testLines: []` on every phase.
- * A test-only convenience for fixtures that predate test lines; phax itself
- * never hands an older plan to a run (`loadPlan`).
+ * then a fixture written in an older shape gets `testLines: []` on every phase
+ * and the gate profile the test runs with as its run's `gateProfile`. A
+ * test-only convenience for fixtures that predate test lines and the gate
+ * profile; phax itself never hands an older plan to a run (`loadPlan`).
  */
 export function liftFixturePhaxPlanToCurrent(
   file: string,
   input: unknown,
+  gateProfile: string,
 ): Result.Result<CurrentPhaxPlanRead, unknown> {
   return Result.map(readPhaxPlanFile(file, input), (read): CurrentPhaxPlanRead => {
     if (read.shape === "current") return read;
@@ -19,7 +21,7 @@ export function liftFixturePhaxPlanToCurrent(
     return {
       shape: "current",
       plan: {
-        run,
+        run: { ...run, gateProfile },
         phases: Arr.map(phases, ({ commit, ...phase }) => ({ ...phase, testLines: [], commit })),
       },
     };

@@ -144,6 +144,7 @@ import { PhaxPlanV0_26_0Schema } from "../../../src/schemas/history/phax-plan/0.
 import { PhaxPlanV0_28_0Schema } from "../../../src/schemas/history/phax-plan/0.28.0.js";
 import { PhaxPlanV0_32_0Schema } from "../../../src/schemas/history/phax-plan/0.32.0.js";
 import { PhaxPlanV0_33_0Schema } from "../../../src/schemas/history/phax-plan/0.33.0.js";
+import { PhaxPlanV0_38_0Schema } from "../../../src/schemas/history/phax-plan/0.38.0.js";
 import { PhaxPlanPreSchemaSchema } from "../../../src/schemas/history/phax-plan/pre-schema.js";
 import { PlanApprovalRecordV0_19_0Schema } from "../../../src/schemas/history/plan-approval-record/0.19.0.js";
 import { PlanApprovalRecordV0_25_0Schema } from "../../../src/schemas/history/plan-approval-record/0.25.0.js";
@@ -884,6 +885,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
     shape("0.28.0", PhaxPlanV0_28_0Schema),
     shape("0.32.0", PhaxPlanV0_32_0Schema),
     shape("0.33.0", PhaxPlanV0_33_0Schema),
+    shape("0.38.0", PhaxPlanV0_38_0Schema),
   ],
   "compliance-review": [
     shape("pre-schema", ComplianceReviewPreSchemaSchema),

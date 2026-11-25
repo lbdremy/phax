@@ -11,6 +11,7 @@ const VALID_EXTRACTED = {
     shortName: "my-run",
     title: "My Run",
     requiredCommands: [],
+    gateProfile: "standard",
   },
   phases: [
     {

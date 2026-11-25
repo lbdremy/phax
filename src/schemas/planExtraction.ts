@@ -4,22 +4,26 @@
 // writes it. Exactly one of `plan` and `incomplete` is non-null: the plan the
 // model extracted, or why it found the plan incomplete. The plan is the
 // extracted one without the two things phax reads from plan.md's header lines
-// itself (`mode` and `acceptance`, see `withPhaseKinds`) and without the cache's
-// `version`. Every key is required and any other key is refused. A const
+// itself (`mode` and `acceptance`, see `withPhaseKinds`), without the run's
+// gate profile, which phax reads from the `## Gate profile` section itself
+// (`readPlanGateProfile`), and without the cache's `version`. Every key is required and any other key is refused. A const
 // `$schema` reads only its own stamp: the schemas package still maps a later
 // stamp to the latest shape at or below it, so a document stamped above the
 // current stamp is refused at `$schema`, and phax never writes one.
 import { Result, Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
-import { ExtractedRunSchema, answerPhaseFields } from "./phaxPlan.js";
+import { answerPhaseFields, answerRunFields } from "./phaxPlan.js";
 import { NonEmptyString } from "./strictString.js";
 
 const EXACTLY_ONE = "plan and incomplete: exactly one of them is null";
 
-/** The plan the model extracted: its run and phases, a phase without `mode` and `acceptance`. */
+/**
+ * The plan the model extracted: its run without `gateProfile`, and phases
+ * without `mode` and `acceptance`. phax reads those three from plan.md itself.
+ */
 const ExtractionPlanSchema = Schema.Struct({
-  run: ExtractedRunSchema,
+  run: Schema.Struct(answerRunFields),
   phases: Schema.NonEmptyArray(Schema.Struct(answerPhaseFields)),
 });
 

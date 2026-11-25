@@ -18,6 +18,10 @@ const NOW_ISO = "2026-06-29T00:00:00.000Z";
 
 const PLAN_MD = `# Plan — Run Cache Test
 
+## Gate profile
+
+\`standard\`
+
 ## phase-01 — First Phase {#phase-01-first-phase}
 
 Phase description.

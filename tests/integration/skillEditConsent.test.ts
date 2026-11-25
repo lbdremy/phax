@@ -55,16 +55,20 @@ function makePlan(skillPhaseIndex: number): PhaxPlan {
     commit: { subject: `feat: phase ${n}`, body: `Phase ${n}.` },
   });
   return Result.getOrThrow(
-    liftFixturePhaxPlanToCurrent("phax-plan.json", {
-      version: 1,
-      run: {
-        shortName: "skill-run",
-        title: "Skill Run",
-        branch: "ai/skill-run",
-        requiredCommands: [],
+    liftFixturePhaxPlanToCurrent(
+      "phax-plan.json",
+      {
+        version: 1,
+        run: {
+          shortName: "skill-run",
+          title: "Skill Run",
+          branch: "ai/skill-run",
+          requiredCommands: [],
+        },
+        phases: [phase(1), phase(2)],
       },
-      phases: [phase(1), phase(2)],
-    }),
+      "full",
+    ),
   ).plan;
 }
 

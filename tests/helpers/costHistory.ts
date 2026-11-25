@@ -375,7 +375,13 @@ function planFilePhase(phase: PlanFilePhase): PhaxPlan["phases"][number] {
 export function phaxPlanJson(phases: readonly [PlanFilePhase, ...PlanFilePhase[]]): string {
   const [first, ...rest] = phases;
   const plan: PhaxPlan = {
-    run: { shortName: "thing", title: "Thing", branch: "phax/thing", requiredCommands: [] },
+    run: {
+      shortName: "thing",
+      title: "Thing",
+      branch: "phax/thing",
+      requiredCommands: [],
+      gateProfile: "standard",
+    },
     phases: [planFilePhase(first), ...rest.map(planFilePhase)],
   };
   return JSON.stringify(withSchemaUrl("phax-plan", plan), null, 2);

@@ -90,7 +90,9 @@ describe("partial commands are never run", () => {
         },
       ],
     };
-    const plan = Result.getOrThrow(liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan)).plan;
+    const plan = Result.getOrThrow(
+      liftFixturePhaxPlanToCurrent("phax-plan.json", rawPlan, "full"),
+    ).plan;
     const planMd = planMdFor(rawPlan);
     const worktree = join(root, "worktrees", "test-project.my-run", "phase-01");
     await mkdir(join(worktree, ".phax-context"), { recursive: true });

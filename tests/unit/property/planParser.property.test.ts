@@ -10,6 +10,7 @@ import {
   collectPlanStructureErrors,
   extractPlanDeterministic,
   readPlanDeterministic,
+  readPlanTestStrategies,
 } from "../../../src/domain/plan/parsePlanMarkdown.js";
 import { finalizeExtractedPlan } from "../../../src/domain/plan/finalize.js";
 import { locatePlanSections, type LocatablePhase } from "../../../src/domain/plan/sections.js";
@@ -67,6 +68,7 @@ function roundTripDifference(doc: PlanDocument): string | undefined {
       "fromMarkdown.plan.phases[].title",
     ) ??
     firstDifference(parsed.run.title, projection.run.title, "parsed.run.title") ??
+    firstDifference(parsed.run.gateProfile, projection.run.gateProfile, "parsed.run.gateProfile") ??
     firstDifference(
       parsed.run.requiredCommands,
       projection.run.requiredCommands,
@@ -339,7 +341,39 @@ describe("plan parser", () => {
     },
     propertyTimeout(),
   );
+
+  // Metamorphic: the `## Gate profile` section names the run's profile and nothing else. Taking it
+  // out adds the one missing-declaration error and changes no phase's reading; naming another id
+  // changes the run's profile alone.
+  it(
+    "the gate-profile section changes no phase it reads",
+    () => {
+      checkProperty(planDocuments(), (doc) => {
+        const body = renderPlanBody(doc);
+        const section = `## Gate profile\n\n\`${doc.run.gateProfile}\`\n\n`;
+        if (!body.includes(section)) throw new Error("the rendered plan declares no gate profile");
+        const without = body.replace(section, "");
+        const other = body.replace(section, "## Gate profile\n\nanother-profile\n\n");
+
+        const missing = { phase: null, message: GATE_PROFILE_MISSING };
+        const errorsWith = collectPlanStructureErrors(body);
+        const errorsWithout = collectPlanStructureErrors(without);
+        expect(errorsWithout.filter((e) => !isDeepStrictEqual(e, missing))).toEqual(errorsWith);
+        expect(errorsWithout.filter((e) => isDeepStrictEqual(e, missing))).toHaveLength(1);
+        expect(readPlanTestStrategies(without)).toEqual(readPlanTestStrategies(body));
+
+        const read = Result.getOrThrow(readPlanDeterministic(body));
+        const readOther = Result.getOrThrow(readPlanDeterministic(other));
+        expect(readOther.plan.phases).toEqual(read.plan.phases);
+        expect(readOther.plan.run).toEqual({ ...read.plan.run, gateProfile: "another-profile" });
+        return true;
+      });
+    },
+    propertyTimeout(),
+  );
 });
+
+const GATE_PROFILE_MISSING = "the plan declares no gate profile (## Gate profile)";
 
 // ---------------------------------------------------------------------------------------------
 // Renderable rules: one hand-written document per rule, breaking that rule alone.

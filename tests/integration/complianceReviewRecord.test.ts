@@ -155,28 +155,32 @@ describe("compliance review entry at run end", () => {
     readonly onReview?: (git: ReturnType<typeof makeFakeGit>) => void;
   }) {
     const plan = Result.getOrThrow(
-      liftFixturePhaxPlanToCurrent("phax-plan.json", {
-        version: 1,
-        run: {
-          shortName: SHORT_NAME,
-          title: "Review Entry Run",
-          branch: "ai/review-entry-run",
-          requiredCommands: [],
-        },
-        phases: [
-          {
-            id: "phase-01",
-            title: "First Phase",
-            model: "claude-opus-5-5",
-            effort: "low" as const,
-            planMarkdownAnchor: "#phase-01-first",
-            plannedFilesToCreate: [],
-            plannedFilesToEdit: [],
-            optionalFilesToEdit: [],
-            commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+      liftFixturePhaxPlanToCurrent(
+        "phax-plan.json",
+        {
+          version: 1,
+          run: {
+            shortName: SHORT_NAME,
+            title: "Review Entry Run",
+            branch: "ai/review-entry-run",
+            requiredCommands: [],
           },
-        ],
-      }),
+          phases: [
+            {
+              id: "phase-01",
+              title: "First Phase",
+              model: "claude-opus-5-5",
+              effort: "low" as const,
+              planMarkdownAnchor: "#phase-01-first",
+              plannedFilesToCreate: [],
+              plannedFilesToEdit: [],
+              optionalFilesToEdit: [],
+              commit: { subject: "ai(phase-01): do thing", body: "Does the thing." },
+            },
+          ],
+        },
+        "full",
+      ),
     ).plan;
     const config = makeConfig();
 

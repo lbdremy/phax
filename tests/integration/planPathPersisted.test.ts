@@ -221,10 +221,12 @@ describe("ac-persisted-canonical: an extraction answer writing ./src/x.ts, src//
     // The model answers the plan as written, in the extraction answer's shape.
     const canonical = extractPlanDeterministic(helloWorld);
     if (Result.isFailure(canonical)) throw new Error(canonical.failure.message);
+    // The answer's run carries no gate profile: phax reads it from plan.md itself.
+    const { gateProfile: _gateProfile, ...answerRun } = canonical.success.run;
     const answer = {
       $schema: currentSchemaUrl("phax-plan-extraction"),
       plan: {
-        run: canonical.success.run,
+        run: answerRun,
         phases: canonical.success.phases.map(({ mode: _m, acceptance: _a, ...rest }, i) =>
           i === 0 ? { ...rest, plannedFilesToEdit: SPELLINGS } : rest,
         ),

@@ -45,8 +45,57 @@ describe("planCacheKey", () => {
     expect(a).toBe(b);
   });
 
-  it("EXTRACTOR_VERSION is 6", () => {
-    expect(EXTRACTOR_VERSION).toBe(6);
+  it("EXTRACTOR_VERSION is 7", () => {
+    expect(EXTRACTOR_VERSION).toBe(7);
+  });
+
+  // An extraction cached before the run carried its gate profile is a miss
+  // twice over: its key was taken at extractor version 6, and its extracted
+  // run holds no gateProfile, which the cache entry now requires.
+  describe("an entry written before the run carried its gate profile", () => {
+    const md = "# Plan\n\n## Gate profile\n\n`light`\n\n## Required commands\n\n- (none)\n";
+
+    it("is keyed apart from the version 7 key", () => {
+      expect(planCacheKey(md, "claude-sonnet-4-6", "medium", 6)).not.toBe(
+        planCacheKey(md, "claude-sonnet-4-6", "medium"),
+      );
+    });
+
+    it("fails to decode without run.gateProfile, and decodes with it", () => {
+      const entry = (run: object) => ({
+        version: 1,
+        key: "k",
+        planMdSha256: "s",
+        model: "claude-sonnet-4-6",
+        effort: "medium",
+        extractorVersion: 6,
+        extractedAt: "2026-01-01T00:00:00.000Z",
+        extracted: {
+          version: 1,
+          run,
+          phases: [
+            {
+              id: "phase-01",
+              model: "claude-sonnet-4-6",
+              effort: "medium",
+              planMarkdownAnchor: "#phase-01",
+              plannedFilesToCreate: [],
+              plannedFilesToEdit: [],
+              optionalFilesToEdit: [],
+              mode: "headless",
+              acceptance: null,
+              testLines: [],
+              commit: { subject: "feat: x", body: "Adds x." },
+            },
+          ],
+        },
+      });
+      const run = { shortName: "r", title: "R", requiredCommands: [] };
+      expect(Result.isFailure(decodeExtractedPlanCacheEntry(entry(run)))).toBe(true);
+      expect(
+        Result.isSuccess(decodeExtractedPlanCacheEntry(entry({ ...run, gateProfile: "light" }))),
+      ).toBe(true);
+    });
   });
 
   // An entry written before plan paths were canonical is a miss twice over: its
@@ -70,7 +119,8 @@ describe("planCacheKey", () => {
         extractedAt: "2026-01-01T00:00:00.000Z",
         extracted: {
           version: 1,
-          run: { shortName: "r", title: "R", requiredCommands: [] },
+          // The run's gate profile is set so the plan path alone decides the decode.
+          run: { shortName: "r", title: "R", requiredCommands: [], gateProfile: "standard" },
           phases: [
             {
               id: "phase-01",

@@ -17,8 +17,10 @@ export function olderPhaxPlanMessage(
   run = "<run>",
 ): string {
   const named = shape === "pre-schema" ? "written before $schema" : `in the ${shape} shape`;
+  // The 0.38.0 shape is the current one but its gate profile: the message names what it lacks.
+  const lacks = shape === "0.38.0" ? ": it records no gate profile (run.gateProfile)" : "";
   return (
-    `${planPath}: phax-plan ${named} — an older phax wrote it, and this phax does not run a plan in that shape. ` +
+    `${planPath}: phax-plan ${named} — an older phax wrote it, and this phax does not run a plan in that shape${lacks}. ` +
     `Finish the run with the phax release that started it, or archive it with ` +
     `\`phax archive ${run} --force\` and run its plan again.`
   );
