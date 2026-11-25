@@ -404,24 +404,6 @@ function trailerValue(message: string, key: string): string | null {
   return null;
 }
 
-function readCommitMessage(worktree: string, sha: string): Effect.Effect<string, Error, Shell> {
-  return Effect.gen(function* () {
-    const shell = yield* Shell;
-    const result = yield* shell.run({
-      command: ["git", "log", "-1", "--format=%B", sha],
-      cwd: worktree,
-    });
-    if (result.exitCode !== 0) {
-      return yield* Effect.fail(
-        new Error(
-          `git log -1 --format=%B ${sha} exited ${result.exitCode}: ${result.stderr.trim()}`,
-        ),
-      );
-    }
-    return result.stdout;
-  });
-}
-
 /**
  * What a person does about a commit of their own in the stopped worktree:
  * phax never rewrites history, so they put HEAD back to `base`, keeping the
@@ -451,7 +433,7 @@ function finishLandedCommit(
     const git = yield* Git;
     const fs = yield* FileSystem;
     const parent = yield* at("commit", git.resolveRef(input.worktree, "HEAD^"));
-    const message = yield* at("commit", readCommitMessage(input.worktree, head));
+    const message = yield* at("commit", git.commitMessage(input.worktree, head));
     const ours =
       parent === closeBase &&
       trailerValue(message, "Run-Id") === input.runId &&

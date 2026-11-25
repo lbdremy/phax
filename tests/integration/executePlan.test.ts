@@ -231,12 +231,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -407,12 +402,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafebabe\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafebabe");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -530,12 +520,7 @@ describe("executePlan — happy-path 2-phase run", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "aabbcc\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("aabbcc");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -817,12 +802,7 @@ describe("executePlan — firing scheduling", () => {
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
     fakeShell.impl.setResponse("echo terminal-step", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -940,12 +920,7 @@ describe("executePlan — binding status lifecycle", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -1116,12 +1091,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -1206,12 +1176,7 @@ describe("executePlan — handoff prompt deviation injection", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -1355,12 +1320,7 @@ describe("executePlan — resume from gates_exhausted", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "feedface12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("feedface12345678");
 
     const fakeBackend = makeFakeBackend();
     // Only the post-gate handoff resume should be needed.
@@ -1583,12 +1543,7 @@ describe("executePlan — resume from gates_exhausted", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "feedface12345678\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("feedface12345678");
 
     const fakeBackend = makeFakeBackend();
     // One handoff-generation resume call expected (gate passes immediately).
@@ -1750,12 +1705,7 @@ function makeFakesForSinglePhase(worktreePath: string) {
 
   const fakeShell = makeFakeShell();
   fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-  fakeShell.impl.setResponse("git rev-parse HEAD", {
-    exitCode: 0,
-    stdout: "deadbeef12345678\n",
-    stderr: "",
-  });
-  fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+  fakeGit.impl.setHeadCommit("deadbeef12345678");
 
   const fakeBackend = makeFakeBackend();
   fakeBackend.impl.addRunResponse({
@@ -2179,12 +2129,7 @@ describe("executePlan — security preflight", () => {
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafebabe\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafebabe");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -2342,12 +2287,7 @@ describe("executePlan — records destination refusal", () => {
 
     const fakeShell = makeFakeShell();
     fakeShell.impl.setResponse("true", { exitCode: 0, stdout: "", stderr: "" });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "cafebabe\n",
-      stderr: "",
-    });
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("cafebabe");
 
     const fakeBackend = makeFakeBackend();
     fakeBackend.impl.addRunResponse({
@@ -2508,14 +2448,10 @@ function makeBaselineScenario(root: string) {
   fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-01"), false, true);
 
   const fakeShell = makeFakeShell();
-  for (const command of ["pnpm install", "pnpm test", "true", "git diff HEAD^ HEAD"]) {
+  for (const command of ["pnpm install", "pnpm test", "true"]) {
     fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
   }
-  fakeShell.impl.setResponse("git rev-parse HEAD", {
-    exitCode: 0,
-    stdout: "deadbeef12345678\n",
-    stderr: "",
-  });
+  fakeGit.impl.setHeadCommit("deadbeef12345678");
 
   const fakeBackend = makeFakeBackend();
   for (const id of ["sess-01", "sess-02"]) {
@@ -2812,14 +2748,10 @@ describe("executePlan — resumed-session prompts", () => {
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath, false);
 
     const fakeShell = makeFakeShell();
-    for (const command of ["true", "git diff HEAD^ HEAD"]) {
+    for (const command of ["true"]) {
       fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
     }
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
     // Red until the fix attempt resumes the session, green after.
     fakeShell.impl.setResponse("pnpm test", { exitCode: 1, stdout: "", stderr: "red" });
 
@@ -2929,7 +2861,7 @@ describe("executePlan — a green gate-report gate", () => {
     fakeGit.impl.enqueueWorktreeIsClean(worktreeOf("phase-03"), false);
 
     const fakeShell = makeFakeShell();
-    for (const command of ["pnpm install", "true", "git diff HEAD^ HEAD"]) {
+    for (const command of ["pnpm install", "true"]) {
       fakeShell.impl.setResponse(command, { exitCode: 0, stdout: "", stderr: "" });
     }
     fakeShell.impl.setResponse("node ./audit.mjs", {
@@ -2942,11 +2874,7 @@ describe("executePlan — a green gate-report gate", () => {
       }),
       stderr: "",
     });
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef12345678\n",
-      stderr: "",
-    });
+    fakeGit.impl.setHeadCommit("deadbeef12345678");
 
     const fakeBackend = makeFakeBackend();
     for (const id of ["sess-01", "sess-02", "sess-03"]) {

@@ -338,14 +338,7 @@ describe("adaptCommit", () => {
 
     // worktreeIsClean returns false → changes present
     fakeGit.impl.enqueueWorktreeIsClean(worktreePath as string, false);
-    // git rev-parse HEAD returns hash
-    fakeShell.impl.setResponse("git rev-parse HEAD", {
-      exitCode: 0,
-      stdout: "deadbeef\n",
-      stderr: "",
-    });
-    // git diff HEAD^ HEAD returns empty diff
-    fakeShell.impl.setResponse("git diff HEAD^ HEAD", { exitCode: 0, stdout: "", stderr: "" });
+    fakeGit.impl.setHeadCommit("deadbeef");
     fakeFs.impl.setFile(`${phaseFolderPath}/status.json`, phaseStatusSeed);
     fakeFs.impl.setFile(`${runPath}/run-status.json`, runStatusSeed);
 
