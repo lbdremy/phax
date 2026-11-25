@@ -324,6 +324,10 @@ Given the phax-planning skill as shipped, when its plan format and phase templat
 
 ## 9. Open questions
 
+None.
+
+## 9b. Arbitrated questions
+
 ### q-scope — Does a run have one gate profile, or may a phase declare its own?
 
 - per-run — One profile for the whole run, declared once in the plan — abandons: A light phase inside a code run, such as a docs phase under a docs profile. That needs a separate plan, or a profile whose `firing` already makes it light on each phase and full at the end.
@@ -331,12 +335,18 @@ Given the phax-planning skill as shipped, when its plan format and phase templat
 
 Recommendation: per-run — Both cases that motivate this spec, the Effect migration and the lane outside `src/`, are whole plans under one profile. `firing` already covers 'light on each phase, full at the end' within one profile. A per-phase override can be added later as a field of its own without changing the run-level declaration.
 
+Decision: per-run — by operator (Rémy Loubradou), 2026-11-25
+Why: Both motivating cases are whole plans under one profile; firing covers light-then-full. Advocate: A per-phase override would let a docs phase run under a light profile inside a code run, without splitting the work into two plans. Principles: S1, S5. Reversibility: cheap. Revised: none.
+
 ### q-markdown — Where does the declaration sit in the plan's Markdown?
 
 - section — A `## Gate profile` preamble section holding the id, like `## Required commands` — abandons: Compactness: a whole section holds a one-word value.
 - bold-line — A preamble line in the style of the phase fields: `**Gate profile:** standard` — abandons: One style for run-level declarations. The plan's only other run-level declaration is a section, and the bold-line style today means a per-phase header field, so a reader would take a run-level value for a phase's.
 
 Recommendation: section — It sits beside `## Required commands`, the run-level declaration that lint already checks against the profile. The extractor already reads preamble sections, and gate tolerances' per-phase entries stay distinct from it.
+
+Decision: section — by operator (Rémy Loubradou), 2026-11-25
+Why: Beside ## Required commands; the bold-line style stays the phase fields'. Advocate: A single bold line is far more compact than a whole section for a one-word value, and matches the style of the phase header fields. Principles: S1. Reversibility: cheap. Revised: none.
 
 ### q-legacy — How does phax read a plan document, extracted-plan cache or run written before the field existed? This includes the Approved `security-high-fixes` plan.
 
@@ -346,6 +356,9 @@ Recommendation: section — It sits beside `## Required commands`, the run-level
 
 Recommendation: refuse — Only one Approved plan is waiting, and naming `standard` in it is a one-line revision. Runs have recorded their profile at start for many releases, so a run without one is pre-history. Archived records are read-only and never resumed.
 
+Decision: refuse — by operator (Rémy Loubradou), 2026-11-25
+Why: No shim. A run started before the release that adds the field is not resumed under it: if its kept phax-plan.json fails to decode for the missing field, the refusal says so and names the remedy (finish it with the release that started it, or reset). The run's recorded gateProfileId stays what resume uses. Advocate: Inferring the first profile would let the approved security-high-fixes plan and any in-flight run continue without a revision or a re-approval. Principles: S1, S3, S2. Reversibility: costly. Revised: none.
+
 ### q-staleness — Does editing the declared profile's steps in phax.json after approval make the plan stale?
 
 - removal-only — No. Only removing or renaming the profile matters, and lint and the preflight already refuse that as undefined — abandons: A pinned gate: after approval, the project can loosen or tighten the steps the plan was approved against, and nothing flags it.
@@ -353,12 +366,18 @@ Recommendation: refuse — Only one Approved plan is waiting, and naming `standa
 
 Recommendation: removal-only — A profile is the project's, and the plan approves a choice among profiles, not their contents. What a run actually ran stays visible in its gate logs. Pinning steps would turn routine gate maintenance into an approval cascade.
 
+Decision: removal-only — by operator (Rémy Loubradou), 2026-11-25
+Why: The plan approves a choice among profiles, not their contents. Advocate: Pinning the resolved steps would mean the gate an operator approved is the gate that runs; loosening it after approval would be flagged instead of silent. Principles: S1, S4. Reversibility: costly. Revised: none.
+
 ### q-default — May phax.json name a default profile that lets a plan omit the declaration?
 
 - always-declare — Every plan declares a profile; phax.json has no default — abandons: Brevity in single-profile projects: every plan carries a line that can say only one thing.
 - config-default — A `defaultGateProfile` key in phax.json lets a plan omit its declaration — abandons: The plan stating what verifies it. The approval would cover a reference to whatever the default is at run time, which is the first-key pick moved into a key.
 
 Recommendation: always-declare — The guiding rule is that the approved plan names the profile. One line per plan is cheap, and planning agents write it from the profile list in their prompt. The `phax do` brief can choose its own default for calls that have no plan.
+
+Decision: always-declare — by operator (Rémy Loubradou), 2026-11-25
+Why: phax do may choose its own default. Advocate: A default key would spare single-profile projects a line in every plan that can only name the one profile they have. Principles: S1, S3, E0. Reversibility: cheap. Revised: none.
 
 ### q-verification — What does a phase's `### Verification` say once the profile is declared at run level?
 
@@ -368,6 +387,9 @@ Recommendation: always-declare — The guiding rule is that the approved plan na
 
 Recommendation: extra-checks — The phase prompt already lists the gate steps the agent will face, so writing them in the plan adds nothing. A single source for the profile removes the drift this spec exists to fix, and the section keeps the one thing a plan alone can say.
 
+Decision: extra-checks — by operator (Rémy Loubradou), 2026-11-25
+Why: The phase prompt already lists the gate steps. Advocate: Rendering the profile's steps in each phase would let a reader of one phase see exactly what will gate it without looking at the preamble. Principles: S1, S4. Reversibility: cheap. Revised: none.
+
 ### q-records — Do the run's records and the release notes name the profile the run used?
 
 - records-only — The run's record names its gate profile, and `phax records explain` shows it; release notes do not — abandons: A release-note reader learning which gate verified a change; for that they need the PR, which already names it.
@@ -376,9 +398,8 @@ Recommendation: extra-checks — The phase prompt already lists the gate steps t
 
 Recommendation: records-only — The records are the durable audit trail of a run, so the gate that judged it belongs there. Release notes are written for users of phax, for whom the profile is noise.
 
-## 9b. Arbitrated questions
-
-None.
+Decision: records-only — by operator (Rémy Loubradou), 2026-11-25
+Why: The PR already names the profile. Advocate: Naming the profile in each release-note entry would tell a reader which gate verified a change without opening the PR or the records. Principles: S1, S10. Reversibility: cheap. Revised: none.
 
 ## 10. Implementation-planning note
 
@@ -410,3 +431,13 @@ Page: docs/gate-profiles.md
 Reader: An operator whose project defines more than one gate profile and who wants a plan to run under a profile other than the first one in phax.json.
 
 Example: phax.json defines `standard` and `light`. A docs plan declares `## Gate profile` with `light`. `phax plans lint` passes, `phax run --plan <plan> --dry-run` shows `Gate profile: light`, and the run gates every phase with `light`'s steps. Renaming `light` in phax.json then makes both lint and `phax run` refuse the plan, naming `light` and the profiles that remain.
+
+## 12. Decision log
+
+- 2026-11-25 q-scope decided per-run — operator (Rémy Loubradou)
+- 2026-11-25 q-markdown decided section — operator (Rémy Loubradou)
+- 2026-11-25 q-legacy decided refuse — operator (Rémy Loubradou)
+- 2026-11-25 q-staleness decided removal-only — operator (Rémy Loubradou)
+- 2026-11-25 q-default decided always-declare — operator (Rémy Loubradou)
+- 2026-11-25 q-verification decided extra-checks — operator (Rémy Loubradou)
+- 2026-11-25 q-records decided records-only — operator (Rémy Loubradou)

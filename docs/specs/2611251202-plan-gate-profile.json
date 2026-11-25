@@ -372,7 +372,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-scope",
       "question": "Does a run have one gate profile, or may a phase declare its own?",
@@ -389,7 +390,28 @@
         }
       ],
       "recommendation": "per-run",
-      "rationale": "Both cases that motivate this spec, the Effect migration and the lane outside `src/`, are whole plans under one profile. `firing` already covers 'light on each phase, full at the end' within one profile. A per-phase override can be added later as a field of its own without changing the run-level declaration."
+      "rationale": "Both cases that motivate this spec, the Effect migration and the lane outside `src/`, are whole plans under one profile. `firing` already covers 'light on each phase, full at the end' within one profile. A per-phase override can be added later as a field of its own without changing the run-level declaration.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "per-run",
+        "abandoned": [
+          "per-phase"
+        ],
+        "why": "Both motivating cases are whole plans under one profile; firing covers light-then-full.",
+        "advocate": "A per-phase override would let a docs phase run under a light profile inside a code run, without splitting the work into two plans.",
+        "principles": [
+          "S1",
+          "S5"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-markdown",
@@ -407,7 +429,27 @@
         }
       ],
       "recommendation": "section",
-      "rationale": "It sits beside `## Required commands`, the run-level declaration that lint already checks against the profile. The extractor already reads preamble sections, and gate tolerances' per-phase entries stay distinct from it."
+      "rationale": "It sits beside `## Required commands`, the run-level declaration that lint already checks against the profile. The extractor already reads preamble sections, and gate tolerances' per-phase entries stay distinct from it.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "section",
+        "abandoned": [
+          "bold-line"
+        ],
+        "why": "Beside ## Required commands; the bold-line style stays the phase fields'.",
+        "advocate": "A single bold line is far more compact than a whole section for a one-word value, and matches the style of the phase header fields.",
+        "principles": [
+          "S1"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-legacy",
@@ -430,7 +472,30 @@
         }
       ],
       "recommendation": "refuse",
-      "rationale": "Only one Approved plan is waiting, and naming `standard` in it is a one-line revision. Runs have recorded their profile at start for many releases, so a run without one is pre-history. Archived records are read-only and never resumed."
+      "rationale": "Only one Approved plan is waiting, and naming `standard` in it is a one-line revision. Runs have recorded their profile at start for many releases, so a run without one is pre-history. Archived records are read-only and never resumed.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "refuse",
+        "abandoned": [
+          "infer-first",
+          "upgrade"
+        ],
+        "why": "No shim. A run started before the release that adds the field is not resumed under it: if its kept phax-plan.json fails to decode for the missing field, the refusal says so and names the remedy (finish it with the release that started it, or reset). The run's recorded gateProfileId stays what resume uses.",
+        "advocate": "Inferring the first profile would let the approved security-high-fixes plan and any in-flight run continue without a revision or a re-approval.",
+        "principles": [
+          "S1",
+          "S3",
+          "S2"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-staleness",
@@ -448,7 +513,28 @@
         }
       ],
       "recommendation": "removal-only",
-      "rationale": "A profile is the project's, and the plan approves a choice among profiles, not their contents. What a run actually ran stays visible in its gate logs. Pinning steps would turn routine gate maintenance into an approval cascade."
+      "rationale": "A profile is the project's, and the plan approves a choice among profiles, not their contents. What a run actually ran stays visible in its gate logs. Pinning steps would turn routine gate maintenance into an approval cascade.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "removal-only",
+        "abandoned": [
+          "steps-pinned"
+        ],
+        "why": "The plan approves a choice among profiles, not their contents.",
+        "advocate": "Pinning the resolved steps would mean the gate an operator approved is the gate that runs; loosening it after approval would be flagged instead of silent.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-default",
@@ -466,7 +552,29 @@
         }
       ],
       "recommendation": "always-declare",
-      "rationale": "The guiding rule is that the approved plan names the profile. One line per plan is cheap, and planning agents write it from the profile list in their prompt. The `phax do` brief can choose its own default for calls that have no plan."
+      "rationale": "The guiding rule is that the approved plan names the profile. One line per plan is cheap, and planning agents write it from the profile list in their prompt. The `phax do` brief can choose its own default for calls that have no plan.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "always-declare",
+        "abandoned": [
+          "config-default"
+        ],
+        "why": "phax do may choose its own default.",
+        "advocate": "A default key would spare single-profile projects a line in every plan that can only name the one profile they have.",
+        "principles": [
+          "S1",
+          "S3",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-verification",
@@ -489,7 +597,29 @@
         }
       ],
       "recommendation": "extra-checks",
-      "rationale": "The phase prompt already lists the gate steps the agent will face, so writing them in the plan adds nothing. A single source for the profile removes the drift this spec exists to fix, and the section keeps the one thing a plan alone can say."
+      "rationale": "The phase prompt already lists the gate steps the agent will face, so writing them in the plan adds nothing. A single source for the profile removes the drift this spec exists to fix, and the section keeps the one thing a plan alone can say.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "extra-checks",
+        "abandoned": [
+          "steps-listed",
+          "drop"
+        ],
+        "why": "The phase prompt already lists the gate steps.",
+        "advocate": "Rendering the profile's steps in each phase would let a reader of one phase see exactly what will gate it without looking at the preamble.",
+        "principles": [
+          "S1",
+          "S4"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-records",
@@ -512,10 +642,31 @@
         }
       ],
       "recommendation": "records-only",
-      "rationale": "The records are the durable audit trail of a run, so the gate that judged it belongs there. Release notes are written for users of phax, for whom the profile is noise."
+      "rationale": "The records are the durable audit trail of a run, so the gate that judged it belongs there. Release notes are written for users of phax, for whom the profile is noise.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "records-only",
+        "abandoned": [
+          "records-and-notes",
+          "unchanged"
+        ],
+        "why": "The PR already names the profile.",
+        "advocate": "Naming the profile in each release-note entry would tell a reader which gate verified a change without opening the PR or the records.",
+        "principles": [
+          "S1",
+          "S10"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-25T12:56:47.071Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The operator's 2026-11-25 direction: the plan names the profile, not a `phax run` flag. Lint and the preflight refuse an undefined profile. The approval covers the declaration. Resume keeps the recorded profile. Planning agents choose from the profiles that exist. There is no back-compat shim.",
