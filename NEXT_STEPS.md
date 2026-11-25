@@ -64,18 +64,15 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 2 — after the security slice merges
 
-- [ ] **An OS sandbox for gate steps and allowed commands** — to brief, a spike first. Agreed with
-      the operator on 2026-11-24 while deciding `security-high-fixes`' q-git-pointer. Gate steps run
-      agent-written code (the tests) with the user's rights, and on Claude Code and Vibe an allowed
-      command runs unconfined, so either can write the repository's `.git` (a `core.fsmonitor`, a
-      clean filter, `diff.external`, `core.sshCommand`) or any file outside the worktree;
-      `chmod`/`chflags` stop nothing a process of the same user can undo. Only an OS sandbox
-      (seatbelt on macOS, bubblewrap or landlock on Linux) makes the repository's `.git` and the
-      rest of the disk read-only to them. Merges two items: security phase 5's "gate and setup
-      commands under the agent's confinement" and "allowed shell commands run unconfined on Claude
-      Code and Vibe" (the `git diff --output` of #176's review). The spike answers what the gates
-      must write (worktree, tmp, `node_modules`, pnpm and Deno caches, `~/.phax`), whether Claude
-      Code's native Bash sandbox covers the allowed commands, Vibe's equivalent, and CI on Linux.
+- [ ] **`secure-mode-sandbox`** — `docs/briefs/secure-mode-sandbox.md` (2026-11-25), a spike first, then the
+      spec. In `secure` mode, gate steps and the shell commands Claude Code and Vibe start run under Anthropic's
+      sandbox-runtime (`srt`: Seatbelt on macOS, bubblewrap on Linux), writing only the worktree, a temporary
+      directory, the package caches and phax's state, never the repository's `.git`, and reading none of the
+      agents' credentials. Agreed with the operator on 2026-11-24 (q-git-pointer) and chosen on 2026-11-25 over a
+      VM, which would lose the agents' paid plans (the `isolated` mode below is postponed). The spike runs the whole
+      `standard` gate under `srt` on macOS and a CI runner, and checks Claude Code's native sandbox in `claude -p`.
+      Merges security phase 5's "gate and setup commands under the agent's confinement" and "allowed shell
+      commands run unconfined on Claude Code and Vibe" (the `git diff --output` of #176's review).
       It also takes the main checkout from the run's state, not the invocation's directory (#265's
       review, F3 and F6, named as residuals in `docs/security.md`): `phax enter-phase` on another
       project's run builds an unrooted git layer, so its git calls in that phase worktree skip the
@@ -714,20 +711,18 @@ same list into the schema (`x-phax-checks`) — for non-TypeScript readers only.
 
 ## Longer horizon (unspecced, revisit deliberately)
 
-- [ ] **`isolated` mode on smolvm: the provider CLIs in a microVM.** Raised 2026-10-31 by the operator,
-      after #176 showed that on Claude Code and Vibe an allowed command runs unconfined.
-      https://github.com/smol-machines/smolvm (Apache-2.0) boots OCI images as microVMs
-      (Hypervisor.framework on Apple Silicon, KVM on Linux) in under a second, with networking off by
-      default plus `--allow-host`/`--allow-cidr`, and credentials injected as placeholders the code
-      cannot read. The idea: bundle `claude` and `vibe` in an image and wrap each CLI in a shim that
-      forwards argv, stdin/stdout (stream-json), exit codes, signals and a TTY, adding a real
-      filesystem jail (the worktree read-write for a phase, read-only for a review) and enforced
-      `provider-only` egress. It fills the `isolated` mode `docs/security.md` lists as planned.
-      Do it as a spike (agent builds the harness, real runs on the operator's machine) answering:
-      the sign-in (Claude's OAuth and Vibe's login live in the macOS Keychain; does the credential
-      placeholder carry them, or only API keys?), the worktree's darwin `node_modules` and native
-      binaries (oxlint, tsgo) inside a Linux guest, host-directory mount modes, and shim
-      transparency.
+- [ ] **`isolated` mode in a microVM — postponed (operator, 2026-11-25).** The deciding loss: an agent CLI in
+      a VM signs in with API keys, not the coding agents' paid plans (Claude Max's OAuth lives in the macOS
+      Keychain, which phax must never read). `secure` mode is strengthened with `srt` instead
+      (`secure-mode-sandbox`). If it comes back, the candidate is smol machines
+      (https://github.com/smol-machines/smolvm, the `smol` CLI and `smolmachines` SDK, Apache-2.0, v1.37.x on
+      2026-11-25): libkrun microVMs on Hypervisor.framework or KVM, network off by default with `--allow-host`
+      (the June spike confirmed it blocks a hard-coded IP), hypervisor-enforced read-only mounts, credentials as
+      placeholders the guest cannot read, long-lived machines with `machine exec`. The agent, its commands and the
+      gate would all run in the guest, with a Linux `node_modules` on the guest's disk over the mounted worktree
+      and a pnpm store kept across phases. Two leads to check then: `claude setup-token` (a subscription token
+      for headless use) behind a credential placeholder, and the agent CLI on the host with only its commands
+      sent into the VM.
 - [ ] **A Claude Code plugin for phax, after the 1.0 freeze.** Raised 2026-10-08. Ship phax's
       skills (`phax-planning`, `phax-spec`, the `phax-decide-*` skills) as one plugin instead of
       copies under `~/.claude/skills/`, with a small mod for the operator's interactive session:
