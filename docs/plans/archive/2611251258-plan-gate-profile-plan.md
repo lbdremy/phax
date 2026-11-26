@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611251202-plan-gate-profile.md
 completes-spec: true
 approved:
