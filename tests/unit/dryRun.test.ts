@@ -74,18 +74,18 @@ const minimalConfig: ResolvedConfig = {
 
 describe("buildDryRunReport / formatDryRunReport", () => {
   it("report includes qualifiedName composed from namespace and shortName", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     expect(report.qualifiedName).toBe("test-project.test-run");
   });
 
   it("formatted output shows the qualified name as the run identity", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     const output = formatDryRunReport(report);
     expect(output).toContain("Dry run: test-project.test-run");
   });
 
   it("does not include Priority line when providerPriorityOverride is absent", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     expect(report.providerPriorityOverride).toBeUndefined();
     const output = formatDryRunReport(report);
     expect(output).not.toContain("Priority:");
@@ -93,7 +93,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
 
   it("includes providerPriorityOverride in the report when provided", () => {
     const override = ["mistral-vibe", "claude-code"];
-    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, override);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full", override);
     expect(report.providerPriorityOverride).toEqual(override);
   });
 
@@ -105,50 +105,50 @@ describe("buildDryRunReport / formatDryRunReport", () => {
   });
 
   it("renders a single-provider override correctly", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, ["codex-cli"]);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full", ["codex-cli"]);
     const output = formatDryRunReport(report);
     expect(output).toContain("Priority:     codex-cli (override)");
   });
 
   it("includes securityMode in the report", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     expect(report.securityMode).toBe(DEFAULT_SECURITY_PROFILE);
   });
 
   it("uses passed securityMode over config default", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, undefined, "unsafe");
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full", undefined, "unsafe");
     expect(report.securityMode).toBe("unsafe");
   });
 
   it("renders security mode in formatted output", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     const output = formatDryRunReport(report);
     expect(output).toContain(`Security:     ${DEFAULT_SECURITY_PROFILE}`);
   });
 
   it("renders unsafe security mode in formatted output", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig, undefined, undefined, "unsafe");
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full", undefined, "unsafe");
     const output = formatDryRunReport(report);
     expect(output).toContain("Security:     unsafe");
   });
 
   it("includes empty agentCommands and requiredCommands in report", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     expect(report.agentCommands).toEqual([]);
     expect(report.requiredCommands).toEqual([]);
     expect(report.uncoveredRequiredCommands).toEqual([]);
   });
 
   it("renders (none) for empty agentCommands and requiredCommands", () => {
-    const report = buildDryRunReport(minimalPlan, minimalConfig);
+    const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
     const output = formatDryRunReport(report);
     expect(output).toContain("Agent commands (security.agentCommands):");
     expect(output).toContain("Required commands (plan.run.requiredCommands):");
   });
 
   it("lists the prefixes the profile's partial commands allow, or (none)", () => {
-    expect(buildDryRunReport(minimalPlan, minimalConfig).partialPrefixes).toEqual([]);
-    expect(formatDryRunReport(buildDryRunReport(minimalPlan, minimalConfig))).toContain(
+    expect(buildDryRunReport(minimalPlan, minimalConfig, "full").partialPrefixes).toEqual([]);
+    expect(formatDryRunReport(buildDryRunReport(minimalPlan, minimalConfig, "full"))).toContain(
       "Partial command prefixes (gate steps' partial):\n  (none)",
     );
     const withPartial: ResolvedConfig = {
@@ -171,7 +171,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
         },
       },
     };
-    const report = buildDryRunReport(minimalPlan, withPartial);
+    const report = buildDryRunReport(minimalPlan, withPartial, "full");
     expect(report.partialPrefixes).toEqual([
       "pnpm exec oxlint",
       "git diff --name-only --diff-filter=d",
@@ -187,7 +187,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
       ...minimalPlan,
       run: { ...minimalPlan.run, requiredCommands: ["deno fmt"] },
     };
-    const report = buildDryRunReport(planWithRequired, minimalConfig);
+    const report = buildDryRunReport(planWithRequired, minimalConfig, "full");
     expect(report.requiredCommands).toEqual(["deno fmt"]);
     expect(report.uncoveredRequiredCommands).toEqual(["deno fmt"]);
     const output = formatDryRunReport(report);
@@ -204,11 +204,32 @@ describe("buildDryRunReport / formatDryRunReport", () => {
       ...minimalConfig,
       security: { ...minimalConfig.security, agentCommands: ["pnpm test"] },
     };
-    const report = buildDryRunReport(planWithRequired, configWithAgentCmd as typeof minimalConfig);
+    const report = buildDryRunReport(
+      planWithRequired,
+      configWithAgentCmd as typeof minimalConfig,
+      "full",
+    );
     expect(report.uncoveredRequiredCommands).toEqual([]);
     const output = formatDryRunReport(report);
     expect(output).toContain("✓ pnpm test");
     expect(output).not.toContain("Preflight will fail");
+  });
+
+  it("names the given profile and takes its steps, whatever its position in phax.json", () => {
+    const twoProfiles: ResolvedConfig = {
+      ...minimalConfig,
+      raw: {
+        ...minimalConfig.raw,
+        gateProfiles: {
+          ...minimalConfig.raw.gateProfiles,
+          light: [{ command: "pnpm lint", surface: "local", firing: "every-phase", output: "log" }],
+        },
+      },
+    };
+    const report = buildDryRunReport(minimalPlan, twoProfiles, "light");
+    expect(report.gateProfileId).toBe("light");
+    expect(report.gateCommands).toEqual(["pnpm lint"]);
+    expect(formatDryRunReport(report)).toContain("Gate profile: light");
   });
 
   describe("skill edit grants", () => {
@@ -223,7 +244,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     };
 
     it("lists per-phase grants and flags missing consent", () => {
-      const report = buildDryRunReport(planWithSkill, minimalConfig);
+      const report = buildDryRunReport(planWithSkill, minimalConfig, "full");
       expect(report.phases[0]?.skillEditGrants).toEqual([".claude/skills/foo/SKILL.md"]);
       expect(report.skillEditConsentMissing).toBe(true);
       const output = formatDryRunReport(report);
@@ -235,7 +256,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
       const report = buildDryRunReport(
         planWithSkill,
         minimalConfig,
-        undefined,
+        "full",
         undefined,
         undefined,
         true,
@@ -247,7 +268,7 @@ describe("buildDryRunReport / formatDryRunReport", () => {
     });
 
     it("shows no grants and no warning for a plan without skill files", () => {
-      const report = buildDryRunReport(minimalPlan, minimalConfig);
+      const report = buildDryRunReport(minimalPlan, minimalConfig, "full");
       expect(report.phases[0]?.skillEditGrants).toEqual([]);
       expect(report.skillEditConsentMissing).toBe(false);
       expect(formatDryRunReport(report)).not.toContain("skill edits");
@@ -268,7 +289,7 @@ describe("the hold in the dry run", () => {
     ) as unknown as PhaxPlan["phases"],
   };
   const report = (hold?: Parameters<typeof buildDryRunReport>[6]) =>
-    buildDryRunReport(fourPhases, minimalConfig, undefined, undefined, undefined, false, hold);
+    buildDryRunReport(fourPhases, minimalConfig, "full", undefined, undefined, false, hold);
 
   it("prints Hold: none for a run without --hold", () => {
     expect(formatDryRunReport(report())).toContain("Hold: none");

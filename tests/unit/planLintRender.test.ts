@@ -53,12 +53,12 @@ describe("renderLintReport", () => {
     const text = renderLintReport({ plan: "plan.md", findings: [ERROR_FINDING] });
     const line = text.split("\n")[1] ?? "";
     expect(line.trimEnd()).toBe(
-      "error    files        phase-02  edit src/a.ts: does not exist and no earlier phase creates it",
+      "error    files         phase-02  edit src/a.ts: does not exist and no earlier phase creates it",
     );
   });
 
   // The acceptance-tests spec's §6 report, whole. The check column is as wide as
-  // the widest check, `interactive`, one more than the spec's sketch gives it.
+  // the widest check, `gate-profile`, two more than the spec's sketch gives it.
   it("renders acceptance and tests rows in aligned columns", () => {
     const text = renderLintReport({
       plan: "docs/plans/2610271100-publish-plan.md",
@@ -74,9 +74,9 @@ describe("renderLintReport", () => {
     expect(text).toBe(
       [
         "docs/plans/2610271100-publish-plan.md: 3 errors, 0 warnings",
-        "error    acceptance   phase-03  **Oracle phase:** is no longer read: write **Acceptance phase:**",
-        "error    acceptance   phase-03  **Oracle files:** is no longer read: write **Acceptance test files:**",
-        "error    tests        phase-03  test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'",
+        "error    acceptance    phase-03  **Oracle phase:** is no longer read: write **Acceptance phase:**",
+        "error    acceptance    phase-03  **Oracle files:** is no longer read: write **Acceptance test files:**",
+        "error    tests         phase-03  test line 1 uses the loop 'oracle', which is no longer read: write 'acceptance'",
       ].join("\n"),
     );
   });

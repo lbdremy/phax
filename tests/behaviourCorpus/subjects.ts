@@ -127,6 +127,7 @@ import { decodePlanDocumentV0_32_0 } from "../../src/schemas/history/plan-docume
 import { decodePlanDocumentV0_33_0 } from "../../src/schemas/history/plan-document/0.33.0.js";
 import { decodePlanDocumentV0_38_0 } from "../../src/schemas/history/plan-document/0.38.0.js";
 import { decodePlanDocumentPreSchema } from "../../src/schemas/history/plan-document/pre-schema.js";
+import { decodePlanLintV0_34_0 } from "../../src/schemas/history/plan-lint/0.34.0.js";
 import { decodeRegistryV0_17_0 } from "../../src/schemas/history/registry/0.17.0.js";
 import { decodeRegistryPreSchema } from "../../src/schemas/history/registry/pre-schema.js";
 import { decodeReviewStopV0_26_0 } from "../../src/schemas/history/review-stop/0.26.0.js";
@@ -560,6 +561,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("plan-document/0.33.0", decodePlanDocumentV0_33_0, "plan-document"),
   frozen("plan-document/0.38.0", decodePlanDocumentV0_38_0, "plan-document"),
   frozen("plan-document/pre-schema", decodePlanDocumentPreSchema, "first"),
+  frozen("plan-lint/0.34.0", decodePlanLintV0_34_0, "package"),
   frozen("registry/0.17.0", decodeRegistryV0_17_0, "first"),
   frozen("registry/pre-schema", decodeRegistryPreSchema, "first"),
   frozen("review-stop/0.26.0", decodeReviewStopV0_26_0, "first"),

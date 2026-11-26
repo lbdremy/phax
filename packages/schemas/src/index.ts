@@ -748,6 +748,10 @@ export {
   type RunListV0_30_0,
 } from "../../../src/schemas/history/run-list/0.30.0.js";
 export {
+  PlanLintV0_34_0Schema,
+  type PlanLintV0_34_0,
+} from "../../../src/schemas/history/plan-lint/0.34.0.js";
+export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,
 } from "../../../src/schemas/history/phase-status/0.17.0.js";

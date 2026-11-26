@@ -3,8 +3,8 @@
 // overview `phax plans overview --json` prints and the plan lint
 // `phax plans lint --json` prints, and the finding list
 // `phax finding list --json` prints. phax never saves one. Each has no
-// pre-schema shape and no frozen release, and a document without `$schema` is
-// unreadable. Each refuses a key it does not name. Its current shape, named by
+// pre-schema shape, and a document without `$schema` is unreadable. Only the
+// plan lint has a frozen release: 0.34.0, before the `gate-profile` check. Each refuses a key it does not name. Its current shape, named by
 // `CURRENT_SHAPES`, is phax's own file schema and decoder, and its
 // `toLatest` drops `$schema`.
 import {
@@ -19,6 +19,11 @@ import {
   type FindingListDocument,
   type FindingListFile,
 } from "../../../../src/schemas/findingList.js";
+import {
+  PlanLintV0_34_0Schema,
+  decodePlanLintV0_34_0,
+  type PlanLintV0_34_0,
+} from "../../../../src/schemas/history/plan-lint/0.34.0.js";
 import {
   PlanLintFileSchema,
   decodePlanLintFile,
@@ -104,6 +109,8 @@ export function toLatestPlanOverview(value: PlanOverviewFile): LatestPlanOvervie
 // ── plan lint
 
 export type PlanLintShapes = {
+  "0.34.0": PlanLintV0_34_0;
+} & {
   [K in CurrentShapeName<"plan-lint">]: PlanLintFile;
 };
 
@@ -114,7 +121,7 @@ export const planLintFormat = defineFormat<PlanLintShapes>({
   id: "plan-lint",
   label: "plan lint",
   preSchema: null,
-  releases: [],
+  releases: [["0.34.0", { schema: PlanLintV0_34_0Schema, decode: decodePlanLintV0_34_0 }]],
   current: {
     name: CURRENT_SHAPES["plan-lint"],
     shape: { schema: PlanLintFileSchema, decode: decodePlanLintFile },
@@ -127,8 +134,12 @@ export const parsePlanLint: (input: unknown) => ParsedShape<PlanLintShapes> = pl
 /** The latest plan lint: phax's in-memory value, with no `$schema`. */
 export type LatestPlanLint = PlanLintDocument;
 
-/** Drops `$schema` from a parsed plan lint and keeps every other fact. */
-export function toLatestPlanLint(value: PlanLintFile): LatestPlanLint {
+/**
+ * Drops `$schema` from a parsed plan lint and keeps every other fact. A 0.34.0
+ * plan lint is lifted unchanged: its check names are a subset of the current
+ * ones (it predates `gate-profile`).
+ */
+export function toLatestPlanLint(value: PlanLintFile | PlanLintV0_34_0): LatestPlanLint {
   const { $schema: _schema, ...recorded } = value;
   return recorded;
 }

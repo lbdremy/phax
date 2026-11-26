@@ -97,6 +97,7 @@ function makeOutput() {
 interface RunFlags {
   readonly plan: string;
   readonly allowSkillEdits?: boolean;
+  readonly dryRun?: boolean;
 }
 
 /** `phax run --plan <plan>` through the runner's `run` command; its streams are collected in `out`. */
@@ -106,6 +107,7 @@ async function runRun(flags: RunFlags, out: ReturnType<typeof makeOutput>["out"]
     "--plan",
     flags.plan,
     ...(flags.allowSkillEdits === true ? ["--allow-skill-edits"] : []),
+    ...(flags.dryRun === true ? ["--dry-run"] : []),
   ];
   const result = await runnerCall([makeRunCommand()], argv);
   out.lines.push(...result.outLines);
@@ -115,7 +117,13 @@ async function runRun(flags: RunFlags, out: ReturnType<typeof makeOutput>["out"]
 
 function makeConfig(namespace = "acme"): ResolvedConfig {
   return {
-    raw: { gateProfiles: { full: {} } } as never,
+    // `full` is the profile every test plan declares: phax run refuses one phax.json
+    // does not define with at least one step.
+    raw: {
+      gateProfiles: {
+        full: [{ command: "true", surface: "local", firing: "every-phase", output: "log" }],
+      },
+    } as never,
     namespace,
     stateRoot: "/fake-state",
     repoRoot: "/fake-repo",
@@ -192,22 +200,6 @@ function makePlan(shortName = "fixbug"): PhaxPlan {
     ],
   };
 }
-
-describe("pickGateProfileId — no fast/full depth preference", () => {
-  it("selects the first configured profile key regardless of a 'full' key", async () => {
-    const { pickGateProfileId } = await import("../../../src/cli/definitions/run.js");
-    // 'custom' is first; the old code would have preferred 'full'.
-    const config = { raw: { gateProfiles: { custom: [], full: [] } } } as never;
-    expect(pickGateProfileId(config)).toBe("custom");
-    // The first import of the module is a cold transform of its whole graph.
-  }, 30_000);
-
-  it("returns null when no profiles are configured", async () => {
-    const { pickGateProfileId } = await import("../../../src/cli/definitions/run.js");
-    const config = { raw: { gateProfiles: {} } } as never;
-    expect(pickGateProfileId(config)).toBeNull();
-  });
-});
 
 describe("runRun — AP2(a): config missing name fails before run folder creation", () => {
   beforeEach(() => {
@@ -494,6 +486,56 @@ describe("runRun — a preflight refusal precedes naming", () => {
       expect(code).toBe(1);
       expect(layers.exitCodeForError).toHaveBeenCalledWith(err);
     }
+  });
+});
+
+describe("runRun — the plan's declared gate profile", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("refuses an undefined one with exit 2 before the preflight and the run's naming", async () => {
+    await setupSuccessRun();
+    const plan = makePlan("fixbug");
+    const { loadOrExtractPlan } = vi.mocked(await import("../../../src/app/loadOrExtractPlan.js"));
+    loadOrExtractPlan.mockReturnValue(
+      Effect.succeed({
+        plan: { ...plan, run: { ...plan.run, gateProfile: "light" } },
+        warnings: [],
+        detectedAnchors: [],
+        fromCache: false,
+      }),
+    );
+    const { freshRunPreflight } = vi.mocked(await import("../../../src/app/runPreflight.js"));
+    const { createRunFolder } = vi.mocked(await import("../../../src/app/runFolder.js"));
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+
+    for (const dryRun of [false, true]) {
+      const { out, lines, errors } = makeOutput();
+      const code = await runRun({ plan: "plan.md", dryRun }, out);
+
+      expect(code).toBe(2);
+      expect(errors).toEqual([
+        'gate profile "light" is not defined in phax.json (defined: full)',
+        "  the plan declares it under ## Gate profile; no worktree was created",
+      ]);
+      expect(lines.join("\n")).not.toContain("Run: ");
+    }
+    expect(freshRunPreflight).not.toHaveBeenCalled();
+    expect(createRunFolder).not.toHaveBeenCalled();
+    expect(executePlan).not.toHaveBeenCalled();
+  });
+
+  it("passes the declared id to the preflight and executePlan", async () => {
+    await setupSuccessRun();
+    const { out } = makeOutput();
+    const code = await runRun({ plan: "plan.md" }, out);
+
+    expect(code).toBe(0);
+    const { freshRunPreflight } = vi.mocked(await import("../../../src/app/runPreflight.js"));
+    const { executePlan } = vi.mocked(await import("../../../src/app/executePlan.js"));
+    expect(freshRunPreflight.mock.calls[0]?.[0].gateProfileId).toBe("full");
+    expect(executePlan.mock.calls[0]?.[0].gateProfileId).toBe("full");
   });
 });
 

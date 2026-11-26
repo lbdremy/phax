@@ -10,6 +10,7 @@ import type {
   LatestPlanOverview,
   PlanLint,
   PlanLintShape,
+  PlanLintV0_34_0,
   PlanOverview,
   PlanOverviewShape,
   RunListV0_30_0,
@@ -365,6 +366,7 @@ import type {
 import type { PlanOverview as PhaxPlanOverview } from "../../src/domain/plan/overview.js";
 import type { LintReport as PhaxLintReport } from "../../src/app/lintPlan.js";
 import type { RunListV0_30_0 as FrozenRunListV0_30_0 } from "../../src/schemas/history/run-list/0.30.0.js";
+import type { PlanLintV0_34_0 as FrozenPlanLintV0_34_0 } from "../../src/schemas/history/plan-lint/0.34.0.js";
 import type {
   RunList as PhaxRunList,
   RunListFile as PhaxRunListFile,
@@ -1720,8 +1722,10 @@ const interactiveTypes: [
 void interactiveTypes;
 // The artifact status, plan overview and plan lint are born with $schema at
 // 0.34.0: phax's own file types, one current shape each, and an in-memory
-// value without $schema. The overview and the lint report are the types the
-// use cases build, held equal to the published documents.
+// value without $schema. The plan lint also reads its frozen 0.34.0 shape,
+// before the gate-profile check, and lifts it unchanged. The overview and the
+// lint report are the types the use cases build, held equal to the published
+// documents.
 const commandAnswerTypes: [
   Equals<ArtifactStatus, PhaxArtifactStatusFile>,
   Equals<ArtifactStatusShape, Current<"artifact-status">>,
@@ -1735,10 +1739,11 @@ const commandAnswerTypes: [
   Equals<Parameters<typeof toLatestPlanOverview>, [value: PhaxPlanOverviewFile]>,
   Equals<PhaxPlanOverviewDocument, PhaxPlanOverview>,
   Equals<PlanLint, PhaxPlanLintFile>,
-  Equals<PlanLintShape, Current<"plan-lint">>,
-  Equals<Value<typeof parsePlanLint>, PhaxPlanLintFile>,
+  Equals<PlanLintShape, "0.34.0" | Current<"plan-lint">>,
+  Equals<Value<typeof parsePlanLint>, FrozenPlanLintV0_34_0 | PhaxPlanLintFile>,
   Equals<LatestPlanLint, PhaxPlanLintDocument>,
-  Equals<Parameters<typeof toLatestPlanLint>, [value: PhaxPlanLintFile]>,
+  Equals<Parameters<typeof toLatestPlanLint>, [value: PhaxPlanLintFile | FrozenPlanLintV0_34_0]>,
+  Equals<PlanLintV0_34_0, FrozenPlanLintV0_34_0>,
   Equals<PhaxPlanLintDocument, PhaxLintReport>,
   Equals<FindingList, PhaxFindingListFile>,
   Equals<FindingListShape, Current<"finding-list">>,
@@ -1746,6 +1751,7 @@ const commandAnswerTypes: [
   Equals<LatestFindingList, PhaxFindingListDocument>,
   Equals<Parameters<typeof toLatestFindingList>, [value: PhaxFindingListFile]>,
 ] = [
+  true,
   true,
   true,
   true,

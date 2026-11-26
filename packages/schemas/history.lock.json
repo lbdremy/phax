@@ -58,6 +58,7 @@
   "src/schemas/history/plan-document/0.33.0.ts": "84a329455837c7cf2d6dde1318b336a83611ac4515cdc2deca9d23b601800fe0",
   "src/schemas/history/plan-document/0.38.0.ts": "0b34da98e8bbc4e263a17a0696b38ff25cb00b6ab451c57d8b0671919dc08376",
   "src/schemas/history/plan-document/pre-schema.ts": "474d9c43cf9ccf970a8b3cd2540631e547d39e9851b9a9bd3c20518a684055c8",
+  "src/schemas/history/plan-lint/0.34.0.ts": "884f062239c67b860949ae20d718e1c8bb9d984cb593e63149f0081ef63baa26",
   "src/schemas/history/registry/0.17.0.ts": "b405c599ee0a09ffdb9d023cd1cae1f98d66bcf36079b5241ee62c21f7b27fcc",
   "src/schemas/history/registry/pre-schema.ts": "8b9f030f81fbebbdb0af4e166880ea23518859bfe70f66e8dc7441cc430704a1",
   "src/schemas/history/review-stop/0.26.0.ts": "da3100776bc8199d0f4bd8009c2506d8a4ab994e1aa8635fa22ed65213927df8",

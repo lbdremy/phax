@@ -51,14 +51,15 @@ export interface DryRunReport {
 export function buildDryRunReport(
   plan: PhaxPlan,
   config: ResolvedConfig,
-  gateProfileId?: string,
+  gateProfileId: string,
   providerPriorityOverride?: readonly string[],
   securityMode?: SecurityMode,
   allowSkillEdits = false,
   hold: HoldRequest = { kind: "none" },
 ): DryRunReport {
-  const profileId = gateProfileId ?? Object.keys(config.raw.gateProfiles)[0] ?? "";
-  const gateSteps = resolveGateProfile(config, profileId);
+  // The plan's declared profile. `phax run` refuses an undefined one before the dry run,
+  // so a refusal here is a defect: `resolveGateProfile` throws it.
+  const gateSteps = resolveGateProfile(config, gateProfileId);
   const gateCommands = gateSteps.map((s) => s.command);
   const partialPrefixes = partialAllowPrefixes(gateSteps);
 
@@ -104,7 +105,7 @@ export function buildDryRunReport(
     branch: plan.run.branch,
     projectName: config.namespace,
     stateRoot: config.stateRoot,
-    gateProfileId: profileId,
+    gateProfileId,
     securityMode: effectiveSecurityMode,
     setupCommands: config.raw.commands?.setup ?? [],
     cleanupCommands: config.raw.commands?.cleanup ?? [],

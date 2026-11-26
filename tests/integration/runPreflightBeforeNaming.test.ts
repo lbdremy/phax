@@ -92,8 +92,9 @@ vi.mock("../../src/infra/providers/dispatcher.js", async (importOriginal) => {
   const fakes = await import("../../src/infra/fakes/backend.js");
   return { ...actual, makeNodeBackendLayer: vi.fn(() => fakes.makeFakeBackend().layer) };
 });
-// `phax run` still picks phax.json's first profile, which is always defined, so
-// the gate-profile scenario forces a refusal through this pass-through spy.
+// `phax run` refuses an undefined declared profile before the preflight, so the
+// gate-profile scenario forces the preflight's own refusal through this
+// pass-through spy: the run's check passes, the preflight's resolution fails.
 vi.mock("../../src/domain/gate/gateProfile.js", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../src/domain/gate/gateProfile.js")>();
   return { ...actual, resolveGateProfileById: vi.fn(actual.resolveGateProfileById) };
@@ -225,9 +226,12 @@ const SCENARIOS = {
   },
   "gate-profile": {
     arrange: () => {
-      vi.mocked(resolveGateProfileById).mockImplementationOnce((_config, id) =>
-        Result.fail({ id, defined: [] }),
-      );
+      const spy = vi.mocked(resolveGateProfileById);
+      const actual = spy.getMockImplementation();
+      if (actual === undefined) throw new Error("resolveGateProfileById is not spied");
+      spy
+        .mockImplementationOnce(actual)
+        .mockImplementationOnce((_config, id) => Result.fail({ id, defined: [] }));
     },
     exitCode: 2,
     errorLine: () =>

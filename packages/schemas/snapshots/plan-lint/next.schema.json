@@ -1,0 +1,73 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax plan lint",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/plan-lint\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The plan-lint format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/plan-lint/<X.Y.Z>.json"
+    },
+    "plan": {
+      "type": "string",
+      "description": "The plan path as the caller typed it."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "description": "An error makes `phax plans lint` exit 1."
+          },
+          "check": {
+            "type": "string",
+            "enum": [
+              "structure",
+              "files",
+              "commands",
+              "gate-profile",
+              "models",
+              "interactive",
+              "acceptance",
+              "tests",
+              "advisory"
+            ]
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The phase id the finding names, or null for a finding about the whole plan."
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "severity",
+          "check",
+          "phase",
+          "message"
+        ],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "plan",
+    "findings"
+  ],
+  "additionalProperties": false
+}

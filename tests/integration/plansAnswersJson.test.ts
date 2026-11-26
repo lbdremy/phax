@@ -91,7 +91,8 @@ beforeAll(() => {
       version: 1,
       name: "made-up",
       state: { root: state },
-      gateProfiles: { fast: [{ command: "true", surface: "local", firing: "every-phase" }] },
+      // The profile the widget plan declares, so its lint finds no gate-profile error.
+      gateProfiles: { standard: [{ command: "true", surface: "local", firing: "every-phase" }] },
     }),
   );
   writeFileSync(join(state, "registry.json"), JSON.stringify(LS_REGISTRY));
@@ -129,9 +130,9 @@ describe("phax plans lint", () => {
     expect(text.stdout).toBe(PLANS_LINT_TEXT_BEFORE);
     const document = JSON.parse(json.stdout) as Record<string, unknown>;
     expect(Object.keys(document)[0]).toBe("$schema");
-    expect(document["$schema"]).toBe(schemaUrl("plan-lint", "0.34.0"));
+    expect(document["$schema"]).toBe(schemaUrl("plan-lint", "0.43.0"));
     expect(Result.isSuccess(decodePlanLintFile(document))).toBe(true);
-    const stamp = `  "$schema": "${schemaUrl("plan-lint", "0.34.0")}",\n`;
+    const stamp = `  "$schema": "${schemaUrl("plan-lint", "0.43.0")}",\n`;
     expect(json.stdout.slice(2)).toBe(stamp + PLANS_LINT_JSON_BEFORE.slice(2));
   });
 
@@ -143,7 +144,7 @@ describe("phax plans lint", () => {
     expect(json.status, json.stderr).toBe(0);
     expect(text.status, text.stderr).toBe(0);
     expect(text.stdout).toBe(PLANS_LINT_CLEAN_TEXT_BEFORE);
-    const stamp = `  "$schema": "${schemaUrl("plan-lint", "0.34.0")}",\n`;
+    const stamp = `  "$schema": "${schemaUrl("plan-lint", "0.43.0")}",\n`;
     expect(json.stdout.slice(2)).toBe(stamp + PLANS_LINT_CLEAN_JSON_BEFORE.slice(2));
   });
 
@@ -158,7 +159,7 @@ describe("phax plans lint", () => {
     expect(entry.name).toEqual(["plans", "lint"]);
     expect(entry.input).toBeTypeOf("object");
     expect(entry.stdin).toBeNull();
-    expect(entry.output).toEqual({ $ref: schemaUrl("plan-lint", "0.34.0") });
+    expect(entry.output).toEqual({ $ref: schemaUrl("plan-lint", "0.43.0") });
     expect(Array.isArray(entry.errors)).toBe(true);
     const inCatalogue = catalogue().commands.find(({ name }) => name.join(" ") === "plans lint");
     expect(entry).toEqual(inCatalogue);

@@ -179,7 +179,7 @@ export const PLANS_OVERVIEW_JSON_BEFORE = `{
 
 /** `phax plans lint BAD_PLAN_REL`: one error finding, exit 1. */
 export const PLANS_LINT_TEXT_BEFORE = `bad-plan.md: 1 error, 0 warnings
-error    structure    phase-01  phase heading "phase-01 — Add the widget" missing id or {#anchor}
+error    structure     phase-01  phase heading "phase-01 — Add the widget" missing id or {#anchor}
 `;
 
 /** `phax plans lint BAD_PLAN_REL --json`: exit 1. */

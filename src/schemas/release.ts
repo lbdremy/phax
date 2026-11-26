@@ -46,7 +46,7 @@ export const CURRENT_STAMPS = {
   "acceptance-request": "0.33.0",
   "artifact-status": "0.34.0",
   "plan-overview": "0.34.0",
-  "plan-lint": "0.34.0",
+  "plan-lint": "0.43.0",
   "revision-record-manifest": "0.38.0",
   "code-review-answer": "0.40.0",
   "compliance-review-answer": "0.40.0",

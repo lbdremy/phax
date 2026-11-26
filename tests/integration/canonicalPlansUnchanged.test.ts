@@ -176,11 +176,11 @@ describe("canonical plans' outputs (ac-additive baseline)", () => {
 
 const LINT: Record<PlanName, string> = {
   "hello-world":
-    "plan.md: 0 errors, 3 warnings\nwarning  models       phase-01  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line\nwarning  models       phase-02  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line\nwarning  models       phase-03  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line",
+    "plan.md: 0 errors, 3 warnings\nwarning  models        phase-01  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line\nwarning  models        phase-02  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line\nwarning  models        phase-03  claude-sonnet-5 / low: no bound governs; departs from the policy default (claude-sonnet-5-5 / medium) with no **Assignment reason:** line",
   "artifact-revise":
-    'plan.md: 1 error, 1 warning\nerror    acceptance   phase-05  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\nwarning  tests        -         source spec docs/specs/2610271505-artifact-revise.md is not found, here or under docs/specs/archive/: no criterion id is checked',
+    'plan.md: 1 error, 1 warning\nerror    acceptance    phase-05  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\nwarning  tests         -         source spec docs/specs/2610271505-artifact-revise.md is not found, here or under docs/specs/archive/: no criterion id is checked',
   "command-contracts":
-    'plan.md: 1 error, 1 warning\nerror    acceptance   phase-04  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\nwarning  tests        -         source spec docs/specs/2611031738-command-contracts.md is not found, here or under docs/specs/archive/: no criterion id is checked',
+    'plan.md: 1 error, 1 warning\nerror    acceptance    phase-04  acceptance phase declared, but no "acceptance" provider is configured (phax.json, phax.local.json or ~/.phax/config.json)\nwarning  tests         -         source spec docs/specs/2611031738-command-contracts.md is not found, here or under docs/specs/archive/: no criterion id is checked',
 };
 
 const OVERLAP =
