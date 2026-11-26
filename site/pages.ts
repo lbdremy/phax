@@ -222,6 +222,13 @@ export default definePageMap({
         "Bound which model and efforts a phase takes where it touches certain files, and how phax plans lint and phax run hold plans to the bounds.",
     },
     {
+      route: "/guide/gate-profiles",
+      title: "Gate profiles",
+      source: "docs/gate-profiles.md",
+      description:
+        "Define several gate profiles in phax.json and name in each plan the one that verifies its run, so a docs change runs under a lighter gate than code.",
+    },
+    {
       route: "/reference/model-catalog",
       title: "Model catalog",
       source: "docs/model-catalog.md",
