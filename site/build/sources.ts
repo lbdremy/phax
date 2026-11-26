@@ -22,6 +22,7 @@ const SOURCE_FILES = [
   "docs/architecture-provider.md",
   "docs/acceptance-phases.md",
   "docs/assignment-bounds.md",
+  "docs/gate-profiles.md",
   "docs/upgrading.md",
   "docs/agent-session-failures.md",
   "docs/structured-answers.md",

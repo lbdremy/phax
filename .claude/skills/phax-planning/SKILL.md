@@ -40,14 +40,16 @@ executing agent to explain any deviation in its handoff (see
 
 `phax plans lint <plan>` reports every mechanical defect of a plan before a run
 touches it — read-only, and model-free, so it never falls back to the extraction
-model. Eight checks: **structure** (every field the deterministic parse requires,
+model. Nine checks: **structure** (every field the deterministic parse requires,
 reported in full rather than stopping at the first, plus an error for a phase
 number missing from phase-01 … phase-NN, such as phase-02 in a plan with phase-01
 and phase-03), **files** (the planned
 create/edit lists walked in phase order against the working tree — an edit of a
 file no earlier phase creates, or a create of a file that already exists, is an
-error), **commands** (the plan's required commands against `security.agentCommands`
-and the gate profile), **models** (each phase's model/effort against the routing
+error), **gate-profile** (a declared gate profile that `phax.json` does not define is an
+error naming every defined profile; a missing or doubled declaration is a **structure**
+error), **commands** (the plan's required commands against `security.agentCommands` and the
+declared profile's steps; skipped when that profile is undefined), **models** (each phase's model/effort against the routing
 catalog, each declared assignment bound against the catalog, each phase against the bound that governs it or the policy default, and a line still using the old reason label, which is now `**Assignment reason:**`), **interactive**
 and **acceptance** (a malformed `**Mode:**` or acceptance line; the interactive-phase rules below: placement, and no planned file to create or edit; and the acceptance-phase rules below, including an acceptance phase with no `acceptance` provider configured and an interactive phase in an acceptance role; one inside a pair is allowed), **tests** (a test line off the format, an acceptance-loop line on a phase that is not an acceptance phase, an acceptance phase with no acceptance-loop line and a criterion id the source spec does not have are errors; a criterion no phase covers, and a source spec with no readable criterion ids, are warnings; a phase with no line is not flagged), and **advisory** (when `phax.json` registers a `planAuditor`, every
 finding it returns about the plan's shape — one warning per phase it names). It
@@ -154,7 +156,7 @@ informational for the executing agent.
 | Test strategy            | `### Test strategy` subsection (`testLines`)            | no         |
 | Implementation order     | `### Implementation order` subsection                   | no         |
 | Excluded scope           | `### Excluded scope` list                               | no         |
-| Verification             | `### Verification` (names the `phax.json` gate profile) | no         |
+| Verification             | `### Verification` (what proves the phase beyond the declared gate profile; never the profile's name) | no         |
 | Expected handoff content | `### Expected handoff content`                          | no         |
 
 The run-level field `requiredCommands` (extracted from `## Required commands` in
@@ -218,7 +220,7 @@ phase adds.>
 
 ### Verification
 
-<the phax.json gate profile that verifies this phase — do not invent commands>
+<what proves this phase beyond the declared gate profile — never the profile's name>
 
 ### Expected handoff content
 
@@ -559,11 +561,11 @@ because a spike's value is in judgment, not in compiling code. Reconcile it like
   live API, observing a network block) happens out-of-band — a human or an e2e step —
   and its output is pasted into the findings doc. A closing synthesis phase
   rapatriates the judgment into a go/no-go.
-- **Keep the spike project's gate profile light.** Spike artifacts (`spikes/`, docs) have
+- **A spike plan declares its light gate profile.** Spike artifacts (`spikes/`, docs) have
   no architecture/knip/build surface to protect, so gating them on heavy structural/product
-  steps is a misleading "false green". Configure the spike's single gate profile with just
-  the honest light steps (e.g. `typecheck` to cover any TypeScript scaffolding the spike
-  produces). Gates passing trivially ("à vide") is acceptable for a spike — the real signal
+  steps is a misleading "false green". Name under `## Gate profile` a profile of `phax.json`
+  with just the honest light steps (e.g. `typecheck` to cover any TypeScript scaffolding the
+  spike produces). When `phax.json` defines none, ask the operator to add one. Gates passing trivially ("à vide") is acceptable for a spike — the real signal
   lives in the findings doc, not the gate.
 - **State the execution-model caveat in the plan Overview.** A phase agent runs in a
   worktree and cannot reliably self-verify real-world effects (a microVM escape, a live
@@ -615,6 +617,25 @@ Cut and write every phase first. Choose its model and effort last, from what the
 | `gpt-5.6-sol` | `openai-gpt` | deprecated | `low` \| `medium` \| `high` \| `xhigh` \| `max` \| `ultra` |
 | `gpt-5.5` | `openai-gpt` | active | `low` \| `medium` \| `high` \| `xhigh` |
 <!-- END generated: model-catalog -->
+
+## Gate profile declaration
+
+Every plan declares, before its first phase, exactly one gate profile of `phax.json` that
+verifies its whole run, in a `## Gate profile` section holding the id as a code span:
+
+```markdown
+## Gate profile
+
+`standard`
+```
+
+- `phax plans lint` and `phax run` refuse a missing, doubled or undefined declaration. Read
+  `gateProfiles` in `phax.json` and choose one of the ids it defines.
+- The declaration is part of the approved plan, so changing it is a revision: the plan is
+  approved again before it runs.
+- `phax resume` keeps the profile the run started with.
+- A phase cannot have a profile of its own.
+- The headless authoring prompt lists the defined profiles.
 
 ## Required commands declaration
 
@@ -696,10 +717,11 @@ is a token-prefix of the required command (`deno` covers `deno fmt`).
 
 - **Sequential only.** Phases execute one at a time; phax has no parallel
   execution mode.
-- **No invented repo commands.** Gates come from `phax.json`, not from
-  `plan.md`. Never invent `pnpm` scripts or CLI commands that do not already
-  exist in the project. `### Verification` names the configured gate profile; it
-  does not introduce new commands.
+- **No invented repo commands.** Gates come from the plan's declared gate profile
+  in `phax.json`, not from commands written in `plan.md`. Never invent `pnpm`
+  scripts or CLI commands that do not already exist in the project.
+  `### Verification` says what proves the phase beyond that profile; it does not
+  introduce new commands.
 - **Small, committable phases.** Each phase must produce a single coherent
   commit. If the diff would be hard to review, split the phase.
 - **Gate-verifiable outcomes.** Every phase must have an outcome the configured
@@ -789,8 +811,8 @@ Top-level keys:
   which). phax sets it from `--spec` regardless, so frontmatter and sidecar agree.
 - `completesSpec`: `true` or `false` beside a `sourceSpec` path, `null` without one. phax
   sets it from `--last`/`--not-last` regardless.
-- `run`: `{ shortName, title, requiredCommands }` — the extracted run fields
-  (`# <Title>`, `## Required commands`).
+- `run`: `{ shortName, title, requiredCommands, gateProfile }` — the extracted run fields
+  (`# <Title>`, `## Required commands`, `## Gate profile`).
 - `preamble`: `{ summary, requiredCommandsNote, technicalArbitrations, openQuestions,
   arbitratedQuestions }` — the prose under the title, the note after the required-commands
   list, and one string per arbitration (rendered as `## Technical arbitrations`, omitted when
@@ -886,7 +908,8 @@ durable place to persist run state.
 
 ### Verification
 
-- The project's configured `standard` gate profile in `phax.json`.
+- The unit test creates the same run twice in a temporary directory: the second call is
+  refused with the typed error and the first run folder is unchanged.
 
 ### Expected handoff content
 
