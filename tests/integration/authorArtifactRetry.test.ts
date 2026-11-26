@@ -182,6 +182,7 @@ function setup(first: string | undefined, retry?: string) {
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
+    gateProfiles: [],
     acceptanceProvider: false,
     output: { warn: (message) => events.push(`warn: ${message}`) },
     ...overrides,

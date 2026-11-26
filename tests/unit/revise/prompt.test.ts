@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { serializeSidecar } from "../../../src/domain/artifact/sidecar.js";
 import { buildRevisePrompt, buildReviseRetryPrompt } from "../../../src/domain/revise/prompt.js";
+import { GATE_PROFILES, GATE_PROFILE_SECTION } from "../../helpers/gateProfilePrompt.js";
 import { SPEC } from "../decide/verdictsFixtures.js";
 
 const INPUT = {
@@ -12,6 +13,7 @@ const INPUT = {
   document: SPEC,
   amendment: "AMENDMENT-MARKER: keep twenty logs.\n  second line",
   schemaUrl: "https://example.test/spec-document.json",
+  gateProfiles: null,
 } as const;
 
 describe("buildRevisePrompt", () => {
@@ -43,6 +45,21 @@ describe("buildRevisePrompt", () => {
     const prompt = buildRevisePrompt(INPUT);
     expect(prompt).toContain("Never change, remove or reorder a question");
     expect(prompt).toContain("appended at the end of the open questions");
+  });
+});
+
+describe("the gate profiles in a revision prompt", () => {
+  const rule = "- `run.gateProfile` names exactly one of the gate profiles below.";
+
+  it("a plan prompt adds the rule, then the profile list after the rules", () => {
+    const prompt = buildRevisePrompt({ ...INPUT, kind: "plan", gateProfiles: GATE_PROFILES });
+    expect(prompt).toContain(
+      `- Write no files: this session is read-only.\n${rule}\n\n${GATE_PROFILE_SECTION}\n\n## The current document (`,
+    );
+  });
+
+  it("a spec prompt carries neither", () => {
+    expect(buildRevisePrompt(INPUT)).not.toMatch(/Gate profile|gateProfile/);
   });
 });
 

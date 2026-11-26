@@ -35,6 +35,7 @@ vi.mock("node:os", async (importOriginal) =>
 // pipe.
 
 const BRIEF = "Prune archived runs.\nFree their slugs.\n";
+const SESSION_ID = "sess-authoring" as ClaudeSessionId;
 
 /** `phax artifact new <kind> …argv`, the brief file as the repo holds it. */
 async function artifactNew(
@@ -164,7 +165,7 @@ describe("artifact new spec --headless (command)", () => {
   it("a brief file: writes the spec and sidecar, commits exactly those two paths, exits 0", async () => {
     const backend = makeFakeBackend();
     backend.impl.addRunResponse({
-      sessionId: "sess-authoring" as ClaudeSessionId,
+      sessionId: SESSION_ID,
       outputPath: "output.jsonl",
       finalText: JSON.stringify(SPEC_DOCUMENT),
     });
@@ -327,5 +328,41 @@ describe("artifact new plan --headless (command)", () => {
     expect(errors.join("\n")).toMatch(/--last|--not-last/);
     expect(backend.impl.runCalls).toHaveLength(0);
     expect(existsSync(join(repoDir, "docs/plans"))).toBe(false);
+  });
+
+  it("records a prompt.md listing every profile phax.json defines, with its steps", async () => {
+    const step = (command: string) => ({ command, surface: "local", firing: "every-phase" });
+    writeFileSync(
+      join(repoDir, "phax.json"),
+      JSON.stringify({
+        version: 1,
+        name: "test",
+        gateProfiles: { standard: [step("pnpm typecheck")], light: [step("pnpm lint")] },
+        records: { transcript: false, destination: { kind: "in-repo" }, autoPush: false },
+      }),
+    );
+    // A refused answer, twice: a failed session records its prompt too.
+    const backend = makeFakeBackend();
+    for (const outputPath of ["output.jsonl", "retry-output.jsonl"]) {
+      backend.impl.addRunResponse({
+        sessionId: SESSION_ID,
+        outputPath,
+        finalText: "{}",
+      });
+    }
+
+    const { code } = await artifactNew(
+      "plan",
+      ["plan-prune", "--headless", "--brief", "brief.md"],
+      backend.layer,
+    );
+
+    expect(code).toBe(5);
+    const promptPath = git("ls-tree", "-r", "--name-only", "phax/records/v1")
+      .split("\n")
+      .find((p) => p.endsWith("/prompt.md"));
+    expect(git("show", `phax/records/v1:${promptPath}`)).toContain(
+      "## Gate profiles defined in phax.json\n\nDeclare exactly one of them as `run.gateProfile`; phax renders it as the plan's `## Gate profile` section.\n\nstandard\n  every-phase  pnpm typecheck\nlight\n  every-phase  pnpm lint\n",
+    );
   });
 });

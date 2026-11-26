@@ -164,6 +164,7 @@ describe("a headless authoring session that ends with exhausted structured-outpu
       publishRemote: "origin",
       architectureProvider: false,
       assignmentBounds: false,
+      gateProfiles: [],
       acceptanceProvider: false,
       output: { warn: () => undefined },
     };

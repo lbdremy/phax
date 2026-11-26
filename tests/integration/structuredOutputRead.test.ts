@@ -258,6 +258,7 @@ describe("a headless spec authoring session answered through structured_output",
       publishRemote: "origin",
       architectureProvider: false,
       assignmentBounds: false,
+      gateProfiles: [],
       acceptanceProvider: false,
       output: { warn: (message) => warnings.push(message) },
     };

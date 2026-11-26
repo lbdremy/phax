@@ -220,6 +220,7 @@ function input(overrides: Partial<AuthorArtifactInput> = {}): AuthorArtifactInpu
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
+    gateProfiles: [],
     acceptanceProvider: false,
     output: { warn: () => {} },
     ...overrides,

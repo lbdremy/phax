@@ -1,4 +1,5 @@
 import type { ArtifactKind } from "../artifact/status.js";
+import type { DefinedGateProfile } from "../gate/gateProfile.js";
 import type { SpecCriteria } from "../plan/criterionCoverage.js";
 
 /** The prompt's filename inside an authoring session folder. */
@@ -30,6 +31,22 @@ export interface AuthoringPromptInput {
   readonly assignmentBounds: boolean | null;
   /** Whether an acceptance provider is configured, for a plan; null for a spec. */
   readonly acceptanceProvider: boolean | null;
+  /** The gate profiles phax.json defines, for a plan; null for a spec. */
+  readonly gateProfiles: readonly DefinedGateProfile[] | null;
+}
+
+export const GATE_PROFILES_HEADING = "## Gate profiles defined in phax.json";
+
+export const GATE_PROFILES_LINE =
+  "Declare exactly one of them as `run.gateProfile`; phax renders it as the plan's `## Gate profile` section.";
+
+/** Each profile's id, then one line per step: its firing, padded across the list, and its command. */
+export function renderGateProfileList(profiles: readonly DefinedGateProfile[]): string {
+  if (profiles.length === 0) return "(none: phax.json defines no gate profile)";
+  const width = Math.max(...profiles.flatMap((p) => p.steps.map((s) => s.firing.length)));
+  return profiles
+    .flatMap((p) => [p.id, ...p.steps.map((s) => `  ${s.firing.padEnd(width)}  ${s.command}`)])
+    .join("\n");
 }
 
 const ACCEPTANCE_CONFIGURED_LINE =
@@ -64,8 +81,8 @@ function architectureLine(provider: boolean, bounds: boolean): string {
 }
 
 // The full prompt of a headless authoring session, in a fixed order: the skill
-// text verbatim, the output contract, the document JSON Schema, the source spec
-// and its criterion ids (plan only), then the brief. Pure: the same input yields the same prompt, so
+// text verbatim, the output contract, the document JSON Schema, the gate profiles
+// (plan only), the source spec and its criterion ids (plan only), then the brief. Pure: the same input yields the same prompt, so
 // the recorded prompt.md reproduces the session's input, less the closing line
 // a native Claude Code spawn appends (see CLAUDE_STAMP_PROMPT_LINE).
 export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
@@ -117,6 +134,17 @@ export function buildAuthoringPrompt(input: AuthoringPromptInput): string {
     "",
     JSON.stringify(input.jsonSchema, null, 2),
   ];
+
+  if (input.gateProfiles !== null) {
+    sections.push(
+      "",
+      GATE_PROFILES_HEADING,
+      "",
+      GATE_PROFILES_LINE,
+      "",
+      renderGateProfileList(input.gateProfiles),
+    );
+  }
 
   if (input.sourceSpec !== null) {
     sections.push(

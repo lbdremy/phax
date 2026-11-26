@@ -21,6 +21,7 @@ import {
   failWithFollowUps,
   isSessionFailureCause,
 } from "../domain/errors.js";
+import type { DefinedGateProfile } from "../domain/gate/gateProfile.js";
 import { buildReviseRetryPrompt, buildRevisePrompt } from "../domain/revise/prompt.js";
 import {
   type AppendedQuestion,
@@ -106,6 +107,8 @@ export interface ReviseArtifactInput {
   readonly providerConfig: ProviderConfig;
   /** The bundled `phax-spec` and `phax-planning` `SKILL.md` texts, verbatim. */
   readonly skills: Readonly<Record<ArtifactKind, string>>;
+  /** The gate profiles phax.json defines, read by the caller; only a plan's prompt lists them. */
+  readonly gateProfiles: readonly DefinedGateProfile[];
   readonly security: ResolvedSecurityConfig;
   readonly repoRoot: string;
   readonly stateRoot: string;
@@ -365,6 +368,7 @@ export function reviseArtifact(
       document: authored.document,
       amendment: input.amendment.text,
       schemaUrl: currentSchemaUrl(`${kind}-document`),
+      gateProfiles: kind === "plan" ? input.gateProfiles : null,
     });
     yield* fs.mkdirp(folder);
     yield* fs.writeAtomic(join(folder, REVISE_AMENDMENT_FILENAME), input.amendment.text);

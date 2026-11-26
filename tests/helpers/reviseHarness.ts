@@ -393,6 +393,7 @@ function harnessIn(world: ReviseRepo, opts: HarnessOptions) {
           routing: DEFAULT_MODEL_ROUTING,
           providerConfig: DEFAULT_PROVIDER_CONFIG,
           skills: { spec: SKILL_SPEC, plan: SKILL_PLAN },
+          gateProfiles: [],
           security: SECURITY,
           repoRoot: world.repoDir,
           stateRoot: world.stateRoot,

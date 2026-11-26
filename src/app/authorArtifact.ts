@@ -24,6 +24,7 @@ import { serializeSidecar, sidecarPathFor } from "../domain/artifact/sidecar.js"
 import type { ArtifactKind } from "../domain/artifact/status.js";
 import { formatStamp } from "../domain/artifact/name.js";
 import { AUTHORING_PROMPT_FILENAME, buildAuthoringPrompt } from "../domain/authoring/prompt.js";
+import type { DefinedGateProfile } from "../domain/gate/gateProfile.js";
 import {
   RETRY_PROMPT_FILENAME,
   RETRY_TRANSCRIPT_FILENAME,
@@ -106,6 +107,8 @@ export interface AuthorArtifactInput {
   readonly acceptanceProvider: boolean;
   /** Whether `assignments` is declared in phax.json, read by the caller. */
   readonly assignmentBounds: boolean;
+  /** The gate profiles phax.json defines, read by the caller; only a plan's prompt lists them. */
+  readonly gateProfiles: readonly DefinedGateProfile[];
   /**
    * Where a failed session's record and push warnings go. A committed session's
    * record and push are returned in the result for the caller to render instead.
@@ -498,6 +501,7 @@ export function authorArtifact(
       architectureProvider: input.kind === "plan" ? input.architectureProvider : null,
       assignmentBounds: input.kind === "plan" ? input.assignmentBounds : null,
       acceptanceProvider: input.kind === "plan" ? input.acceptanceProvider : null,
+      gateProfiles: input.kind === "plan" ? input.gateProfiles : null,
     });
     yield* fs.mkdirp(folder);
     yield* fs.writeAtomic(join(folder, AUTHORING_BRIEF_FILENAME), input.brief.text);

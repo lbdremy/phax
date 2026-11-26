@@ -242,6 +242,7 @@ async function author(options: {
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
+    gateProfiles: [],
     acceptanceProvider: false,
     output: { warn: (message) => warnings.push(message) },
   };
