@@ -199,9 +199,10 @@ describe.each([
       const listed = await world.run((g) =>
         g.commitsSince(world.repo, "main", "2026-01-02T11:00:00+01:00"),
       );
-      expect(listed).toEqual([
-        { sha: second, committedAt: DAY2, message: "second\n\nFinding: f-1\n" },
-        { sha: third, committedAt: DAY3, message: "third\n" },
+      // The instant, not its spelling: git 2.45 and later write UTC as `Z`, older ones as `+00:00`.
+      expect(listed.map((c) => ({ ...c, committedAt: Date.parse(c.committedAt) }))).toEqual([
+        { sha: second, committedAt: Date.parse(DAY2), message: "second\n\nFinding: f-1\n" },
+        { sha: third, committedAt: Date.parse(DAY3), message: "third\n" },
       ]);
     });
 

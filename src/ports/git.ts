@@ -69,7 +69,10 @@ export interface CommitFiles {
 export interface RangeCommit {
   /** The full 40-hex commit sha. */
   readonly sha: string;
-  /** The committer date, strict ISO-8601 (`%cI`), e.g. `2026-11-26T10:00:00+01:00`. */
+  /**
+   * The committer date, strict ISO-8601 (`%cI`), e.g. `2026-11-26T10:00:00+01:00`. Read it as
+   * an instant: git spells UTC `Z` or `+00:00` depending on its version.
+   */
   readonly committedAt: string;
   /**
    * The full raw message as git stores it (`%B`), byte for byte: blank lines,
