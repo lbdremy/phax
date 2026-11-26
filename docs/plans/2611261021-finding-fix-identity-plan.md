@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611220956-finding-fix-identity.md
 completes-spec: true
+approved:
+  date: 2026-11-26
+  baseline: dad8247
 ---
 # Finding fix identity
 
