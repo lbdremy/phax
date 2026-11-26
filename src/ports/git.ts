@@ -65,6 +65,20 @@ export interface CommitFiles {
   readonly paths: readonly string[];
 }
 
+/** One commit of a branch's history, as `commitsSince` lists it. */
+export interface RangeCommit {
+  /** The full 40-hex commit sha. */
+  readonly sha: string;
+  /** The committer date, strict ISO-8601 (`%cI`), e.g. `2026-11-26T10:00:00+01:00`. */
+  readonly committedAt: string;
+  /**
+   * The full raw message as git stores it (`%B`), byte for byte: blank lines,
+   * every paragraph and non-ASCII text kept. It is `commitMessage`'s answer for
+   * the same commit without the one newline `git log --format=%B` appends.
+   */
+  readonly message: string;
+}
+
 /** How a commit takes its message. */
 interface CommitOptions {
   /**
@@ -275,6 +289,28 @@ export interface GitOps {
    * not exist.
    */
   commitChangedPaths(repo: string, commit: string): Effect.Effect<readonly string[], GitError>;
+  /**
+   * Every commit reachable from `tip` (a ref or a sha) whose committer date is
+   * at or after the ISO-8601 instant `since`, oldest first, each with its full
+   * message. No ref moves and nothing is written. A `tip` that does not
+   * resolve is a GitError (callers resolve the ref first).
+   */
+  commitsSince(
+    repo: string,
+    tip: string,
+    since: string,
+  ): Effect.Effect<readonly RangeCommit[], GitError>;
+  /**
+   * For each commit, `git patch-id --stable` of its diff against its first
+   * parent (every path for a root commit), keyed by the full sha. A commit
+   * whose diff is empty has no entry. No external diff command or textconv
+   * driver runs. An empty input answers an empty map without running git.
+   * Nothing is written. Callers pass commits the repository holds.
+   */
+  patchIds(
+    repo: string,
+    commits: readonly string[],
+  ): Effect.Effect<ReadonlyMap<string, string>, GitError>;
   /** The paths that differ between two trees, with no rename detection. */
   changedPathsBetween(
     path: string,
