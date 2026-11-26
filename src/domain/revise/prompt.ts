@@ -1,4 +1,10 @@
 import { type SidecarDocument, serializeSidecar } from "../artifact/sidecar.js";
+import {
+  GATE_PROFILES_HEADING,
+  GATE_PROFILES_LINE,
+  renderGateProfileList,
+} from "../authoring/prompt.js";
+import type { DefinedGateProfile } from "../gate/gateProfile.js";
 
 // The writer's prompts for `phax artifact revise`: pure text.
 
@@ -12,9 +18,11 @@ export interface RevisePromptInput {
   readonly document: SidecarDocument;
   readonly amendment: string;
   readonly schemaUrl: string;
+  /** The gate profiles phax.json defines, for a plan; null for a spec. */
+  readonly gateProfiles: readonly DefinedGateProfile[] | null;
 }
 
-function rules(kind: "spec" | "plan", schemaUrl: string): string {
+function rules(kind: "spec" | "plan", schemaUrl: string, namesGateProfile: boolean): string {
   return [
     `You are revising a Draft ${kind}: carry the amendment below into the current document.`,
     "",
@@ -25,6 +33,9 @@ function rules(kind: "spec" | "plan", schemaUrl: string): string {
     "- A new ambiguity the amendment raises may be appended at the end of the open questions, under an id the document does not use.",
     "- `sourceSpec`, `completesSpec` and the frontmatter are not revised.",
     "- Write no files: this session is read-only.",
+    ...(namesGateProfile
+      ? ["- `run.gateProfile` names exactly one of the gate profiles below."]
+      : []),
   ].join("\n");
 }
 
@@ -37,7 +48,11 @@ export function buildRevisePrompt(input: RevisePromptInput): string {
       parts.push("## The brief this artifact was authored from\n\n" + input.brief.trimEnd());
     }
   }
-  parts.push(rules(input.kind, input.schemaUrl));
+  parts.push(rules(input.kind, input.schemaUrl, input.gateProfiles !== null));
+  if (input.gateProfiles !== null) {
+    const list = renderGateProfileList(input.gateProfiles);
+    parts.push([GATE_PROFILES_HEADING, "", GATE_PROFILES_LINE, "", list].join("\n"));
+  }
   parts.push(
     "## The current document (" +
       input.artifactPath +

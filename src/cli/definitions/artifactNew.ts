@@ -16,6 +16,7 @@ import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { recordsClonePath } from "../../app/recordsSync.js";
 import type { ArtifactKind } from "../../domain/artifact/status.js";
+import { definedGateProfiles } from "../../domain/gate/gateProfile.js";
 import { resolveModel } from "../../domain/routing/resolve.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
@@ -330,6 +331,7 @@ function author(context: NewContext) {
           architectureProvider: config.architecture !== undefined,
           acceptanceProvider: config.acceptance !== undefined,
           assignmentBounds: config.assignments !== undefined,
+          gateProfiles: definedGateProfiles(config.raw, undefined),
           output: { warn },
           ...(config.records.destination.kind === "repo"
             ? { recordsClonePath: recordsClonePath(config.stateRoot, config.namespace) }

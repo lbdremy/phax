@@ -868,7 +868,7 @@ function makeHeadlessConfig(
   },
 ): ResolvedConfig {
   return {
-    raw: {} as ResolvedConfig["raw"],
+    raw: { gateProfiles: {} } as ResolvedConfig["raw"],
     namespace: "test-project",
     stateRoot: "/fake-state",
     repoRoot: "/fake-repo",

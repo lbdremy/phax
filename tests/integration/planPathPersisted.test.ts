@@ -148,6 +148,7 @@ describe("ac-document-refuses: headless plan authoring that keeps answering a no
       publishRemote: "origin",
       architectureProvider: false,
       assignmentBounds: false,
+      gateProfiles: [],
       acceptanceProvider: false,
       output: { warn: () => undefined },
     };

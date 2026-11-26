@@ -164,6 +164,7 @@ async function driveAuthoring(): Promise<void> {
     publishRemote: "origin",
     architectureProvider: false,
     assignmentBounds: false,
+    gateProfiles: [],
     acceptanceProvider: false,
     output: { warn: () => undefined },
   };

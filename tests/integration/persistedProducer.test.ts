@@ -513,6 +513,7 @@ async function driveWriters(): Promise<ReadonlyArray<Written>> {
         publishRemote: "origin",
         architectureProvider: false,
         assignmentBounds: false,
+        gateProfiles: [],
         acceptanceProvider: false,
         output: { warn: () => {} },
         ...overrides,

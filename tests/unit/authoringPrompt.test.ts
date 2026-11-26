@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
   AUTHORING_PROMPT_FILENAME,
   buildAuthoringPrompt,
+  renderGateProfileList,
 } from "../../src/domain/authoring/prompt.js";
 import type { SpecCriteria } from "../../src/domain/plan/criterionCoverage.js";
+import { GATE_PROFILES, GATE_PROFILE_SECTION } from "../helpers/gateProfilePrompt.js";
 
 const JSON_SCHEMA = { title: "phax spec document (experimental)", type: "object" };
 
@@ -19,6 +21,7 @@ function specPrompt(): string {
     architectureProvider: null,
     assignmentBounds: null,
     acceptanceProvider: null,
+    gateProfiles: null,
   });
 }
 
@@ -55,6 +58,7 @@ function planPrompt(
     architectureProvider,
     assignmentBounds,
     acceptanceProvider,
+    gateProfiles: GATE_PROFILES,
   });
 }
 
@@ -174,6 +178,7 @@ describe("buildAuthoringPrompt", () => {
       architectureProvider: false,
       assignmentBounds: false,
       acceptanceProvider: false,
+      gateProfiles: GATE_PROFILES,
     });
 
     expect(prompt).toContain("Set `sourceSpec` to null");
@@ -289,6 +294,21 @@ describe("buildAuthoringPrompt", () => {
 
   it("a spec prompt carries no architecture statement", () => {
     expect(specPrompt()).not.toMatch(/architecture provider|phax architecture/);
+  });
+
+  it("a plan prompt lists every profile with each step's firing and command", () => {
+    // After the JSON Schema section, before the source spec.
+    expect(planPrompt(true)).toContain(
+      `"title": "phax plan document (experimental)"\n}\n\n${GATE_PROFILE_SECTION}\n\n## Source spec (`,
+    );
+  });
+
+  it("a spec prompt carries no gate-profile section", () => {
+    expect(specPrompt()).not.toMatch(/Gate profile|gateProfile/);
+  });
+
+  it("an empty profile set renders its none line", () => {
+    expect(renderGateProfileList([])).toBe("(none: phax.json defines no gate profile)");
   });
 
   it("states in both kinds' output contract that other is reserved", () => {

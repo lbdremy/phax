@@ -16,6 +16,7 @@ import { reviseArtifact } from "../../app/reviseArtifact.js";
 import { revisionRecordPushWarning, revisionRecordWarning } from "../../app/writeRevisionRecord.js";
 import type { ArtifactKind } from "../../domain/artifact/status.js";
 import { AgentInvocationError } from "../../domain/errors.js";
+import { definedGateProfiles } from "../../domain/gate/gateProfile.js";
 import { makeRootedNodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { NodeGitHubLayer } from "../../infra/github.js";
@@ -275,6 +276,7 @@ function runRevise(call: ReviseCall, deps: ArtifactReviseDeps) {
           routing,
           providerConfig: providerConfig.success,
           skills,
+          gateProfiles: definedGateProfiles(config.raw, undefined),
           security: config.security,
           repoRoot,
           stateRoot: effectiveStateRoot(config),

@@ -23,7 +23,7 @@ interface GateProfileConfig {
 const nonEmpty = (steps: readonly GateStep[] | undefined): steps is readonly GateStep[] =>
   steps !== undefined && steps.length > 0;
 
-interface DefinedGateProfile {
+export interface DefinedGateProfile {
   readonly id: string;
   readonly steps: readonly GateStep[];
 }
@@ -38,7 +38,7 @@ export interface UndefinedGateProfile {
  * The profiles phax.json defines, with the steps a run would use: top-level
  * entries first in phax.json order, then ids only the workspace layer defines.
  */
-function definedGateProfiles(
+export function definedGateProfiles(
   config: GateProfileConfig,
   workspaceId: string | undefined,
 ): readonly DefinedGateProfile[] {
