@@ -7,6 +7,8 @@
 import { Effect } from "effect";
 import {
   type BranchFacts,
+  type FollowMatch,
+  followMatchOf,
   type Landed,
   notFound,
   resolveOnBranch,
@@ -144,5 +146,66 @@ export function resolveRunLandings(input: {
       if (!landed.has(fix.id)) landed.set(fix.id, notFound(looked, fix.recorded));
     }
     return { baseBranch: base.label, landed };
+  });
+}
+
+/**
+ * Searches the base branch alone for the commits that `phax finding fix --commit` follows a named
+ * commit to (spec §5.15): for each named finding, the commits since the run's start carrying its
+ * fate key, then, when the repository holds the named commit, those with its patch id. Nothing is
+ * found when the base branch does not resolve or the run's start is unknown. Read-only.
+ */
+export function followOnBase(input: {
+  readonly repo: string;
+  readonly runId: string;
+  readonly startedAt: string | null;
+  readonly config: ResolvedConfig;
+  /** The named commit's full sha when the repository holds it, else the value as given. */
+  readonly named: string;
+  readonly held: boolean;
+  readonly ids: readonly string[];
+}): Effect.Effect<
+  { readonly baseBranch: string; readonly matches: readonly FollowMatch[] },
+  GitError,
+  Git
+> {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const { repo, runId, startedAt, named, held } = input;
+    const base = yield* baseBranchOf(repo, input.config);
+    const tip = base.ref === null ? null : yield* git.resolveRef(repo, base.ref);
+    let range: readonly RangeCommit[] | undefined;
+    let patchIds: BranchFacts["patchIds"];
+    const matches: FollowMatch[] = [];
+    for (const id of input.ids) {
+      if (tip === null || startedAt === null) {
+        matches.push({ id, match: null });
+        continue;
+      }
+      range ??= yield* git.commitsSince(repo, tip, startedAt);
+      let facts: BranchFacts = {
+        branch: base.label,
+        recorded: named,
+        key: { runId, findingId: id },
+        recordedReachable: false,
+        startedAt,
+        range,
+        recordedHeld: held,
+        patchIds,
+      };
+      let step = resolveOnBranch(facts);
+      if (step.kind === "needs-patch-ids") {
+        const ofRange = yield* git.patchIds(
+          repo,
+          range.map((commit) => commit.sha),
+        );
+        const ofNamed = yield* git.patchIds(repo, [named]);
+        patchIds = { recorded: ofNamed.get(named), range: ofRange };
+        facts = { ...facts, patchIds };
+        step = resolveOnBranch(facts);
+      }
+      matches.push({ id, match: followMatchOf(facts, step) });
+    }
+    return { baseBranch: base.label, matches };
   });
 }

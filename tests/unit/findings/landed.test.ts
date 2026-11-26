@@ -2,6 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   type BranchFacts,
   type BranchStep,
+  decideFollow,
+  type FollowDecision,
+  type FollowMatch,
+  followMatchOf,
+  followSubject,
   type Landed,
   notFound,
   resolveOnBranch,
@@ -247,5 +252,161 @@ describe("a commit carries the fate key", () => {
       facts({ range: [commit("b", message)], recordedHeld: false, patchIds: undefined }),
     );
     expect(step).toEqual(carries ? found("key", sha("b")) : NONE);
+  });
+});
+
+// Following a named commit on the base branch (spec §5.15, §5.16): one commit for every named
+// finding, or a refusal naming every candidate.
+describe("decideFollow", () => {
+  const SUBJECT = "1111111 is on neither phax/gate-retry--phase-02 nor main";
+  const decide = (matches: readonly FollowMatch[], held: boolean) =>
+    decideFollow({ subject: SUBJECT, base: "main", runId: RUN_ID, held, matches });
+  const one = (id: string, c: string, by: "key" | "patch-id" = "key"): FollowMatch => ({
+    id,
+    match: { by, commits: [sha(c)] },
+  });
+  const many = (id: string, by: "key" | "patch-id", ...cs: string[]): FollowMatch => ({
+    id,
+    match: { by, commits: cs.map(sha) },
+  });
+  const nothing = (id: string): FollowMatch => ({ id, match: null });
+  const refused = (message: string): FollowDecision => ({ kind: "refused", message });
+  const follow = (c: string, by: "key" | "patch-id"): FollowDecision => ({
+    kind: "follow",
+    commit: sha(c),
+    by,
+  });
+
+  const cases: ReadonlyArray<readonly [string, readonly FollowMatch[], boolean, FollowDecision]> = [
+    ["one finding, one commit by key", [one("F2", "b")], true, follow("b", "key")],
+    [
+      "one finding, one commit by patch id",
+      [one("F2", "b", "patch-id")],
+      true,
+      follow("b", "patch-id"),
+    ],
+    [
+      "two findings, the same commit by key",
+      [one("F2", "b"), one("F5", "b")],
+      true,
+      follow("b", "key"),
+    ],
+    [
+      "two findings, the same commit, one by patch id: by key",
+      [one("F2", "b", "patch-id"), one("F5", "b")],
+      true,
+      follow("b", "key"),
+    ],
+    [
+      "nothing for a held commit",
+      [nothing("F2"), nothing("F5")],
+      true,
+      refused(
+        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2, F5 or has its patch id: name a commit of the run branch or of the base branch with --commit`,
+      ),
+    ],
+    [
+      "nothing for a commit not held: no patch id",
+      [nothing("F2")],
+      false,
+      refused(
+        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2: name a commit of the run branch or of the base branch with --commit`,
+      ),
+    ],
+    [
+      "two commits carry the key",
+      [many("F2", "key", "b", "c")],
+      true,
+      refused(
+        `${SUBJECT}, and 2 commits of main carry ${RUN_ID} F2: bbbbbbb, ccccccc. Name one with --commit`,
+      ),
+    ],
+    [
+      "two commits have the patch id, named once for two findings",
+      [many("F2", "patch-id", "b", "c"), many("F5", "patch-id", "b", "c")],
+      true,
+      refused(
+        `${SUBJECT}, and 2 commits of main have its patch id: bbbbbbb, ccccccc. Name one with --commit`,
+      ),
+    ],
+    [
+      "different commits per finding",
+      [one("F2", "b"), one("F5", "c")],
+      true,
+      refused(
+        `${SUBJECT}, and the named findings resolve to different commits of main: F2 → bbbbbbb, F5 → ccccccc. Name one with --commit`,
+      ),
+    ],
+    [
+      "one found, another nothing",
+      [one("F2", "b"), nothing("F5")],
+      false,
+      refused(
+        `${SUBJECT}, and F2 resolves to bbbbbbb; no commit of main since the run started carries ${RUN_ID} F5. Name one with --commit`,
+      ),
+    ],
+    [
+      "one found, another several",
+      [one("F2", "b"), many("F5", "key", "c", "d")],
+      true,
+      refused(
+        `${SUBJECT}, and 2 commits of main carry ${RUN_ID} F5: ccccccc, ddddddd; F2 resolves to bbbbbbb. Name one with --commit`,
+      ),
+    ],
+  ];
+
+  it.each(cases)("%s", (_name, matches, held, expected) => {
+    expect(decide(matches, held)).toEqual(expected);
+  });
+
+  it.each(cases)("%s — a refusal names every candidate", (_name, matches, held) => {
+    const decision = decide(matches, held);
+    if (decision.kind !== "refused") return;
+    for (const m of matches) {
+      for (const c of m.match?.commits ?? []) expect(decision.message).toContain(c.slice(0, 7));
+    }
+  });
+});
+
+describe("followMatchOf", () => {
+  it.each([
+    ["one key match", facts({ range: [commit("b", keyMessage())] }), "key", ["b"]],
+    [
+      "two key matches",
+      facts({ range: [commit("b", keyMessage()), commit("c", keyMessage())] }),
+      "key",
+      ["b", "c"],
+    ],
+    [
+      "two patch-id matches",
+      facts({
+        range: [commit("b"), commit("c")],
+        patchIds: {
+          recorded: "p",
+          range: new Map([
+            [sha("b"), "p"],
+            [sha("c"), "p"],
+          ]),
+        },
+      }),
+      "patch-id",
+      ["b", "c"],
+    ],
+  ] as const)("reads %s", (_name, given, by, cs) => {
+    expect(followMatchOf(given, resolveOnBranch(given))).toEqual({ by, commits: cs.map(sha) });
+  });
+
+  it("reads no match as null", () => {
+    const given = facts({ range: [commit("b")] });
+    expect(followMatchOf(given, resolveOnBranch(given))).toBeNull();
+  });
+});
+
+describe("followSubject", () => {
+  it("names a held commit by its short sha and the branches, any other value as given", () => {
+    expect(followSubject("1".repeat(40), ["phax/x--phase-02", "main"])).toBe(
+      "1111111 is on neither phax/x--phase-02 nor main",
+    );
+    expect(followSubject("abc1234", null)).toBe("abc1234 is not in the repository");
   });
 });

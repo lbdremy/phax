@@ -131,6 +131,7 @@ const fixAnswer = (pullRequest: FindingFixOutput["pullRequest"]): FindingFixOutp
     made: true,
     subject: "fix(review): F2 of gate-retry",
     paths: [{ path: "tests/gate.test.ts", pathClass: "tests" }],
+    followed: null,
   },
   recorded: [{ finding: "F2", key: "gate-retry-1/finding/F2/01", recordCommit: "a".repeat(40) }],
   findings: [F2_FIXED],

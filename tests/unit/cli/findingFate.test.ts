@@ -20,6 +20,7 @@ const answer = (overrides: Partial<FindingFixOutput>): FindingFixOutput => ({
       { path: "src/app/gate.ts", pathClass: "code" },
       { path: "tests/gate.test.ts", pathClass: "tests" },
     ],
+    followed: null,
   },
   recorded: [
     { finding: "F2", key: "run-1/finding/F2/01", recordCommit: "a".repeat(40) },
@@ -62,11 +63,45 @@ describe("renderFindingFix", () => {
           { path: "src/app/gate.ts", pathClass: "code" },
           { path: "docs/gates.md", pathClass: "docs" },
         ],
+        followed: null,
       },
       recorded: [{ finding: "F3", key: "run-1/finding/F3/01", recordCommit: "c".repeat(40) }],
     });
     expect(renderFindingFix(backfilled).split("\n")).toEqual([
       "✓ recorded F3 fixed by 9f8e7d6 (code, docs, tests) on phax/records/v1",
+    ]);
+  });
+
+  it.each([
+    [
+      "a held commit followed by key",
+      { named: "1".repeat(40), notOn: ["phax/gate-retry--phase-02", "main"], by: "key" as const },
+      "✓ 1111111 is on neither phax/gate-retry--phase-02 nor main; its rewrite 9f8e7d6 on main carries run-1 F2, F5 (by key)",
+    ],
+    [
+      "a held commit followed by patch id",
+      { named: "1".repeat(40), notOn: ["main"], by: "patch-id" as const },
+      "✓ 1111111 is on neither main; its rewrite 9f8e7d6 on main has its patch id (by patch id)",
+    ],
+    [
+      "a commit no longer held",
+      { named: "abc1234", notOn: null, by: "key" as const },
+      "✓ abc1234 is not in the repository; its rewrite 9f8e7d6 on main carries run-1 F2, F5 (by key)",
+    ],
+  ])("names the named commit and its rewrite when --commit was followed: %s", (_n, given, line) => {
+    const followed = answer({
+      commit: {
+        sha: SHA,
+        made: false,
+        subject: null,
+        paths: [{ path: "src/app/gate.ts", pathClass: "code" }],
+        followed: { ...given, branch: "main" },
+      },
+    });
+    expect(renderFindingFix(followed).split("\n")).toEqual([
+      line,
+      "✓ recorded F2 fixed by 9f8e7d6 (code) on phax/records/v1",
+      "✓ recorded F5 fixed by 9f8e7d6 (code) on phax/records/v1",
     ]);
   });
 

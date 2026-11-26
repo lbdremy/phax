@@ -353,13 +353,6 @@
     },
     {
       "kind": "diagnostic",
-      "file": "src/app/findingFix.ts",
-      "rule": "typescript/consistent-return",
-      "count": 1,
-      "reason": "debt"
-    },
-    {
-      "kind": "diagnostic",
       "file": "src/app/fixLoop.ts",
       "rule": "typescript/no-unsafe-type-assertion",
       "count": 7,

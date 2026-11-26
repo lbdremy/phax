@@ -256,6 +256,7 @@ describe("phax finding fix: paths and --commit", () => {
       made: true,
       subject: `fix(review): F2 of ${repo.shortName}`,
       paths: [{ path: "tests/gate.test.ts", pathClass: "tests" }],
+      followed: null,
     });
     expect(answer.recorded.map((r) => r.finding)).toEqual(["F2"]);
     expect(answer.recorded[0]?.key.endsWith("/finding/F2/01")).toBe(true);
