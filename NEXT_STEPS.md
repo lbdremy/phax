@@ -66,24 +66,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 2 — after the security slice merges
 
-- [ ] **`secure-mode-sandbox`** — `docs/briefs/secure-mode-sandbox.md` (2026-11-25), a spike first, then the
-      spec. In `secure` mode, gate steps and the shell commands Claude Code and Vibe start run under Anthropic's
-      sandbox-runtime (`srt`: Seatbelt on macOS, bubblewrap on Linux), writing only the worktree, a temporary
-      directory, the package caches and phax's state, never the repository's `.git`, and reading none of the
-      agents' credentials. Agreed with the operator on 2026-11-24 (q-git-pointer) and chosen on 2026-11-25 over a
-      VM, which would lose the agents' paid plans (the `isolated` mode below is postponed). The spike runs the whole
-      `standard` gate under `srt` on macOS and a CI runner, and checks Claude Code's native sandbox in `claude -p`.
-      Merges security phase 5's "gate and setup commands under the agent's confinement" and "allowed shell
-      commands run unconfined on Claude Code and Vibe" (the `git diff --output` of #176's review).
-      It also takes the main checkout from the run's state, not the invocation's directory (#265's
-      review, F3 and F6, named as residuals in `docs/security.md`): `phax enter-phase` on another
-      project's run builds an unrooted git layer, so its git calls in that phase worktree skip the
-      `.git` check and the `-c` settings; and `config.repoRoot` comes from `git rev-parse
-      --show-toplevel` in the current directory, so phax run from inside a phase worktree takes that
-      worktree for the main checkout (only the phase guard, keyed on `.phax-context`, stops it). Root
-      the layer at the run's recorded repository, or refuse a root whose git-dir is not its
-      common-dir.
-      Placed before security phase 2.
 - [ ] **`finding-fix-identity`** — `docs/specs/2611220956-finding-fix-identity.md`, Approved
       2026-11-22, no open question; plan to author. Its git port gains (ancestry, trailer search,
       `patch-id`) edit `src/ports/git.ts` and `src/infra/git.ts`, hence after the security slice.
@@ -163,7 +145,7 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 - [ ] **Security, the larger phases** — see §"Security roadmap": phase 1's rest (SEC-01 the
       implicit protected set, SEC-03 the brief's config root), phase 4's release split, and phase
       5's trust gate for repo-supplied security config (its confinement of gate and setup commands
-      moved to the OS sandbox item of wave 2). The protected-path Small follow-ups (a `**/` glob blind
+      moved to `secure-mode-sandbox`, now in Later). The protected-path Small follow-ups (a `**/` glob blind
       inside a submodule, `failedStep: "protected-paths"` missing from the records, `plans lint`
       silent on a planned edit of a protected path) and the Vibe `agent_paths` one go with SEC-01.
 - [ ] **`approval-baseline-identity`** — `docs/briefs/approval-baseline-identity.md` (2026-11-22),
@@ -257,6 +239,24 @@ Decisions that turn the rest into mechanical work an agent can run:
 - [ ] **A wall-clock limit on a gate step** — to brief. Split out of `bounded-test-spawns`
       (q-gate-bound, 2026-11-20): a cap per step in `gateProfiles`; its default comes from
       `gate-step-times`' data. Moved to Later by the operator on 2026-11-22.
+- [ ] **`secure-mode-sandbox`** — `docs/briefs/secure-mode-sandbox.md` (2026-11-25), a spike first, then the
+      spec. In `secure` mode, gate steps and the shell commands Claude Code and Vibe start run under Anthropic's
+      sandbox-runtime (`srt`: Seatbelt on macOS, bubblewrap on Linux), writing only the worktree, a temporary
+      directory, the package caches and phax's state, never the repository's `.git`, and reading none of the
+      agents' credentials. Agreed with the operator on 2026-11-24 (q-git-pointer) and chosen on 2026-11-25 over a
+      VM, which would lose the agents' paid plans (the `isolated` mode below is postponed). The spike runs the whole
+      `standard` gate under `srt` on macOS and a CI runner, and checks Claude Code's native sandbox in `claude -p`.
+      Merges security phase 5's "gate and setup commands under the agent's confinement" and "allowed shell
+      commands run unconfined on Claude Code and Vibe" (the `git diff --output` of #176's review).
+      It also takes the main checkout from the run's state, not the invocation's directory (#265's
+      review, F3 and F6, named as residuals in `docs/security.md`): `phax enter-phase` on another
+      project's run builds an unrooted git layer, so its git calls in that phase worktree skip the
+      `.git` check and the `-c` settings; and `config.repoRoot` comes from `git rev-parse
+      --show-toplevel` in the current directory, so phax run from inside a phase worktree takes that
+      worktree for the main checkout (only the phase guard, keyed on `.phax-context`, stops it). Root
+      the layer at the run's recorded repository, or refuse a root whose git-dir is not its
+      common-dir.
+      Moved to Later by the operator on 2026-11-26: no time for it now.
 - [ ] The other Small follow-ups below, in batches.
 
 ## Security roadmap (from the 2026-11-23 audits)
