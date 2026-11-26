@@ -1,0 +1,829 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+  "kind": "plan",
+  "sourceSpec": "docs/specs/2611220956-finding-fix-identity.md",
+  "completesSpec": true,
+  "run": {
+    "shortName": "finding-fix-identity",
+    "title": "Finding fix identity",
+    "requiredCommands": [
+      "pnpm exec tsx",
+      "pnpm test:unit",
+      "pnpm test:integration",
+      "pnpm gen:usage-spec",
+      "pnpm docs:cli",
+      "pnpm build",
+      "git grep"
+    ]
+  },
+  "preamble": {
+    "summary": "A fixed finding stays bound to the commit that carries its fix after that commit's history is rewritten (a rebase during review, an amend, GitHub's Rebase and merge, a squash that keeps the messages). The fix commit names its run with a new `Finding-Run: <run id>` trailer (q-key `finding-run`). Every reader of a fixed fate resolves it at read time, writing nothing (q-store `read-time`). The search runs on the base branch first, then on the run's branch, each time by the recorded sha, then the fate key, then the patch id, over commits made at or after the run's start. Several matches give `ambiguous` (q-ambiguous `list-all`), and none gives `not-found`, said plainly (q-squash-description `hint`). `phax finding list` carries the resolution as a required `landed` in a new finding-list stamp and shows it in the text. The fate comment names the resolved commit, its branch and the fate key. `phax finding post` posts on a merged pull request when every named fix is found on the base branch, and otherwise refuses naming the `--commit` retry. `phax finding fix --commit <old sha>` follows a rewrite on the base branch.\n\nOrder, core to surface:\n\n- phase-01: two read-only Git port calls (the commits of a branch since an instant, with their messages; patch ids), with the fake and a contract suite.\n- phase-02: the fix commit's `Finding-Run` trailer.\n- phase-03: the resolution (pure domain and its use case), `landed` on the finding-list document (a format move), and the text list.\n- phase-04: the fate comment and `phax finding post` on a merged pull request.\n- phase-05: `phax finding fix --commit` follows a rewrite.\n- phase-06: the docs page section \"When the fix commit is rewritten\".\n\nThere is no acceptance phase (operator brief): the surface is CLI text, a JSON field and a comment. Each §8 criterion is driven in-phase by a test that builds a temporary repository and rewrites it with git, and the GitHub side goes through the existing fakes.\n\nphase-03 adds the frozen decoder `src/schemas/history/finding-list/0.40.0.ts`, which the schemas package imports. The package-closure allowlist in the protected `tests/unit/architecturalGuards.test.ts` must name that path (q-closure-guard). No other phase touches that file.\n\nThis plan is authored while 0.43.0 is being released, and `src/schemas/release.ts` already opens 0.44.0 as `PHAX_RELEASE`. The finding-list move therefore lands under 0.44.0. The planning prompt listed no gate profiles, so this plan writes no `## Gate profile` section, and each phase's Verification names `standard`, the only profile in phax.json. The operator migrates the plan with `phax artifact migrate-documents --gate-profile standard` if needed.",
+    "requiredCommandsNote": "Every command above is already covered. `pnpm exec tsx`, `pnpm test:unit`, `pnpm test:integration`, `pnpm gen:usage-spec`, `pnpm docs:cli` and `git grep` are entries of `security.agentCommands`, and `pnpm build` is a command of the `standard` gate profile. What each one does here:\n\n- `pnpm exec tsx` runs `scripts/schemas-check.ts --write`, then the same script with no flag, in phase-03. It writes `packages/schemas/snapshots/finding-list/next.schema.json` and regenerates `src/schemas/release.ts`, `packages/schemas/src/generated/index.ts`, `packages/schemas/shipped-json.json` and `packages/schemas/history.lock.json`.\n- `pnpm build` regenerates `packages/schemas/json/finding-list.schema.json` in phase-03.\n- `pnpm gen:usage-spec` and `pnpm docs:cli` regenerate `phax.usage.kdl` and `docs/cli/reference.md` after the help texts of `finding fix` (phases 02 and 05), `finding list` (phase-03) and `finding post` (phase-04) change.\n- `pnpm test:unit` and `pnpm test:integration` run the tests a phase adds while it works.\n- `git grep` finds the test literals of a finding entry that phase-03's new required key touches.\n\nphax.json needs no change for these commands.",
+    "technicalArbitrations": [
+      "The run's start time (§10, left open). For a live run, phax reads `createdAt` from `run-status.json` in the run folder, through the FileSystem port and `readRunStatusFile`. For an archived run, it reads the registry entry's `createdAt`. `createRunFolder` writes both from the same instant. `ResolvedFindingRun` gains `startedAt: string | null`. If neither value can be read, or the value is not an instant, it is null: then only the recorded-sha step runs on each branch, and `phax finding list` adds a note on stderr. Rejected: the first phase commit's date, which needs a walk and is itself rewritten by a rebase; and adding `createdAt` to `RunReviewInfo`, which about 29 test fixtures build by hand. Loss accepted: run-status.json is read a second time per list, and a run whose start cannot be read is never resolved by key or by patch id.",
+      "One walk per branch per run (§10, left open). `src/app/findingLanded.ts` resolves every fixed finding of a run in one pass. It lists the base branch's search range once. It lists the run's branch range only when some finding is still unresolved after the base branch. It asks for the patch ids of a range once, and only when some finding reaches the patch-id step on that branch. It asks for the patch ids of all recorded commits the repository holds in one call. Loss accepted: the use case holds every message of a range in memory, and it pays for the patch id of every commit of a range as soon as one finding needs that step.",
+      "The Git port's new reads. `commitsSince(repo, tip, since)` answers `RangeCommit { sha, committedAt, message }`, oldest first: every commit reachable from `tip` with a committer date at or after `since`, each with its full raw message (`%B`). It is one `git log` with `--since`, `--date-order --reverse`, NUL-separated fields and records, and no signature output. `patchIds(repo, commits)` answers a map from full sha to `git patch-id --stable` of the commit's diff against its first parent. It runs `git diff-tree --stdin -p --root -m --first-parent --no-color --no-ext-diff --no-textconv --no-renames`, then feeds that output to `git patch-id --stable`. A commit whose diff is empty has no entry. Both calls go through the adapter's `gitRun` helper, so worktree hardening applies. Ancestry needs no new call: it reuses `commitExists` then `mergeBase`, as `reachableFrom` in `findingFix.ts` already does. phax reads the message in the domain, not with git's trailer parser, because that parser reads only the last paragraph. It normalizes CRLF to LF and splits the message into paragraphs on blank lines. A paragraph carries the key when one of its lines, trailing whitespace trimmed, is exactly `Finding-Run: <run id>` and another is exactly `Finding: <id>`. Keys are matched as phax writes them, case-sensitively. The domain also drops any commit whose `committedAt` is before the run's start, so it does not depend on `--since`'s slop. Loss accepted: a trailer someone retyped by hand (a lower-case key, a folded line) is not recognised, and an ancestry test costs two git calls.",
+      "The finding-list format moves. Both finding entry schemas gain a required `landed`, after `history`. It is one of the three variants of spec §6 or `null`, and every sha in it uses `FullCommitShaSchema` from `src/schemas/status.ts`. `ambiguous.commits` holds at least two shas and `not-found.branches` at least one. The decoder checks the shape of `landed`, but not its pairing with `fate`: phax always writes non-null for `fixed` and null otherwise. The stamp moves to `PHAX_RELEASE` (0.44.0) through `scripts/schemas-check.ts --write`. The 0.40.0 shape is frozen in `src/schemas/history/finding-list/0.40.0.ts`, which imports only effect. In `packages/schemas/src/formats/commandAnswers.ts`, `findingListFormat` lists the 0.40.0 release. `toLatestFindingList` is overloaded: a current document becomes a `LatestFindingList`, and a 0.40.0 document becomes a `LiftedFindingList`. In the lifted form, a fixed finding's `landed` is `Unknown`, because it was never recorded and is never guessed. Every other finding's `landed` is `null`, which the spec defines from its fate. `run.baseBranch` (if q-text-base is decided `run-base-branch`) is `Unknown`. Behaviour corpus: the frozen subject is registered, and next-shaped cases (accepted and refused) cover every variant of `landed` and its constraints. The encode case `encode/finding-list.json` is restamped, and its one new key is added to each finding (and to `run`). This follows the `restamp`/`restamp-declare` verdicts of plan-path-canonical and plan-gate-profile, and the phase lists every case it touches. `docs/upgrading.md` gets a `### 0.44.0` entry. Loss accepted: `@lbdremy/phax-schemas` consumers must upgrade to read the new answers. A hand-made document that pairs `fixed` with `null` still decodes. One captured encode case is edited by hand.",
+      "The base branch and the branch labels. `baseBranchOf` in `src/app/findingLanded.ts` reads the base branch the way `--commit` does today: `publish.baseBranch`, else `main`. It uses `refs/heads/<base>` when that resolves, else `refs/remotes/<publish.remote>/<base>`. Its label is `<base>` for the local branch and `<remote>/<base>` for the remote-tracking one. If neither resolves, the label is `<base>` and the branch is not searched. `checkReachable` in `findingFix.ts` uses the same helper. The run's branch is a live run's final-phase branch, searched when `refs/heads/<branch>` resolves. An archived run has no run branch. `not-found.branches` names the base label, then the run's branch name whenever the run has one, even when that branch no longer resolves, so the operator sees it was looked for. Loss accepted: `branches` can name a deleted branch, and an archived run never resolves on its run branch.",
+      "A git failure during the resolution fails the read. `listRunFindings` fails with the `GitError` (exit 1) instead of inventing a resolution. Neither a branch that does not resolve nor a recorded commit the repository does not hold is a failure. Loss accepted: one unreadable git object stops `finding list`, `fix`, `dismiss`, `defer` and `post` for the run, and `publish-pr` shows its findings as unreadable.",
+      "A finding fixed twice in one run leaves two commits carrying its key. After a rewrite, that resolves `ambiguous` (§5.7, q-ambiguous `list-all`): the key cannot tell the latest fix from an earlier one, and phax does not guess. Loss accepted: the operator settles it once with `--commit`.",
+      "The fate comment's wording. A found fix reads `Fixed by <sha7> on <branch> (<classes>) · <run id> <finding id>`. An ambiguous or not-found fix, and a fixed finding whose `landed` is null, reads `Fixed by <recorded sha7> (<classes>) · <run id> <finding id>`. Comments for dismiss and defer are unchanged. Loss accepted: on an open pull request, an unresolved fix's comment names no branch.",
+      "`phax finding post` and the pull request's state. Closed: refused as today. Merged: if every named fixed finding is found on the base branch, the comments are posted without a push. Otherwise the call is refused before any comment, naming each such finding, its resolution and its `phax finding fix <run> <id> --commit <sha>` retry. Open: unchanged, push then comment. The pull request step of `fix`, `dismiss` and `defer` is unchanged, so a fix recorded after a merge still posts nothing until `phax finding post`. Loss accepted: after a merge, the operator runs one more command to comment.",
+      "`--commit` follows a rewrite only on the base branch (§5.15). It follows when the named value resolves to a commit on neither branch, or when it does not resolve and is spelled as 4 to 40 hex characters. Any other value that does not resolve is refused as today. For each named finding, phax looks first for its key over the base branch's search range. If no commit carries the key and the repository holds the named commit, it looks for the named commit's patch id over the same range. The call records a commit only when every named finding resolves to the same single commit (§5.16). Loss accepted: a commit rewritten only on the run's branch is not followed there, as the spec scopes it.",
+      "The text list's wording (§5.11). On the latest fix line, phax appends nothing when the fix is found by `recorded` on the base branch. Otherwise it appends ` → <sha7> on <branch>, by key`, `by patch id` or `by recorded sha`, or ` → ambiguous on <branch>: <sha7>, <sha7>`, or ` → not found on <b1> or <b2>` (one branch: ` → not found on <b1>`). Loss accepted: while a run is in review, every fix line shows an arrow to its run branch, which repeats its own sha."
+    ],
+    "openQuestions": [
+      {
+        "id": "q-closure-guard",
+        "question": "phase-03 adds the frozen decoder `src/schemas/history/finding-list/0.40.0.ts`, and the schemas package imports it, so the package's src/ closure grows. `tests/unit/architecturalGuards.test.ts` compares that closure exactly against `CLOSURE_SRC_ALLOWLIST`, and that file is in `protectedPaths`: no phase may land a change to it. How does the allowlist gain that one path? Precedent: plan-gate-profile decided `lift-for-run` on 2026-11-25, with a pre-merge check that the file's diff is exactly the added paths.",
+        "options": [
+          {
+            "id": "lift-for-run",
+            "label": "Before the run, the operator removes `tests/unit/architecturalGuards*.test.ts` from `protectedPaths` in phax.json. phase-03 adds exactly `src/schemas/history/finding-list/0.40.0.ts` to `CLOSURE_SRC_ALLOWLIST`, in sorted order, and touches nothing else in that file. Before merging, the operator checks that this file's diff is that one line, and restores the protection after the merge.",
+            "abandons": "The guard file's protection for the whole run. Any phase agent can edit any architecture guard in that file: drop a layering rule, allow a forbidden import, widen the closure. The gate would still pass, and only the operator's pre-merge check of that file's diff would catch it."
+          },
+          {
+            "id": "operator-prepares",
+            "label": "Before the run, the operator lands on main the frozen module (an exact copy of today's finding-list shape), the schemas package's import of it as the 0.40.0 release, its export and its allowlist entry. phase-03 then builds on that module and never touches the guard.",
+            "abandons": "The run's self-containment. The first step of the format move is done by hand, outside any gate, and a change to the finding-list shape landing on main between that commit and the run makes the copy wrong."
+          }
+        ],
+        "recommendation": "lift-for-run",
+        "rationale": "The guard needs one string added to a data list, not a new rule. phase-03's instruction confines it to that line, and the operator checks the one-line diff before merging, as for plan-gate-profile. operator-prepares moves schema work outside the gated run. Because this lifts a protection, it is the operator's call. phase-03 is written for lift-for-run. Under operator-prepares, it skips the freeze (step 1) and the allowlist edit (step 7), and the module it builds on already exists."
+      },
+      {
+        "id": "q-text-base",
+        "question": "§5.11 shows the resolution on the text list's fix line \"whenever it is not found recorded on the base branch\". The text is rendered from the finding-list document alone, and the document's normative sketch (§6) does not say which branch is the base, so a found-by-recorded fix on the run's branch cannot be told from one on the base branch. How does the text know the base branch?",
+        "options": [
+          {
+            "id": "run-base-branch",
+            "label": "The document's `run` gains a required `baseBranch`: the label of the base branch the resolution searched first (`main`, or `origin/main` when only the remote-tracking branch exists). The text and `phax finding post` compare `landed.branch` with it.",
+            "abandons": "The spec's normative sketch as the whole of the format change: the finding-list format gains a second field the spec did not show, and every consumer of the new stamp reads it."
+          },
+          {
+            "id": "recorded-silent",
+            "label": "No new field. The text shows an arrow for every resolution except `found` by `recorded`, on whichever branch. `phax finding post` gets the base label from its own read of the config.",
+            "abandons": "§5.11 to the letter: a fix still only on the run's branch shows no arrow, so the text alone does not tell a merged fix from an unmerged one, though the JSON still does."
+          }
+        ],
+        "recommendation": "run-base-branch",
+        "rationale": "It meets §5.11 as written, and it gives the text renderer and `finding post` one source for the base label, read in the same pass that searched it. The field rides the format move phase-03 makes anyway, with no extra stamp. phase-03 is written for run-base-branch. Under recorded-silent, phase-03 drops `run.baseBranch` from the schema, the corpus and the lift, and the text compares only `by`."
+      }
+    ],
+    "arbitratedQuestions": []
+  },
+  "phases": [
+    {
+      "id": "phase-01",
+      "title": "The Git port lists a branch's commits since an instant and their patch ids",
+      "objective": "Add two read-only calls to the Git port: the commits of a branch since an instant, with their full messages, and the stable patch id of each of a set of commits. The real adapter, the fake and a contract suite run by both prove them. Nothing calls them yet outside the tests. phase-03 builds the fix-commit resolution on them.",
+      "detailedInstructions": [
+        "Read first: `src/ports/git.ts` (`GitOps`, `commitMessage`, `commitPatch`, `commitBefore`, `mergeBase`), `src/infra/git.ts` (`gitRun`, `runGitProcess`, the worktree hardening, `commitBefore`, `commitChangedPaths`, `MAX_BUFFER`), `src/infra/fakes/git.ts` (its call log and seeded maps), and `tests/integration/gitCommitChangedPathsContract.test.ts`, the contract-suite pattern to follow: one `world` interface with a real implementation (a temporary repository) and a fake one.",
+        "In `src/ports/git.ts`, export `interface RangeCommit { readonly sha: string; readonly committedAt: string; readonly message: string }`. `committedAt` is the committer date as strict ISO-8601. `message` is the full raw message as git stores it (`%B`).",
+        "Add `commitsSince(repo: string, tip: string, since: string): Effect.Effect<readonly RangeCommit[], GitError>` to `GitOps`. Doc comment: every commit reachable from `tip` (a ref or a sha) whose committer date is at or after the ISO-8601 instant `since`, oldest first, each with its full message. No ref moves and nothing is written. A `tip` that does not resolve is a GitError (callers resolve the ref first).",
+        "Add `patchIds(repo: string, commits: readonly string[]): Effect.Effect<ReadonlyMap<string, string>, GitError>`. Doc comment: for each commit, `git patch-id --stable` of its diff against its first parent (every path for a root commit), keyed by the full sha. A commit whose diff is empty has no entry. No external diff command or textconv driver runs. An empty input answers an empty map without running git.",
+        "Real adapter, `commitsSince`: one `gitRun` of `git -c log.showSignature=false log --no-color --date-order --reverse --since=<since> -z --format=%H%x00%cI%x00%B <tip> --`. Parse it in a module-private function: records are NUL-separated, fields are NUL-separated inside a record, and the message keeps its bytes, including blank lines and non-ASCII text. Strip only the single newline git appends after `%B`, so the message equals what `commitMessage` answers for the same commit. If the two differ in their trailing newline, choose one rule, document it on the port, and keep the contract test's metamorphic check to it.",
+        "Real adapter, `patchIds`: run `git diff-tree --stdin -p --root -m --first-parent --no-color --no-ext-diff --no-textconv --no-renames` with the shas as input (one per line). Feed its stdout as input to `git patch-id --stable`. Parse `<patch-id> <commit>` lines into the map. Batch the shas (for example 200 per pair of calls) so no single output reaches `MAX_BUFFER`. Both calls go through `gitRun`, so the hardening of a registered worktree applies.",
+        "Do not export the parsers or batch helpers: knip runs in `--production --strict` mode, and an export only a test uses fails it. Test them through the port calls.",
+        "Fake (`src/infra/fakes/git.ts`): record each call in the call log like the others (`{ method: \"commitsSince\"; repo; tip; since }`, `{ method: \"patchIds\"; repo; commits }`). Answer from seeded data: a map from tip to commits (oldest first), filtered by `committedAt >= since`, and a map from sha to patch id. Add seeding helpers in the fake's existing style.",
+        "Contract suite `tests/integration/gitFixSearchContract.test.ts`: the same expectations, run against the real adapter (`NodeGitLayer` over a temporary repository that sets its own `user.name` and `user.email`, through `tests/helpers/tempGit.ts` and `isolateGit` as the existing contract test does) and against the seeded fake. Control committer dates with `GIT_COMMITTER_DATE` and `GIT_AUTHOR_DATE` in the env of `boundedOutput`. Never read the global git config, `~/.phax` or the network.",
+        "Real-adapter-only cases, in the same file: a message holding blank lines, a trailer block that is not the last paragraph, and non-ASCII text. A merge commit's patch id equals that of `git diff <first parent> <merge>` fed to `git patch-id --stable`. A root commit has a patch id. A cherry-pick onto another base keeps its patch id. An empty commit (`--allow-empty`) has none. Neither call changes `git for-each-ref` output or `git count-objects -v`."
+      ],
+      "planMarkdownAnchor": "#phase-01-git-fix-search",
+      "plannedFilesToCreate": [
+        "tests/integration/gitFixSearchContract.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/ports/git.ts",
+        "src/infra/git.ts",
+        "src/infra/fakes/git.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/helpers/tempGit.ts",
+        "tests/integration/gitWorktreeHardening.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: the Git port (`src/ports/git.ts`), implemented by `src/infra/git.ts` and the fake. Consumer: phase-03's `src/app/findingLanded.ts`. Contract: `commitsSince` answers the commits reachable from a tip at or after an instant, oldest first, each with its full sha, committer instant and full message byte for byte. `patchIds` answers git's stable patch id per full sha, with no entry for an empty diff. Both only read. The domain, not the port, decides what a key is and what matches.",
+      "testStrategy": [
+        {
+          "guarantee": "commitsSince lists exactly the commits reachable from the tip committed at or after the instant, oldest first, with each full sha, committer instant and message",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "the same expectations run against the real adapter over a temporary repository and against the seeded fake",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a message holding blank lines, a trailer block that is not the last paragraph, and non-ASCII text comes back byte for byte",
+          "size": "medium",
+          "technique": "metamorphic",
+          "oracle": "commitMessage's answer for the same commit",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "patchIds gives a commit and its cherry-pick onto another base the same id, a different diff another id, and an empty commit none",
+          "size": "medium",
+          "technique": "contract",
+          "oracle": "ids compared across commits, against the real adapter and the seeded fake",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a merge commit's patch id is that of its diff against its first parent, and a root commit has one",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "git patch-id --stable over git diff of the first parent and the commit",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "neither call moves a ref or writes an object",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "git for-each-ref and git count-objects -v output before and after",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "the port types and the two signatures with their doc comments",
+        "the real adapter's commitsSince and its private parser",
+        "the real adapter's patchIds with batching",
+        "the fake's seeded answers and call log entries",
+        "the contract suite, then the real-adapter-only cases"
+      ],
+      "excludedScope": [
+        "Any caller of the new calls in src/app or src/domain (phase-03).",
+        "A trailer or key parser: matching keys is domain code (phase-03).",
+        "A new ancestry call: phase-03 reuses commitExists and mergeBase.",
+        "Fetching anything."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, `tests/integration/gitFixSearchContract.test.ts` passes against both the real adapter and the fake.",
+      "expectedHandoff": "The exact signatures and doc comments of `commitsSince`, `patchIds` and `RangeCommit` in `src/ports/git.ts`. The git command lines the adapter runs, the batch size, and the rule for the message's trailing newline. How to seed the fake for both calls (helper names). Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(git): list a branch's commits since an instant and their patch ids",
+        "body": "Add two read-only Git port calls for finding a fix commit after a rewrite. commitsSince lists the commits reachable from a tip since an instant, oldest first, with their full messages. patchIds answers git's stable patch id of each commit's diff against its first parent.\n\nThe real adapter runs them through the hardened git helper, with no external diff or textconv. The fake answers from seeded data, and a contract suite holds both to the same expectations."
+      },
+      "assignmentReason": "The phase adapts two git plumbing paths no phax code uses yet, and both are easy to get subtly wrong: patch ids over merge, root and empty commits, piped between two processes and batched under the adapter's buffer, and NUL-separated raw messages that must come back byte for byte. phase-03's correctness rests on them.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-02",
+      "title": "A fix commit names its run with a Finding-Run trailer",
+      "objective": "`phax finding fix` writes `Finding-Run: <run id>` in the fix commit's last paragraph, after `Short-Name` and before the `Finding` trailers, and still writes no `Run-Id`. The fix commit then carries its fate key, (run id, finding id), which phase-03 searches for. Release notes fold the commit into its run exactly as before.",
+      "detailedInstructions": [
+        "Read first: `src/domain/findings/fixCall.ts` (`fixCommitBody`), `src/app/findingFix.ts` (the call to `fixCommitBody`), the `fix` command's help in `src/cli/definitions/finding.ts`, `tests/unit/findings/fixCall.test.ts`, `tests/integration/findingFix.test.ts`, `scripts/release-notes.ts` (read only) and the describe `review fixes carrying a Short-Name trailer alone` in `tests/unit/releaseNotesCollect.test.ts`.",
+        "`fixCommitBody` takes a required `runId: string`. The trailer paragraph becomes `Short-Name: <short-name>`, then `Finding-Run: <run id>`, then one `Finding: <id>` per id, in the order named. Update its doc comment: never a `Run-Id`, because release notes fold the commit into its run by its short name, and `Finding-Run` names the run so phax can find the commit again after a rewrite.",
+        "`findingFix.ts` passes `run.runId`.",
+        "The `fix` command's help: in the sentence about trailers, name `Finding-Run: <run id>` between `Short-Name: <short-name>` and the `Finding: <id>` trailers, and keep `never a Run-Id`. Then run `pnpm gen:usage-spec` and `pnpm docs:cli` to regenerate `phax.usage.kdl` and `docs/cli/reference.md`.",
+        "Unit tests in `tests/unit/findings/fixCall.test.ts`: the exact body with and without a `--body` paragraph, and with one and two ids.",
+        "Integration (`tests/integration/findingFix.test.ts`), for ac-trailer: run `phax finding fix <run> F2 F5 -- <path>` through the existing fixture and harness. Read the commit's message with `git log -1 --format=%B`. Assert that its last paragraph is exactly `Short-Name: <short-name>`, `Finding-Run: <the fixture's run id>`, `Finding: F2`, `Finding: F5`, in that order, and that no line starts with `Run-Id`. Update every existing assertion in that file (and in `tests/integration/findingFixPaths.test.ts` if it pins the body) that expected the old paragraph.",
+        "Release notes, for ac-release-notes: in `tests/unit/releaseNotesCollect.test.ts`, next to the existing cases of the describe `review fixes carrying a Short-Name trailer alone`, add a case. A release range holds a run's phase commits and a fix commit whose last paragraph carries `Short-Name` and `Finding-Run` (and `Finding`). The test asserts that the fix commit is folded into that run, as the existing Short-Name-only case is, and is not listed as a commit without a run, with the same warnings as the Short-Name-only case. Do not change `scripts/release-notes.ts`: the test proves its behaviour is unchanged."
+      ],
+      "planMarkdownAnchor": "#phase-02-finding-run-trailer",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "src/domain/findings/fixCall.ts",
+        "src/app/findingFix.ts",
+        "src/cli/definitions/finding.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "tests/unit/findings/fixCall.test.ts",
+        "tests/integration/findingFix.test.ts",
+        "tests/unit/releaseNotesCollect.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/integration/findingFixPaths.test.ts",
+        "tests/unit/releaseNotes/repo.ts",
+        "tests/fixtures/findings/fateRunRepo.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Producer: `fixCommitBody` (domain), called by `fixFindings`. Consumers: phase-03's key match, which reads `Finding-Run: <run id>` and `Finding: <id>` from any one paragraph; and release notes, which read only `Run-Id` and `Short-Name` and must see the same trailers they saw before for those two keys.",
+      "testStrategy": [
+        {
+          "guarantee": "a fix commit's last paragraph is Short-Name, Finding-Run naming the run id, then one Finding per id in order, and the message holds no Run-Id line",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the commit message read with git log -1 --format=%B",
+          "loop": "in-phase",
+          "criterion": "ac-trailer"
+        },
+        {
+          "guarantee": "fixCommitBody places Finding-Run after Short-Name and before the Finding trailers, with and without a body paragraph",
+          "size": "small",
+          "technique": "example",
+          "oracle": "expected message strings",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "release notes fold a fix commit carrying Short-Name and Finding-Run into its run, exactly as one carrying Short-Name alone",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the collected runs and warnings of a release range, against those of the Short-Name-only case",
+          "loop": "in-phase",
+          "criterion": "ac-release-notes"
+        }
+      ],
+      "implementationOrder": [
+        "fixCommitBody and its unit test",
+        "findingFix passes the run id",
+        "the fix command's help, then the regenerated usage spec and CLI reference",
+        "the integration assertions and the release-notes case"
+      ],
+      "excludedScope": [
+        "Any change to scripts/release-notes.ts.",
+        "Reading the trailer back (phase-03).",
+        "docs/findings.md (phase-06).",
+        "Rewriting existing fix commits or fate records (spec §7)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, `git diff` of the phase shows no change to `scripts/release-notes.ts`.",
+      "expectedHandoff": "The new signature of `fixCommitBody`. The exact trailer paragraph a fix commit now carries. The release-notes test case's name. Any existing assertion that pinned the old paragraph and was updated. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(findings): name the run on a fix commit with a Finding-Run trailer",
+        "body": "phax finding fix now writes Finding-Run: <run id> between Short-Name and the Finding trailers. The fix commit then carries its fate key, which survives a rebase, an amend or a squash that keeps the messages. It still carries no Run-Id, so release notes fold it into its run by its short name, as a new test checks against the unchanged script (spec §5.1, §5.2)."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-03",
+      "title": "phax finding list resolves where each fix landed",
+      "objective": "Each fixed finding's latest fix is resolved at read time, writing nothing. On the base branch phax looks by the recorded sha, then the fate key, then the patch id; then it looks on the run's branch the same way. Each search covers only commits made at or after the run's start. The result is `found`, `ambiguous` or `not-found`. The finding-list document carries it as a required `landed` on every finding, under a new stamp with a frozen 0.40.0 decoder, and the text list shows it on the latest fix line whenever it is not found by the recorded sha on the base branch.",
+      "detailedInstructions": [
+        "Read first: `src/app/findingList.ts` (`resolveFindingRun`, `ResolvedFindingRun`, `listRunFindings`, `entryOf`), `src/schemas/findingList.ts`, `src/schemas/findingFateRecord.ts`, `src/schemas/status.ts` (`FullCommitShaSchema`), `src/schemas/persisted.ts` (`readRunStatusFile`, `currentSchemaUrl`), `src/app/registry.ts`, `src/app/findingFix.ts` (`checkReachable`, `reachableFrom`), the `list` command and `fateDetails` in `src/cli/definitions/finding.ts`, `packages/schemas/src/formats/commandAnswers.ts` (the plan-lint 0.34.0 release is the model to follow), `packages/schemas/src/shapes.ts` (`Unknown`, `UNKNOWN`), `src/schemas/history/plan-lint/0.34.0.ts` (a frozen command-answer module), `scripts/schemas-check.ts`, CONTRIBUTING's section on the behaviour corpus, and phase-02 of `docs/plans/archive/2611251258-plan-gate-profile-plan.md`, a worked format move. phase-01 added `commitsSince`, `patchIds` and `RangeCommit` to `src/ports/git.ts`. phase-02 made fix commits carry `Finding-Run: <run id>`.",
+        "Step 1, freeze, before anything else changes. Create `src/schemas/history/finding-list/0.40.0.ts`, an exact copy of today's `FindingListFileSchema` with every schema it uses inlined (entry schemas, fate entries, ids, path classes, run state). It imports only `effect`, and its `$schema` is written as today's. Export `FindingListV0_40_0Schema`, `decodeFindingListV0_40_0` and `FindingListV0_40_0`, under a header comment like the plan-lint 0.34.0 module's (never edit it; the history lock pins its bytes; in phax only the tests import it; the package lists it as the 0.40.0 release). Check that it renders the committed `packages/schemas/snapshots/finding-list/0.40.0.schema.json`, and that it answers every existing corpus case of the format as today's decoder does.",
+        "Step 2, the domain (`src/domain/findings/landed.ts`, pure). Export the `Landed` type: `{ status: \"found\"; by: \"recorded\" | \"key\" | \"patch-id\"; commit; branch; recorded }`, `{ status: \"ambiguous\"; commits (oldest first, two or more); branch; recorded }`, or `{ status: \"not-found\"; branches; recorded }`. Export `carriesFateKey(message, { runId, findingId })`: normalize CRLF to LF and split into paragraphs on blank lines. It is true when one paragraph has a line, trailing whitespace trimmed, exactly `Finding-Run: <runId>` and another exactly `Finding: <findingId>`; matching is case-sensitive and any paragraph counts. Export the step logic the use case needs, as the phase designs it (for example `resolveOnBranch` and a fold into a `Landed`).",
+        "Domain behaviour. Commits with `committedAt` before the run's start are dropped (millisecond compare). On each branch in order (base, then run), stop at the first step that matches. Recorded reachable: found `recorded`. Else the range's commits carrying the key: one is found `key`, two or more are `ambiguous`. Else, only when the repository holds the recorded commit, the range's commits whose patch id equals the recorded commit's: one is found `patch-id`, two or more are `ambiguous`. No step on any branch: `not-found` with the branches looked for. A branch that is not searched (it does not resolve) answers nothing and goes to the next. A finding fixed twice in the run gives two commits carrying its key: that is `ambiguous` (§5.7), so never pick the latest. Export only what `findingLanded.ts` uses in this phase.",
+        "Step 3, the use case (`src/app/findingLanded.ts`). Export `baseBranchOf(repo, config)`, which answers `{ ref: string | null; label: string }`, exactly as Technical arbitrations settle it. Make `checkReachable` in `findingFix.ts` use it, with no change to its refusal text. Export `resolveRunLandings({ repo, runId, runBranch, startedAt, config, fixes })`, where `fixes` holds each fixed finding's id and the recorded sha of its latest fixed entry. It answers `{ baseBranch: string; landed: ReadonlyMap<string, Landed> }`. It makes one `commitsSince` per searched branch, lazily, then one `patchIds` per range when needed and one for the held recorded commits. Ancestry uses `commitExists` then `mergeBase`. With `startedAt` null, it runs only the recorded step. It writes nothing, fetches nothing and builds no GitHub layer.",
+        "Step 4, the run (`src/app/findingList.ts`). `ResolvedFindingRun` gains `startedAt: string | null`. For a live run, read `createdAt` from `<runFolder>/run-status.json` through the FileSystem port and `readRunStatusFile`. For an archived run, use the registry entry's `createdAt`. A value that is unreadable or not an instant is null. `listRunFindings` runs in `run.target.repoRoot` (else `config.repoRoot`) and calls `resolveRunLandings` with every finding whose fate is `fixed` and whose latest history entry is `fixed`. `entryOf` sets `landed`: the resolution for those findings, `null` for all others. With `startedAt` null and at least one fixed finding, add the note `the run's start time could not be read: fixes are looked for only by their recorded commit`. A `GitError` fails the call: add `GitError` to its error union and to every caller's union the compiler names (fix, settle, post; publish-pr already catches every error).",
+        "Step 5, the schema (`src/schemas/findingList.ts`). Add `FindingLandedSchema`: a union of the three strict variants, each sha a `FullCommitShaSchema`, `ambiguous.commits` holding at least two items, and `not-found.branches` holding at least one non-empty string. Give each refusal a readable message through `refusalOverride`, and give each variant and key a description. Add `landed: Schema.NullOr(FindingLandedSchema)` after `history` on both entry schemas, described as the resolution of the latest fix of a fixed finding, null for every other fate. Under q-text-base `run-base-branch`, `run` gains `baseBranch: NonEmptyString` after `state`, described as the label of the base branch the resolution searched first, and the document sets it from `resolveRunLandings`' answer.",
+        "Step 6, the stamps. Run `pnpm exec tsx scripts/schemas-check.ts --write`. It writes `packages/schemas/snapshots/finding-list/next.schema.json` and moves the finding-list stamp to `PHAX_RELEASE`, along with the history lock, the generated index and the shipped JSON. Never edit those by hand. Then run the script with no flag and make it pass. `pnpm build` regenerates `packages/schemas/json/finding-list.schema.json`.",
+        "Step 7, the closure guard, as q-closure-guard is decided. Under `lift-for-run`, add exactly `src/schemas/history/finding-list/0.40.0.ts` to `CLOSURE_SRC_ALLOWLIST` in `tests/unit/architecturalGuards.test.ts`, in its sorted position. Change nothing else in that file. Under `operator-prepares`, do not touch that file, and skip step 1.",
+        "Step 8, the schemas package (`packages/schemas/src/formats/commandAnswers.ts`). `findingListFormat.releases` lists `0.40.0` with the frozen schema and decoder, and `FindingListShapes` gains it. Export a `LiftedFindingList` type. `toLatestFindingList` is overloaded: a current document becomes `LatestFindingList`, a 0.40.0 document becomes `LiftedFindingList`, and the union answers the union. A lifted fixed finding has `landed: Unknown` (`UNKNOWN`), every other finding has `landed: null`, and under `run-base-branch`, `run.baseBranch` is `Unknown`. Say in the doc comment that a resolution is never invented. Update the module's header comment. Export the frozen schema and type from `packages/schemas/src/index.ts`, as the plan-lint 0.34.0 ones are, and `LiftedFindingList` too. Update `tests/type/schemasPackage.ts` and every package test the compiler or a failure names.",
+        "Step 9, the behaviour corpus. Register `frozen(\"finding-list/0.40.0\", decodeFindingListV0_40_0, \"package\")` in `tests/behaviourCorpus/subjects.ts`, and add its cases as the coverage test asks (`git grep -n \"plan-lint/0.34.0\" -- tests` shows the precedent). In `tests/behaviourCorpus/cases/formats/finding-list.json`, add next-shaped cases stamped with the literal URL `https://docs.phax.run/schemas/finding-list/0.44.0.json` (confirm `PHAX_RELEASE` in `src/schemas/release.ts`), with expected shape next. Accepted: found by each of recorded, key and patch-id; ambiguous; not-found with one branch and with two; null on open, dismissed, deferred and unrecorded; a compliance finding with null. Refused: `landed` missing; an unknown `status`; found without `commit`; ambiguous with one commit; not-found with no branch; a short sha; an extra key in `landed`; and, under `run-base-branch`, `run.baseBranch` missing. Restamp `tests/behaviourCorpus/cases/encode/finding-list.json`: change only the stamp to the 0.44.0 URL and add the new keys (`landed`: null on a non-fixed finding, a found-recorded value whose `commit` equals `recorded` on a fixed one; and `run.baseBranch: \"main\"`). List every case touched in the handoff. Never edit any other recorded expectation: a case that disagrees means the change is wrong.",
+        "Step 10, the text (`src/cli/definitions/finding.ts`). `fateDetails` keeps one line per fixed history entry. On the latest fixed entry's line, append the resolution unless it is found by `recorded` on `run.baseBranch`: ` → <sha7> on <branch>, by key` (or `by patch id`, or `by recorded sha`), ` → ambiguous on <branch>: <sha7>, <sha7>`, ` → not found on <b1> or <b2>`, or ` → not found on <b1>` for one branch. The `list` command gains `GitError: 1` in `exits`, `errors` and `texts`. Its help says that a fixed finding's latest fix is looked for on the base branch, then on the run's branch (by its recorded commit, its Finding-Run and Finding trailers, then its patch id, among commits made since the run started), and that the text shows where it landed when it is not the recorded commit on the base branch, and `--json` shows it as `landed`. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "Step 11, `docs/upgrading.md`. Add `### 0.44.0` above `### 0.43.0` if it is not there, with bullets: the finding-list answer moves to 0.44.0, and every finding carries a required `landed` (and `run` a required `baseBranch`); a `@lbdremy/phax-schemas` before 0.44.0 refuses the new answer, and the package lifts a 0.40.0 answer with `landed` unknown for a fixed finding; fix commits now carry `Finding-Run`.",
+        "Test fixtures. Create `tests/fixtures/findings/rewriteRunRepo.ts`, which builds on `buildFateRunRepo()` (`tests/fixtures/findings/fateRunRepo.ts`) and adds helpers. Fix and record a finding through `phax finding fix --by operator`, as `tests/integration/findingFix.test.ts` does. Merge the run branch into main with a merge commit. Rebase and merge: in the run's worktree run `git rebase --force-rebase main` so every commit is recreated, fast-forward main to it in the main checkout, then remove the worktree (`git worktree remove --force`) and delete the branch. Rebase the run branch onto main without merging. Squash into one main commit whose message holds each squashed commit's full message, the way GitHub does. Squash with the description only. Drop the old commits from the repository (`git reflog expire --expire=now --all`, then `git gc --prune=now`). Make a main commit before the run's start (the fixture's run starts at 2026-11-01T10:00:00.000Z; set `GIT_COMMITTER_DATE` and `GIT_AUTHOR_DATE` earlier, through `boundedOutput`'s env). Every git call goes through `tests/helpers/boundedSpawn.ts`, and the repository keeps its own identity.",
+        "Integration tests (`tests/integration/findingLanded.test.ts`), one per §8 criterion, through `phax finding list <run> --json` and its text, run the way the fixture's existing list tests run it.",
+        "- ac-direct: a fix merged with a merge commit is found by recorded on main, with `commit` equal to `recorded`, and its text line is unchanged.",
+        "- ac-rebase-merge: after Rebase and merge with the branch deleted, the fix is found by key on main, with the new sha as `commit` and the old one as `recorded`, and the text reads `→ <new sha7> on main, by key`.",
+        "- ac-squash-messages: two fix commits (F-a, F-b) squashed with their messages both resolve by key to that commit, and each keeps its own fate record.",
+        "- ac-patch-id: a trailer-less commit recorded with `--commit` while on the run branch, then rebased onto main, is found by patch-id while the old commit is still held.",
+        "- ac-patch-id-range: an identical diff committed on main before the run's start is not reported, and the fix is not-found.",
+        "- ac-run-branch: a run branch rebased onto main and not merged gives found by key with `branch` the run's branch.",
+        "- ac-ambiguous: two main commits carrying the key give ambiguous, with both shas oldest first and no `commit`.",
+        "- ac-not-found: a squash with the description only and the run branch deleted gives a still-fixed finding, the text `→ not found on main or <run branch>`, and `--json` not-found naming both branches and the recorded sha.",
+        "- ac-read-only: call `listRunFindings` with a Git layer that delegates to `NodeGitLayer` and fails on any of `fetchBranch`, `fetchRemote`, `pushBranch`, `writeTreeCommit`, `updateRef`, `commit`, `commitPaths` and `commitTree`, and with no GitHub layer. Compare `git for-each-ref` output (the records tip included) and the run folder's file names and bytes before and after.",
+        "- ac-null: open, dismissed and deferred findings carry `landed: null`.",
+        "Unit tests: `tests/unit/findings/landed.test.ts` holds a table over branch facts (recorded reachable or not, held or not, key matches 0/1/2, patch-id matches 0/1/2, run branch searched or not, start time null) with the expected `Landed`, a table of messages for `carriesFateKey`, and a metamorphic check: an irrelevant commit added to a range, or a commit before the start, changes no answer. `tests/unit/cli/findingList.test.ts` gets a table of text lines per variant. `tests/unit/schemas/findingList.test.ts` gets decode and refusal cases, and a round-trip property on a fixed seed if `tests/helpers/property/formatRegistry.ts` already generates finding lists.",
+        "Existing test literals of a finding entry gain `landed` (and documents gain `run.baseBranch`): `pnpm test:type` names each one, and `git grep -n \"history: \\[\" -- tests` helps. In `tests/unit/findingsDocs.test.ts`, give F1 and F2_FIXED a found-recorded `landed` on `main`, so every rendered example of `docs/findings.md` stays byte-identical. Tests compare stamps with `currentSchemaUrl(...)`, never a literal 0.44.0 outside the corpus."
+      ],
+      "planMarkdownAnchor": "#phase-03-finding-list-landed",
+      "plannedFilesToCreate": [
+        "src/domain/findings/landed.ts",
+        "src/app/findingLanded.ts",
+        "src/schemas/history/finding-list/0.40.0.ts",
+        "packages/schemas/snapshots/finding-list/next.schema.json",
+        "tests/fixtures/findings/rewriteRunRepo.ts",
+        "tests/unit/findings/landed.test.ts",
+        "tests/integration/findingLanded.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/schemas/findingList.ts",
+        "src/app/findingList.ts",
+        "src/app/findingFix.ts",
+        "src/cli/definitions/finding.ts",
+        "src/schemas/release.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "packages/schemas/src/formats/commandAnswers.ts",
+        "packages/schemas/src/index.ts",
+        "packages/schemas/src/generated/index.ts",
+        "packages/schemas/shipped-json.json",
+        "packages/schemas/history.lock.json",
+        "packages/schemas/json/finding-list.schema.json",
+        "tests/behaviourCorpus/subjects.ts",
+        "tests/behaviourCorpus/cases/formats/finding-list.json",
+        "tests/behaviourCorpus/cases/encode/finding-list.json",
+        "tests/unit/architecturalGuards.test.ts",
+        "tests/type/schemasPackage.ts",
+        "tests/unit/cli/findingList.test.ts",
+        "tests/unit/schemas/findingList.test.ts",
+        "tests/unit/findingsDocs.test.ts",
+        "docs/upgrading.md"
+      ],
+      "optionalFilesToEdit": [
+        "src/app/findingSettle.ts",
+        "src/app/findingPost.ts",
+        "src/app/publishRun.ts",
+        "src/domain/publish/prFindings.ts",
+        "tests/fixtures/findings/findingRunRepo.ts",
+        "tests/fixtures/findings/fateRunRepo.ts",
+        "tests/fixtures/findings/prRunRepo.ts",
+        "tests/integration/findingList.test.ts",
+        "tests/integration/findingListFates.test.ts",
+        "tests/integration/findingListSources.test.ts",
+        "tests/integration/findingFix.test.ts",
+        "tests/integration/findingSettle.test.ts",
+        "tests/integration/findingPost.test.ts",
+        "tests/integration/findingPullRequest.test.ts",
+        "tests/integration/persistedProducer.test.ts",
+        "tests/unit/findings/fateComment.test.ts",
+        "tests/unit/cli/findingFate.test.ts",
+        "tests/unit/schemasPackage/commandAnswersFormat.test.ts",
+        "tests/unit/schemasPackage/currentShapes.test.ts",
+        "tests/unit/schemasPackage/documents.ts",
+        "tests/unit/schemasPackage/exports.test.ts",
+        "tests/unit/schemasPackage/frozenHistory.test.ts",
+        "tests/unit/schemasPackage/jsonSchemas.test.ts",
+        "tests/unit/schemasPackage/parity.test.ts",
+        "tests/unit/schemasPackage/snapshots.test.ts",
+        "tests/unit/schemasPackage/shippedJson.test.ts",
+        "tests/unit/behaviourCorpus/coverage.test.ts",
+        "tests/behaviourCorpus/baseline/package-exports.json",
+        "tests/behaviourCorpus/baseline/snapshot-digests.json",
+        "tests/helpers/property/formatRegistry.ts",
+        "tests/fixtures/commandAnswers/before.ts",
+        "docs/json-output.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Domain to use case: `src/domain/findings/landed.ts` decides, from facts alone, whether a message carries a fate key and what a branch's facts resolve to. `src/app/findingLanded.ts` gathers those facts through the Git port (`commitsSince`, `patchIds`, `commitExists`, `mergeBase`, `resolveRef`) and only reads. Use case to readers: `listRunFindings` answers every finding with `landed`, and `baseBranch` in the document under run-base-branch. `fix`, `dismiss`, `defer`, `post` and `publish-pr` read findings through it. Published format: `finding-list` at the new stamp, read by `@lbdremy/phax-schemas`. A 0.40.0 answer lifts with an `Unknown` resolution for a fixed finding, never a guessed one.",
+      "testStrategy": [
+        {
+          "guarantee": "every combination of branch facts (recorded reachable, recorded held, key matches, patch id matches, run branch searched, start time known) resolves to the found, ambiguous or not-found answer §5.3 to §5.8 prescribe, in the settled order",
+          "size": "small",
+          "technique": "table",
+          "oracle": "a hand-written table of branch facts and expected Landed values",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a commit carries a fate key when any one paragraph of its message holds both the Finding-Run line and the Finding line, and never when they sit in different paragraphs or name another run or finding",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the expected boolean per message",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "adding an irrelevant commit to a range, or a commit made before the run's start, changes no resolution",
+          "size": "small",
+          "technique": "metamorphic",
+          "oracle": "the resolution of the same facts without the added commit",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a fix merged into main with a merge commit is found by recorded on main with commit equal to recorded, and its text line is unchanged",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the landed object of finding list --json and the text form's fix line",
+          "loop": "in-phase",
+          "criterion": "ac-direct"
+        },
+        {
+          "guarantee": "a fix recreated on main by Rebase and merge, its run branch deleted, is found by key on main with the new sha as commit and the old one as recorded, and the text shows the arrow by key",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the landed object and the text line with the new sha7",
+          "loop": "in-phase",
+          "criterion": "ac-rebase-merge"
+        },
+        {
+          "guarantee": "two fix commits squashed into one main commit that keeps both messages each resolve by key to that commit, each keeping its own fate record",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "each finding's landed and history",
+          "loop": "in-phase",
+          "criterion": "ac-squash-messages"
+        },
+        {
+          "guarantee": "a trailer-less commit recorded with --commit and rebased onto main is found by patch-id while the repository holds the old commit",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the landed object naming the rebased sha",
+          "loop": "in-phase",
+          "criterion": "ac-patch-id"
+        },
+        {
+          "guarantee": "a main commit with the same patch id committed before the run started is never reported, and the fix is not-found",
+          "size": "medium",
+          "technique": "boundary",
+          "oracle": "the landed object",
+          "loop": "in-phase",
+          "criterion": "ac-patch-id-range"
+        },
+        {
+          "guarantee": "a run branch rebased onto main during review and not merged resolves by key on the run's branch",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the landed object naming the run branch and the rebased commit",
+          "loop": "in-phase",
+          "criterion": "ac-run-branch"
+        },
+        {
+          "guarantee": "two main commits in the range carrying the fate key give ambiguous with both shas oldest first and no commit field",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the landed object",
+          "loop": "in-phase",
+          "criterion": "ac-ambiguous"
+        },
+        {
+          "guarantee": "a squash with the description only, run branch deleted, leaves the finding fixed and says not found on the base branch or the run branch, in text and JSON",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the text fix line and the landed object naming the branches and the recorded sha",
+          "loop": "in-phase",
+          "criterion": "ac-not-found"
+        },
+        {
+          "guarantee": "listing a run whose fix resolves by key writes, fetches and pushes nothing",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "git for-each-ref output, the run folder's files and the Git calls made, before and after",
+          "loop": "in-phase",
+          "criterion": "ac-read-only"
+        },
+        {
+          "guarantee": "open, dismissed and deferred findings carry landed null",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the finding list --json document",
+          "loop": "in-phase",
+          "criterion": "ac-null"
+        },
+        {
+          "guarantee": "the text list's latest fix line shows each resolution in its settled wording, and nothing when found by recorded sha on the base branch",
+          "size": "small",
+          "technique": "table",
+          "oracle": "expected lines per landed variant",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the frozen 0.40.0 decoder accepts and refuses every 0.40.0 finding list exactly as today's decoder did",
+          "size": "small",
+          "technique": "contract",
+          "oracle": "the corpus's existing cases and the committed 0.40.0 snapshot",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "phax's decoder and the schemas package agree on every next-shaped finding list, each landed variant and each refusal included",
+          "size": "small",
+          "technique": "contract",
+          "oracle": "the behaviour corpus replayed against both readers",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a 0.40.0 finding list lifts with landed Unknown on a fixed finding and null on every other, never a guessed resolution",
+          "size": "small",
+          "technique": "example",
+          "oracle": "toLatestFindingList's answer per fate",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "the frozen 0.40.0 module, checked against today's decoder",
+        "the domain module and its tables",
+        "baseBranchOf and resolveRunLandings, and checkReachable on the shared helper",
+        "the run's start time and listRunFindings",
+        "the landed schema and run.baseBranch",
+        "schemas-check --write, the check, then pnpm build",
+        "the closure guard entry",
+        "the schemas package lift and exports",
+        "the behaviour corpus",
+        "the text list and the list help, then the regenerated usage spec and CLI reference",
+        "the fixture helpers and the integration tests",
+        "docs/upgrading.md and the remaining test literals"
+      ],
+      "excludedScope": [
+        "The fate comment and finding post (phase-04).",
+        "--commit following a rewrite (phase-05).",
+        "docs/findings.md, beyond keeping its rendered examples byte-identical (phase-06).",
+        "Writing any record from a read: resolution is read-time only (q-store).",
+        "Fetching or calling GitHub from finding list.",
+        "Resolving any history entry other than the latest fix."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, `pnpm exec tsx scripts/schemas-check.ts` passes with no flag after the write, and the behaviour corpus replays unchanged except for the encode case and the added next-shaped cases.",
+      "expectedHandoff": "The exports of `src/domain/findings/landed.ts` and `src/app/findingLanded.ts` with their signatures (`baseBranchOf` and `resolveRunLandings` in particular: phases 04 and 05 reuse them). The exact schema of `landed` and of `run.baseBranch` (or that q-text-base was decided `recorded-silent` and the field is absent). The frozen module's exports. The note text for an unreadable start time. Every corpus case added or touched. The allowlist line added, if q-closure-guard was decided `lift-for-run`. The `rewriteRunRepo.ts` helpers and what each does. Every test literal updated for the new keys. Any knip or lint baseline debt this phase removes. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(findings): resolve where a fixed finding's commit landed after a rewrite",
+        "body": "phax finding list now resolves each fixed finding's latest fix at read time and writes nothing. It searches the base branch, then the run's branch, over commits made since the run started: by the recorded sha, then by the Finding-Run and Finding trailers in any paragraph, then by the stable patch id. The answer is found, ambiguous or not-found.\n\nThe finding-list answer carries it as a required landed on every finding (null unless fixed), and its run names the base branch searched. This moves the format to 0.44.0, with a frozen 0.40.0 decoder that @lbdremy/phax-schemas lifts without inventing a resolution. The text list shows the resolution on the latest fix line unless the recorded commit is on the base branch (spec §5.3 to §5.11)."
+      },
+      "assignmentReason": "The phase designs a new search across several parts (a pure resolution in the domain, a lazy use case over new Git port calls, the readers of every fate command) and moves a published format under the behaviour corpus's rules (a frozen decoder, the package's lift that must never invent a resolution, corpus cases, the closure guard). A wrong step order or lift silently misreports where fixes landed.",
+      "model": "claude-opus-5-5",
+      "effort": "high"
+    },
+    {
+      "id": "phase-04",
+      "title": "The fate comment names the resolved commit, and post works on a merged pull request",
+      "objective": "A fixed finding's pull request comment names the commit that carries the fix, the branch it was found on, and the fate key: `Fixed by 8b04d6e on main (tests) · gate-retry-2026-11-18 F2`. `phax finding post` posts on a merged pull request without pushing when every named fixed finding is found on the base branch. Otherwise it refuses before any comment, naming each such finding, its resolution and the `--commit` retry.",
+      "detailedInstructions": [
+        "Read first: `src/domain/findings/fateComment.ts`, `src/app/findingPullRequest.ts` (`pushAndComment`, `pullRequestStateBeforeFix`, `pullRequestAfterFates`), `src/app/findingPost.ts`, the `post` command and `FindingPostOutput`/`renderFindingPost` in `src/cli/definitions/finding.ts`, `tests/unit/findings/fateComment.test.ts`, `tests/integration/findingPost.test.ts` (the merged case near `refuses a fixed finding on a merged pull request`), `tests/fixtures/findings/prRunRepo.ts`, `src/infra/fakes/github.ts`, and the `### Fate comments` section of `docs/findings.md`. phase-03 gave every finding entry a `landed` (`src/domain/findings/landed.ts`'s `Landed`), and, under q-text-base `run-base-branch`, the document a `run.baseBranch`. It also exported `baseBranchOf` from `src/app/findingLanded.ts`, and added `tests/fixtures/findings/rewriteRunRepo.ts` with Rebase and merge and squash helpers.",
+        "`renderFateComment(finding, runId)`. For a fixed finding, the second line reads `Fixed by <sha7> on <branch> (<classes>) · <runId> <finding id>` when `landed.status` is `found`, using `landed.commit` and `landed.branch`. Otherwise (ambiguous, not-found, or a null `landed`) it reads `Fixed by <recorded sha7> (<classes>) · <runId> <finding id>`. The separator is ` · ` (U+00B7 between spaces). Keep `withoutMentions` and `codeSpan` usage as for the other fates. Dismissed and deferred comments are unchanged. `pushAndComment` passes `input.run.runId`.",
+        "`postFindings`, step 5, once a fixed finding is named and the state is asked. `closed`: refuse as today. `open`: unchanged (push when `publish.pushBranch`, then comment). `merged`: take the base label (`listed.document.run.baseBranch` under `run-base-branch`, else `baseBranchOf`). The fixed findings not found on it are those whose `landed` is not `{ status: \"found\", branch: <base label> }`. If there are any, refuse before any comment with one clause per such finding, joined by `; `:",
+        "- not-found: `<id> of <short-name> is fixed by <recorded sha7>, found on neither <b1> nor <b2>` (one branch: `not found on <b1>`).",
+        "- ambiguous: `<id> of <short-name> is fixed by <recorded sha7>, and <n> commits of <branch> match it: <sha7>, <sha7>`.",
+        "- found on another branch: `<id> of <short-name> is fixed by <recorded sha7>, found on <branch> but not on <base>`.",
+        "- Each clause ends `: nothing was commented. Record the commit that carries the fix with: phax finding fix <ref> <id> --commit <sha>`. If every named fixed finding is found on the base branch, call `pushAndComment` with `push: false`.",
+        "`FindingPostAnswer` and `FindingPostOutput` gain `pullRequestState: \"open\" | \"merged\" | null` (null when no fixed finding was named, so no state was asked). `renderFindingPost`: when it is `merged`, first print one line per fixed finding, `✓ <id>: <sha7> on <branch> (by key)` (or `by patch id` or `by recorded sha`), then each comment line as `✓ commented <id> on <url> (nothing pushed: the pull request is merged)`. Otherwise its lines are unchanged.",
+        "The `post` command's help: replace the sentence that refuses a fixed finding on any merged pull request with the new rule. On a merged pull request, phax posts without pushing when every named fixed finding's fix is found on the base branch, and otherwise refuses, naming the `phax finding fix <run> <id> --commit <sha>` retry. A closed pull request still refuses. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "`docs/findings.md`: update each fate comment example of `### Fate comments` so it is byte-identical to what `tests/unit/findingsDocs.test.ts` renders, and update that test's call to pass the run id (`gate-retry-1` there). Add nothing else to the page (phase-06).",
+        "Tests. `tests/unit/findings/fateComment.test.ts`: a table over landed variants and fates. ac-comment: a finding F2 fixed in `tests` and found by key to `8b04d6e…` on `main`, rendered with run id `gate-retry-2026-11-18`, has the second line `Fixed by 8b04d6e on main (tests) · gate-retry-2026-11-18 F2`. Create `tests/integration/findingPostMerged.test.ts`, built on `rewriteRunRepo.ts` and the fake GitHub reporting the pull request `merged` the way `tests/integration/findingPost.test.ts` sets it up.",
+        "- ac-post-merged: after Rebase and merge, `phax finding post <run> F2` posts exactly one comment naming the new sha7 on main and the fate key. The run branch is not pushed (no push reaches the fixture's remote, or the push recorder is empty), and the exit code is 0.",
+        "- ac-post-merged-refused: with a squash that kept only the description, `phax finding post <run> F5` exits non-zero. Its stderr names F5, both branches and `phax finding fix <run> F5 --commit <sha>`, and the fake holds no comment.",
+        "- Update the existing merged case in `tests/integration/findingPost.test.ts` to the new rules, and keep a case each for closed and for open."
+      ],
+      "planMarkdownAnchor": "#phase-04-comment-and-post",
+      "plannedFilesToCreate": [
+        "tests/integration/findingPostMerged.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/domain/findings/fateComment.ts",
+        "src/app/findingPullRequest.ts",
+        "src/app/findingPost.ts",
+        "src/cli/definitions/finding.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "tests/unit/findings/fateComment.test.ts",
+        "tests/integration/findingPost.test.ts",
+        "tests/unit/findingsDocs.test.ts",
+        "docs/findings.md"
+      ],
+      "optionalFilesToEdit": [
+        "tests/fixtures/findings/prRunRepo.ts",
+        "tests/fixtures/findings/rewriteRunRepo.ts",
+        "src/infra/fakes/github.ts",
+        "tests/integration/findingPullRequest.test.ts",
+        "tests/integration/findingPullRequestLocal.test.ts",
+        "tests/integration/findingFix.test.ts",
+        "tests/integration/findingSettle.test.ts",
+        "tests/unit/cli/findingFate.test.ts",
+        "src/app/findingLanded.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: `phax finding post` and the comment renderer. Producer: phase-03's `landed` on each finding (and `run.baseBranch`), read from `listRunFindings`. Contract: `found` on the base label is the only resolution that lets a fixed comment reach a merged pull request. GitHub is reached only through the existing `pullRequestState` and `commentOnPullRequest` calls, with no new GitHub call.",
+      "testStrategy": [
+        {
+          "guarantee": "a fixed finding resolved by key renders Fixed by 8b04d6e on main (tests) · gate-retry-2026-11-18 F2 as its second line",
+          "size": "small",
+          "technique": "example",
+          "oracle": "the expected comment text",
+          "loop": "in-phase",
+          "criterion": "ac-comment"
+        },
+        {
+          "guarantee": "the comment of an ambiguous, not-found or unresolved fix names the recorded commit without a branch, and dismiss and defer comments are unchanged",
+          "size": "small",
+          "technique": "table",
+          "oracle": "expected comment text per landed variant and fate",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "after a Rebase and merge, finding post on the merged pull request posts one comment naming the new sha and the fate key, pushes nothing and exits 0",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the fake GitHub's comments, the remote's branch ref and the exit code",
+          "loop": "in-phase",
+          "criterion": "ac-post-merged"
+        },
+        {
+          "guarantee": "a fixed finding not found on the base branch of a merged pull request is refused before any comment, naming the finding, the branches searched and the --commit retry",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the exit code, the refusal text and the fake GitHub's empty comment list",
+          "loop": "in-phase",
+          "criterion": "ac-post-merged-refused"
+        },
+        {
+          "guarantee": "a closed pull request still refuses a fixed comment, and an open one still pushes then comments",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the post outcomes the existing tests pin",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "renderFateComment and its table",
+        "pushAndComment passes the run id",
+        "postFindings' merged rule and its refusal",
+        "the post answer, its render and help, then the regenerated usage spec and CLI reference",
+        "docs/findings.md's fate comment examples and the docs test",
+        "the integration tests"
+      ],
+      "excludedScope": [
+        "The pull request step of fix, dismiss and defer (unchanged: a fix after a merge posts nothing).",
+        "Posting on a closed, unmerged pull request (still refused).",
+        "Any new GitHub call, such as asking GitHub for the merge commit (q-squash-description).",
+        "--commit following a rewrite (phase-05)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, `tests/unit/findingsDocs.test.ts` renders every fate comment example of `docs/findings.md` byte for byte.",
+      "expectedHandoff": "The new signature of `renderFateComment`. The refusal clauses, verbatim. The `pullRequestState` key of the post answer and the lines `renderFindingPost` prints for a merged pull request. Which fixture and fake calls set a pull request merged and detect a push. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(findings): post a fixed finding on a merged pull request when its commit is found",
+        "body": "A fixed finding's comment now names the commit that carries the fix, the branch it was found on, and the fate key, which stay valid after a merge. phax finding post posts on a merged pull request without pushing when every named fix is found on the base branch. Otherwise it refuses before any comment, naming each such finding, its resolution and the phax finding fix --commit retry. A closed pull request still refuses (spec §5.12 to §5.14)."
+      },
+      "assignmentReason": "The phase changes the refusal contract of a command that reaches GitHub. It must keep the open and closed paths exactly as they are while adding a merged path that depends on phase-03's resolution, and every refusal must come before any comment.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-05",
+      "title": "phax finding fix --commit follows a rewritten commit",
+      "objective": "`phax finding fix <run> <id>… --commit <sha>` may name a commit that is on neither the run's branch nor the base branch, or that the repository no longer holds. Then phax resolves the named findings on the base branch, by their fate keys and then by the named commit's patch id, and records the single commit found, naming both the named commit and the recorded one. It refuses, before writing any record and naming each candidate, when it finds none, several, or different commits for different findings.",
+      "detailedInstructions": [
+        "Read first: `src/app/findingFix.ts` (`resolveCommit`, `checkReachable`, the `--commit` branch of `fixFindings`, `FindingFixAnswer`), `src/app/findingLanded.ts` (`baseBranchOf`, `resolveRunLandings`), `src/domain/findings/landed.ts`, the `fix` command, `FindingFixOutput` and `renderFindingFix` in `src/cli/definitions/finding.ts`, `tests/integration/findingFix.test.ts`, and `tests/fixtures/findings/rewriteRunRepo.ts`. `ResolvedFindingRun.startedAt` comes from phase-03.",
+        "When to follow. If the value resolves (`resolveRef(<value>^{commit})`) and `checkReachable` passes, record as today. Follow when the value resolves but `checkReachable` would refuse it, or when it does not resolve and matches `^[0-9a-f]{4,40}$` (case-insensitive). Any other value that does not resolve keeps today's refusal, `--commit <value> names no commit in the run's repository`.",
+        "How to follow (pure decision in `src/domain/findings/landed.ts`, gathering in `src/app/findingLanded.ts`, both reusing phase-03's code). Only the base branch is searched (from `baseBranchOf`), over its range since `run.startedAt`. For each named finding, first the commits carrying its key `(run.runId, id)`. If none carries it and the repository holds the named commit, the commits whose patch id equals the named commit's. If the base branch does not resolve, or `startedAt` is null, the search finds nothing. The decision answers one commit (with `by` of key or patch-id) when every named finding resolves to exactly one commit and it is the same one. Otherwise it is a refusal naming every candidate.",
+        "Refusals, before anything is written. `<subject>` is `<sha7> is on neither <run branch> nor <base>` for a held commit (with the same branch wording as today's refusal), or `<value> is not in the repository` for one not held.",
+        "- none: `<subject>, and no commit of <base> since the run started carries <runId> <ids>` plus ` or has its patch id` when the commit is held, then `: name a commit of the run branch or of the base branch with --commit`.",
+        "- several for a finding: `<subject>, and <n> commits of <base> carry <runId> <id>: <sha7>, <sha7>. Name one with --commit`, or `have its patch id` for the patch-id step.",
+        "- different commits: `<subject>, and the named findings resolve to different commits of <base>: F2 → <sha7>, F5 → <sha7>. Name one with --commit`.",
+        "- A mix (one finding found, another none) names what was found and which finding found nothing. phax/records/v1 is unchanged by any refusal.",
+        "Recording. The fixed entry's `commit` is the followed commit's full sha, and its path classes come from that commit. `FindingFixAnswer.commit` gains `followed: { named: string; by: \"key\" | \"patch-id\"; branch: string } | null`, where `named` is the full sha when held, else the value as given. `FindingFixOutput` mirrors it. `pullRequestAfterFates` gets `commit: null`, as for any `--commit`.",
+        "`renderFindingFix`: when `followed` is set, it first prints `✓ <subject>; its rewrite <sha7> on <branch> carries <runId> <ids joined by \", \"> (by key)`, or `…; its rewrite <sha7> on <branch> has its patch id (by patch id)`, then the usual `✓ recorded <id> fixed by <sha7> (<classes>) on phax/records/v1` lines.",
+        "The `fix` command's help: the `--commit` paragraph says that a commit on neither branch, or no longer held, is followed on the base branch by the findings' Finding-Run and Finding trailers, then by its patch id, and recorded when one commit carries them all, and is refused otherwise, naming the candidates. Then run `pnpm gen:usage-spec` and `pnpm docs:cli`.",
+        "Tests in `tests/integration/findingFixFollow.test.ts`, on `rewriteRunRepo.ts`.",
+        "- ac-commit-follow: after Rebase and merge, branch deleted, old commit still held, `--commit <old sha> --by operator` records a new fixed record naming the new sha. The output names both shas and `by key`.",
+        "- ac-commit-follow-absent: the same after `git gc --prune=now`, so the old sha is no longer held. The finding is recorded fixed by the main commit carrying its key.",
+        "- ac-commit-follow-refused: a table of no main commit carrying the key or patch id, two such commits, and F2 and F5 resolving to different commits. Each exits non-zero naming each candidate, and the `phax/records/v1` tip is unchanged.",
+        "- A trailer-less commit recorded with `--commit`, then rebased onto main with the old commit held, is followed by patch id.",
+        "- Today's paths are unchanged: a value that is not a sha is refused as before, and a commit on the run branch or the base branch is recorded as before.",
+        "Add a table for the pure decision to `tests/unit/findings/landed.test.ts`."
+      ],
+      "planMarkdownAnchor": "#phase-05-commit-follows-rewrite",
+      "plannedFilesToCreate": [
+        "tests/integration/findingFixFollow.test.ts"
+      ],
+      "plannedFilesToEdit": [
+        "src/app/findingFix.ts",
+        "src/app/findingLanded.ts",
+        "src/domain/findings/landed.ts",
+        "src/cli/definitions/finding.ts",
+        "phax.usage.kdl",
+        "docs/cli/reference.md",
+        "tests/unit/findings/landed.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "tests/fixtures/findings/rewriteRunRepo.ts",
+        "tests/integration/findingFix.test.ts",
+        "tests/unit/cli/findingFate.test.ts",
+        "tests/unit/findingsDocs.test.ts"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": "Consumer: `fixFindings`' `--commit` path. Producer: phase-03's resolution code, reused for the base branch alone with a named commit instead of a recorded one. Contract: a record is written only after the decision answers one commit for every named finding. Every refusal leaves `phax/records/v1` unchanged.",
+      "testStrategy": [
+        {
+          "guarantee": "--commit with a fix's old sha, recreated on main by Rebase and merge, records a new fixed record naming the new sha and says both shas and by key",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the new fate record's commit and the command's output lines",
+          "loop": "in-phase",
+          "criterion": "ac-commit-follow"
+        },
+        {
+          "guarantee": "--commit with an old sha the repository no longer holds records the main commit carrying the finding's key",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the new fate record's commit",
+          "loop": "in-phase",
+          "criterion": "ac-commit-follow-absent"
+        },
+        {
+          "guarantee": "--commit refuses when no commit, two commits, or different commits per finding are found, naming each candidate, with the records branch unchanged",
+          "size": "medium",
+          "technique": "table",
+          "oracle": "the exit code, the refusal text per case, and the phax/records/v1 tip before and after",
+          "loop": "in-phase",
+          "criterion": "ac-commit-follow-refused"
+        },
+        {
+          "guarantee": "a trailer-less commit recorded with --commit and rebased onto main is followed by its patch id while the repository holds it",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "the new fate record's commit and the by patch id line",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "a --commit value that is not a sha is refused as before, and a commit on the run branch or the base branch is recorded as before",
+          "size": "medium",
+          "technique": "example",
+          "oracle": "today's refusal text and the recorded commit",
+          "loop": "in-phase",
+          "criterion": null
+        },
+        {
+          "guarantee": "the follow decision over per-finding matches answers one commit, or a refusal naming every candidate",
+          "size": "small",
+          "technique": "table",
+          "oracle": "the expected decision per combination",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "the pure follow decision and its table",
+        "the base-branch gathering for a named commit in findingLanded",
+        "fixFindings' follow path and its refusals",
+        "the fix answer, its render and help, then the regenerated usage spec and CLI reference",
+        "the integration tests"
+      ],
+      "excludedScope": [
+        "Following a rewrite on the run's branch (the spec scopes --commit to the base branch).",
+        "Changing what dismiss and defer record.",
+        "Posting the comment after a merge (phax finding post, phase-04).",
+        "docs/findings.md (phase-06)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, every refusal case of `tests/integration/findingFixFollow.test.ts` asserts the `phax/records/v1` tip is unchanged.",
+      "expectedHandoff": "The value rule for following. The `followed` key of the fix answer. The exact output and refusal lines, verbatim. The exports added to `landed.ts` and `findingLanded.ts`. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "feat(findings): follow a rewritten commit with phax finding fix --commit",
+        "body": "phax finding fix --commit may name a commit on neither the run branch nor the base branch, or one the repository no longer holds. phax then resolves the named findings on the base branch by their Finding-Run and Finding trailers, then by the named commit's patch id. It records the single commit found and names both commits. It refuses before writing anything, naming each candidate, when it finds none, several, or a different commit per finding (spec §5.15, §5.16)."
+      },
+      "assignmentReason": "The phase reworks the refusal and write ordering of a command that writes records: a wrong order writes a record for a commit that does not carry the fix. It must reuse phase-03's resolution for a named commit without changing today's accepted paths.",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    {
+      "id": "phase-06",
+      "title": "The findings page explains a rewritten fix commit",
+      "objective": "`docs/findings.md` gains the section \"When the fix commit is rewritten\", after \"Recording an earlier commit\". It is for an operator who merges by Rebase and merge or squash, or who rebases or amends a run branch, and it shows what `finding list`, `finding post` and `--commit` answer afterwards. The rest of the page is brought in line with the trailer, the `landed` field and the merged-pull-request rule. Every terminal example on the page is rendered by phax's own renderers in the docs test.",
+      "detailedInstructions": [
+        "Read first: `docs/findings.md`, `tests/unit/findingsDocs.test.ts` (each text example must appear on the page as a whole fenced text block rendered by phax), spec §11, and the outputs phases 03 to 05 settled: the arrows on the latest fix line, the `landed` variants, the comment wording, the merged post lines and refusal, and the `--commit` follow lines and refusals. phase-03 added `landed` (and `run.baseBranch`) to the finding-list answer. phase-04 changed `renderFateComment(finding, runId)` and `renderFindingPost`. phase-05 added `commit.followed` to the fix answer.",
+        "New section `## When the fix commit is rewritten`, placed right after `## Recording an earlier commit`. Cover the following, in this order:",
+        "- why a sha does not survive a rebase, an amend, a Rebase and merge or a squash;",
+        "- the `Finding-Run: <run id>` trailer and the fate key (run id, finding id), which may sit in any paragraph, so a squash that keeps the messages keeps every key;",
+        "- the search: base branch first, then the run's branch, each by the recorded commit, then the key, then the patch id, among commits made since the run started; and that reading writes, fetches and calls GitHub for nothing;",
+        "- `found`, `ambiguous` and `not-found`, and what the operator does for each (`--commit` settles an ambiguity or a description-only squash);",
+        "- the text list's arrow, with the spec §11 example adapted to the page's example run;",
+        "- `landed` in `--json`, with each variant shown once;",
+        "- the comment's wording;",
+        "- `phax finding post` on a merged pull request, with its success lines and its refusal;",
+        "- `--commit` following a rewrite, with its success lines and one refusal;",
+        "- that fix commits made before this release carry no run trailer and resolve only by their recorded commit or patch id.",
+        "Elsewhere on the page. `## Listing a run's findings`: the JSON example shows the current stamp, `run.baseBranch` and `landed`, and the paragraph after it explains `landed`. `## Fixing a finding`: the trailer bullet names `Finding-Run` between `Short-Name` and the `Finding` trailers, and still says there is no `Run-Id`. `## Recording an earlier commit` links to the new section for a commit on neither branch. `### Which pull request`: the merged-pull-request rule is the new one, and a closed pull request still refuses.",
+        "In `tests/unit/findingsDocs.test.ts`, render every new text example from phax's renderers over the page's example run (`gate-retry`). That covers: a list with a `by key` arrow and a `not found` arrow (`renderFindingList`); a fix answer with `followed` (`renderFindingFix`); and a merged post answer (`renderFindingPost`). Assert each appears on the page as a whole text block. A refusal is an error text, not a rendered answer: quote it from the phase's handoff and do not test it here.",
+        "Touch `README.md`, `docs/json-output.md` and `docs/upgrading.md` only where they contradict the new behaviour."
+      ],
+      "planMarkdownAnchor": "#phase-06-findings-docs",
+      "plannedFilesToCreate": [],
+      "plannedFilesToEdit": [
+        "docs/findings.md",
+        "tests/unit/findingsDocs.test.ts"
+      ],
+      "optionalFilesToEdit": [
+        "README.md",
+        "docs/json-output.md",
+        "docs/upgrading.md"
+      ],
+      "mode": "headless",
+      "acceptance": null,
+      "boundaryContracts": null,
+      "testStrategy": [
+        {
+          "guarantee": "every terminal and pull-request example on the findings page, the new section's included, appears as phax renders it",
+          "size": "small",
+          "technique": "example",
+          "oracle": "phax's own renderers over the page's example run",
+          "loop": "in-phase",
+          "criterion": null
+        }
+      ],
+      "implementationOrder": [
+        "the new section's prose and examples",
+        "the updates elsewhere on the page",
+        "the docs test's new rendered examples"
+      ],
+      "excludedScope": [
+        "Any change to phax's behaviour or renderers.",
+        "A merge policy recommendation or GitHub repository settings (spec §7).",
+        "Approval baselines held by sha (a follow-up for their own brief)."
+      ],
+      "verification": "The `standard` gate profile in `phax.json`. Beyond it, `tests/unit/findingsDocs.test.ts` renders every text example of the page, the new ones included.",
+      "expectedHandoff": "The new section's headings. Each example added and the renderer that checks it. Any statement elsewhere on the page that changed. Any deviation from the planned file lists, with the reason.",
+      "commit": {
+        "subject": "docs(findings): explain what phax shows when a fix commit is rewritten",
+        "body": "docs/findings.md gains \"When the fix commit is rewritten\" for operators who merge by Rebase and merge or squash, or who rebase or amend a run branch. It covers the Finding-Run trailer and the fate key, the search order and range, the found, ambiguous and not-found answers, the list's arrow and landed in --json, the comment, finding post on a merged pull request, and --commit following a rewrite. The docs test renders every new example from phax's own renderers."
+      },
+      "assignmentReason": null,
+      "model": "claude-sonnet-5-5",
+      "effort": "medium"
+    }
+  ]
+}
