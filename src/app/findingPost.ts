@@ -169,7 +169,13 @@ export function postFindings(input: {
                 `${clause}: nothing was commented. Record the commit that carries the fix with: phax finding fix ${input.ref} ${finding.id} --commit <sha>`,
               ];
         });
-        if (clauses.length > 0) return yield* refuse(clauses.join("; "));
+        // phax never fetches: a pull request merged on the forge reaches a local base branch only
+        // once it is pulled, and until then no --commit names a commit of it either.
+        if (clauses.length > 0) {
+          return yield* refuse(
+            `${clauses.join("; ")}. If the pull request was merged on the forge, update ${base} first (for example with git pull), then post again`,
+          );
+        }
       }
       pullRequestState = state;
     }

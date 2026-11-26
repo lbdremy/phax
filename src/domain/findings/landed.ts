@@ -185,9 +185,22 @@ export function followMatchOf(facts: BranchFacts, step: BranchStep): FollowMatch
   return null;
 }
 
-/** What following a named commit decides: one commit for every named finding, or a refusal. */
+/** How one named finding was followed to the commit recorded. */
+export interface FollowedFinding {
+  readonly finding: string;
+  readonly by: "key" | "patch-id";
+}
+
+/**
+ * What following a named commit decides: one commit for every named finding, with how each was
+ * found, or a refusal.
+ */
 export type FollowDecision =
-  | { readonly kind: "follow"; readonly commit: string; readonly by: "key" | "patch-id" }
+  | {
+      readonly kind: "follow";
+      readonly commit: string;
+      readonly matches: readonly FollowedFinding[];
+    }
   | { readonly kind: "refused"; readonly message: string };
 
 const short = (sha: string) => sha.slice(0, 7);
@@ -198,8 +211,9 @@ const short = (sha: string) => sha.slice(0, 7);
  * repository`.
  */
 export function followSubject(named: string, notOn: readonly string[] | null): string {
-  return notOn === null
-    ? `${named} is not in the repository`
+  if (notOn === null) return `${named} is not in the repository`;
+  return notOn.length === 1
+    ? `${short(named)} is not on ${notOn[0]}`
     : `${short(named)} is on neither ${notOn.join(" nor ")}`;
 }
 
@@ -208,6 +222,8 @@ export function followSubject(named: string, notOn: readonly string[] | null): s
  * one commit and it is the same one; otherwise a refusal naming every candidate. `subject` says
  * what the named commit is (`<sha7> is on neither … nor …`, or `<value> is not in the
  * repository`), `held` whether the repository holds it (the patch-id step ran only then).
+ * `unsearched` names why the base branch could not be searched at all (no run start, no base
+ * branch): the refusal then says so instead of claiming a search found nothing.
  */
 export function decideFollow(input: {
   readonly subject: string;
@@ -215,8 +231,15 @@ export function decideFollow(input: {
   readonly runId: string;
   readonly held: boolean;
   readonly matches: readonly FollowMatch[];
+  readonly unsearched: string | null;
 }): FollowDecision {
   const { subject, base, runId, matches } = input;
+  if (input.unsearched !== null) {
+    return {
+      kind: "refused",
+      message: `${subject}, and ${base} could not be searched: ${input.unsearched}. Name a commit of the run branch or of the base branch with --commit`,
+    };
+  }
   const found = matches.flatMap((m) =>
     m.match !== null && m.match.commits.length === 1
       ? [{ id: m.id, by: m.match.by, commit: m.match.commits[0] ?? "" }]
@@ -229,9 +252,12 @@ export function decideFollow(input: {
   const distinct = [...new Set(found.map((f) => f.commit))];
   const [first] = found;
   if (first !== undefined && found.length === matches.length && distinct.length === 1) {
-    // Every finding names the same commit; by key when any found it by key.
-    const by = found.some((f) => f.by === "key") ? "key" : "patch-id";
-    return { kind: "follow", commit: first.commit, by };
+    // Every finding names the same commit, each by its own step.
+    return {
+      kind: "follow",
+      commit: first.commit,
+      matches: found.map((f) => ({ finding: f.id, by: f.by })),
+    };
   }
 
   const clauses: string[] = [];
@@ -257,9 +283,10 @@ export function decideFollow(input: {
     );
   }
   const unique = [...new Set(clauses)];
+  // A pull request merged on GitHub is not on a local base branch until it is pulled.
   const ending =
     found.length === 0 && several.length === 0
-      ? ": name a commit of the run branch or of the base branch with --commit"
+      ? `: name a commit of the run branch or of the base branch with --commit (after a merge on the forge, update ${base} first, for example with git pull)`
       : ". Name one with --commit";
   return { kind: "refused", message: `${subject}, and ${unique.join("; ")}${ending}` };
 }

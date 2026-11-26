@@ -11,7 +11,7 @@ import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
 import { runKey } from "../domain/runRef.js";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { defaultFixSubject, fixCommitBody, splitFixOperands } from "../domain/findings/fixCall.js";
-import { decideFollow, followSubject } from "../domain/findings/landed.js";
+import { decideFollow, followSubject, type FollowedFinding } from "../domain/findings/landed.js";
 import { type PathClass } from "../schemas/pathClass.js";
 import { classifyPath, pathClassesOf } from "../domain/findings/pathClass.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -175,7 +175,8 @@ interface FollowedCommit {
   readonly named: string;
   /** The branches the named commit is on neither of, or null when the repository lacks it. */
   readonly notOn: readonly string[] | null;
-  readonly by: "key" | "patch-id";
+  /** How each named finding was followed to the recorded commit: its key or its patch id. */
+  readonly matches: readonly FollowedFinding[];
   /** The base branch's label, where the recorded commit was found. */
   readonly branch: string;
 }
@@ -209,6 +210,16 @@ function commitToRecord(input: {
         config,
       });
       if (notOn === null) return { sha: resolved, followed: null };
+      // Branches by the labels the follow answers with (`origin/main`, never its full ref), and
+      // the run's branch even when it is deleted, so the operator sees it was looked for.
+      const labels = notOn.map((branch) =>
+        branch.startsWith("refs/remotes/") ? branch.slice("refs/remotes/".length) : branch,
+      );
+      const runBranch = run.runBranch;
+      notOn =
+        runBranch !== null && !labels.includes(runBranch) && !labels.includes("the run branch")
+          ? [runBranch, ...labels]
+          : labels;
     } else if (!SHA_SPELLING.test(value)) {
       return yield* refuse(`--commit ${value} names no commit in the run's repository`);
     }
@@ -229,9 +240,15 @@ function commitToRecord(input: {
       runId: run.runId,
       held,
       matches: search.matches,
+      unsearched: search.unsearched,
     });
     if (decision.kind === "refused") return yield* refuse(decision.message);
-    const followed: FollowedCommit = { named, notOn, by: decision.by, branch: search.baseBranch };
+    const followed: FollowedCommit = {
+      named,
+      notOn,
+      matches: decision.matches,
+      branch: search.baseBranch,
+    };
     return { sha: decision.commit, followed };
   });
 }

@@ -75,17 +75,50 @@ describe("renderFindingFix", () => {
   it.each([
     [
       "a held commit followed by key",
-      { named: "1".repeat(40), notOn: ["phax/gate-retry--phase-02", "main"], by: "key" as const },
+      {
+        named: "1".repeat(40),
+        notOn: ["phax/gate-retry--phase-02", "main"],
+        matches: [
+          { finding: "F2", by: "key" as const },
+          { finding: "F5", by: "key" as const },
+        ],
+      },
       "✓ 1111111 is on neither phax/gate-retry--phase-02 nor main; its rewrite 9f8e7d6 on main carries run-1 F2, F5 (by key)",
     ],
     [
       "a held commit followed by patch id",
-      { named: "1".repeat(40), notOn: ["main"], by: "patch-id" as const },
-      "✓ 1111111 is on neither main; its rewrite 9f8e7d6 on main has its patch id (by patch id)",
+      {
+        named: "1".repeat(40),
+        notOn: ["main"],
+        matches: [
+          { finding: "F2", by: "patch-id" as const },
+          { finding: "F5", by: "patch-id" as const },
+        ],
+      },
+      "✓ 1111111 is not on main; its rewrite 9f8e7d6 on main has its patch id (by patch id)",
+    ],
+    [
+      "a held commit followed by key for one finding and by patch id for the other",
+      {
+        named: "1".repeat(40),
+        notOn: ["main"],
+        matches: [
+          { finding: "F2", by: "key" as const },
+          { finding: "F5", by: "patch-id" as const },
+        ],
+      },
+      "✓ 1111111 is not on main; its rewrite 9f8e7d6 on main carries run-1 F2 (by key) and has its patch id for F5 (by patch id)",
     ],
     [
       "a commit no longer held",
-      { named: "abc1234", notOn: null, by: "key" as const },
+      {
+        named: "abc1234",
+        notOn: null,
+        matches: [
+          { finding: "F2", by: "key" as const },
+          { finding: "F5", by: "key" as const },
+        ],
+      },
       "✓ abc1234 is not in the repository; its rewrite 9f8e7d6 on main carries run-1 F2, F5 (by key)",
     ],
   ])("names the named commit and its rewrite when --commit was followed: %s", (_n, given, line) => {

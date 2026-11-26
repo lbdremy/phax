@@ -72,7 +72,7 @@ describe("phax finding fix --commit: following a rewritten commit", () => {
     expect(head(repo, RECORDS)).not.toBe(records);
     expect(await commitsOf("F1")).toEqual(expect.arrayContaining([old, main]));
     expect(result.outLines).toEqual([
-      `✓ ${short(old)} is on neither main; its rewrite ${short(main)} on main carries ${repo.runId} F1 (by key)`,
+      `✓ ${short(old)} is on neither ${repo.runBranch} nor main; its rewrite ${short(main)} on main carries ${repo.runId} F1 (by key)`,
       `✓ recorded F1 fixed by ${short(main)} (code) on ${RECORDS}`,
     ]);
   });
@@ -89,7 +89,12 @@ describe("phax finding fix --commit: following a rewritten commit", () => {
     expect(answer).toMatchObject({
       commit: {
         sha: main,
-        followed: { named: old, notOn: ["main"], by: "key", branch: "main" },
+        followed: {
+          named: old,
+          notOn: [repo.runBranch, "main"],
+          matches: [{ finding: "F1", by: "key" }],
+          branch: "main",
+        },
       },
     });
   });
@@ -122,7 +127,7 @@ describe("phax finding fix --commit: following a rewritten commit", () => {
     expect(result.code, result.err).toBe(0);
     expect(await commitsOf("F1")).toContain(main);
     expect(result.outLines[0]).toBe(
-      `✓ ${short(old)} is on neither main; its rewrite ${short(main)} on main has its patch id (by patch id)`,
+      `✓ ${short(old)} is on neither ${repo.runBranch} nor main; its rewrite ${short(main)} on main has its patch id (by patch id)`,
     );
   });
 
@@ -160,7 +165,7 @@ describe("phax finding fix --commit: following a rewritten commit", () => {
 
       expect(result.code).toBe(1);
       expect(result.err).toContain(
-        `✗ fix refused: ${short(first)} is on neither main, and 2 commits of main carry ${repo.runId} F1: ${short(earlier)}, ${short(main)}. Name one with --commit`,
+        `✗ fix refused: ${short(first)} is on neither ${repo.runBranch} nor main, and 2 commits of main carry ${repo.runId} F1: ${short(earlier)}, ${short(main)}. Name one with --commit`,
       );
       expect(head(repo, RECORDS)).toBe(records);
     });
@@ -177,7 +182,7 @@ describe("phax finding fix --commit: following a rewritten commit", () => {
 
       expect(result.code).toBe(1);
       expect(result.err).toContain(
-        `✗ fix refused: ${short(a)} is on neither main, and the named findings resolve to different commits of main: F1 → ${short(earlier)}, F2 → ${short(main)}. Name one with --commit`,
+        `✗ fix refused: ${short(a)} is on neither ${repo.runBranch} nor main, and the named findings resolve to different commits of main: F1 → ${short(earlier)}, F2 → ${short(main)}. Name one with --commit`,
       );
       expect(head(repo, RECORDS)).toBe(records);
     });
