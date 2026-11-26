@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611220956-finding-fix-identity.md
 completes-spec: true
 approved:
