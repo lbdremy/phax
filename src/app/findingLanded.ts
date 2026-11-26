@@ -153,7 +153,8 @@ export function resolveRunLandings(input: {
  * Searches the base branch alone for the commits that `phax finding fix --commit` follows a named
  * commit to (spec §5.15): for each named finding, the commits since the run's start carrying its
  * fate key, then, when the repository holds the named commit, those with its patch id. Nothing is
- * found when the base branch does not resolve or the run's start is unknown. Read-only.
+ * searched when the base branch does not resolve or the run's start is unknown, and `unsearched`
+ * says which. Read-only.
  */
 export function followOnBase(input: {
   readonly repo: string;
@@ -165,7 +166,12 @@ export function followOnBase(input: {
   readonly held: boolean;
   readonly ids: readonly string[];
 }): Effect.Effect<
-  { readonly baseBranch: string; readonly matches: readonly FollowMatch[] },
+  {
+    readonly baseBranch: string;
+    readonly matches: readonly FollowMatch[];
+    /** Why the base branch was not searched at all, or null when it was. */
+    readonly unsearched: string | null;
+  },
   GitError,
   Git
 > {
@@ -174,6 +180,12 @@ export function followOnBase(input: {
     const { repo, runId, startedAt, named, held } = input;
     const base = yield* baseBranchOf(repo, input.config);
     const tip = base.ref === null ? null : yield* git.resolveRef(repo, base.ref);
+    const unsearched =
+      tip === null
+        ? `it resolves neither locally nor as ${input.config.publish.remote}/${input.config.publish.baseBranch ?? "main"}`
+        : startedAt === null
+          ? "the run's start time cannot be read (run-status.json, or the registry for an archived run)"
+          : null;
     let range: readonly RangeCommit[] | undefined;
     let patchIds: BranchFacts["patchIds"];
     const matches: FollowMatch[] = [];
@@ -206,6 +218,6 @@ export function followOnBase(input: {
       }
       matches.push({ id, match: followMatchOf(facts, step) });
     }
-    return { baseBranch: base.label, matches };
+    return { baseBranch: base.label, matches, unsearched };
   });
 }

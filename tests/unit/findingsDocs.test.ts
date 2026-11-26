@@ -233,7 +233,12 @@ describe("docs/findings.md examples", () => {
         made: false,
         subject: null,
         paths: [{ path: "tests/gate.test.ts", pathClass: "tests" }],
-        followed: { named: F2_FIX, notOn: [RUN_BRANCH, "main"], by: "key", branch: "main" },
+        followed: {
+          named: F2_FIX,
+          notOn: [RUN_BRANCH, "main"],
+          matches: [{ finding: "F2", by: "key" }],
+          branch: "main",
+        },
       },
       findings: [F2_REWRITTEN],
     };

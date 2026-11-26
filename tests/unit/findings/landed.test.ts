@@ -260,7 +260,14 @@ describe("a commit carries the fate key", () => {
 describe("decideFollow", () => {
   const SUBJECT = "1111111 is on neither phax/gate-retry--phase-02 nor main";
   const decide = (matches: readonly FollowMatch[], held: boolean) =>
-    decideFollow({ subject: SUBJECT, base: "main", runId: RUN_ID, held, matches });
+    decideFollow({
+      subject: SUBJECT,
+      base: "main",
+      runId: RUN_ID,
+      held,
+      matches,
+      unsearched: null,
+    });
   const one = (id: string, c: string, by: "key" | "patch-id" = "key"): FollowMatch => ({
     id,
     match: { by, commits: [sha(c)] },
@@ -271,38 +278,41 @@ describe("decideFollow", () => {
   });
   const nothing = (id: string): FollowMatch => ({ id, match: null });
   const refused = (message: string): FollowDecision => ({ kind: "refused", message });
-  const follow = (c: string, by: "key" | "patch-id"): FollowDecision => ({
+  const follow = (
+    c: string,
+    ...matches: ReadonlyArray<readonly [string, "key" | "patch-id"]>
+  ): FollowDecision => ({
     kind: "follow",
     commit: sha(c),
-    by,
+    matches: matches.map(([finding, by]) => ({ finding, by })),
   });
 
   const cases: ReadonlyArray<readonly [string, readonly FollowMatch[], boolean, FollowDecision]> = [
-    ["one finding, one commit by key", [one("F2", "b")], true, follow("b", "key")],
+    ["one finding, one commit by key", [one("F2", "b")], true, follow("b", ["F2", "key"])],
     [
       "one finding, one commit by patch id",
       [one("F2", "b", "patch-id")],
       true,
-      follow("b", "patch-id"),
+      follow("b", ["F2", "patch-id"]),
     ],
     [
       "two findings, the same commit by key",
       [one("F2", "b"), one("F5", "b")],
       true,
-      follow("b", "key"),
+      follow("b", ["F2", "key"], ["F5", "key"]),
     ],
     [
-      "two findings, the same commit, one by patch id: by key",
+      "two findings, the same commit, one by patch id: each by its own step",
       [one("F2", "b", "patch-id"), one("F5", "b")],
       true,
-      follow("b", "key"),
+      follow("b", ["F2", "patch-id"], ["F5", "key"]),
     ],
     [
       "nothing for a held commit",
       [nothing("F2"), nothing("F5")],
       true,
       refused(
-        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2, F5 or has its patch id: name a commit of the run branch or of the base branch with --commit`,
+        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2, F5 or has its patch id: name a commit of the run branch or of the base branch with --commit (after a merge on the forge, update main first, for example with git pull)`,
       ),
     ],
     [
@@ -310,7 +320,7 @@ describe("decideFollow", () => {
       [nothing("F2")],
       false,
       refused(
-        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2: name a commit of the run branch or of the base branch with --commit`,
+        `${SUBJECT}, and no commit of main since the run started carries ${RUN_ID} F2: name a commit of the run branch or of the base branch with --commit (after a merge on the forge, update main first, for example with git pull)`,
       ),
     ],
     [
@@ -365,6 +375,25 @@ describe("decideFollow", () => {
     for (const m of matches) {
       for (const c of m.match?.commits ?? []) expect(decision.message).toContain(c.slice(0, 7));
     }
+  });
+
+  it("says the base branch was not searched instead of claiming nothing matched", () => {
+    const reason =
+      "the run's start time cannot be read (run-status.json, or the registry for an archived run)";
+    expect(
+      decideFollow({
+        subject: SUBJECT,
+        base: "main",
+        runId: RUN_ID,
+        held: true,
+        matches: [nothing("F2")],
+        unsearched: reason,
+      }),
+    ).toEqual(
+      refused(
+        `${SUBJECT}, and main could not be searched: ${reason}. Name a commit of the run branch or of the base branch with --commit`,
+      ),
+    );
   });
 });
 
