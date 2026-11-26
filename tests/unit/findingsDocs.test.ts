@@ -182,6 +182,7 @@ describe("docs/findings.md examples", () => {
     const answer = {
       run,
       pullRequest: { url: PR, pushed, comments: commentsOn("F2", "F3") },
+      pullRequestState: "open" as const,
       findings: [F2_FIXED, F3],
     };
     expect(PAGE).toContain(textBlock(renderFindingPost(answer)));
@@ -198,7 +199,7 @@ describe("docs/findings.md examples", () => {
 
   it("shows each fate comment as it renders", () => {
     for (const finding of [F2_FIXED, F3, F4]) {
-      const comment = renderFateComment(finding);
+      const comment = renderFateComment(finding, run.runId);
       expect(comment, finding.id).not.toBeNull();
       expect(PAGE, finding.id).toContain(textBlock(comment as string));
     }

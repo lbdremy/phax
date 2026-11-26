@@ -3,8 +3,10 @@
 // the run branch when a named finding is fixed. It writes no record, so it is the retry when a
 // fate command could not update the pull request, and it never records a fate twice. It ignores
 // `publish.auto`: it is an explicit request to post. A call naming a fixed finding first asks
-// GitHub the pull request's state and is refused on a merged or closed one, as `fix` posts nothing
-// there. Every refusal comes before any push or comment; only that state query precedes one.
+// GitHub the pull request's state: closed, it is refused; merged, it posts without pushing when
+// every named fix is found on the base branch, and is refused otherwise, naming the `--commit`
+// retry (spec finding-fix-identity §5.13, §5.14). Every refusal comes before any push or comment;
+// only that state query precedes one.
 import { Data, Effect } from "effect";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { isFindingId } from "../domain/findings/fixCall.js";
@@ -42,6 +44,11 @@ export interface FindingPostAnswer {
     readonly state: ResolvedFindingRun["state"];
   };
   readonly pullRequest: PullRequestPosted;
+  /**
+   * The pull request's state, as GitHub answered before a fixed comment reached it; null when
+   * no fixed finding was named, so no state was asked.
+   */
+  readonly pullRequestState: "open" | "merged" | null;
   /** The named findings, in the order named. */
   readonly findings: readonly PrFinding[];
 }
@@ -57,6 +64,31 @@ export type FindingPostError =
   | RegistryCorruptionError;
 
 const refuse = (message: string) => Effect.fail(new FindingPostRefusedError({ message }));
+
+const short = (sha: string) => sha.slice(0, 7);
+
+/**
+ * Why a fixed finding's comment cannot reach a merged pull request: its fix is not found on the
+ * base branch `base` (spec finding-fix-identity §5.13). Null for a finding that is not fixed, or
+ * whose fix is found on `base`.
+ */
+function notOnBase(finding: PrFinding, base: string, shortName: string): string | null {
+  if (finding.fate !== "fixed") return null;
+  const { landed } = finding;
+  if (landed !== null && landed.status === "found" && landed.branch === base) return null;
+  const latest = finding.history.at(-1);
+  const recorded = landed?.recorded ?? (latest?.fate === "fixed" ? latest.commit : "");
+  const head = `${finding.id} of ${shortName} is fixed by ${short(recorded)}`;
+  if (landed === null) return `${head}, not found on ${base}`;
+  if (landed.status === "found") return `${head}, found on ${landed.branch} but not on ${base}`;
+  if (landed.status === "ambiguous") {
+    return `${head}, and ${landed.commits.length} commits of ${landed.branch} match it: ${landed.commits.map(short).join(", ")}`;
+  }
+  const [first = base, second] = landed.branches;
+  return second === undefined
+    ? `${head}, not found on ${first}`
+    : `${head}, found on neither ${first} nor ${second}`;
+}
 
 /** Posts the comments of the findings the call names, already settled, on the run's pull request. */
 export function postFindings(input: {
@@ -105,9 +137,11 @@ export function postFindings(input: {
       );
     }
 
-    // 5. A fixed finding reaches an open pull request only.
+    // 5. A fixed finding reaches an open pull request, or a merged one when its fix is found on
+    // the base branch.
     const repoRoot = run.target.kind === "project" ? run.target.repoRoot : config.repoRoot;
     const fixed = findings.filter((finding) => finding.fate === "fixed").map((f) => f.id);
+    let pullRequestState: FindingPostAnswer["pullRequestState"] = null;
     if (fixed.length > 0) {
       const state = yield* pullRequestStateBeforeFix({
         ref: input.ref,
@@ -118,22 +152,35 @@ export function postFindings(input: {
         commit: null,
         repoRoot,
       });
-      if (state !== "open") {
+      if (state === "closed") {
         const others = findings.filter((finding) => finding.fate !== "fixed").map((f) => f.id);
         return yield* refuse(
           `${pullRequest} is ${state}: phax pushes nothing to it and posts no fixed comment on it (${fixed.join(", ")} ${fixed.length === 1 ? "is" : "are"} fixed); nothing was pushed or commented` +
             (others.length > 0 ? `. Name only ${others.join(", ")} to post the rest` : ""),
         );
       }
+      if (state === "merged") {
+        const base = listed.document.run.baseBranch;
+        const clauses = findings.flatMap((finding) => {
+          const clause = notOnBase(finding, base, run.shortName);
+          return clause === null
+            ? []
+            : [
+                `${clause}: nothing was commented. Record the commit that carries the fix with: phax finding fix ${input.ref} ${finding.id} --commit <sha>`,
+              ];
+        });
+        if (clauses.length > 0) return yield* refuse(clauses.join("; "));
+      }
+      pullRequestState = state;
     }
 
-    // 6. and 7. Push when a finding is fixed, then comment.
+    // 6. and 7. Push when a finding is fixed and the pull request is open, then comment.
     const posted = yield* pushAndComment({
       ref: input.ref,
       run,
       pullRequest,
       findings,
-      push: config.publish.pushBranch && fixed.length > 0,
+      push: config.publish.pushBranch && pullRequestState === "open",
       remote: config.publish.remote,
       recorded: [],
       commit: null,
@@ -147,6 +194,7 @@ export function postFindings(input: {
         state: run.state,
       },
       pullRequest: posted,
+      pullRequestState,
       findings,
     };
   });

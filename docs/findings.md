@@ -229,7 +229,7 @@ Each comment's first line is `<id> <fate> — <location> — <message>`; the sec
 
 ```text
 F2 fixed — `src/app/retry.ts:77` — The backoff has no upper bound
-Fixed by 3fa91c2 (tests)
+Fixed by 3fa91c2 on main (tests) · gate-retry-1 F2
 ```
 
 ```text
@@ -251,7 +251,7 @@ The pull request is the one `publication.json` in the run's folder names (its ar
 A run stays `review_open` until it is archived, even after its pull request was merged on GitHub. So before a fixed finding reaches the pull request, `fix` and `phax finding post` ask GitHub its state (`gh pr view <url> --json state`):
 
 - Open: `fix` pushes and comments as above.
-- Merged or closed: `fix` pushes nothing and posts nothing, because its commit is not in the base branch and the push would bring a deleted branch back. The commit and the fates stay, and the command exits 0 and says so (below). `phax finding post` refuses a fixed finding there, pushing and posting nothing.
+- Merged or closed: `fix` pushes nothing and posts nothing, because its commit is not in the base branch and the push would bring a deleted branch back. The commit and the fates stay, and the command exits 0 and says so (below). `phax finding post` refuses a fixed finding on a closed pull request. On a merged one it pushes nothing, and posts only when every named fix is found on the base branch; otherwise it refuses, naming the `phax finding fix <run> <id> --commit <sha>` retry.
 - A state that cannot be read fails like a push or a comment (see below): nothing is pushed or posted.
 
 ```text

@@ -201,7 +201,7 @@ export function pushAndComment(
     const unposted: string[] = [];
     let reason = "";
     for (const finding of input.findings) {
-      const body = renderFateComment(finding);
+      const body = renderFateComment(finding, run.runId);
       if (body === null) {
         unposted.push(finding.id);
         if (reason === "") reason = `${finding.id} has no fate record to post`;

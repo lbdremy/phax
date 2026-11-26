@@ -145,7 +145,29 @@ describe("phax finding post", () => {
     expect(head(repo, RECORDS_BRANCH)).toBe(recordsBefore);
   });
 
-  it("refuses a fixed finding on a merged pull request, and still posts a dismissal there", async () => {
+  it("refuses a fixed finding on a closed pull request, and still posts a dismissal there", async () => {
+    await fixF2();
+    expect((await dismiss("F3", "the second check guards --resume")).code).toBe(0);
+    installFakeGh(repo, "answers", "CLOSED");
+    const remoteBefore = remoteHead(repo);
+    const recordsBefore = head(repo, RECORDS_BRANCH);
+
+    const refused = await post("F2", "F3");
+    expect(refused.code).toBe(1);
+    expect(refused.err).toContain(`✗ post refused: ${prUrl} is closed`);
+    expect(refused.err).toContain("Name only F3");
+    expect(ghCalls(repo)).toEqual([["pr", "view", prUrl, "--json", "state"]]);
+    expect(remoteHead(repo)).toBe(remoteBefore);
+
+    const dismissed = await post("F3");
+    expect(dismissed.code).toBe(0);
+    expect(ghComments(repo)).toHaveLength(1);
+    expect(ghComments(repo)[0]?.body).toContain("F3 dismissed");
+    expect(remoteHead(repo)).toBe(remoteBefore);
+    expect(head(repo, RECORDS_BRANCH)).toBe(recordsBefore);
+  });
+
+  it("refuses a fix not yet on main on a merged pull request, naming the --commit retry, and still posts a dismissal there", async () => {
     await fixF2();
     expect((await dismiss("F3", "the second check guards --resume")).code).toBe(0);
     installFakeGh(repo, "answers", "MERGED");
@@ -154,8 +176,9 @@ describe("phax finding post", () => {
 
     const refused = await post("F2", "F3");
     expect(refused.code).toBe(1);
-    expect(refused.err).toContain(`✗ post refused: ${prUrl} is merged`);
-    expect(refused.err).toContain("Name only F3");
+    expect(refused.err).toContain(
+      `✗ post refused: F2 of ${repo.shortName} is fixed by ${runBranchHead().slice(0, 7)}, found on ${repo.runBranch} but not on main: nothing was commented. Record the commit that carries the fix with: phax finding fix ${repo.shortName} F2 --commit <sha>`,
+    );
     expect(ghCalls(repo)).toEqual([["pr", "view", prUrl, "--json", "state"]]);
     expect(remoteHead(repo)).toBe(remoteBefore);
 
@@ -250,6 +273,7 @@ describe("phax finding post", () => {
         comments: { finding: string; url: string }[];
       };
       findings: { id: string; fate: string }[];
+      pullRequestState: string | null;
     };
     expect(answer.run.shortName).toBe(repo.shortName);
     expect(answer.pullRequest.url).toBe(prUrl);
@@ -261,6 +285,7 @@ describe("phax finding post", () => {
     expect(answer.pullRequest.comments).toHaveLength(1);
     expect(answer.pullRequest.comments[0]?.finding).toBe("F2");
     expect(answer.findings.map((f) => [f.id, f.fate])).toEqual([["F2", "fixed"]]);
+    expect(answer.pullRequestState).toBe("open");
 
     installFakeGh(repo, "fails");
     const failed = await runnerCall(
