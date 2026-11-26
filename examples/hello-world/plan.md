@@ -61,7 +61,7 @@ function that returns `"Hello, <name>!"`.
 
 ### Verification
 
-- The project's configured `full` gate profile in `phax.json`.
+- `greet` is the only export of `src/greet.ts`, and it has no side effects.
 
 ### Expected handoff content
 
@@ -107,7 +107,7 @@ Add a Vitest unit test for the `greet` function.
 
 ### Verification
 
-- The project's configured `full` gate profile in `phax.json`.
+- The new tests fail against a `greet` that returns the wrong greeting.
 
 ### Expected handoff content
 
@@ -154,7 +154,7 @@ usage example.
 
 ### Verification
 
-- The project's configured `full` gate profile in `phax.json`.
+- The README's example call matches `greet`'s signature.
 
 ### Expected handoff content
 
