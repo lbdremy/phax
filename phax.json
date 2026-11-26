@@ -6,7 +6,6 @@
     ".oxlintrc.json",
     ".oxfmtrc.json",
     "knip.json",
-    "knip-baseline.json",
     "tsconfig.json",
     "tsconfig.build.json",
     "tsconfig.test.json",
