@@ -22,6 +22,10 @@ phase-03 adds the frozen decoder `src/schemas/history/finding-list/0.40.0.ts`, w
 
 This plan is authored while 0.43.0 is being released, and `src/schemas/release.ts` already opens 0.44.0 as `PHAX_RELEASE`. The finding-list move therefore lands under 0.44.0. The planning prompt listed no gate profiles, so this plan writes no `## Gate profile` section, and each phase's Verification names `standard`, the only profile in phax.json. The operator migrates the plan with `phax artifact migrate-documents --gate-profile standard` if needed.
 
+## Gate profile
+
+`standard`
+
 ## Required commands
 
 - `pnpm exec tsx`

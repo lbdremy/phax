@@ -1,5 +1,5 @@
 {
-  "$schema": "https://docs.phax.run/schemas/plan-document/0.38.0.json",
+  "$schema": "https://docs.phax.run/schemas/plan-document/0.43.0.json",
   "kind": "plan",
   "sourceSpec": "docs/specs/2611220956-finding-fix-identity.md",
   "completesSpec": true,
@@ -14,7 +14,8 @@
       "pnpm docs:cli",
       "pnpm build",
       "git grep"
-    ]
+    ],
+    "gateProfile": "standard"
   },
   "preamble": {
     "summary": "A fixed finding stays bound to the commit that carries its fix after that commit's history is rewritten (a rebase during review, an amend, GitHub's Rebase and merge, a squash that keeps the messages). The fix commit names its run with a new `Finding-Run: <run id>` trailer (q-key `finding-run`). Every reader of a fixed fate resolves it at read time, writing nothing (q-store `read-time`). The search runs on the base branch first, then on the run's branch, each time by the recorded sha, then the fate key, then the patch id, over commits made at or after the run's start. Several matches give `ambiguous` (q-ambiguous `list-all`), and none gives `not-found`, said plainly (q-squash-description `hint`). `phax finding list` carries the resolution as a required `landed` in a new finding-list stamp and shows it in the text. The fate comment names the resolved commit, its branch and the fate key. `phax finding post` posts on a merged pull request when every named fix is found on the base branch, and otherwise refuses naming the `--commit` retry. `phax finding fix --commit <old sha>` follows a rewrite on the base branch.\n\nOrder, core to surface:\n\n- phase-01: two read-only Git port calls (the commits of a branch since an instant, with their messages; patch ids), with the fake and a contract suite.\n- phase-02: the fix commit's `Finding-Run` trailer.\n- phase-03: the resolution (pure domain and its use case), `landed` on the finding-list document (a format move), and the text list.\n- phase-04: the fate comment and `phax finding post` on a merged pull request.\n- phase-05: `phax finding fix --commit` follows a rewrite.\n- phase-06: the docs page section \"When the fix commit is rewritten\".\n\nThere is no acceptance phase (operator brief): the surface is CLI text, a JSON field and a comment. Each §8 criterion is driven in-phase by a test that builds a temporary repository and rewrites it with git, and the GitHub side goes through the existing fakes.\n\nphase-03 adds the frozen decoder `src/schemas/history/finding-list/0.40.0.ts`, which the schemas package imports. The package-closure allowlist in the protected `tests/unit/architecturalGuards.test.ts` must name that path (q-closure-guard). No other phase touches that file.\n\nThis plan is authored while 0.43.0 is being released, and `src/schemas/release.ts` already opens 0.44.0 as `PHAX_RELEASE`. The finding-list move therefore lands under 0.44.0. The planning prompt listed no gate profiles, so this plan writes no `## Gate profile` section, and each phase's Verification names `standard`, the only profile in phax.json. The operator migrates the plan with `phax artifact migrate-documents --gate-profile standard` if needed.",
