@@ -1,0 +1,513 @@
+{
+  "$schema": "https://docs.phax.run/schemas/spec-document/0.32.0.json",
+  "kind": "spec",
+  "title": "One phax home, movable by PHAX_HOME, and e2e runs that bring their own",
+  "ground": [
+    {
+      "path": "src/app/loadRouting.ts",
+      "note": "MODEL_ROUTING_PATH and PROVIDER_CONFIG_PATH are built from homedir() when the module loads; an absent file falls back to the built-in table and provider config."
+    },
+    {
+      "path": "src/app/loadConfig.ts",
+      "note": "The global layer ~/.phax/config.json is built from homedir() twice (loadConfig, describeConfigSources); state.root defaults to the literal \"~/.phax\", expanded against homedir()."
+    },
+    {
+      "path": "src/app/loadTelemetryConfig.ts",
+      "note": "PHAX_HOME_DIR and TELEMETRY_CONFIG_PATH come from homedir(); a missing telemetry.json is scaffolded (written) on first read."
+    },
+    {
+      "path": "src/cli/commands/runLayers.ts",
+      "note": "The global telemetry journal is written under PHAX_HOME_DIR on every command with telemetry on."
+    },
+    {
+      "path": "src/app/projectContext.ts",
+      "note": "A third copy of the default state root, join(homedir(), \".phax\")."
+    },
+    {
+      "path": "src/app/initWizard.ts",
+      "note": "A fourth copy of the default state root, offered by phax init."
+    },
+    {
+      "path": "src/cli/definitions/report.ts",
+      "note": "phax report reads the journal from PHAX_HOME_DIR."
+    },
+    {
+      "path": "src/infra/providerStoreRoots.ts",
+      "note": "The providers' own stores (~/.claude, ~/.codex) are resolved from homedir(): not phax's home."
+    },
+    {
+      "path": "src/infra/providers/mistralVibe.ts",
+      "note": "Vibe's own home and accept-edits override, from homedir(): not phax's home."
+    },
+    {
+      "path": "src/app/publishRun.ts",
+      "note": "The PR body rewrites the user's home as ~: not phax's home."
+    },
+    {
+      "path": "src/cli/definitions/skills.ts",
+      "note": "phax skills install writes under the user's ~/.claude: not phax's home."
+    },
+    {
+      "path": "src/cli/definitions/validate.ts",
+      "note": "phax validate prints the project, local and global config sources; it is where an operator already looks to see what phax reads."
+    },
+    {
+      "path": "tests/e2e/helpers/tempEnv.ts",
+      "note": "createTempEnv makes a temporary repo and moves state.root to a temporary directory it calls phaxHome; nothing else is moved."
+    },
+    {
+      "path": "tests/e2e/helpers/runCli.ts",
+      "note": "Spawns the CLI with process.env as is: HOME and every ~/.phax file are the operator's."
+    },
+    {
+      "path": "tests/e2e/vibeSecure.test.ts",
+      "note": "The phax run cases skip unless mistral-vibe is enabled in the real ~/.phax/providers.json."
+    },
+    {
+      "path": "tests/e2e/realFlow.test.ts",
+      "note": "Forces each provider with --provider-priority and asserts the recorded provider; a provider not enabled in the real providers.json is routed to claude-code and the assertion fails."
+    },
+    {
+      "path": "tests/e2e/headlessAuthoring.test.ts",
+      "note": "Spawns phax artifact new spec --headless through createTempEnv: reads the real routing, config and telemetry files."
+    },
+    {
+      "path": "tests/e2e/semanticTrace.providers.test.ts",
+      "note": "Runs executePlan in process with injected routing and provider config: reads no ~/.phax routing file."
+    },
+    {
+      "path": "tests/helpers/isolatePhaxHome.ts",
+      "note": "Unit and integration isolation: mocks node:os homedir() and sets HOME, because the ~/.phax paths are frozen at import; a spawned child gets phaxHomeEnv()."
+    },
+    {
+      "path": "docs/e2e-testing.md",
+      "note": "Claims the real ~/.phax is never read or written, and suggests a PHAX_STATE_ROOT variable that phax does not read."
+    },
+    {
+      "path": "src/domain/routing/resolve.ts",
+      "note": "A provider whose providers.json entry is not enabled is skipped by routing."
+    }
+  ],
+  "context": "phax keeps its own machine-wide files under ~/.phax: the global config layer (config.json), provider enablement (providers.json), the routing table (model-routing.json), the telemetry switch (telemetry.json), the daily telemetry journals, and the default state root (runs/, worktrees/) when a project's phax.json names no state.root.\n\nNo single place says where that home is. Five modules each build their own path from homedir(), most of them as constants computed when the module loads: loadRouting (model-routing.json, providers.json), loadConfig (config.json, twice, plus the \"~/.phax\" state-root default), loadTelemetryConfig (PHAX_HOME_DIR, telemetry.json, which the CLI layers use for the journal and phax report), projectContext and initWizard (the default state root, each its own copy). Other homedir() calls are not phax's home and must not follow it: the providers' own stores (~/.claude, ~/.codex, Vibe's home) in providerStoreRoots and the Vibe adapter, `~` written into a PR body by publishRun, and the user-scope skills install under ~/.claude.\n\nTests: unit and integration tests never read ~/.phax. They mock homedir() and HOME (isolatePhaxHome), because the paths are frozen at import. The real-provider e2e tier (PHAX_E2E_RUN=1) deliberately keeps the real HOME so that Claude Code, Codex and Vibe find their sign-ins. Its helper createTempEnv makes a temporary repository and points that repository's state.root at a temporary directory, which it calls phaxHome. Nothing else moves. Three e2e files spawn the phax CLI and so read the operator's real ~/.phax for config.json, providers.json, model-routing.json and telemetry.json, and write the telemetry journal into it: realFlow, headlessAuthoring, and the phax run cases of vibeSecure. The claude*, codexOutputSchema and projectOnlySession suites spawn the provider CLI directly and never spawn phax. semanticTrace*, gateExhaustionResume and resetPhase run executePlan in process with injected routing and a temporary state root. docs/e2e-testing.md says the real ~/.phax is never read or written, which is not true, and suggests a PHAX_STATE_ROOT variable that phax does not read.",
+  "problem": "A branch's real e2e depends on the operator's daily phax configuration. This was found on 2026-11-19 with vibe-model-flags (PR #248). That branch refuses a providers.json in the 0.40.0 shape. The released 0.40.0, which the operator drives every day, refuses the branch's new shape. So checking the branch end to end meant one of two things: migrate the real ~/.phax/providers.json and break the operator's own phax, or leave the branch unchecked. vibeSecure's phax run cases silently skip unless the real file enables mistral-vibe. realFlow's codex-cli and mistral-vibe runs fail rather than skip when the real file does not enable them, because routing falls back to claude-code. Every e2e that spawns phax also merges the operator's global config.json into the run and appends to the operator's real telemetry journal. So the e2e result depends on the machine it runs on, and the run leaves traces in the operator's state.\n\nMoving HOME for the child is not a way out, because the provider CLIs keep their sign-ins under it. Today there is no other lever: phax's home is welded to the user's home in five places, and nothing can point it elsewhere. The same welding blocks two legitimate operator needs: a second phax configuration beside the daily one (a release candidate next to the installed release), and a CI machine whose phax files live somewhere other than the CI user's home.",
+  "productGoal": {
+    "statement": "phax resolves its own home in exactly one place. The PHAX_HOME environment variable can point that home elsewhere, and everything that is phax's own moves with it. The provider CLIs' homes and sign-ins never move. Every real-provider e2e that spawns phax then runs it in a temporary phax home. That home holds the providers.json and routing the suite declares, written in the shape of the phax under test, while the provider CLIs keep their sign-ins in the real HOME. A branch's e2e no longer reads, depends on, or writes the operator's ~/.phax.",
+    "guidingRule": "Everything that is phax's own lives in one home, which PHAX_HOME may move and which is otherwise ~/.phax; nothing that belongs to a provider or to the user ever moves with it."
+  },
+  "terminology": [
+    {
+      "term": "phax home",
+      "definition": "The one directory holding phax's machine-wide files: config.json, providers.json, model-routing.json, telemetry.json, the telemetry journals, and the default state root. It is ~/.phax unless PHAX_HOME is set."
+    },
+    {
+      "term": "PHAX_HOME",
+      "definition": "The environment variable that names the phax home. When it is set, its value is the phax home. When it is unset, the phax home is ~/.phax under the user's home directory."
+    },
+    {
+      "term": "user's home",
+      "definition": "The operating system's home directory for the user running phax (HOME). It holds the provider CLIs' homes and sign-ins (~/.claude, ~/.codex, Vibe's home) and the user-scope skills. PHAX_HOME never moves it."
+    },
+    {
+      "term": "default state root",
+      "definition": "Where runs and worktrees go when the project's phax.json names no state.root. It is the phax home itself."
+    },
+    {
+      "term": "temporary phax home",
+      "definition": "A directory an e2e suite creates for one test environment and passes to the phax CLI as PHAX_HOME. It holds the providers.json and routing the suite declares, and it serves as the state root of the suite's temporary repository."
+    },
+    {
+      "term": "real-provider e2e",
+      "definition": "A test under tests/e2e that runs only with PHAX_E2E_RUN=1 and spawns a real provider CLI, directly or through phax."
+    }
+  ],
+  "requirements": [
+    {
+      "id": "r-default",
+      "title": "Default home",
+      "pattern": "state",
+      "statement": "WHILE PHAX_HOME is unset THE system SHALL use ~/.phax under the user's home as the phax home, exactly as today."
+    },
+    {
+      "id": "r-moves",
+      "title": "Everything phax owns follows PHAX_HOME",
+      "pattern": "state",
+      "statement": "WHILE PHAX_HOME is set THE system SHALL read and write config.json, providers.json, model-routing.json, telemetry.json and the telemetry journals in the directory PHAX_HOME names."
+    },
+    {
+      "id": "r-state-root",
+      "title": "Default state root follows PHAX_HOME",
+      "pattern": "state",
+      "statement": "WHILE PHAX_HOME is set THE system SHALL use the directory PHAX_HOME names as the default state root, both when phax.json names no state.root and as the root phax init offers."
+    },
+    {
+      "id": "r-no-fallback",
+      "title": "No second source",
+      "pattern": "unwanted",
+      "statement": "IF PHAX_HOME is set and one of phax's home files is absent from it THEN the system SHALL apply that file's built-in default and SHALL NOT read the file from ~/.phax."
+    },
+    {
+      "id": "r-never-moves",
+      "title": "What PHAX_HOME never moves",
+      "pattern": "ubiquitous",
+      "statement": "The system shall resolve the provider CLIs' homes and stores, the user-scope skills install, and the `~` it writes in a pull request body against the user's home, whether PHAX_HOME is set or not."
+    },
+    {
+      "id": "r-invalid",
+      "title": "Invalid PHAX_HOME is refused",
+      "pattern": "unwanted",
+      "statement": "IF PHAX_HOME is set to an empty value, a relative path (including an unexpanded `~/…`), or an existing path that is not a directory THEN the system SHALL refuse the command before it reads any phax home file, with an error naming PHAX_HOME and its value."
+    },
+    {
+      "id": "r-validate",
+      "title": "phax validate names the home",
+      "pattern": "event",
+      "statement": "WHEN `phax validate` runs THE system SHALL report the phax home in use and whether it came from PHAX_HOME or the default."
+    },
+    {
+      "id": "r-one-point",
+      "title": "One resolution point, guarded",
+      "pattern": "unwanted",
+      "statement": "IF any source file other than the single home-resolution point builds a path to phax's home from the user's home directory THEN the architecture audit SHALL fail and name that file."
+    },
+    {
+      "id": "r-e2e-home",
+      "title": "Every e2e that spawns phax runs in a temporary phax home",
+      "pattern": "event",
+      "statement": "WHEN a real-provider e2e spawns the phax CLI THE e2e helpers SHALL set PHAX_HOME to that test environment's temporary phax home, holding the providers.json and routing the suite declares."
+    },
+    {
+      "id": "r-e2e-shape",
+      "title": "The temporary home speaks the branch's format",
+      "pattern": "ubiquitous",
+      "statement": "The e2e helpers shall build the temporary home's providers.json and routing from the provider configuration and routing formats of the phax under test, so that a format change on a branch moves its e2e home with it."
+    },
+    {
+      "id": "r-e2e-signins",
+      "title": "Sign-ins stay put",
+      "pattern": "ubiquitous",
+      "statement": "The e2e helpers shall leave HOME unchanged for the spawned phax CLI and shall write no credential or provider sign-in into a temporary phax home."
+    },
+    {
+      "id": "r-e2e-spawn-guard",
+      "title": "No e2e spawn without a temporary home",
+      "pattern": "unwanted",
+      "statement": "IF a real-provider e2e asks the e2e helpers to spawn the phax CLI without a temporary phax home THEN the helpers SHALL refuse to spawn it."
+    },
+    {
+      "id": "r-e2e-skip",
+      "title": "No skip or failure on the operator's providers.json",
+      "pattern": "ubiquitous",
+      "statement": "A real-provider e2e shall decide whether to run from PHAX_E2E_RUN, the provider executable and its version, and the provider's sign-in requirements only, never from the content of the operator's ~/.phax."
+    },
+    {
+      "id": "r-e2e-untouched",
+      "title": "The operator's home is left alone",
+      "pattern": "event",
+      "statement": "WHEN a real-provider e2e suite has run THE system SHALL have written nothing into the operator's ~/.phax, including no telemetry journal entry and no scaffolded telemetry.json."
+    },
+    {
+      "id": "r-test-isolation",
+      "title": "A developer's PHAX_HOME cannot leak into tests",
+      "pattern": "unwanted",
+      "statement": "IF the environment that runs the unit, integration or e2e tests already exports PHAX_HOME THEN every phax home those tests read or write SHALL still be one the test created, never the exported one."
+    }
+  ],
+  "surface": [
+    {
+      "surface": "config: PHAX_HOME",
+      "summary": "Setting PHAX_HOME runs phax with a different home holding its own config.json, providers.json, routing, telemetry and runs, while Claude Code, Codex and Vibe keep their sign-ins.",
+      "binding": "normative",
+      "before": "# phax always reads ~/.phax; the variable is ignored\n$ PHAX_HOME=$HOME/.phax-next phax validate\n  global:  /Users/me/.phax/config.json",
+      "after": "# unset: ~/.phax, unchanged\n$ phax run --plan plan.md\n\n# set: an absolute path to a directory (created on first write if absent)\n$ export PHAX_HOME=$HOME/.phax-next\n$ phax agent setup providers --write   # writes $HOME/.phax-next/providers.json\n$ phax run --plan plan.md              # routes through $HOME/.phax-next only"
+    },
+    {
+      "surface": "file: the phax home",
+      "summary": "Operators can see exactly which files a phax home holds, and that a moved home holds all of them and nothing that belongs to a provider.",
+      "binding": "normative",
+      "before": "~/.phax/\n  config.json\n  providers.json\n  model-routing.json\n  telemetry.json\n  <daily telemetry journals>\n  runs/  worktrees/",
+      "after": "$PHAX_HOME/            # ~/.phax when PHAX_HOME is unset\n  config.json          # global config layer\n  providers.json       # provider enablement\n  model-routing.json   # routing table (absent: built-in table)\n  telemetry.json       # telemetry switch\n  <daily telemetry journals>\n  runs/  worktrees/    # when phax.json names no state.root\n\n# never here, whatever PHAX_HOME says:\n~/.claude  ~/.codex  Vibe's home  ~/.claude/skills"
+    },
+    {
+      "surface": "cli: phax validate",
+      "summary": "Running `phax validate` shows which phax home is in use and whether PHAX_HOME chose it.",
+      "binding": "normative",
+      "before": "$ phax validate\n✓ config is valid (project: acme)\n  project: /work/acme/phax.json\n  local:   (none)\n  global:  /Users/me/.phax/config.json",
+      "after": "$ PHAX_HOME=/srv/ci/phax phax validate\n✓ config is valid (project: acme)\n  home:    /srv/ci/phax (PHAX_HOME)\n  project: /work/acme/phax.json\n  local:   (none)\n  global:  /srv/ci/phax/config.json\n\n$ phax validate\n  home:    /Users/me/.phax (default)\n\n$ phax validate --json\n  \"home\": { \"path\": \"/srv/ci/phax\", \"from\": \"PHAX_HOME\" }   # \"from\": \"PHAX_HOME\" | \"default\""
+    },
+    {
+      "surface": "cli: any phax command with an invalid PHAX_HOME",
+      "summary": "An empty, relative or non-directory PHAX_HOME stops every phax command before it reads anything, naming the variable and its value.",
+      "binding": "indicative",
+      "before": null,
+      "after": "$ PHAX_HOME='~/phax-ci' phax run --plan plan.md\n✗ PHAX_HOME must be an absolute path to a directory, got \"~/phax-ci\"\n$? = 2"
+    },
+    {
+      "surface": "internal: the e2e test environment",
+      "summary": "A real-provider e2e declares the providers it needs and gets a temporary phax home with them enabled, while the provider CLIs keep their real sign-ins.",
+      "binding": "indicative",
+      "before": "const env = createTempEnv();          // moves state.root only\nrunCli([\"run\", \"--plan\", \"plan.md\", \"--provider-priority\", \"mistral-vibe\"],\n  env.repoDir, { boundMs });\n// routes through the operator's ~/.phax/providers.json;\n// skipped unless that file enables mistral-vibe",
+      "after": "const env = createTempEnv({ enable: [\"mistral-vibe\"] });\n// env.phaxHome = /tmp/phax-e2e-home-XXXX\n//   providers.json   mistral-vibe + claude-code enabled, branch's own format\n//   runs/ worktrees/ (the repo's state.root)\nrunCli([\"run\", \"--plan\", \"plan.md\", \"--provider-priority\", \"mistral-vibe\"],\n  env, { boundMs });\n// child env: PHAX_HOME=env.phaxHome, HOME unchanged"
+    }
+  ],
+  "nonGoals": [
+    "Moving, copying or reading any provider CLI's home or sign-in: ~/.claude, ~/.codex and Vibe's home stay under the user's home, and no credential is copied into a temporary phax home.",
+    "A `--home` command-line flag or a phax.json key naming the phax home: the environment variable is the only lever.",
+    "Migrating, copying or merging an existing ~/.phax into a new PHAX_HOME: an empty or missing home behaves like a fresh ~/.phax.",
+    "Reading a second home as a fallback when PHAX_HOME is set.",
+    "Changing what an explicit state.root in phax.json means beyond what q-explicit-root decides.",
+    "A `phax doctor` command.",
+    "Converting the in-process e2e suites (semanticTrace*, gateExhaustionResume, resetPhase) to spawn the CLI; they already inject routing and a temporary state root.",
+    "Rewriting the unit and integration isolation helper beyond what r-test-isolation requires.",
+    "Moving the user-scope skills install or the `~` rewrite in pull request bodies.",
+    "A per-repository phax home."
+  ],
+  "acceptanceCriteria": [
+    {
+      "id": "ac-default-unchanged",
+      "name": "Unset PHAX_HOME reads ~/.phax",
+      "given": "PHAX_HOME is unset and a temporary user home holds .phax/providers.json enabling codex-cli",
+      "when": "`phax validate` and a routed command run with HOME at that temporary home",
+      "then": "`phax validate` prints `home:    <home>/.phax (default)`, and routing treats codex-cli as enabled.",
+      "refs": [
+        "r-default",
+        "r-validate"
+      ]
+    },
+    {
+      "id": "ac-moves",
+      "name": "PHAX_HOME moves every phax file",
+      "given": "PHAX_HOME names a directory holding config.json, providers.json (mistral-vibe enabled), model-routing.json and telemetry.json, and the user's ~/.phax holds different, valid versions of each",
+      "when": "a phax command with telemetry on runs",
+      "then": "the applied config layer, enabled providers, routing table and telemetry switch are those under PHAX_HOME, the telemetry journal entry lands under PHAX_HOME, and no file under ~/.phax is read or modified.",
+      "refs": [
+        "r-moves"
+      ]
+    },
+    {
+      "id": "ac-state-root",
+      "name": "Default state root follows PHAX_HOME",
+      "given": "PHAX_HOME is set and the project's phax.json names no state.root",
+      "when": "`phax run --plan plan.md` starts a run, and separately `phax init` offers a state root",
+      "then": "the run folder is created under `$PHAX_HOME/runs/` and the init wizard offers PHAX_HOME as the state root.",
+      "refs": [
+        "r-state-root"
+      ]
+    },
+    {
+      "id": "ac-no-fallback",
+      "name": "A missing file is not read from ~/.phax",
+      "given": "PHAX_HOME names an empty directory and ~/.phax/providers.json enables mistral-vibe",
+      "when": "`phax run --plan plan.md --provider-priority mistral-vibe` resolves routing",
+      "then": "routing uses the built-in provider config, in which mistral-vibe is not enabled, so it does not select mistral-vibe, and ~/.phax/providers.json is never opened.",
+      "refs": [
+        "r-no-fallback"
+      ]
+    },
+    {
+      "id": "ac-never-moves",
+      "name": "Provider stores and PR `~` stay on the user's home",
+      "given": "PHAX_HOME is set to a directory outside the user's home",
+      "when": "a phase runs claude-code and records its usage, and `phax publish` writes a pull request body naming the run folder",
+      "then": "the transcript is read from the user's ~/.claude store, and the PR body abbreviates the user's home (not PHAX_HOME) as `~`.",
+      "refs": [
+        "r-never-moves"
+      ]
+    },
+    {
+      "id": "ac-invalid",
+      "name": "Invalid PHAX_HOME is refused",
+      "given": "PHAX_HOME is set in turn to an empty value, to `~/phax-ci` unexpanded, to `relative/dir`, and to an existing regular file",
+      "when": "`phax validate` runs in each case",
+      "then": "each exits non-zero before any phax home file is read, with a message naming `PHAX_HOME` and the offending value.",
+      "refs": [
+        "r-invalid"
+      ]
+    },
+    {
+      "id": "ac-validate-home",
+      "name": "phax validate names a PHAX_HOME home",
+      "given": "PHAX_HOME=/srv/ci/phax with a config.json in it",
+      "when": "`phax validate` runs, then `phax validate --json` runs",
+      "then": "the text output carries `home:    /srv/ci/phax (PHAX_HOME)` and `global:  /srv/ci/phax/config.json`, and the JSON carries `\"home\": { \"path\": \"/srv/ci/phax\", \"from\": \"PHAX_HOME\" }`.",
+      "refs": [
+        "r-validate"
+      ]
+    },
+    {
+      "id": "ac-guard",
+      "name": "The architecture audit refuses a second resolution point",
+      "given": "a source file outside the home-resolution point builds `join(homedir(), \".phax\", …)`",
+      "when": "`pnpm audit:architecture` runs",
+      "then": "it fails naming that file, and it passes on the repository once every phax-home reader goes through the resolution point.",
+      "refs": [
+        "r-one-point"
+      ]
+    },
+    {
+      "id": "ac-e2e-vibe-runs",
+      "name": "vibeSecure's phax run cases run without the operator's providers.json",
+      "given": "PHAX_E2E_RUN=1, Vibe 3.1.3 or later signed in, and an operator ~/.phax/providers.json that is absent, disables mistral-vibe, or is in a shape the branch refuses",
+      "when": "the vibeSecure suite runs",
+      "then": "its phax run cases run instead of skipping, each phase's security.json records provider mistral-vibe, and the operator's ~/.phax/providers.json is byte-identical afterwards.",
+      "refs": [
+        "r-e2e-home",
+        "r-e2e-shape",
+        "r-e2e-skip"
+      ]
+    },
+    {
+      "id": "ac-e2e-realflow",
+      "name": "realFlow routes each provider through its own temporary home",
+      "given": "PHAX_E2E_RUN=1, a provider executable installed and signed in, and an operator ~/.phax/providers.json that does not enable that provider",
+      "when": "realFlow runs for codex-cli or mistral-vibe",
+      "then": "each phase's security.json records the forced provider, and the run folder is under the temporary phax home.",
+      "refs": [
+        "r-e2e-home",
+        "r-e2e-skip"
+      ]
+    },
+    {
+      "id": "ac-e2e-shape",
+      "name": "The temporary providers.json is the branch's format",
+      "given": "a test environment created with mistral-vibe declared",
+      "when": "the temporary home's providers.json and routing are decoded by the phax under test",
+      "then": "both decode without error and enable exactly the declared providers plus claude-code.",
+      "refs": [
+        "r-e2e-shape"
+      ]
+    },
+    {
+      "id": "ac-e2e-signins",
+      "name": "No credential in the temporary home, real HOME for the child",
+      "given": "a test environment created for any provider",
+      "when": "the helpers spawn the phax CLI",
+      "then": "the child's HOME equals the test process's HOME, its PHAX_HOME is the temporary home, and the temporary home holds only phax home files and run state, with no provider sign-in or credential file.",
+      "refs": [
+        "r-e2e-signins",
+        "r-e2e-home"
+      ]
+    },
+    {
+      "id": "ac-e2e-guard",
+      "name": "Spawning phax without a temporary home is refused",
+      "given": "an e2e that calls the phax-spawning helper with a bare directory instead of a test environment that has a temporary phax home",
+      "when": "the helper is called",
+      "then": "it throws before spawning, naming the missing temporary phax home.",
+      "refs": [
+        "r-e2e-spawn-guard"
+      ]
+    },
+    {
+      "id": "ac-e2e-untouched",
+      "name": "The operator's ~/.phax is untouched by e2e",
+      "given": "a recorded listing with content hashes of the operator's ~/.phax, including its telemetry journals",
+      "when": "realFlow for claude-code and headlessAuthoring run",
+      "then": "the listing is identical afterwards, and today's telemetry journal exists under the temporary phax home instead.",
+      "refs": [
+        "r-e2e-untouched"
+      ]
+    },
+    {
+      "id": "ac-leak",
+      "name": "An exported PHAX_HOME does not leak into tests",
+      "given": "the test process environment exports PHAX_HOME pointing at a directory holding a sentinel config.json",
+      "when": "a unit test that spawns phax with the isolation helper's environment runs, and an e2e test environment spawns phax",
+      "then": "neither child reads or writes the sentinel directory; each reads only the home its test created.",
+      "refs": [
+        "r-test-isolation"
+      ]
+    }
+  ],
+  "openQuestions": [
+    {
+      "id": "q-docs",
+      "question": "Is PHAX_HOME documented for users (a second configuration, a CI machine), or kept as a test seam named only in docs/e2e-testing.md?",
+      "options": [
+        {
+          "id": "user-facing",
+          "label": "Document PHAX_HOME for users in a docs page and the README configuration-layers paragraph",
+          "abandons": "The freedom to rename or reshape the variable later without a release note and an upgrading entry: it becomes supported surface."
+        },
+        {
+          "id": "test-seam",
+          "label": "Name PHAX_HOME only in docs/e2e-testing.md as a test seam",
+          "abandons": "Operators running a release candidate beside their daily phax, and CI machines, get no supported way to do it, while the variable still works and gets found by word of mouth."
+        }
+      ],
+      "recommendation": "user-facing",
+      "rationale": "The variable changes which routing and config every command reads, so an operator can hit it with or without docs. Undocumented, it is a hidden behavior. The second-configuration need is the same one that caused this spec. Freezing the name costs little, and r-validate already makes the variable observable."
+    },
+    {
+      "id": "q-notice",
+      "question": "Beyond `phax validate`, does phax say which home is in use when PHAX_HOME is set?",
+      "options": [
+        {
+          "id": "validate-only",
+          "label": "Only `phax validate` reports the home",
+          "abandons": "An operator with a forgotten exported PHAX_HOME gets no sign that `phax run` routed through another home until they think to run `phax validate`."
+        },
+        {
+          "id": "stderr-notice",
+          "label": "Every command prints one stderr line `phax home: <path> (PHAX_HOME)` when the variable is set, and nothing when it is unset",
+          "abandons": "Quiet stderr under PHAX_HOME: every invocation in a CI or e2e log carries an extra line, and any test asserting an exact stderr under PHAX_HOME must expect it."
+        },
+        {
+          "id": "verbose-only",
+          "label": "`phax validate`, plus a line in `--verbose` output",
+          "abandons": "The forgotten-variable case again, unless the operator happened to pass --verbose; a default run stays silent about the home."
+        }
+      ],
+      "recommendation": "stderr-notice",
+      "rationale": "The dangerous case is the silent one: routing and config quietly coming from another home. The notice appears only when the variable is set, so a default user sees nothing new, and the cost lands on CI logs and e2e, which can expect the line."
+    },
+    {
+      "id": "q-explicit-root",
+      "question": "When PHAX_HOME is set and phax.json names state.root explicitly as \"~/.phax\" (as the e2e fixture and many repositories do), where do runs go?",
+      "options": [
+        {
+          "id": "as-written",
+          "label": "An explicit state.root is honoured as written: `~` is the user's home, and only an absent state.root follows PHAX_HOME",
+          "abandons": "Full isolation for a repository that pins \"~/.phax\": with PHAX_HOME set, its runs still land in the real ~/.phax/runs, and the second-configuration operator must also override state.root in a local layer."
+        },
+        {
+          "id": "literal-follows",
+          "label": "The literal value \"~/.phax\" is read as the phax home, so it follows PHAX_HOME; any other explicit path is honoured as written",
+          "abandons": "One meaning per path: the same string means something different from `~/.phax-runs` or `/Users/me/.phax`, a special case readers of phax.json cannot see."
+        }
+      ],
+      "recommendation": "as-written",
+      "rationale": "A path in phax.json is the project's explicit choice, and special-casing one string makes config unreadable. The e2e helper already overrides state.root, so isolation does not depend on this. An operator who wants a fully separate second configuration can set state.root in their PHAX_HOME's config.json layer."
+    }
+  ],
+  "arbitratedQuestions": [],
+  "planningNote": {
+    "settled": [
+      "The variable is named PHAX_HOME. Unset, the phax home is ~/.phax and nothing changes for current users.",
+      "PHAX_HOME moves config.json, providers.json, model-routing.json, telemetry.json, the telemetry journals (written by every command, read by phax report) and the default state root (loadConfig's default, projectContext, initWizard).",
+      "PHAX_HOME never moves the provider stores (providerStoreRoots, the Vibe adapter), the `~` rewrite in publishRun, or the user-scope skills install.",
+      "No fallback: with PHAX_HOME set, the ~/.phax copy of a file is never read.",
+      "`phax validate` reports the home in text and JSON.",
+      "Real-provider e2e files that spawn phax and must get a temporary home: realFlow, headlessAuthoring, and vibeSecure's phax run cases (which lose their providers.json skip). Files that spawn only a provider CLI, or run executePlan in process, are unaffected.",
+      "docs/e2e-testing.md is corrected: it drops the claim that ~/.phax is never read and the PHAX_STATE_ROOT commands phax does not read."
+    ],
+    "open": [
+      "q-docs, q-notice and q-explicit-root (§9).",
+      "The e2e helper's shapes: how a suite declares its providers and an optional routing table, and how the phax-spawning helper takes a test environment rather than a bare directory.",
+      "Whether the unit and integration isolation helper sets PHAX_HOME itself, or clears it and keeps mocking homedir(), as long as r-test-isolation holds."
+    ],
+    "constraints": [
+      "The architecture guard for r-one-point is protected: the guards under tests/unit/architecturalGuards*.test.ts are the operator's to write. The plan names the guard's rule and leaves writing it to the operator. It does not edit the guard files.",
+      "PHAX_HOME is external input: decode it through a schema at the edge before any reader uses it.",
+      "Resolve the home per invocation, not as a constant frozen when a module loads, so that tests and spawned children that set PHAX_HOME are obeyed.",
+      "The e2e temporary home's providers.json and routing are built from the branch's own provider configuration and routing types or defaults, never from a hand-written JSON fixture that would freeze one format.",
+      "Real-provider e2e stays opt-in behind PHAX_E2E_RUN=1, and `pnpm check:full` never runs it.",
+      "No back-compat shim: no alias variable and no fallback read of ~/.phax."
+    ]
+  },
+  "docsPage": {
+    "kind": "page",
+    "page": "docs/phax-home.md",
+    "reader": "An operator who wants a second phax configuration beside the daily one (a release candidate, a branch under test) or a CI machine whose phax files live outside the CI user's home.",
+    "example": "export PHAX_HOME=$HOME/.phax-next\nphax agent setup providers --write   # writes $HOME/.phax-next/providers.json\nphax validate                        # home:    /Users/me/.phax-next (PHAX_HOME)\nphax run --plan plan.md              # Claude Code, Codex and Vibe still use their own sign-ins"
+  }
+}
