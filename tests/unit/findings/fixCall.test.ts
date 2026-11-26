@@ -78,27 +78,37 @@ describe("defaultFixSubject", () => {
 });
 
 describe("fixCommitBody", () => {
-  it("is the trailers alone without a body", () => {
-    expect(fixCommitBody({ shortName: "gate-retry", ids: ["F2", "F5"], body: undefined })).toBe(
-      "Short-Name: gate-retry\nFinding: F2\nFinding: F5",
-    );
-  });
+  const run = { shortName: "gate-retry", runId: "gate-retry-1700000000000" };
+  const head = "Short-Name: gate-retry\nFinding-Run: gate-retry-1700000000000";
+  const paragraph = "Keeps the exit code of the failed step.";
 
-  it("puts the paragraph, a blank line, then the trailers last and in order", () => {
-    const body = fixCommitBody({
-      shortName: "gate-retry",
+  it.each([
+    {
+      title: "one id without a body",
+      ids: ["F2"],
+      body: undefined,
+      expected: `${head}\nFinding: F2`,
+    },
+    {
+      title: "two ids without a body, in the order given",
       ids: ["F5", "F2"],
-      body: "Keeps the exit code of the failed step.",
-    });
-    expect(body).toBe(
-      "Keeps the exit code of the failed step.\n\nShort-Name: gate-retry\nFinding: F5\nFinding: F2",
-    );
-    expect(body).not.toContain("Run-Id");
-  });
-
-  it("treats a blank body as none", () => {
-    expect(fixCommitBody({ shortName: "gate-retry", ids: ["F1"], body: "  \n" })).toBe(
-      "Short-Name: gate-retry\nFinding: F1",
-    );
+      body: undefined,
+      expected: `${head}\nFinding: F5\nFinding: F2`,
+    },
+    {
+      title: "one id with a body",
+      ids: ["F2"],
+      body: paragraph,
+      expected: `${paragraph}\n\n${head}\nFinding: F2`,
+    },
+    {
+      title: "two ids with a body",
+      ids: ["F5", "F2"],
+      body: paragraph,
+      expected: `${paragraph}\n\n${head}\nFinding: F5\nFinding: F2`,
+    },
+    { title: "a blank body as none", ids: ["F1"], body: "  \n", expected: `${head}\nFinding: F1` },
+  ])("writes $title", ({ ids, body, expected }) => {
+    expect(fixCommitBody({ ...run, ids, body })).toBe(expected);
   });
 });

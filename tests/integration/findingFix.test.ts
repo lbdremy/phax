@@ -16,6 +16,7 @@ import {
   writeInWorktree,
 } from "../fixtures/findings/fateRunRepo.js";
 import { reviewOnce } from "../fixtures/findings/findingRunRepo.js";
+import { boundedOutput, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { runnerCall } from "../helpers/runnerCall.js";
 
 // A temporary home for the modules that compute their ~/.phax paths at import.
@@ -77,13 +78,17 @@ describe("phax finding fix", () => {
     expect(commitPaths(repo, after as string)).toEqual(["tests/gate.test.ts"]);
     const message = commitMessage(repo, after as string);
     expect(message.split("\n")[0]).toBe(`fix(review): F2, F5 of ${repo.shortName}`);
-    const lines = message.split("\n");
-    expect(lines.slice(-3)).toEqual([
+    const logged = boundedOutput("git", ["log", "-1", "--format=%B", repo.runBranch], {
+      cwd: repo.repoDir,
+      boundMs: GIT_BOUND_MS,
+    }).trimEnd();
+    expect(logged.split("\n\n").at(-1)?.split("\n")).toEqual([
       `Short-Name: ${repo.shortName}`,
+      `Finding-Run: ${repo.runId}`,
       "Finding: F2",
       "Finding: F5",
     ]);
-    expect(message).not.toContain("Run-Id");
+    expect(logged.split("\n").filter((line) => line.startsWith("Run-Id"))).toEqual([]);
     const status = worktreeStatus(repo);
     expect(status).toContain(" M src/app/gate.ts");
     expect(status).toContain("M  README.md");
