@@ -53,6 +53,7 @@ function toFindings(specs: readonly Spec[]): PrFinding[] {
       suggestion: "fix it",
       fate: s.fate,
       history: history(s.fate),
+      landed: null,
     })),
     ...complianceSpecs.map((s, i): PrFinding => ({
       id: `C${i + 1}`,
@@ -63,6 +64,7 @@ function toFindings(specs: readonly Spec[]): PrFinding[] {
       message: s.message,
       fate: s.fate,
       history: history(s.fate),
+      landed: null,
     })),
   ];
 }

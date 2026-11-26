@@ -82,6 +82,7 @@ import { decodeCostLedgerV0_26_0 } from "../../src/schemas/history/cost-ledger/0
 import { decodeDecisionRecordManifestV0_25_0 } from "../../src/schemas/history/decision-record-manifest/0.25.0.js";
 import { decodeDecisionRecordManifestV0_28_0 } from "../../src/schemas/history/decision-record-manifest/0.28.0.js";
 import { decodeDecisionRecordManifestV0_30_0 } from "../../src/schemas/history/decision-record-manifest/0.30.0.js";
+import { decodeFindingListV0_40_0 } from "../../src/schemas/history/finding-list/0.40.0.js";
 import { decodeFirstReadingV0_26_0 } from "../../src/schemas/history/first-reading/0.26.0.js";
 import { decodeGateAttributionV0_17_0 } from "../../src/schemas/history/gate-attribution/0.17.0.js";
 import { decodeGateAttributionV0_20_0 } from "../../src/schemas/history/gate-attribution/0.20.0.js";
@@ -516,6 +517,7 @@ const FROZEN_SUBJECTS = new Map<string, Subject>([
   frozen("decision-record-manifest/0.25.0", decodeDecisionRecordManifestV0_25_0, "first"),
   frozen("decision-record-manifest/0.28.0", decodeDecisionRecordManifestV0_28_0, "first"),
   frozen("decision-record-manifest/0.30.0", decodeDecisionRecordManifestV0_30_0, "first"),
+  frozen("finding-list/0.40.0", decodeFindingListV0_40_0, "package"),
   frozen("first-reading/0.26.0", decodeFirstReadingV0_26_0, "package"),
   frozen("gate-attribution/0.17.0", decodeGateAttributionV0_17_0, "package"),
   frozen("gate-attribution/0.20.0", decodeGateAttributionV0_20_0, "package"),

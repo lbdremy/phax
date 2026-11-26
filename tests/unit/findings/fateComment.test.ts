@@ -52,6 +52,7 @@ function codeFinding(fate: PrFinding["fate"], history: Entry[]): PrFinding {
     suggestion: "do it",
     fate,
     history,
+    landed: null,
   };
 }
 
@@ -90,6 +91,7 @@ describe("renderFateComment", () => {
       message: "missing test",
       fate: "fixed",
       history: [fixed],
+      landed: null,
     };
     expect(renderFateComment(finding)).toBe(
       "C1 fixed — phase-02 tests — missing test\nFixed by abcdef0 (code, tests)",

@@ -4,9 +4,13 @@
 // finds under the state root, is resolved from its registry entry and read from
 // `<archivePath>/runs` (`<stateRoot>/archive/<key>/runs` when the entry names no archive path).
 // A finding's fate is that of its latest fate record (`findingFateRecords.ts`), its history every
-// record oldest first. A git failure on the records branch is no failure: the records are `unavailable`. Local only:
-// no fetch, no GitHub, no network.
+// record oldest first. A git failure on the records branch is no failure: the records are `unavailable`.
+// A fixed finding's latest fix is resolved where it landed (`findingLanded.ts`, spec
+// finding-fix-identity), and a git failure there fails the call. Local only: no fetch, no
+// GitHub, no network, and nothing written.
+import { join } from "node:path";
 import { Data, Effect, Result, Schema } from "effect";
+import type { Landed } from "../domain/findings/landed.js";
 import {
   findingFate,
   groupFateRecords,
@@ -17,16 +21,18 @@ import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
 import { parseRunRef, runKey } from "../domain/runRef.js";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
-import type { Git } from "../ports/git.js";
+import type { Git, GitError } from "../ports/git.js";
 import type {
   CodeReviewFindingEntry,
   ComplianceFindingEntry,
   FindingListDocument,
 } from "../schemas/findingList.js";
+import { readRunStatusFile } from "../schemas/persisted.js";
 import type { ResolvedConfig } from "../schemas/phaxConfig.js";
 import { RunStateSchema } from "../schemas/status.js";
 import { runFolderOf } from "./costBackfill.js";
 import { readRunFateRecords } from "./findingFateRecords.js";
+import { resolveRunLandings } from "./findingLanded.js";
 import { RECORDS_BRANCH_NAME } from "./recordPlumbing.js";
 import { readRegistry } from "./registry.js";
 import { resolveRunRef } from "./resolveRunRef.js";
@@ -83,11 +89,41 @@ export interface ResolvedFindingRun {
   readonly worktreePath: string | null;
   /** The run's final-phase branch; null for an archived run. */
   readonly runBranch: string | null;
+  /**
+   * When the run started: a live run's `createdAt` in its run-status.json, an archived run's in
+   * its registry entry. Null when it cannot be read or is not an instant.
+   */
+  readonly startedAt: string | null;
   /** Message lines the run itself owes: its archive folder is gone. */
   readonly notes: readonly string[];
 }
 
 const isRunState = Schema.is(RunStateSchema);
+
+const RUN_STATUS_FILENAME = "run-status.json";
+
+// An ISO-8601 instant with its offset: what phax writes as a run's `createdAt`.
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})$/;
+
+/** `value` when it is an instant, else null. */
+function instantOrNull(value: string): string | null {
+  return INSTANT.test(value) && Number.isFinite(Date.parse(value)) ? value : null;
+}
+
+/** A live run's `createdAt`, read from its run-status.json; null when it cannot be read. */
+function readRunStart(runFolder: string): Effect.Effect<string | null, never, FileSystem> {
+  return Effect.gen(function* () {
+    const fs = yield* FileSystem;
+    const path = join(runFolder, RUN_STATUS_FILENAME);
+    const text = yield* fs.readText(path);
+    const parsed = yield* Effect.try((): unknown => JSON.parse(text));
+    const status = yield* Effect.fromResult(readRunStatusFile(path, parsed));
+    return instantOrNull(status.createdAt);
+  }).pipe(Effect.orElseSucceed(() => null));
+}
+
+const RUN_START_UNREADABLE_NOTE =
+  "the run's start time could not be read: fixes are looked for only by their recorded commit";
 
 /** The run of an archived registry entry, or undefined when the registry holds none. */
 function resolveArchivedRun(
@@ -124,6 +160,7 @@ function resolveArchivedRun(
       target,
       worktreePath: null,
       runBranch: null,
+      startedAt: instantOrNull(entry.createdAt),
       notes: present ? [] : [`the archive folder ${folder} is gone: only the records are listed`],
     } satisfies ResolvedFindingRun;
   });
@@ -163,6 +200,7 @@ export function resolveFindingRun(
         target,
         worktreePath: info.worktreePath,
         runBranch: info.finalPhaseBranch,
+        startedAt: yield* readRunStart(info.runPath),
         notes: [],
       } satisfies ResolvedFindingRun;
     }
@@ -172,9 +210,16 @@ export function resolveFindingRun(
   });
 }
 
+/** The commit a fixed finding's latest record names, or null when its latest record is no fix. */
+function latestFix(history: readonly FindingFateEntry[]): string | null {
+  const latest = history.at(-1);
+  return latest?.fate === "fixed" ? latest.commit : null;
+}
+
 function entryOf(
   finding: RunFinding,
   history: readonly FindingFateEntry[],
+  landed: Landed | null,
 ): CodeReviewFindingEntry | ComplianceFindingEntry {
   const fate = findingFate(finding, history);
   if (finding.source === "code-review") {
@@ -191,6 +236,7 @@ function entryOf(
       suggestion: finding.suggestion,
       fate,
       history,
+      landed,
     };
   }
   return {
@@ -202,6 +248,7 @@ function entryOf(
     message: finding.message,
     fate,
     history,
+    landed,
   };
 }
 
@@ -220,6 +267,7 @@ export function listRunFindings(input: {
   | FindingRunRefError
   | FindingReviewUnreadableError
   | FindingFateRecordUnreadableError
+  | GitError
   | FsError
   | RegistryCorruptionError,
   FileSystem | Git
@@ -260,6 +308,18 @@ export function listRunFindings(input: {
     }
     const { findings } = numberRunFindings(read.reviews.map((item) => item.review));
     const { histories, orphans } = groupFateRecords(findings, fates.records);
+    const fixes = findings.flatMap((finding) => {
+      const recorded = latestFix(histories.get(finding.id) ?? []);
+      return recorded === null ? [] : [{ id: finding.id, recorded }];
+    });
+    const landings = yield* resolveRunLandings({
+      repo: run.target.kind === "project" ? run.target.repoRoot : input.config.repoRoot,
+      runId: run.runId,
+      runBranch: run.runBranch,
+      startedAt: run.startedAt,
+      config: input.config,
+      fixes,
+    });
     return {
       document: {
         run: {
@@ -267,9 +327,16 @@ export function listRunFindings(input: {
           shortName: run.shortName,
           runId: run.runId,
           state: run.state,
+          baseBranch: landings.baseBranch,
         },
         records: read.records,
-        findings: findings.map((finding) => entryOf(finding, histories.get(finding.id) ?? [])),
+        findings: findings.map((finding) =>
+          entryOf(
+            finding,
+            histories.get(finding.id) ?? [],
+            landings.landed.get(finding.id) ?? null,
+          ),
+        ),
       },
       notes: [
         ...run.notes,
@@ -279,6 +346,7 @@ export function listRunFindings(input: {
         ...orphans.map(
           (id) => `fate records name ${id}, which no review of the run holds: not listed`,
         ),
+        ...(run.startedAt === null && fixes.length > 0 ? [RUN_START_UNREADABLE_NOTE] : []),
       ],
     };
   });

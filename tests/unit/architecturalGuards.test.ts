@@ -716,6 +716,7 @@ const CLOSURE_SRC_ALLOWLIST = [
   "src/schemas/history/decision-record-manifest/0.25.0.ts",
   "src/schemas/history/decision-record-manifest/0.28.0.ts",
   "src/schemas/history/decision-record-manifest/0.30.0.ts",
+  "src/schemas/history/finding-list/0.40.0.ts",
   "src/schemas/history/first-reading/0.26.0.ts",
   "src/schemas/history/gate-attribution/0.17.0.ts",
   "src/schemas/history/gate-attribution/0.20.0.ts",

@@ -4,12 +4,13 @@
     {
       "name": "accepts a code-review and a compliance finding",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.44.0.json",
         "run": {
           "namespace": "garden",
           "shortName": "garden-sync",
           "runId": "2611011300-garden-sync",
-          "state": "completed"
+          "state": "completed",
+          "baseBranch": "main"
         },
         "records": "read",
         "findings": [
@@ -25,7 +26,8 @@
             "criterion": "AC-empty-name",
             "suggestion": "Refuse an empty name.",
             "fate": "open",
-            "history": []
+            "history": [],
+            "landed": null
           },
           {
             "id": "C1",
@@ -35,19 +37,21 @@
             "dimension": "files",
             "message": "A planned file was not touched.",
             "fate": "unrecorded",
-            "history": []
+            "history": [],
+            "landed": null
           }
         ]
       },
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.44.0.json",
           "run": {
             "namespace": "garden",
             "shortName": "garden-sync",
             "runId": "2611011300-garden-sync",
-            "state": "completed"
+            "state": "completed",
+            "baseBranch": "main"
           },
           "records": "read",
           "findings": [
@@ -63,7 +67,8 @@
               "criterion": "AC-empty-name",
               "suggestion": "Refuse an empty name.",
               "fate": "open",
-              "history": []
+              "history": [],
+              "landed": null
             },
             {
               "id": "C1",
@@ -73,7 +78,8 @@
               "dimension": "files",
               "message": "A planned file was not touched.",
               "fate": "unrecorded",
-              "history": []
+              "history": [],
+              "landed": null
             }
           ]
         }
@@ -82,12 +88,13 @@
     {
       "name": "accepts a finding with a dismissal, a deferral and two fixes",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+        "$schema": "https://docs.phax.run/schemas/finding-list/0.44.0.json",
         "run": {
           "namespace": "garden",
           "shortName": "garden-sync",
           "runId": "2611011300-garden-sync",
-          "state": "completed"
+          "state": "completed",
+          "baseBranch": "main"
         },
         "records": "read",
         "findings": [
@@ -160,19 +167,27 @@
                 },
                 "at": "2026-11-01T13:30:00Z"
               }
-            ]
+            ],
+            "landed": {
+              "status": "found",
+              "by": "recorded",
+              "commit": "0123456789abcdef0123456789abcdef01234567",
+              "branch": "main",
+              "recorded": "0123456789abcdef0123456789abcdef01234567"
+            }
           }
         ]
       },
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
+          "$schema": "https://docs.phax.run/schemas/finding-list/0.44.0.json",
           "run": {
             "namespace": "garden",
             "shortName": "garden-sync",
             "runId": "2611011300-garden-sync",
-            "state": "completed"
+            "state": "completed",
+            "baseBranch": "main"
           },
           "records": "read",
           "findings": [
@@ -245,7 +260,14 @@
                   },
                   "at": "2026-11-01T13:30:00Z"
                 }
-              ]
+              ],
+              "landed": {
+                "status": "found",
+                "by": "recorded",
+                "commit": "0123456789abcdef0123456789abcdef01234567",
+                "branch": "main",
+                "recorded": "0123456789abcdef0123456789abcdef01234567"
+              }
             }
           ]
         }

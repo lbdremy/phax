@@ -59,6 +59,7 @@ function code(
     suggestion: "do it",
     fate,
     history: historyFor(fate, over.to ?? "docs/briefs/later.md"),
+    landed: null,
   };
 }
 
@@ -72,6 +73,7 @@ function compliance(n: number, fate: FindingFate): PrFinding {
     message: `compliance ${n}`,
     fate,
     history: historyFor(fate, "docs/briefs/later.md"),
+    landed: null,
   };
 }
 

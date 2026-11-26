@@ -53,6 +53,6 @@ export const CURRENT_SHAPES = {
   "revision-record-manifest": "0.38.0",
   "code-review-answer": "0.40.0",
   "compliance-review-answer": "0.40.0",
-  "finding-list": "0.40.0",
+  "finding-list": "next",
   "finding-fate-record-manifest": "0.40.0",
 } as const;

@@ -1365,6 +1365,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
         shortName: "garden-sync",
         runId: "2611011300-garden-sync",
         state: "completed",
+        baseBranch: "main",
       },
       records: "read",
       findings: [
@@ -1381,6 +1382,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           suggestion: "Refuse an empty name.",
           fate: "open",
           history: [],
+          landed: null,
         },
         {
           id: "C1",
@@ -1391,6 +1393,7 @@ export const validDocuments: { readonly [F in FormatId]: Doc } = {
           message: "A planned file was not touched.",
           fate: "unrecorded",
           history: [],
+          landed: null,
         },
       ],
     }),

@@ -46,6 +46,7 @@ const dismissedFinding = (id: string, line: number): PrFinding => ({
       },
     },
   ],
+  landed: null,
 });
 
 const input = (findings: readonly PrFinding[]): PushAndCommentInput => ({
@@ -60,6 +61,7 @@ const input = (findings: readonly PrFinding[]): PushAndCommentInput => ({
     target: { kind: "unresolved", reason: "not needed here" },
     worktreePath: null,
     runBranch: null,
+    startedAt: null,
     notes: [],
   },
   pullRequest: PR,

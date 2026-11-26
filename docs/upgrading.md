@@ -21,6 +21,13 @@ phax schema upgrade                   # phax.schema.json, the editor schema of p
 
 Only the releases that ask for something are listed. phax never asks for a step silently: a command that needs one refuses with exit 12 and names it.
 
+### 0.44.0
+
+- **`phax finding list` looks for where each fixed finding's latest fix landed**, on the base branch, then on the run's branch, among commits made since the run started: by its recorded commit, by its `Finding-Run` and `Finding` trailers, then by its patch id. It writes and fetches nothing. The text shows the answer after the fix's commit when it is not the recorded commit on the base branch.
+- **`finding-list` is stamped 0.44.0.** Every finding carries a required `landed`: `found`, `ambiguous` or `not-found` for a fixed finding, `null` for every other. The run carries a required `baseBranch`, the branch searched first.
+- **An `@lbdremy/phax-schemas` before 0.44.0 refuses the new answer**, so upgrade the package. It reads a 0.40.0 finding list as its own shape, and `toLatestFindingList` lifts it under a type of its own, `LiftedFindingList`: a fixed finding's `landed` and the run's `baseBranch` are `unknown`, never guessed.
+- **Fix commits now carry a `Finding-Run: <run id>` trailer** beside `Finding`, so phax can find them again after a rebase or a squash that keeps the messages. Fix commits made before 0.44.0 have none and are not rewritten: they are found by their recorded commit or their patch id.
+
 ### 0.43.0
 
 - **`gate-attribution.json` and `checks-attempt-NN.attribution.json` move to a new shape**, stamped 0.43.0, with a required `time` on the attempt, on every step and on a non-null `protectedPaths`: `measured` with `startedAt` and `durationMs`, or `not-run` for a skipped acceptance step.

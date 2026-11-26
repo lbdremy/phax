@@ -36,6 +36,7 @@ const fixedFinding: PrFinding = {
   suggestion: "Keep it.",
   fate: "fixed",
   history: [{ fate: "fixed", commit: SHA, pathClasses: ["code"], by: operator, at }],
+  landed: { status: "found", by: "recorded", commit: SHA, branch: "main", recorded: SHA },
 };
 
 const run: ResolvedFindingRun = {
@@ -48,6 +49,7 @@ const run: ResolvedFindingRun = {
   target: { kind: "unresolved", reason: "not needed here" },
   worktreePath: WORKTREE,
   runBranch: "phax/gate-retry--phase-01",
+  startedAt: "2026-01-01T00:00:00.000Z",
   notes: [],
 };
 

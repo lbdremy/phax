@@ -38,6 +38,7 @@ import {
   type PullRequestOutcome,
   pullRequestAfterFates,
 } from "./findingPullRequest.js";
+import { baseBranchOf } from "./findingLanded.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
@@ -161,12 +162,14 @@ function checkReachable(input: {
       if (yield* reachableFrom(repo, sha, "HEAD")) return;
       checked.push(input.runBranch ?? "the run branch");
     }
-    const base = config.publish.baseBranch ?? "main";
-    const remoteBase = `refs/remotes/${config.publish.remote}/${base}`;
-    const local = `refs/heads/${base}`;
-    const baseRef = (yield* git.resolveRef(repo, local)) !== null ? local : remoteBase;
-    if (yield* reachableFrom(repo, sha, baseRef)) return;
-    checked.push(baseRef === local ? base : baseRef);
+    const base = yield* baseBranchOf(repo, config);
+    if (base.ref !== null && (yield* reachableFrom(repo, sha, base.ref))) return;
+    // The refusal names the local branch by its name, any other by its full remote-tracking ref.
+    checked.push(
+      base.ref?.startsWith("refs/heads/") === true
+        ? base.label
+        : `refs/remotes/${config.publish.remote}/${config.publish.baseBranch ?? "main"}`,
+    );
     return yield* refuse(
       `--commit ${sha.slice(0, 7)} is on neither ${checked.join(" nor ")}: name a commit of the run branch or of the base branch (publish.baseBranch names it when it is not main)`,
     );

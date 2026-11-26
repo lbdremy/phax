@@ -3,10 +3,13 @@
 // overview `phax plans overview --json` prints and the plan lint
 // `phax plans lint --json` prints, and the finding list
 // `phax finding list --json` prints. phax never saves one. Each has no
-// pre-schema shape, and a document without `$schema` is unreadable. Only the
-// plan lint has a frozen release: 0.34.0, before the `gate-profile` check. Each refuses a key it does not name. Its current shape, named by
-// `CURRENT_SHAPES`, is phax's own file schema and decoder, and its
-// `toLatest` drops `$schema`.
+// pre-schema shape, and a document without `$schema` is unreadable. Two have
+// a frozen release: the plan lint's 0.34.0, before the `gate-profile` check,
+// and the finding list's 0.40.0, before a finding's `landed` and the run's
+// `baseBranch`. Each refuses a key it does not name. Its current shape, named
+// by `CURRENT_SHAPES`, is phax's own file schema and decoder, and its
+// `toLatest` drops `$schema`; a 0.40.0 finding list lifts to a
+// `LiftedFindingList` that never invents where a fix landed.
 import {
   ArtifactStatusFileSchema,
   decodeArtifactStatusFile,
@@ -19,6 +22,11 @@ import {
   type FindingListDocument,
   type FindingListFile,
 } from "../../../../src/schemas/findingList.js";
+import {
+  FindingListV0_40_0Schema,
+  decodeFindingListV0_40_0,
+  type FindingListV0_40_0,
+} from "../../../../src/schemas/history/finding-list/0.40.0.js";
 import {
   PlanLintV0_34_0Schema,
   decodePlanLintV0_34_0,
@@ -38,7 +46,7 @@ import {
 } from "../../../../src/schemas/planOverview.js";
 import { CURRENT_SHAPES } from "../generated/index.js";
 import type { ParsedShape } from "../parsed.js";
-import { defineFormat, type CurrentShapeName } from "../shapes.js";
+import { UNKNOWN, defineFormat, type CurrentShapeName, type Unknown } from "../shapes.js";
 
 // ── artifact status
 
@@ -147,6 +155,8 @@ export function toLatestPlanLint(value: PlanLintFile | PlanLintV0_34_0): LatestP
 // ── finding list
 
 export type FindingListShapes = {
+  "0.40.0": FindingListV0_40_0;
+} & {
   [K in CurrentShapeName<"finding-list">]: FindingListFile;
 };
 
@@ -157,7 +167,7 @@ export const findingListFormat = defineFormat<FindingListShapes>({
   id: "finding-list",
   label: "finding list",
   preSchema: null,
-  releases: [],
+  releases: [["0.40.0", { schema: FindingListV0_40_0Schema, decode: decodeFindingListV0_40_0 }]],
   current: {
     name: CURRENT_SHAPES["finding-list"],
     shape: { schema: FindingListFileSchema, decode: decodeFindingListFile },
@@ -171,8 +181,61 @@ export const parseFindingList: (input: unknown) => ParsedShape<FindingListShapes
 /** The latest finding list: phax's in-memory value, with no `$schema`. */
 export type LatestFindingList = FindingListDocument;
 
-/** Drops `$schema` from a parsed finding list and keeps every other fact. */
-export function toLatestFindingList(value: FindingListFile): LatestFindingList {
-  const { $schema: _schema, ...recorded } = value;
-  return recorded;
+type LatestFindingEntry = LatestFindingList["findings"][number];
+
+/** A finding of a lifted list: every recorded fact, and `landed` as the lift reads it. */
+type LiftedFindingEntry = LatestFindingEntry extends infer E
+  ? E extends LatestFindingEntry
+    ? Omit<E, "landed"> & { readonly landed: Unknown | null }
+    : never
+  : never;
+
+/**
+ * A finding list older than the resolution of fixes (0.40.0), upgraded under a
+ * type of its own: every recorded fact kept, but a fixed finding's `landed` is
+ * `Unknown`, since no older list recorded where a fix landed, and the run's
+ * `baseBranch` is `Unknown`, since none named the branch it searched. Every
+ * other finding's `landed` is null, as the current shape defines it from its
+ * fate. It is never a `LatestFindingList`.
+ */
+export interface LiftedFindingList {
+  readonly run: Omit<LatestFindingList["run"], "baseBranch"> & { readonly baseBranch: Unknown };
+  readonly records: LatestFindingList["records"];
+  readonly findings: readonly LiftedFindingEntry[];
+}
+
+/**
+ * Upgrades a parsed finding list in memory and keeps every recorded fact. A
+ * current list drops its `$schema` and becomes a `LatestFindingList`. A 0.40.0
+ * list becomes a `LiftedFindingList`: a resolution is never invented, so a
+ * fixed finding's `landed` and the run's `baseBranch` are `Unknown`, and every
+ * other finding's `landed` is null.
+ */
+export function toLatestFindingList(value: FindingListFile): LatestFindingList;
+export function toLatestFindingList(value: FindingListV0_40_0): LiftedFindingList;
+export function toLatestFindingList(
+  value: FindingListFile | FindingListV0_40_0,
+): LatestFindingList | LiftedFindingList;
+export function toLatestFindingList(
+  value: FindingListFile | FindingListV0_40_0,
+): LatestFindingList | LiftedFindingList {
+  if (isCurrentFindingList(value)) {
+    const { $schema: _schema, ...recorded } = value;
+    return recorded;
+  }
+  const { $schema: _schema, run, records, findings } = value;
+  return {
+    run: { ...run, baseBranch: UNKNOWN },
+    records,
+    findings: findings.map((finding) => ({
+      ...finding,
+      landed: finding.fate === "fixed" ? UNKNOWN : null,
+    })),
+  };
+}
+
+function isCurrentFindingList(
+  value: FindingListFile | FindingListV0_40_0,
+): value is FindingListFile {
+  return "baseBranch" in value.run;
 }

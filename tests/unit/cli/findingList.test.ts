@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderFindingList } from "../../../src/cli/definitions/finding.js";
-import type { FindingListFile } from "../../../src/schemas/findingList.js";
+import type { FindingLanded, FindingListFile } from "../../../src/schemas/findingList.js";
 import { currentSchemaUrl } from "../../../src/schemas/persisted.js";
 
 const code = (
@@ -22,6 +22,7 @@ const code = (
   suggestion: "Cover it with a test.",
   fate,
   history: [],
+  landed: null,
 });
 
 const compliance = (
@@ -37,11 +38,18 @@ const compliance = (
   message,
   fate,
   history: [],
+  landed: null,
 });
 
-const listOf = (findings: FindingListFile["findings"]): FindingListFile => ({
+const listOf = (findings: FindingListFile["findings"], baseBranch = "main"): FindingListFile => ({
   $schema: currentSchemaUrl("finding-list"),
-  run: { namespace: "ns", shortName: "gate-retry", runId: "gate-retry-1", state: "review_open" },
+  run: {
+    namespace: "ns",
+    shortName: "gate-retry",
+    runId: "gate-retry-1",
+    state: "review_open",
+    baseBranch,
+  },
   records: "read",
   findings,
 });
@@ -98,6 +106,13 @@ describe("renderFindingList", () => {
       ...code("F1", "open", "src/a.ts", 1, "one"),
       fate: "fixed" as const,
       history: [fix("a", ["code"]), fix("b", ["code", "tests"])],
+      landed: {
+        status: "found" as const,
+        by: "recorded" as const,
+        commit: "b".repeat(40),
+        branch: "main",
+        recorded: "b".repeat(40),
+      },
     };
     const dismissed = {
       ...code("F2", "open", "src/a.ts", 2, "two"),
@@ -138,6 +153,86 @@ describe("renderFindingList", () => {
       "             → docs/next.md",
       "F4  concern  open       src/a.ts:4  four",
     ]);
+  });
+
+  describe("shows where the latest fix landed on its line", () => {
+    const by = { kind: "operator", name: "Ada" } as const;
+    const at = "2026-11-01T10:00:00.000Z";
+    const recorded = "a".repeat(40);
+    const fixedWith = (landed: FindingLanded | null) => ({
+      ...code("F1", "open", "src/a.ts", 1, "one"),
+      fate: "fixed" as const,
+      history: [
+        { fate: "fixed" as const, commit: "e".repeat(40), pathClasses: ["code"] as const, by, at },
+        { fate: "fixed" as const, commit: recorded, pathClasses: ["code"] as const, by, at },
+      ],
+      landed,
+    });
+    const run = "feature/gate-retry--phase-02";
+    const cases: ReadonlyArray<readonly [string, FindingLanded | null, string, string]> = [
+      [
+        "found by recorded on the base branch: nothing",
+        { status: "found", by: "recorded", commit: recorded, branch: "main", recorded },
+        "main",
+        "aaaaaaa (code)",
+      ],
+      [
+        "found by recorded on origin/main, the base branch: nothing",
+        { status: "found", by: "recorded", commit: recorded, branch: "origin/main", recorded },
+        "origin/main",
+        "aaaaaaa (code)",
+      ],
+      [
+        "found by recorded on the run's branch",
+        { status: "found", by: "recorded", commit: recorded, branch: run, recorded },
+        "main",
+        `aaaaaaa (code) → aaaaaaa on ${run}, by recorded sha`,
+      ],
+      [
+        "found by key",
+        { status: "found", by: "key", commit: "b".repeat(40), branch: "main", recorded },
+        "main",
+        "aaaaaaa (code) → bbbbbbb on main, by key",
+      ],
+      [
+        "found by patch id",
+        { status: "found", by: "patch-id", commit: "c".repeat(40), branch: "main", recorded },
+        "main",
+        "aaaaaaa (code) → ccccccc on main, by patch id",
+      ],
+      [
+        "ambiguous",
+        {
+          status: "ambiguous",
+          commits: ["b".repeat(40), "c".repeat(40)],
+          branch: "main",
+          recorded,
+        },
+        "main",
+        "aaaaaaa (code) → ambiguous on main: bbbbbbb, ccccccc",
+      ],
+      [
+        "not found on two branches",
+        { status: "not-found", branches: ["main", run], recorded },
+        "main",
+        `aaaaaaa (code) → not found on main or ${run}`,
+      ],
+      [
+        "not found on one branch",
+        { status: "not-found", branches: ["main"], recorded },
+        "main",
+        "aaaaaaa (code) → not found on main",
+      ],
+      ["no resolution", null, "main", "aaaaaaa (code)"],
+    ];
+    it.each(cases)("%s", (_name, landed, baseBranch, latest) => {
+      const lines = renderFindingList(listOf([fixedWith(landed)], baseBranch)).split("\n");
+      expect(lines.slice(2)).toEqual([
+        "F1  concern  fixed  src/a.ts:1  one",
+        "             eeeeeee (code)",
+        `             ${latest}`,
+      ]);
+    });
   });
 
   it("says there is no finding for a run with none", () => {

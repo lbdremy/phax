@@ -436,6 +436,7 @@ export {
   type LatestFindingList,
   type LatestPlanLint,
   type LatestPlanOverview,
+  type LiftedFindingList,
   type PlanLintShape,
   type PlanOverviewShape,
 } from "./formats/commandAnswers.js";
@@ -751,6 +752,10 @@ export {
   PlanLintV0_34_0Schema,
   type PlanLintV0_34_0,
 } from "../../../src/schemas/history/plan-lint/0.34.0.js";
+export {
+  FindingListV0_40_0Schema,
+  type FindingListV0_40_0,
+} from "../../../src/schemas/history/finding-list/0.40.0.js";
 export {
   PhaseStatusV0_17_0Schema,
   type PhaseStatusV0_17_0,

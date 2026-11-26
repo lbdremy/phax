@@ -125,7 +125,10 @@ describe("phax finding list with fate records", () => {
 
     const text = await runnerCall([findingGroup], ["finding", "list", repo.shortName]);
     expect(text.code).toBe(0);
-    expect(text.outLines).toContain(`             ${"a".repeat(7)} (code, tests)`);
+    // The recorded sha names no commit of the repository: the fix is found on no branch.
+    expect(text.outLines).toContain(
+      `             ${"a".repeat(7)} (code, tests) → not found on main or feature/${repo.shortName}--phase-01`,
+    );
     expect(text.outLines).toContain("             Ada: Not worth it.");
     expect(text.outLines).toContain("             → docs/next.md");
   });

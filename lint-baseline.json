@@ -4142,7 +4142,7 @@
       "kind": "diagnostic",
       "file": "tests/type/schemasPackage.ts",
       "rule": "typescript/no-duplicate-type-constituents",
-      "count": 13,
+      "count": 12,
       "reason": "debt"
     },
     {
