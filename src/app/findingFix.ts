@@ -294,7 +294,7 @@ export function fixFindings(
         repo,
         named,
         subject,
-        fixCommitBody({ shortName: run.shortName, ids, body: input.body }),
+        fixCommitBody({ shortName: run.shortName, runId: run.runId, ids, body: input.body }),
       );
       sha = yield* git.headCommit(repo);
     } else {

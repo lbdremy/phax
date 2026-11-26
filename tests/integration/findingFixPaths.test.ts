@@ -126,8 +126,9 @@ describe("phax finding fix: paths and --commit", () => {
     const lines = commitMessage(repo, runTip()).split("\n");
     expect(lines[0]).toBe("fix(gate): keep the exit code");
     expect(lines).toContain("The failed step's code was dropped.");
-    expect(lines.slice(-3)).toEqual([
+    expect(lines.slice(-4)).toEqual([
       `Short-Name: ${repo.shortName}`,
+      `Finding-Run: ${repo.runId}`,
       "Finding: F2",
       "Finding: F1",
     ]);

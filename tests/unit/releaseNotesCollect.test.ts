@@ -317,6 +317,29 @@ describe("collectReleaseNotes", { timeout: 30_000 }, () => {
       expect(warnings).toEqual([]);
     });
 
+    it("joins its run the same way when it also carries Finding-Run", () => {
+      const repo = track(releasedRepo());
+      writePlan(repo, planOf("alpha", "Alpha"));
+      repo.commit("feat: alpha", { runId: "run-a", shortName: "alpha" });
+      repo.commit("feat: alpha again", { runId: "run-a", shortName: "alpha" });
+      repo.commit("fix: review fix of alpha", {
+        message: [
+          "fix: review fix of alpha",
+          "",
+          "Short-Name: alpha",
+          "Finding-Run: run-a",
+          "Finding: F1",
+          "",
+        ].join("\n"),
+      });
+
+      const { input, warnings } = collectReleaseNotes(repo.root, OPENED);
+
+      expect(input.plans.map((plan) => plan.title)).toEqual(["Alpha"]);
+      expect(input.commits).toEqual([]);
+      expect(warnings).toEqual([]);
+    });
+
     it("naming no run is a commit without a run, with one warning", () => {
       const repo = track(releasedRepo());
       writePlan(repo, planOf("alpha", "Alpha"));

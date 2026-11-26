@@ -32,16 +32,19 @@ export function defaultFixSubject(ids: readonly string[], shortName: string): st
 
 /**
  * The body of a fix commit: the given paragraph and a blank line when there is one, then the
- * trailers, always phax's and last: `Short-Name`, then one `Finding` per id, in order. Never a
- * `Run-Id`: release notes fold the commit into its run by its short name.
+ * trailers, always phax's and last: `Short-Name`, then `Finding-Run`, then one `Finding` per id,
+ * in order. Never a `Run-Id`: release notes fold the commit into its run by its short name, and
+ * `Finding-Run` names the run so phax can find the commit again after a rewrite.
  */
 export function fixCommitBody(input: {
   readonly shortName: string;
+  readonly runId: string;
   readonly ids: readonly string[];
   readonly body: string | undefined;
 }): string {
   const trailers = [
     `Short-Name: ${input.shortName}`,
+    `Finding-Run: ${input.runId}`,
     ...input.ids.map((id) => `Finding: ${id}`),
   ].join("\n");
   const paragraph = input.body?.trim() ?? "";
