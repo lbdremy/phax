@@ -1,0 +1,1040 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "phax finding list",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "pattern": "^https:\\/\\/docs\\.phax\\.run\\/schemas\\/finding-list\\/(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.json$",
+      "description": "The finding-list format's shape, named by the phax release that last changed it (not necessarily the release that wrote this file): https://docs.phax.run/schemas/finding-list/<X.Y.Z>.json"
+    },
+    "run": {
+      "type": "object",
+      "properties": {
+        "namespace": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "shortName": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "runId": {
+          "$ref": "#/$defs/NonEmptyString"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "created",
+            "running",
+            "failed",
+            "review_open",
+            "completed",
+            "stopped",
+            "archived",
+            "interrupted",
+            "rate_limited",
+            "awaiting_review"
+          ]
+        },
+        "baseBranch": {
+          "$ref": "#/$defs/NonEmptyString_1"
+        }
+      },
+      "required": [
+        "namespace",
+        "shortName",
+        "runId",
+        "state",
+        "baseBranch"
+      ],
+      "additionalProperties": false
+    },
+    "records": {
+      "type": "string",
+      "enum": [
+        "read",
+        "off",
+        "unavailable"
+      ],
+      "description": "read: the records branch was read; off: records are off, the run folder alone was read; unavailable: the records could not be read, the run folder alone was read."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "anyOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^F[1-9][0-9]*$",
+                "description": "The finding's id in its run: F<n>, n from 1, given by phax."
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "code-review"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "bug",
+                  "deviation",
+                  "concern",
+                  "info"
+                ]
+              },
+              "file": {
+                "$ref": "#/$defs/NonEmptyString_2"
+              },
+              "line": {
+                "type": "integer",
+                "maximum": 9007199254740991,
+                "exclusiveMinimum": 0,
+                "description": "The 1-based line the finding is about."
+              },
+              "message": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "lens": {
+                "type": "string",
+                "enum": [
+                  "surface",
+                  "acceptance",
+                  "boundary",
+                  "core",
+                  "edge",
+                  "tests",
+                  "architecture",
+                  "docs"
+                ]
+              },
+              "escape": {
+                "type": "string",
+                "enum": [
+                  "wrong-oracle",
+                  "same-author",
+                  "weakened",
+                  "fake-drift",
+                  "unexplored-input",
+                  "omission",
+                  "untestable"
+                ]
+              },
+              "criterion": {
+                "anyOf": [
+                  {
+                    "$ref": "#/$defs/NonEmptyString"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The acceptance criterion id the finding is about, or null."
+              },
+              "suggestion": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "fate": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "fixed",
+                  "dismissed",
+                  "deferred",
+                  "unrecorded"
+                ],
+                "description": "What became of the finding: open (no fate record), fixed, dismissed, deferred, or unrecorded (a review persisted before ids existed)."
+              },
+              "history": {
+                "type": "array",
+                "description": "The finding's fate records, oldest first: each a fix, a dismissal or a deferral. The latest decides the fate.",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "fixed"
+                          ]
+                        },
+                        "commit": {
+                          "type": "string",
+                          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+                          "description": "A git commit sha, lowercase hex of 40 or 64 characters."
+                        },
+                        "pathClasses": {
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "description": "The classes of the fix commit's changed paths, each once, in the order code, docs, gate-config, tests.",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "code",
+                              "docs",
+                              "gate-config",
+                              "tests"
+                            ],
+                            "description": "The class of a changed path: code (everything else), docs (documentation), gate-config (a gate tool's configuration or a CI workflow) or tests (test files and directories)."
+                          }
+                        },
+                        "by": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "operator"
+                                  ]
+                                },
+                                "name": {
+                                  "$ref": "#/$defs/NonEmptyString_3"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "machine"
+                                  ]
+                                },
+                                "grant": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                                  "description": "The grant the machine declared with `--by machine:<grant>`."
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "grant"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                          "description": "An ISO-8601 UTC timestamp."
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "commit",
+                        "pathClasses",
+                        "by",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "dismissed"
+                          ]
+                        },
+                        "verdict": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "decided"
+                              ]
+                            },
+                            "chosen": {
+                              "type": "string",
+                              "enum": [
+                                "dismiss"
+                              ]
+                            },
+                            "abandoned": {
+                              "type": "array",
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "fix"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "defer"
+                                  ]
+                                }
+                              ]
+                            },
+                            "why": {
+                              "$ref": "#/$defs/NonEmptyString"
+                            },
+                            "advocate": {
+                              "$ref": "#/$defs/NonEmptyString_4"
+                            },
+                            "principles": {
+                              "type": "array",
+                              "items": false
+                            },
+                            "reversibility": {
+                              "type": "string",
+                              "enum": [
+                                "cheap"
+                              ]
+                            },
+                            "by": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "operator"
+                                  ]
+                                },
+                                "name": {
+                                  "$ref": "#/$defs/NonEmptyString_3"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "at": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                              "description": "An ISO-8601 UTC timestamp."
+                            },
+                            "revised": {
+                              "type": "array",
+                              "items": false
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "chosen",
+                            "abandoned",
+                            "why",
+                            "advocate",
+                            "principles",
+                            "reversibility",
+                            "by",
+                            "at",
+                            "revised"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "verdict"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "deferred"
+                          ]
+                        },
+                        "to": {
+                          "$ref": "#/$defs/NonEmptyString_5"
+                        },
+                        "why": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "by": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "operator"
+                              ]
+                            },
+                            "name": {
+                              "$ref": "#/$defs/NonEmptyString_3"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                          "description": "An ISO-8601 UTC timestamp."
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "to",
+                        "why",
+                        "by",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "landed": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "found"
+                            ]
+                          },
+                          "by": {
+                            "type": "string",
+                            "enum": [
+                              "recorded",
+                              "key",
+                              "patch-id"
+                            ],
+                            "description": "The step that matched: recorded (the branch reaches the recorded commit), key (one commit carries the Finding-Run and Finding trailers) or patch-id (one commit has the recorded commit's stable patch id)."
+                          },
+                          "commit": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the fix landed as: the recorded commit when found by recorded."
+                          },
+                          "branch": {
+                            "$ref": "#/$defs/NonEmptyString_6"
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "by",
+                          "commit",
+                          "branch",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The fix was found on a branch by one commit."
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ambiguous"
+                            ]
+                          },
+                          "commits": {
+                            "type": "array",
+                            "minItems": 2,
+                            "description": "Every commit that matched the step, oldest first: two or more.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                              "description": "A commit that matched."
+                            }
+                          },
+                          "branch": {
+                            "$ref": "#/$defs/NonEmptyString_6"
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "commits",
+                          "branch",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Several commits of one branch matched the same step."
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "not-found"
+                            ]
+                          },
+                          "branches": {
+                            "type": "array",
+                            "minItems": 1,
+                            "description": "Every branch looked for, in search order: the base branch, then the run's branch whenever the run has one, even when it no longer resolves.",
+                            "items": {
+                              "$ref": "#/$defs/NonEmptyString_7"
+                            }
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "branches",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The fix was found on no branch looked for."
+                      }
+                    ],
+                    "description": "Where the latest fix landed: found, ambiguous or not-found, on the base branch then the run's branch, among commits made since the run started."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The resolution of the latest fix of a fixed finding, read when the list was made; null for every other fate."
+              }
+            },
+            "required": [
+              "id",
+              "source",
+              "severity",
+              "file",
+              "line",
+              "message",
+              "lens",
+              "escape",
+              "criterion",
+              "suggestion",
+              "fate",
+              "history",
+              "landed"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^C[1-9][0-9]*$",
+                "description": "The finding's id in its run: C<n>, n from 1, given by phax."
+              },
+              "source": {
+                "type": "string",
+                "enum": [
+                  "compliance-review"
+                ]
+              },
+              "severity": {
+                "type": "string",
+                "enum": [
+                  "info",
+                  "deviation",
+                  "concern"
+                ]
+              },
+              "phaseId": {
+                "$ref": "#/$defs/NonEmptyString"
+              },
+              "dimension": {
+                "type": "string",
+                "enum": [
+                  "objective",
+                  "excluded-scope",
+                  "files",
+                  "tests",
+                  "boundaries",
+                  "commit",
+                  "handoff"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "fate": {
+                "type": "string",
+                "enum": [
+                  "open",
+                  "fixed",
+                  "dismissed",
+                  "deferred",
+                  "unrecorded"
+                ],
+                "description": "What became of the finding: open (no fate record), fixed, dismissed, deferred, or unrecorded (a review persisted before ids existed)."
+              },
+              "history": {
+                "type": "array",
+                "description": "The finding's fate records, oldest first: each a fix, a dismissal or a deferral. The latest decides the fate.",
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "fixed"
+                          ]
+                        },
+                        "commit": {
+                          "type": "string",
+                          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64})$",
+                          "description": "A git commit sha, lowercase hex of 40 or 64 characters."
+                        },
+                        "pathClasses": {
+                          "type": "array",
+                          "minItems": 1,
+                          "uniqueItems": true,
+                          "description": "The classes of the fix commit's changed paths, each once, in the order code, docs, gate-config, tests.",
+                          "items": {
+                            "type": "string",
+                            "enum": [
+                              "code",
+                              "docs",
+                              "gate-config",
+                              "tests"
+                            ],
+                            "description": "The class of a changed path: code (everything else), docs (documentation), gate-config (a gate tool's configuration or a CI workflow) or tests (test files and directories)."
+                          }
+                        },
+                        "by": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "operator"
+                                  ]
+                                },
+                                "name": {
+                                  "$ref": "#/$defs/NonEmptyString_3"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "machine"
+                                  ]
+                                },
+                                "grant": {
+                                  "type": "string",
+                                  "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                                  "description": "The grant the machine declared with `--by machine:<grant>`."
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "grant"
+                              ],
+                              "additionalProperties": false
+                            }
+                          ]
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                          "description": "An ISO-8601 UTC timestamp."
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "commit",
+                        "pathClasses",
+                        "by",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "dismissed"
+                          ]
+                        },
+                        "verdict": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "decided"
+                              ]
+                            },
+                            "chosen": {
+                              "type": "string",
+                              "enum": [
+                                "dismiss"
+                              ]
+                            },
+                            "abandoned": {
+                              "type": "array",
+                              "maxItems": 2,
+                              "minItems": 2,
+                              "items": [
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "fix"
+                                  ]
+                                },
+                                {
+                                  "type": "string",
+                                  "enum": [
+                                    "defer"
+                                  ]
+                                }
+                              ]
+                            },
+                            "why": {
+                              "$ref": "#/$defs/NonEmptyString"
+                            },
+                            "advocate": {
+                              "$ref": "#/$defs/NonEmptyString_4"
+                            },
+                            "principles": {
+                              "type": "array",
+                              "items": false
+                            },
+                            "reversibility": {
+                              "type": "string",
+                              "enum": [
+                                "cheap"
+                              ]
+                            },
+                            "by": {
+                              "type": "object",
+                              "properties": {
+                                "kind": {
+                                  "type": "string",
+                                  "enum": [
+                                    "operator"
+                                  ]
+                                },
+                                "name": {
+                                  "$ref": "#/$defs/NonEmptyString_3"
+                                }
+                              },
+                              "required": [
+                                "kind",
+                                "name"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "at": {
+                              "type": "string",
+                              "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                              "description": "An ISO-8601 UTC timestamp."
+                            },
+                            "revised": {
+                              "type": "array",
+                              "items": false
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "chosen",
+                            "abandoned",
+                            "why",
+                            "advocate",
+                            "principles",
+                            "reversibility",
+                            "by",
+                            "at",
+                            "revised"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "verdict"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "fate": {
+                          "type": "string",
+                          "enum": [
+                            "deferred"
+                          ]
+                        },
+                        "to": {
+                          "$ref": "#/$defs/NonEmptyString_5"
+                        },
+                        "why": {
+                          "$ref": "#/$defs/NonEmptyString"
+                        },
+                        "by": {
+                          "type": "object",
+                          "properties": {
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "operator"
+                              ]
+                            },
+                            "name": {
+                              "$ref": "#/$defs/NonEmptyString_3"
+                            }
+                          },
+                          "required": [
+                            "kind",
+                            "name"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "at": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$",
+                          "description": "An ISO-8601 UTC timestamp."
+                        }
+                      },
+                      "required": [
+                        "fate",
+                        "to",
+                        "why",
+                        "by",
+                        "at"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              },
+              "landed": {
+                "anyOf": [
+                  {
+                    "anyOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "found"
+                            ]
+                          },
+                          "by": {
+                            "type": "string",
+                            "enum": [
+                              "recorded",
+                              "key",
+                              "patch-id"
+                            ],
+                            "description": "The step that matched: recorded (the branch reaches the recorded commit), key (one commit carries the Finding-Run and Finding trailers) or patch-id (one commit has the recorded commit's stable patch id)."
+                          },
+                          "commit": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the fix landed as: the recorded commit when found by recorded."
+                          },
+                          "branch": {
+                            "$ref": "#/$defs/NonEmptyString_6"
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "by",
+                          "commit",
+                          "branch",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The fix was found on a branch by one commit."
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ambiguous"
+                            ]
+                          },
+                          "commits": {
+                            "type": "array",
+                            "minItems": 2,
+                            "description": "Every commit that matched the step, oldest first: two or more.",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                              "description": "A commit that matched."
+                            }
+                          },
+                          "branch": {
+                            "$ref": "#/$defs/NonEmptyString_6"
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "commits",
+                          "branch",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "Several commits of one branch matched the same step."
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "not-found"
+                            ]
+                          },
+                          "branches": {
+                            "type": "array",
+                            "minItems": 1,
+                            "description": "Every branch looked for, in search order: the base branch, then the run's branch whenever the run has one, even when it no longer resolves.",
+                            "items": {
+                              "$ref": "#/$defs/NonEmptyString_7"
+                            }
+                          },
+                          "recorded": {
+                            "type": "string",
+                            "pattern": "^[0-9a-f]{40}([0-9a-f]{24})?$",
+                            "description": "The commit the latest fixed record names."
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "branches",
+                          "recorded"
+                        ],
+                        "additionalProperties": false,
+                        "description": "The fix was found on no branch looked for."
+                      }
+                    ],
+                    "description": "Where the latest fix landed: found, ambiguous or not-found, on the base branch then the run's branch, among commits made since the run started."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "The resolution of the latest fix of a fixed finding, read when the list was made; null for every other fate."
+              }
+            },
+            "required": [
+              "id",
+              "source",
+              "severity",
+              "phaseId",
+              "dimension",
+              "message",
+              "fate",
+              "history",
+              "landed"
+            ],
+            "additionalProperties": false
+          }
+        ]
+      }
+    }
+  },
+  "required": [
+    "$schema",
+    "run",
+    "records",
+    "findings"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "NonEmptyString": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$"
+    },
+    "NonEmptyString_1": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The label of the base branch the resolution searched first: publish.baseBranch, else main; origin/main (publish.remote) when only the remote-tracking branch exists."
+    },
+    "NonEmptyString_2": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The path the finding is about, as the reviewer gave it."
+    },
+    "NonEmptyString_3": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The operator's git user.name."
+    },
+    "NonEmptyString_4": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The strongest case for fixing the finding: its suggestion or message."
+    },
+    "NonEmptyString_5": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The repository-relative path of the brief, spec or NEXT_STEPS.md that takes the finding over, tracked when recorded."
+    },
+    "NonEmptyString_6": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "The branch the fix was found on: the base branch's label (main, or origin/main when only the remote-tracking branch exists) or the run's branch."
+    },
+    "NonEmptyString_7": {
+      "type": "string",
+      "pattern": "^[\\s\\S]+$",
+      "description": "A branch the fix was looked for on."
+    }
+  }
+}

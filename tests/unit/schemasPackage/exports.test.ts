@@ -109,6 +109,7 @@ describe("schemas package entry", () => {
       "FindingFateEntrySchema",
       "FindingFateRecordManifestSchema",
       "FindingListSchema",
+      "FindingListV0_40_0Schema",
       "FirstReadingSchema",
       "FirstReadingV0_26_0Schema",
       "GateAttributionPreSchemaSchema",

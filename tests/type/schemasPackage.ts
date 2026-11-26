@@ -5,7 +5,9 @@ import type {
   LatestArtifactStatus,
   FindingList,
   FindingListShape,
+  FindingListV0_40_0,
   LatestFindingList,
+  LiftedFindingList,
   LatestPlanLint,
   LatestPlanOverview,
   PlanLint,
@@ -19,7 +21,6 @@ import type {
   parsePlanLint,
   parsePlanOverview,
   toLatestArtifactStatus,
-  toLatestFindingList,
   toLatestPlanLint,
   toLatestPlanOverview,
   ArchitectureReport,
@@ -286,6 +287,7 @@ import {
   toLatestReviewRecordManifest,
   toLatestRevisionRecordManifest,
   toLatestFindingFateRecordManifest,
+  toLatestFindingList,
   toLatestGateAttribution,
   toLatestGateReport,
   toLatestGateRequest,
@@ -367,6 +369,7 @@ import type { PlanOverview as PhaxPlanOverview } from "../../src/domain/plan/ove
 import type { LintReport as PhaxLintReport } from "../../src/app/lintPlan.js";
 import type { RunListV0_30_0 as FrozenRunListV0_30_0 } from "../../src/schemas/history/run-list/0.30.0.js";
 import type { PlanLintV0_34_0 as FrozenPlanLintV0_34_0 } from "../../src/schemas/history/plan-lint/0.34.0.js";
+import type { FindingListV0_40_0 as FrozenFindingListV0_40_0 } from "../../src/schemas/history/finding-list/0.40.0.js";
 import type {
   RunList as PhaxRunList,
   RunListFile as PhaxRunListFile,
@@ -1723,9 +1726,10 @@ void interactiveTypes;
 // The artifact status, plan overview and plan lint are born with $schema at
 // 0.34.0: phax's own file types, one current shape each, and an in-memory
 // value without $schema. The plan lint also reads its frozen 0.34.0 shape,
-// before the gate-profile check, and lifts it unchanged. The overview and the
-// lint report are the types the use cases build, held equal to the published
-// documents.
+// before the gate-profile check, and lifts it unchanged. The finding list
+// also reads its frozen 0.40.0 shape, before `landed`, and lifts it under a
+// type of its own. The overview and the lint report are the types the use
+// cases build, held equal to the published documents.
 const commandAnswerTypes: [
   Equals<ArtifactStatus, PhaxArtifactStatusFile>,
   Equals<ArtifactStatusShape, Current<"artifact-status">>,
@@ -1746,11 +1750,16 @@ const commandAnswerTypes: [
   Equals<PlanLintV0_34_0, FrozenPlanLintV0_34_0>,
   Equals<PhaxPlanLintDocument, PhaxLintReport>,
   Equals<FindingList, PhaxFindingListFile>,
-  Equals<FindingListShape, Current<"finding-list">>,
-  Equals<Value<typeof parseFindingList>, PhaxFindingListFile>,
+  Equals<FindingListShape, "0.40.0" | Current<"finding-list">>,
+  Equals<Value<typeof parseFindingList>, FrozenFindingListV0_40_0 | PhaxFindingListFile>,
   Equals<LatestFindingList, PhaxFindingListDocument>,
-  Equals<Parameters<typeof toLatestFindingList>, [value: PhaxFindingListFile]>,
+  Equals<
+    Parameters<typeof toLatestFindingList>,
+    [value: PhaxFindingListFile | FrozenFindingListV0_40_0]
+  >,
+  Equals<FindingListV0_40_0, FrozenFindingListV0_40_0>,
 ] = [
+  true,
   true,
   true,
   true,
@@ -2062,6 +2071,21 @@ const phaxPlanGateProfileNeverInvented: [
   Equals<"$schema" extends keyof typeof upgradedPhaxPlanCurrent ? true : false, false>,
 ] = [true, true, true, true, true, true];
 void phaxPlanGateProfileNeverInvented;
+// The current finding list upgrades to the latest, whose findings say where a
+// fix landed; a 0.40.0 one recorded none, and lifts under a type of its own,
+// its resolutions and its base branch Unknown or null, never invented.
+declare const findingListCurrent: PhaxFindingListFile;
+declare const findingListV0_40_0: FrozenFindingListV0_40_0;
+const upgradedFindingListCurrent = toLatestFindingList(findingListCurrent);
+const liftedFindingListV0_40_0 = toLatestFindingList(findingListV0_40_0);
+const findingListLandedNeverInvented: [
+  Equals<typeof upgradedFindingListCurrent, LatestFindingList>,
+  Equals<typeof liftedFindingListV0_40_0, LiftedFindingList>,
+  Equals<LiftedFindingList["findings"][number]["landed"], Unknown | null>,
+  Equals<LiftedFindingList["run"]["baseBranch"], Unknown>,
+  Equals<"$schema" extends keyof typeof upgradedFindingListCurrent ? true : false, false>,
+] = [true, true, true, true, true];
+void findingListLandedNeverInvented;
 void complianceReviewIsPhax;
 
 // ── repository formats

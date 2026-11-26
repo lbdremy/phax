@@ -12,6 +12,7 @@ import {
   toLatestPlanLint,
   toLatestPlanOverview,
   toLatestRunList,
+  UNKNOWN,
 } from "../../../packages/schemas/src/index.js";
 import { schemaUrl } from "../../../src/schemas/schemaUrl.js";
 import { validDocuments, withKey, withoutKey, type Doc } from "./documents.js";
@@ -61,6 +62,75 @@ describe.each(FORMATS)("%s", (id, parse, toLatest) => {
   it("refuses another format's $schema", () => {
     const other = { ...document, $schema: schemaUrl("run-list", "0.34.0") };
     expect(parse(other).ok).toBe(false);
+  });
+});
+
+describe("finding-list 0.40.0", () => {
+  const by = { kind: "operator", name: "Ada Example" };
+  const at = "2026-11-01T13:30:00Z";
+  const fix = { fate: "fixed", commit: "1".repeat(40), pathClasses: ["code"], by, at };
+  const finding = (id: string, fate: string, history: readonly unknown[]) => ({
+    id,
+    source: "code-review",
+    severity: "bug",
+    file: "src/example.ts",
+    line: 12,
+    message: "An empty name is accepted.",
+    lens: "edge",
+    escape: "unexplored-input",
+    criterion: null,
+    suggestion: "Refuse an empty name.",
+    fate,
+    history,
+  });
+  const findings = [
+    finding("F1", "open", []),
+    finding("F2", "fixed", [fix]),
+    finding("F3", "deferred", [{ fate: "deferred", to: "NEXT_STEPS.md", why: "Later.", by, at }]),
+    finding("F4", "unrecorded", []),
+    {
+      id: "C1",
+      source: "compliance-review",
+      severity: "deviation",
+      phaseId: "phase-02",
+      dimension: "files",
+      message: "A planned file was not touched.",
+      fate: "fixed",
+      history: [fix],
+    },
+  ];
+  const frozen: Doc = {
+    $schema: schemaUrl("finding-list", "0.40.0"),
+    run: { namespace: "garden", shortName: "garden-sync", runId: "r-1", state: "review_open" },
+    records: "read",
+    findings,
+  };
+
+  it("is still parsed, at its own shape", () => {
+    const parsed = parseFindingList(frozen);
+    expect(parsed.ok && parsed.shape).toBe("0.40.0");
+    const identified = parseDocument(frozen);
+    expect(identified.ok && identified.format === "finding-list" && identified.shape).toBe(
+      "0.40.0",
+    );
+  });
+
+  it("lifts with landed Unknown on a fixed finding and null on every other, never a guess", () => {
+    const parsed = parseFindingList(frozen);
+    if (!parsed.ok) throw new Error("the 0.40.0 list does not parse");
+    const lifted = toLatestFindingList(parsed.value);
+    expect(lifted.findings.map((entry) => [entry.id, entry.landed])).toEqual([
+      ["F1", null],
+      ["F2", UNKNOWN],
+      ["F3", null],
+      ["F4", null],
+      ["C1", UNKNOWN],
+    ]);
+    expect(lifted.run.baseBranch).toEqual(UNKNOWN);
+    expect(lifted.findings.map((entry) => entry.history)).toEqual(
+      findings.map((entry) => entry.history),
+    );
+    expect("$schema" in lifted).toBe(false);
   });
 });
 

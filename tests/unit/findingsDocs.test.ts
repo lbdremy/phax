@@ -74,16 +74,19 @@ const code = (
   suggestion: "…",
   fate: history.at(-1)?.fate ?? "open",
   history,
+  landed: null,
 });
 
-const F1 = code(
-  "F1",
-  "bug",
-  "src/app/retry.ts",
-  41,
-  "The retry count is never reset after a pass",
-  [fixedBy(F1_FIX, ["code", "tests"])],
-);
+// A fix whose recorded commit is on main: the list shows nothing more on its line.
+const onMain = (commit: string) =>
+  ({ status: "found", by: "recorded", commit, branch: "main", recorded: commit }) as const;
+
+const F1: Finding = {
+  ...code("F1", "bug", "src/app/retry.ts", 41, "The retry count is never reset after a pass", [
+    fixedBy(F1_FIX, ["code", "tests"]),
+  ]),
+  landed: onMain(F1_FIX),
+};
 const F2 = code("F2", "concern", "src/app/retry.ts", 77, "The backoff has no upper bound", []);
 const F3 = code("F3", "info", "docs/retry.md", 9, "The page still names the old flag", [
   dismissedFor("the page names it on purpose"),
@@ -100,14 +103,21 @@ const C1: Finding = {
   message: "src/gate.ts was edited and not planned",
   fate: "open",
   history: [],
+  landed: null,
 };
-const F2_FIXED: Finding = { ...F2, fate: "fixed", history: [fixedBy(F2_FIX, ["tests"])] };
+const F2_FIXED: Finding = {
+  ...F2,
+  fate: "fixed",
+  history: [fixedBy(F2_FIX, ["tests"])],
+  landed: onMain(F2_FIX),
+};
 
 const run = {
   namespace: "acme",
   shortName: "gate-retry",
   runId: "gate-retry-1",
   state: "review_open",
+  baseBranch: "main",
 } as const;
 
 const pushed = { remote: "origin", branch: "phax/gate-retry--phase-03", sha: F2_FIX } as const;

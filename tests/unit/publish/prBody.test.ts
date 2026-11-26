@@ -585,6 +585,7 @@ function finding(n: number, fate: Fate, over: Partial<CodeReviewFindingEntry> = 
     suggestion: "Honour NO_COLOR.",
     fate,
     history,
+    landed: null,
     ...over,
   };
 }
