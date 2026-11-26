@@ -1,12 +1,19 @@
 import { Array as Arr, Result } from "effect";
 import { slugifyShortName } from "../branded.js";
 import { PlanValidationError } from "../errors.js";
-import type { ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
+import type { DisplayedPhaxPlan, ExtractedPhaxPlan, PhaxPlan } from "../../schemas/phaxPlan.js";
 import { readPlanGateProfile } from "./parsePlanMarkdown.js";
 import { phaseHeadingSources } from "./sections.js";
 
 export interface FinalizeResult {
   readonly plan: PhaxPlan;
+  readonly warnings: string[];
+  readonly detectedAnchors: string[];
+}
+
+/** A plan finalized for display only: the run carries no gate profile. */
+export interface DisplayedFinalizeResult {
+  readonly plan: Omit<PhaxPlan, "run"> & { readonly run: Omit<PhaxPlan["run"], "gateProfile"> };
   readonly warnings: string[];
   readonly detectedAnchors: string[];
 }
@@ -44,6 +51,27 @@ export function finalizeExtractedPlan(
   extracted: ExtractedPhaxPlan,
   planMd: string,
 ): Result.Result<FinalizeResult, PlanValidationError> {
+  return Result.flatMap(finalizeDisplayedPlan(extracted, planMd), (displayed) => {
+    // The run's gate profile is phax's own reading of the plan's `## Gate
+    // profile` section, whatever the extracted value says: on the fallback path
+    // the model is never asked for it.
+    const gateProfile = readPlanGateProfile(planMd);
+    if (Result.isFailure(gateProfile)) return Result.fail(gateProfile.failure);
+    return Result.succeed({
+      ...displayed,
+      plan: { ...displayed.plan, run: { ...displayed.plan.run, gateProfile: gateProfile.success } },
+    });
+  });
+}
+
+/**
+ * `finalizeExtractedPlan` for the commands that only show a plan: the same
+ * titles, short name, branch, anchors and warnings, and no gate profile.
+ */
+export function finalizeDisplayedPlan(
+  extracted: DisplayedPhaxPlan,
+  planMd: string,
+): Result.Result<DisplayedFinalizeResult, PlanValidationError> {
   // The ids of the root-level `## phase-NN` headings, as the parser recognises them: a
   // `## phase-NN` written mid-line, inside a list or in a code block is not a phase heading.
   const headings = phaseHeadingSources(planMd);
@@ -66,22 +94,15 @@ export function finalizeExtractedPlan(
     title: phaseTitles.get(p.id) ?? "",
   }));
 
-  // The run's gate profile is phax's own reading of the plan's `## Gate
-  // profile` section, whatever the extracted value says: on the fallback path
-  // the model is never asked for it.
-  const gateProfile = readPlanGateProfile(planMd);
-  if (Result.isFailure(gateProfile)) return Result.fail(gateProfile.failure);
-
   const shortName =
     slugifyShortName(extracted.run.shortName) || slugifyShortName(extracted.run.title) || "run";
 
-  const plan: PhaxPlan = {
+  const plan: DisplayedFinalizeResult["plan"] = {
     run: {
-      ...extracted.run,
       shortName,
+      title: extracted.run.title,
       branch: `phax/${shortName}`,
       requiredCommands: extracted.run.requiredCommands,
-      gateProfile: gateProfile.success,
     },
     phases: phasesWithTitles,
   };

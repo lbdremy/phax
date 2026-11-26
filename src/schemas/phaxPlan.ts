@@ -142,6 +142,15 @@ export const ExtractedPhaxPlanSchema = Schema.Struct({
   phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
 });
 
+// A plan read for display only (`phax plans overview`, `estimate`, `overlap`):
+// the run's gate profile is not read, so a plan written before the
+// declaration still shows. Lint, run and staleness never read a plan this way.
+export const DisplayedPhaxPlanSchema = Schema.Struct({
+  version: Schema.Literal(1),
+  run: Schema.Struct(answerRunFields),
+  phases: Schema.NonEmptyArray(ExtractedPhaseSchema),
+});
+
 // The full plan, after phax merges in the deterministic fields.
 const phaxPlanFields = {
   run: Schema.Struct({
@@ -155,6 +164,7 @@ const phaxPlanFields = {
 };
 
 export type ExtractedPhaxPlan = Schema.Schema.Type<typeof ExtractedPhaxPlanSchema>;
+export type DisplayedPhaxPlan = Schema.Schema.Type<typeof DisplayedPhaxPlanSchema>;
 /** A run's plan in memory: never a `version`, never a `$schema`. */
 export type PhaxPlan = Types.Simplify<Schema.Struct.Type<typeof phaxPlanFields>>;
 export type PhaxPlanPhase = Schema.Schema.Type<typeof PhaseSchema>;

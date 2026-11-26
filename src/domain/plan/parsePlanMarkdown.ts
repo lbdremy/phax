@@ -1,7 +1,12 @@
 import { Result, Schema } from "effect";
 import type { Heading, List, Paragraph, Root, RootContent } from "mdast";
 import { PlanValidationError } from "../errors.js";
-import { ExtractedPhaxPlanSchema, type ExtractedPhaxPlan } from "../../schemas/phaxPlan.js";
+import {
+  DisplayedPhaxPlanSchema,
+  ExtractedPhaxPlanSchema,
+  type DisplayedPhaxPlan,
+  type ExtractedPhaxPlan,
+} from "../../schemas/phaxPlan.js";
 import { nodeText as toString } from "./nodeText.js";
 import { phaseKinds, readPhaseBlock } from "./phaseHeader.js";
 import { describeUnplannable, readPlanPath } from "./planPath.js";
@@ -14,6 +19,10 @@ import {
 } from "./testLineGrammar.js";
 
 const decodeExtracted = Schema.decodeUnknownResult(ExtractedPhaxPlanSchema, {
+  onExcessProperty: "error",
+  reportInput: true,
+});
+const decodeDisplayed = Schema.decodeUnknownResult(DisplayedPhaxPlanSchema, {
   onExcessProperty: "error",
   reportInput: true,
 });
@@ -488,7 +497,8 @@ interface PlanWalkResult {
       readonly shortName: string;
       readonly title: string;
       readonly requiredCommands: readonly string[];
-      readonly gateProfile: string;
+      // Absent when the walk does not read the gate profile.
+      readonly gateProfile?: string;
     };
     readonly phases: readonly unknown[];
   } | null;
@@ -504,7 +514,16 @@ interface PlanWalkResult {
 // it is the shape `extractPlanDeterministic` decodes through the schema.
 // A plan nested over the limit `readPlanTree` refuses is not walked: its one
 // error is the refusal.
-function walkPlan(planMd: string): PlanWalkResult {
+// How a walk treats the run's gate profile: `required` reads it and reports a
+// missing, doubled or malformed declaration; `display` leaves it out of the
+// candidate and reports only a doubled or malformed one, so a plan written
+// before the declaration still shows.
+type GateProfileReading = "required" | "display";
+
+function walkPlan(
+  planMd: string,
+  gateProfileReading: GateProfileReading = "required",
+): PlanWalkResult {
   const tree = readPlanTree(planMd);
   if (Result.isFailure(tree)) {
     return {
@@ -530,10 +549,10 @@ function walkPlan(planMd: string): PlanWalkResult {
   const preamble = collectPreamble(root);
   const gateProfileE = readGateProfileInPreamble(preamble);
   let gateProfile = "";
-  if (Result.isFailure(gateProfileE)) {
-    errors.push({ phase: null, message: gateProfileE.failure });
-  } else {
+  if (Result.isSuccess(gateProfileE)) {
     gateProfile = gateProfileE.success;
+  } else if (gateProfileReading === "required" || gateProfileE.failure !== GATE_PROFILE_MISSING) {
+    errors.push({ phase: null, message: gateProfileE.failure });
   }
 
   const requiredCommandsE = extractRequiredCommands(preamble);
@@ -680,7 +699,10 @@ function walkPlan(planMd: string): PlanWalkResult {
     errors,
     candidate: {
       version: 1,
-      run: { shortName: runTitle, title: runTitle, requiredCommands, gateProfile },
+      run:
+        gateProfileReading === "required"
+          ? { shortName: runTitle, title: runTitle, requiredCommands, gateProfile }
+          : { shortName: runTitle, title: runTitle, requiredCommands },
       phases,
     },
     strategies,
@@ -766,6 +788,41 @@ export function readPlanDeterministic(
       s.departures.map((departure) => ({ phase: s.phase, departure })),
     ),
     lineItems: strategies.map((s) => ({ phase: s.phase, items: s.lines.map((l) => l.item) })),
+  });
+}
+
+/** The display reading of a plan.md: its plan without the gate profile, and every departing test line. */
+export interface DisplayedPlanReading {
+  readonly plan: DisplayedPhaxPlan;
+  readonly departures: readonly PlanTestLineDeparture[];
+}
+
+/**
+ * `readPlanDeterministic` for the commands that only show a plan (`phax plans
+ * overview`, `estimate`, `overlap`): the run's gate profile is not read, so a
+ * plan.md written before `## Gate profile` existed reads; a doubled or
+ * malformed declaration is still a structure error.
+ */
+export function readPlanForDisplay(
+  planMd: string,
+): Result.Result<DisplayedPlanReading, PlanValidationError> {
+  const { errors, candidate, strategies } = walkPlan(planMd, "display");
+  if (errors.length > 0 || !candidate) {
+    return Result.fail(new PlanValidationError({ message: errors[0]!.message }));
+  }
+  const decoded = decodeDisplayed(candidate);
+  if (Result.isFailure(decoded)) {
+    return Result.fail(
+      new PlanValidationError({
+        message: `deterministic extraction produced an invalid plan: ${decoded.failure.message}`,
+      }),
+    );
+  }
+  return Result.succeed({
+    plan: decoded.success,
+    departures: strategies.flatMap((s) =>
+      s.departures.map((departure) => ({ phase: s.phase, departure })),
+    ),
   });
 }
 

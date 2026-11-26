@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { Effect, Layer, Result } from "effect";
 import { planOverview, type PlanOverviewFailure } from "../../src/app/planOverview.js";
@@ -417,5 +418,46 @@ describe("the overview of a plan nested over the limit", () => {
       kind: "unparsable",
       line: "plan.md: the plan does not parse — run phax plans lint plan.md",
     });
+  });
+});
+
+describe("the overview of a plan written before ## Gate profile", () => {
+  const PLAN_PATH = "/repo/plan.md";
+  const config = resolvedConfig({
+    root: "/",
+    repoRoot: "/repo",
+    stateRoot: "/state",
+    cleanup: () => {},
+  });
+  const example = readFileSync("examples/hello-world/plan.md", "utf8");
+  const undeclared = example.replace(/^## Gate profile\n\n`standard`\n\n/m, "");
+  const doubled = example.replace(
+    /^## Gate profile\n\n`standard`\n\n/m,
+    "## Gate profile\n\n`standard`\n\n## Gate profile\n\n`light`\n\n",
+  );
+
+  function overviewOf(planMd: string) {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(PLAN_PATH, planMd);
+    return Effect.runPromise(
+      planOverview({
+        planMdPath: PLAN_PATH,
+        reportPath: "plan.md",
+        repoRelPath: "plan.md",
+        config,
+      }).pipe(Effect.result, Effect.provide(Layer.mergeAll(fakeFs.layer, makeFakeShell().layer))),
+    );
+  }
+
+  it("shows it: the overview does not read the gate profile", async () => {
+    expect(undeclared).not.toBe(example);
+    const result = await overviewOf(undeclared);
+    if (Result.isFailure(result)) throw new Error(JSON.stringify(result.failure));
+    expect(result.success.phases.map((p) => p.id)).toEqual(["phase-01", "phase-02", "phase-03"]);
+  });
+
+  it("still refuses a doubled declaration", async () => {
+    const result = await overviewOf(doubled);
+    expect(Result.isFailure(result)).toBe(true);
   });
 });

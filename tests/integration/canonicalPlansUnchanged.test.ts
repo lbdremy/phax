@@ -7,9 +7,12 @@ import { describe, expect, it } from "vitest";
 import { lintPlan } from "../../src/app/lintPlan.js";
 import { computeStaleness } from "../../src/domain/artifact/lineage.js";
 import { renderStalenessReport } from "../../src/domain/artifact/render.js";
-import { finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
+import { finalizeDisplayedPlan, finalizeExtractedPlan } from "../../src/domain/plan/finalize.js";
 import { renderLintReport } from "../../src/domain/plan/lintRender.js";
-import { extractPlanDeterministic } from "../../src/domain/plan/parsePlanMarkdown.js";
+import {
+  extractPlanDeterministic,
+  readPlanForDisplay,
+} from "../../src/domain/plan/parsePlanMarkdown.js";
 import { readPlanPath } from "../../src/domain/plan/planPath.js";
 import { buildFootprint, computePlanOverlap } from "../../src/domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../../src/domain/planOverlap/fromPhaxPlan.js";
@@ -63,9 +66,10 @@ const config = {
   complianceReview: { enabled: false, model: "claude-sonnet-4-6", effort: "medium" },
 } as unknown as ResolvedConfig;
 
-// The archived plans predate the gate-profile declaration, which every plan now carries: each is
-// read as a copy with `standard`, the profile of `config` above, declared just before its
-// `## Required commands`. The plan files themselves are never edited.
+// The archived plans predate the gate-profile declaration. Lint refuses a plan without one, so
+// lint reads a copy with `standard`, the profile of `config` above, declared just before its
+// `## Required commands`. Overlap and status show a plan without reading its gate profile, so
+// they read the plans as written. The plan files themselves are never edited.
 const DECLARATION = "## Gate profile\n\n`standard`\n\n";
 
 function textOf(path: string): string {
@@ -84,9 +88,18 @@ function readPlan(path: string): PhaxPlan {
   return finalized.success.plan;
 }
 
-const plans = PLANS.map((p) => ({ ...p, plan: readPlan(p.path) }));
+function readDisplayedPlan(path: string): Pick<PhaxPlan, "phases"> {
+  const text = readFileSync(path, "utf8");
+  const read = readPlanForDisplay(text);
+  if (Result.isFailure(read)) throw new Error(`${path}: ${read.failure.message}`);
+  const finalized = finalizeDisplayedPlan(read.success.plan, text);
+  if (Result.isFailure(finalized)) throw new Error(`${path}: ${finalized.failure.message}`);
+  return finalized.success.plan;
+}
 
-function planPathsOf(plan: PhaxPlan): string[] {
+const plans = PLANS.map((p) => ({ ...p, plan: readDisplayedPlan(p.path) }));
+
+function planPathsOf(plan: Pick<PhaxPlan, "phases">): string[] {
   return plan.phases.flatMap((p) => [
     ...p.plannedFilesToCreate,
     ...p.plannedFilesToEdit,
@@ -148,6 +161,12 @@ function statusOutput(): string {
 }
 
 describe("canonical plans' outputs (ac-additive baseline)", () => {
+  it("the archived plans are read as written, with no ## Gate profile", () => {
+    for (const p of PLANS.filter((q) => q.path.startsWith("docs/plans/archive/"))) {
+      expect(readFileSync(p.path, "utf8"), p.path).not.toMatch(/^## Gate profile$/m);
+    }
+  });
+
   it("every plan path of the three plans is canonical", () => {
     for (const p of plans) {
       for (const path of planPathsOf(p.plan)) {

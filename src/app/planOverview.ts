@@ -4,8 +4,8 @@ import { Shell } from "../ports/shell.js";
 import { classifyArtifactPath, validateArtifact } from "../domain/artifact/document.js";
 import { readPlanFrontmatter } from "../domain/artifact/lineage.js";
 import { parseArtifactName } from "../domain/artifact/name.js";
-import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
-import { extractPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import { finalizeDisplayedPlan } from "../domain/plan/finalize.js";
+import { readPlanForDisplay } from "../domain/plan/parsePlanMarkdown.js";
 import { planNestingRefusal } from "../domain/plan/planTree.js";
 import {
   buildOverview,
@@ -94,9 +94,13 @@ export function planOverview(
       kind: "unparsable",
       line: `${reportPath}: the plan does not parse — run phax plans lint ${reportPath}`,
     };
-    const extracted = extractPlanDeterministic(planMd);
-    if (Result.isFailure(extracted)) return yield* Effect.fail(unparsable);
-    const finalized = finalizeExtractedPlan(extracted.success, planMd);
+    // The overview shows a plan in any status, one written before `## Gate
+    // profile` existed included: the gate profile is not read here.
+    const extracted = readPlanForDisplay(planMd);
+    if (Result.isFailure(extracted) || extracted.success.departures.length > 0) {
+      return yield* Effect.fail(unparsable);
+    }
+    const finalized = finalizeDisplayedPlan(extracted.success.plan, planMd);
     if (Result.isFailure(finalized)) return yield* Effect.fail(unparsable);
     const { plan } = finalized.success;
 
