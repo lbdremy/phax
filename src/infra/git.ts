@@ -16,7 +16,14 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve as resolvePath, sep } from "node:path";
-import { Git, GitError, type GitOps, type GitTreeEntry, type CommitFiles } from "../ports/git.js";
+import {
+  Git,
+  GitError,
+  type GitOps,
+  type GitTreeEntry,
+  type CommitFiles,
+  type RangeCommit,
+} from "../ports/git.js";
 import {
   WORKTREE_HARDENING_ARGS,
   makeWorktreeGuard,
@@ -275,6 +282,98 @@ function listCommitFilesEffect(
       else paths[paths.length - 1]?.push(line);
     }
     return commits.map((c, i) => ({ sha: c.sha, tree: c.tree, paths: paths[i] ?? [] }));
+  });
+}
+
+// `git log -z --format=%H%x00%cI%x00%B`: each record ends with a NUL, and
+// its three fields are NUL-separated. A message never holds a NUL (git cuts
+// it there), so the split is exact. With `-z` git ends the record with the
+// NUL instead of a newline, so the message is the stored bytes as they are.
+function parseRangeLog(stdout: string, command: string): Effect.Effect<RangeCommit[], GitError> {
+  const fields = stdout.split("\0");
+  if (fields.length % 3 === 1 && fields.at(-1) === "") fields.pop();
+  if (fields.length % 3 !== 0) {
+    return Effect.fail(
+      new GitError({ message: "Could not parse the commit list of git log", command }),
+    );
+  }
+  const commits: RangeCommit[] = [];
+  for (let i = 0; i < fields.length; i += 3) {
+    const sha = fields[i]!;
+    const committedAt = fields[i + 1]!;
+    if (!/^[0-9a-f]{40,64}$/.test(sha) || committedAt.length === 0) {
+      return Effect.fail(
+        new GitError({ message: `Could not parse git log record "${sha}"`, command }),
+      );
+    }
+    commits.push({ sha, committedAt, message: fields[i + 2]! });
+  }
+  return Effect.succeed(commits);
+}
+
+function commitsSinceEffect(
+  repo: string,
+  tip: string,
+  since: string,
+): Effect.Effect<readonly RangeCommit[], GitError> {
+  const args = [
+    "-c",
+    "log.showSignature=false",
+    "log",
+    "--no-color",
+    "--date-order",
+    "--reverse",
+    `--since=${since}`,
+    "-z",
+    "--format=%H%x00%cI%x00%B",
+    "--end-of-options",
+    tip,
+    "--",
+  ];
+  return gitRun(args, repo).pipe(
+    Effect.flatMap(({ stdout }) => parseRangeLog(stdout, `git ${args.join(" ")}`)),
+  );
+}
+
+// Shas per diff-tree/patch-id pair, so no single output nears MAX_BUFFER.
+const PATCH_ID_BATCH = 200;
+
+// `diff-tree --stdin` prints, per commit with a non-empty diff, its sha on a
+// line of its own and then its patch against the first parent (`-m
+// --first-parent` for a merge, `--root` for a root commit); `patch-id
+// --stable` reads that stream back as `<patch-id> <sha>` lines. The diff is
+// kept as bytes so a non-UTF-8 file hashes as git would hash it.
+function patchIdsEffect(
+  repo: string,
+  commits: readonly string[],
+): Effect.Effect<ReadonlyMap<string, string>, GitError> {
+  return Effect.gen(function* () {
+    const ids = new Map<string, string>();
+    for (let start = 0; start < commits.length; start += PATCH_ID_BATCH) {
+      const batch = commits.slice(start, start + PATCH_ID_BATCH);
+      const { stdout: diff } = yield* gitRunBuffer(
+        [
+          "diff-tree",
+          "--stdin",
+          "-p",
+          "--root",
+          "--diff-merges=first-parent",
+          "--no-color",
+          "--no-ext-diff",
+          "--no-textconv",
+          "--no-renames",
+        ],
+        repo,
+        { input: `${batch.join("\n")}\n` },
+      );
+      if (diff.length === 0) continue;
+      const { stdout } = yield* gitRun(["patch-id", "--stable"], repo, { input: diff });
+      for (const line of stdout.split("\n")) {
+        const match = /^([0-9a-f]+) ([0-9a-f]+)$/.exec(line.trim());
+        if (match !== null) ids.set(match[2]!, match[1]!);
+      }
+    }
+    return ids;
   });
 }
 
@@ -1422,6 +1521,11 @@ const nodeGitOps: GitOps = {
       );
       return [...new Set(stdout.split("\0").filter((p) => p.length > 0))].toSorted();
     }),
+
+  commitsSince: (repo, tip, since) => commitsSinceEffect(repo, tip, since),
+
+  patchIds: (repo, commits) =>
+    commits.length === 0 ? Effect.succeed(new Map()) : patchIdsEffect(repo, commits),
 
   changedPathsBetween: (path, fromTree, toTree) => {
     const args = ["diff-tree", "-r", "-z", "--name-status", "--no-renames", fromTree, toTree];

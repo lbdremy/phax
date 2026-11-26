@@ -8,6 +8,7 @@ import {
   type GitWorktreeEntry,
   type WriteTreeCommitInput,
   type CommitFiles,
+  type RangeCommit,
 } from "../../ports/git.js";
 import type { ChangedPath } from "../../domain/interactive/worktreeChange.js";
 import type { NameStatusEntry } from "../../domain/reconciliation/types.js";
@@ -106,6 +107,8 @@ export type GitCall =
   | { method: "headTree"; path: string }
   | { method: "snapshotWorktree"; path: string }
   | { method: "commitChangedPaths"; repo: string; commit: string }
+  | { method: "commitsSince"; repo: string; tip: string; since: string }
+  | { method: "patchIds"; repo: string; commits: readonly string[] }
   | { method: "changedPathsBetween"; path: string; fromTree: string; toTree: string }
   | { method: "observeWorktree"; path: string; base: string }
   | { method: "restorePaths"; path: string; tree: string; paths: readonly string[] }
@@ -939,6 +942,51 @@ export class FakeGitImpl implements GitOps {
           }),
         )
       : Effect.succeed(paths);
+  }
+
+  /** The commits `commitsSince` lists per tip, oldest first. */
+  private readonly rangeCommitsByTip = new Map<string, RangeCommit[]>();
+  /** The patch id `patchIds` answers per full sha; a sha absent here has none. */
+  private readonly patchIdBySha = new Map<string, string>();
+
+  /** Appends `commits` (oldest first) to what `commitsSince` lists from `tip`. */
+  addRangeCommits(tip: string, ...commits: RangeCommit[]): void {
+    this.rangeCommitsByTip.set(tip, [...(this.rangeCommitsByTip.get(tip) ?? []), ...commits]);
+  }
+
+  /** Scripts the patch id `patchIds` answers for `sha`. */
+  setPatchId(sha: string, patchId: string): void {
+    this.patchIdBySha.set(sha, patchId);
+  }
+
+  /** The seeded commits of `tip` committed at or after `since`; an unseeded tip fails. */
+  commitsSince(
+    repo: string,
+    tip: string,
+    since: string,
+  ): Effect.Effect<readonly RangeCommit[], GitError> {
+    this.calls.push({ method: "commitsSince", repo, tip, since });
+    const commits = this.rangeCommitsByTip.get(tip);
+    if (commits === undefined) {
+      return Effect.fail(
+        new GitError({ message: `Unknown revision ${tip}`, command: `git log ${tip}` }),
+      );
+    }
+    const from = Date.parse(since);
+    return Effect.succeed(commits.filter((c) => Date.parse(c.committedAt) >= from));
+  }
+
+  patchIds(
+    repo: string,
+    commits: readonly string[],
+  ): Effect.Effect<ReadonlyMap<string, string>, GitError> {
+    this.calls.push({ method: "patchIds", repo, commits: [...commits] });
+    const ids = new Map<string, string>();
+    for (const sha of commits) {
+      const id = this.patchIdBySha.get(sha);
+      if (id !== undefined) ids.set(sha, id);
+    }
+    return Effect.succeed(ids);
   }
 
   changedPathsBetween(
