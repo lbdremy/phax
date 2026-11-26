@@ -232,6 +232,24 @@ function runResumeCommand(
       return yield* refuse(2, `Plan error: ${planResult.failure.message}`);
     const plan = planResult.success;
 
+    // Resume gates with the profile the run recorded, never one from the plan
+    // or the first one phax.json lists. A profile it cannot gate with is
+    // refused on the preview too, before any line promises a resume.
+    const gateProfileId = runStatus.gateProfileId;
+    if (gateProfileId === undefined) {
+      return yield* refuse(
+        2,
+        `the run recorded no gate profile — an older phax started it. Finish it with the phax release that started it, or archive it with \`phax archive ${qualifiedName} --force\` and run its plan again.`,
+      );
+    }
+    const recordedProfile = resolveGateProfileById(config.raw, gateProfileId, undefined);
+    if (Result.isFailure(recordedProfile)) {
+      return yield* refuse(2, [
+        undefinedGateProfileMessage(recordedProfile.failure),
+        `  the run recorded it when it started; restore it in phax.json, or archive the run with \`phax archive ${qualifiedName} --force\``,
+      ]);
+    }
+
     if (call.skipAcceptance) {
       const skipRefusal =
         runStatus.state === "awaiting_review"
@@ -289,23 +307,6 @@ function runResumeCommand(
     const runIdResult = decodeRunId(runStatus.runId);
     if (Result.isFailure(runIdResult)) return yield* refuse(2, `Invalid runId in run-status.json`);
     const runId = runIdResult.success;
-
-    // Resume gates with the profile the run recorded, never one from the plan
-    // or the first one phax.json lists.
-    const gateProfileId = runStatus.gateProfileId;
-    if (gateProfileId === undefined) {
-      return yield* refuse(
-        2,
-        `the run recorded no gate profile — an older phax started it. Finish it with the phax release that started it, or archive it with \`phax archive ${qualifiedName} --force\` and run its plan again.`,
-      );
-    }
-    const recordedProfile = resolveGateProfileById(config.raw, gateProfileId, undefined);
-    if (Result.isFailure(recordedProfile)) {
-      return yield* refuse(2, [
-        undefinedGateProfileMessage(recordedProfile.failure),
-        `  the run recorded it when it started; restore it in phax.json, or archive the run with \`phax archive ${qualifiedName} --force\``,
-      ]);
-    }
 
     const routingResult = yield* Effect.result(
       Effect.all({ routing: loadModelRouting(), providerConfig: loadProviderConfig() }),
