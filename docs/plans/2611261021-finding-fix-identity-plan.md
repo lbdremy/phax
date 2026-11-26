@@ -56,7 +56,7 @@ phax.json needs no change for these commands.
 - `--commit` follows a rewrite only on the base branch (§5.15). It follows when the named value resolves to a commit on neither branch, or when it does not resolve and is spelled as 4 to 40 hex characters. Any other value that does not resolve is refused as today. For each named finding, phax looks first for its key over the base branch's search range. If no commit carries the key and the repository holds the named commit, it looks for the named commit's patch id over the same range. The call records a commit only when every named finding resolves to the same single commit (§5.16). Loss accepted: a commit rewritten only on the run's branch is not followed there, as the spec scopes it.
 - The text list's wording (§5.11). On the latest fix line, phax appends nothing when the fix is found by `recorded` on the base branch. Otherwise it appends ` → <sha7> on <branch>, by key`, `by patch id` or `by recorded sha`, or ` → ambiguous on <branch>: <sha7>, <sha7>`, or ` → not found on <b1> or <b2>` (one branch: ` → not found on <b1>`). Loss accepted: while a run is in review, every fix line shows an arrow to its run branch, which repeats its own sha.
 
-## Open questions
+## Arbitrated questions
 
 ### q-closure-guard — phase-03 adds the frozen decoder `src/schemas/history/finding-list/0.40.0.ts`, and the schemas package imports it, so the package's src/ closure grows. `tests/unit/architecturalGuards.test.ts` compares that closure exactly against `CLOSURE_SRC_ALLOWLIST`, and that file is in `protectedPaths`: no phase may land a change to it. How does the allowlist gain that one path? Precedent: plan-gate-profile decided `lift-for-run` on 2026-11-25, with a pre-merge check that the file's diff is exactly the added paths.
 
@@ -65,12 +65,23 @@ phax.json needs no change for these commands.
 
 Recommendation: lift-for-run — The guard needs one string added to a data list, not a new rule. phase-03's instruction confines it to that line, and the operator checks the one-line diff before merging, as for plan-gate-profile. operator-prepares moves schema work outside the gated run. Because this lifts a protection, it is the operator's call. phase-03 is written for lift-for-run. Under operator-prepares, it skips the freeze (step 1) and the allowlist edit (step 7), and the module it builds on already exists.
 
+Decision: lift-for-run — by operator (Rémy Loubradou), 2026-11-26
+Why: As for plan-gate-profile: the protection is lifted for the run, the guard file's diff is checked before merge to be exactly the one added path, and the protection comes back right after. Advocate: The strongest case for operator-prepares: the guard file stays protected for the whole run, so no phase agent can touch any architecture guard, and the one guard change is made by hand where the operator sees it. Principles: E0, C1. Reversibility: cheap. Revised: none. Phase: phase-03.
+
 ### q-text-base — §5.11 shows the resolution on the text list's fix line "whenever it is not found recorded on the base branch". The text is rendered from the finding-list document alone, and the document's normative sketch (§6) does not say which branch is the base, so a found-by-recorded fix on the run's branch cannot be told from one on the base branch. How does the text know the base branch?
 
 - run-base-branch — The document's `run` gains a required `baseBranch`: the label of the base branch the resolution searched first (`main`, or `origin/main` when only the remote-tracking branch exists). The text and `phax finding post` compare `landed.branch` with it. — abandons: The spec's normative sketch as the whole of the format change: the finding-list format gains a second field the spec did not show, and every consumer of the new stamp reads it.
 - recorded-silent — No new field. The text shows an arrow for every resolution except `found` by `recorded`, on whichever branch. `phax finding post` gets the base label from its own read of the config. — abandons: §5.11 to the letter: a fix still only on the run's branch shows no arrow, so the text alone does not tell a merged fix from an unmerged one, though the JSON still does.
 
 Recommendation: run-base-branch — It meets §5.11 as written, and it gives the text renderer and `finding post` one source for the base label, read in the same pass that searched it. The field rides the format move phase-03 makes anyway, with no extra stamp. phase-03 is written for run-base-branch. Under recorded-silent, phase-03 drops `run.baseBranch` from the schema, the corpus and the lift, and the text compares only `by`.
+
+Decision: run-base-branch — by operator (Rémy Loubradou), 2026-11-26
+Why: Meets §5.11 as written, and gives the text and finding post one source for the base label, riding the format move phase-03 makes anyway. Advocate: The strongest case for recorded-silent: the format change stays exactly what the spec's normative sketch shows, no consumer has a second field to read, and the JSON already names the branch each fix was found on. Principles: E0, C5. Reversibility: costly. Revised: none. Phase: phase-03.
+
+## Decision log
+
+- 2026-11-26 q-closure-guard decided lift-for-run — operator (Rémy Loubradou)
+- 2026-11-26 q-text-base decided run-base-branch — operator (Rémy Loubradou)
 
 ---
 
