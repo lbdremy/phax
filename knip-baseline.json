@@ -783,12 +783,6 @@
     },
     {
       "type": "exports",
-      "file": "src/cli/definitions/run.ts",
-      "name": "pickGateProfileId",
-      "reason": "debt"
-    },
-    {
-      "type": "exports",
       "file": "src/cli/definitions/sessions.ts",
       "name": "makeEnterCommand",
       "reason": "debt"

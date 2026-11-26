@@ -4,7 +4,7 @@
     {
       "name": "accepts a typical document",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
         "plan": "docs/plans/2611011300-garden-sync-plan.md",
         "findings": [
           {
@@ -18,7 +18,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
           "findings": [
             {
               "check": "structure",
@@ -34,7 +34,7 @@
     {
       "name": "accepts a document setting every field",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
         "plan": "docs/plans/2611011300-garden-sync-plan.md",
         "findings": [
           {
@@ -48,7 +48,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
           "findings": [
             {
               "check": "structure",
@@ -64,7 +64,7 @@
     {
       "name": "accepts a document with only its required fields",
       "input": {
-        "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+        "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
         "plan": "docs/plans/2611011300-garden-sync-plan.md",
         "findings": [
           {
@@ -78,7 +78,7 @@
       "expected": {
         "ok": true,
         "value": {
-          "$schema": "https://docs.phax.run/schemas/plan-lint/0.34.0.json",
+          "$schema": "https://docs.phax.run/schemas/plan-lint/0.43.0.json",
           "findings": [
             {
               "check": "structure",

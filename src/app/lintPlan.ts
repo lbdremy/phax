@@ -24,6 +24,7 @@ import {
   sequenceGapFindings,
   structureFindings,
   testLineDepartureFindings,
+  undefinedGateProfileFinding,
   unlocatableFindings,
   type LintFinding,
 } from "../domain/plan/lint.js";
@@ -35,7 +36,7 @@ import { readPhaseHeaders } from "../domain/plan/phaseHeader.js";
 import { makePlanAuditRequest } from "../domain/plan/projection.js";
 import { assignmentBoundFindings } from "./assignmentBounds.js";
 import { queryPlanAuditor } from "./planAuditor.js";
-import { resolveGateProfile } from "./gates.js";
+import { resolveGateProfileById, undefinedGateProfileMessage } from "../domain/gate/gateProfile.js";
 import { loadModelRouting, loadProviderConfig } from "./loadRouting.js";
 
 export interface LintReport {
@@ -220,13 +221,19 @@ export function lintPlan(
     }
     findings.push(...filePlanFindings(plan.phases, existing));
 
-    // Commands: the same inputs `executePlan` feeds its preflight.
-    const profileId = Object.keys(config.raw.gateProfiles)[0];
-    const gateCommands =
-      profileId === undefined ? [] : resolveGateProfile(config, profileId).map((s) => s.command);
-    findings.push(
-      ...commandFindings(plan.run.requiredCommands, config.security.agentCommands, gateCommands),
-    );
+    // Gate profile and commands: the declared profile, resolved by the run's rule. An
+    // undefined one is a `gate-profile` error, and the commands comparison is skipped:
+    // coverage cannot be judged without the profile's steps.
+    const profile = resolveGateProfileById(config.raw, plan.run.gateProfile, undefined);
+    if (Result.isFailure(profile)) {
+      findings.push(undefinedGateProfileFinding(undefinedGateProfileMessage(profile.failure)));
+    } else {
+      // The same inputs `executePlan` feeds its preflight.
+      const gateCommands = profile.success.map((s) => s.command);
+      findings.push(
+        ...commandFindings(plan.run.requiredCommands, config.security.agentCommands, gateCommands),
+      );
+    }
 
     // Models: the catalog as the run would read it.
     const routing = yield* loadModelRouting();

@@ -4142,7 +4142,7 @@
       "kind": "diagnostic",
       "file": "tests/type/schemasPackage.ts",
       "rule": "typescript/no-duplicate-type-constituents",
-      "count": 14,
+      "count": 13,
       "reason": "debt"
     },
     {
@@ -4443,7 +4443,7 @@
       "kind": "diagnostic",
       "file": "tests/unit/cli/run.test.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 14,
+      "count": 12,
       "reason": "debt"
     },
     {

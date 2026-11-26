@@ -15,6 +15,7 @@ export const LINT_CHECKS = [
   "structure",
   "files",
   "commands",
+  "gate-profile",
   "models",
   "interactive",
   "acceptance",
@@ -230,6 +231,14 @@ export function commandFindings(
     phase: null,
     message: `required command "${command}" is not covered by security.agentCommands or the gate profile`,
   }));
+}
+
+/**
+ * The plan's declared gate profile, which phax.json does not define: one
+ * `gate-profile` error about the whole plan, with the run's refusal text.
+ */
+export function undefinedGateProfileFinding(message: string): LintFinding {
+  return { severity: "error", check: "gate-profile", phase: null, message };
 }
 
 /**

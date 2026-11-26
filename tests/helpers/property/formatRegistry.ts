@@ -163,6 +163,7 @@ import { RegistryPreSchemaSchema } from "../../../src/schemas/history/registry/p
 import { ReviewStopV0_26_0Schema } from "../../../src/schemas/history/review-stop/0.26.0.js";
 import { RunListV0_26_0Schema } from "../../../src/schemas/history/run-list/0.26.0.js";
 import { RunListV0_30_0Schema } from "../../../src/schemas/history/run-list/0.30.0.js";
+import { PlanLintV0_34_0Schema } from "../../../src/schemas/history/plan-lint/0.34.0.js";
 import { RunStatusV0_17_0Schema } from "../../../src/schemas/history/run-status/0.17.0.js";
 import { RunStatusV0_26_0Schema } from "../../../src/schemas/history/run-status/0.26.0.js";
 import { RunStatusPreSchemaSchema } from "../../../src/schemas/history/run-status/pre-schema.js";
@@ -968,6 +969,7 @@ const FROZEN_SPECS: { readonly [F in FormatId]?: ReadonlyArray<FrozenSpec> } = {
   "interactive-session": [shape("0.26.0", InteractiveSessionV0_26_0Schema)],
   "review-stop": [shape("0.26.0", ReviewStopV0_26_0Schema)],
   "run-list": [shape("0.26.0", RunListV0_26_0Schema), shape("0.30.0", RunListV0_30_0Schema)],
+  "plan-lint": [shape("0.34.0", PlanLintV0_34_0Schema)],
   "code-review": [
     shape("0.29.0", CodeReviewV0_29_0Schema),
     shape("0.32.0", CodeReviewV0_32_0Schema, { ownStampOnly: ANSWER_STAMP_IS_A_CONST }),

@@ -38,6 +38,10 @@ import {
   SkillEditProtectedError,
   UsageLimitError,
 } from "../../domain/errors.js";
+import {
+  resolveGateProfileById,
+  undefinedGateProfileMessage,
+} from "../../domain/gate/gateProfile.js";
 import { type HoldRequest, parseHoldValue } from "../../domain/hold.js";
 import { buildFootprint } from "../../domain/planOverlap/compute.js";
 import { planInputFromPhaxPlan } from "../../domain/planOverlap/fromPhaxPlan.js";
@@ -57,7 +61,6 @@ import type { GitHub } from "../../ports/github.js";
 import type { OutputPort } from "../../ports/output.js";
 import type { Shell } from "../../ports/shell.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
-import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
 import type { PhaxPlan } from "../../schemas/phaxPlan.js";
 import { readRegistryFile } from "../../schemas/persisted.js";
 import {
@@ -174,14 +177,6 @@ function runRetryCommand(shortName: string | undefined, flags: RunFlagValues): s
     ...(flags.allowSkillEdits === true ? ["--allow-skill-edits"] : []),
     ...(flags.hold === undefined ? [] : flags.hold === true ? ["--hold"] : ["--hold", flags.hold]),
   ]);
-}
-
-// A project defines a single gate profile; there is no depth-scalar
-// (fast/full) preference. Select the sole profile by its first key, erroring
-// when none is configured. Multi-profile disambiguation is out of scope.
-export function pickGateProfileId(config: ResolvedConfig): string | null {
-  const profiles = config.raw.gateProfiles;
-  return Object.keys(profiles)[0] ?? null;
 }
 
 function readRegistrySync(stateRoot: string) {
@@ -301,9 +296,6 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     if (effectiveSecurityMode === "unsafe") {
       yield* call.progress(UNSAFE_WARNING);
     }
-
-    const gateProfileId = pickGateProfileId(config);
-    if (gateProfileId === null) return yield* refuse(2, "No gate profiles configured in phax.json");
 
     let priorityOverride: NonEmptyArray<ProviderId> | undefined;
     if (flags.providerPriority !== undefined) {
@@ -453,6 +445,18 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
         2,
         `Invalid short name "${plan.run.shortName}" in plan: must match ^[a-z][a-z0-9-]*$ (1–64 chars)`,
       );
+    }
+
+    // The run's gate profile is the one the plan declares, resolved by the one rule
+    // (top level, as the run gates). An undefined one is refused before the dry run,
+    // the preflight and the run's naming, so no state is written.
+    const gateProfileId = plan.run.gateProfile;
+    const declaredProfile = resolveGateProfileById(config.raw, gateProfileId, undefined);
+    if (Result.isFailure(declaredProfile)) {
+      return yield* refuse(2, [
+        undefinedGateProfileMessage(declaredProfile.failure),
+        "  the plan declares it under ## Gate profile; no worktree was created",
+      ]);
     }
 
     if (flags.dryRun === true) {

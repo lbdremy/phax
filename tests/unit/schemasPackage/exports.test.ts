@@ -171,6 +171,7 @@ describe("schemas package entry", () => {
       "PlanDocumentV0_38_0Schema",
       "PlanHandDecisionAnswerSchema",
       "PlanLintSchema",
+      "PlanLintV0_34_0Schema",
       "PlanOverviewSchema",
       "RecordManifestSchema",
       "RegistryPreSchemaSchema",

@@ -29,9 +29,10 @@ describe.each(DECODERS)("the %s format", (id, decode, requiredKey) => {
     expect(Result.isSuccess(decode(document))).toBe(true);
   });
 
-  it("starts with $schema and is stamped 0.34.0", () => {
+  // Born at 0.34.0; plan-lint moved to 0.43.0 when it gained the gate-profile check.
+  it("starts with $schema and is stamped with its current release", () => {
     expect(Object.keys(document)[0]).toBe("$schema");
-    expect(document["$schema"]).toBe(schemaUrl(id, "0.34.0"));
+    expect(document["$schema"]).toBe(schemaUrl(id, id === "plan-lint" ? "0.43.0" : "0.34.0"));
   });
 
   it("refuses a key it does not name", () => {

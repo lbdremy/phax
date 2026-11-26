@@ -2,7 +2,9 @@
 // never saved. Born at 0.34.0 with `$schema`, then exactly the fields of
 // phax's lint report in their order (src/app/lintPlan.ts, whose type
 // tests/type/schemasPackage.ts holds equal to this one); every key is
-// required and any other key is refused. Imports only `effect` and schema
+// required and any other key is refused. 0.43.0 adds the `gate-profile` check
+// (its 0.34.0 shape is frozen in src/schemas/history/plan-lint/0.34.0.ts).
+// Imports only `effect` and schema
 // modules, because the schemas package publishes it.
 import { Schema } from "effect";
 import { schemaUrlField } from "./schemaUrl.js";
@@ -17,6 +19,7 @@ const FindingSchema = Schema.Struct({
     "structure",
     "files",
     "commands",
+    "gate-profile",
     "models",
     "interactive",
     "acceptance",
