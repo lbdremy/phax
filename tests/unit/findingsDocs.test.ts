@@ -138,6 +138,23 @@ const fixAnswer = (pullRequest: FindingFixOutput["pullRequest"]): FindingFixOutp
   pullRequest,
 });
 
+// "When the fix commit is rewritten": F2's commit was recreated on main; F4, fixed after its
+// deferral, was then squashed away.
+const F2_REWRITE = "8b04d6e1".padEnd(40, "0");
+const F4_FIX = "5e17c0d9".padEnd(40, "0");
+const RUN_BRANCH = "phax/gate-retry--phase-03";
+
+const F2_REWRITTEN: Finding = {
+  ...F2_FIXED,
+  landed: { status: "found", by: "key", commit: F2_REWRITE, branch: "main", recorded: F2_FIX },
+};
+const F4_LOST: Finding = {
+  ...F4,
+  fate: "fixed",
+  history: [...F4.history, fixedBy(F4_FIX, ["code"])],
+  landed: { status: "not-found", branches: ["main", RUN_BRANCH], recorded: F4_FIX },
+};
+
 const settled = (finding: Finding): FindingFixOutput => ({
   run,
   commit: null,
@@ -198,8 +215,43 @@ describe("docs/findings.md examples", () => {
     expect(PAGE).toContain(textBlock(section));
   });
 
+  it("shows where rewritten fixes landed in the list", () => {
+    const list: FindingListFile = {
+      $schema: currentSchemaUrl("finding-list"),
+      run,
+      records: "read",
+      findings: [F1, F2_REWRITTEN, F3, F4_LOST, C1],
+    };
+    expect(PAGE).toContain(textBlock(renderFindingList(list)));
+  });
+
+  it("shows a followed --commit as it renders", () => {
+    const answer: FindingFixOutput = {
+      ...fixAnswer({ kind: "not-posted", reason: "pull-request-merged" }),
+      commit: {
+        sha: F2_REWRITE,
+        made: false,
+        subject: null,
+        paths: [{ path: "tests/gate.test.ts", pathClass: "tests" }],
+        followed: { named: F2_FIX, notOn: [RUN_BRANCH, "main"], by: "key", branch: "main" },
+      },
+      findings: [F2_REWRITTEN],
+    };
+    expect(PAGE).toContain(textBlock(renderFindingFix(answer)));
+  });
+
+  it("shows a post on a merged pull request as it renders", () => {
+    const answer = {
+      run,
+      pullRequest: { url: PR, pushed: null, comments: commentsOn("F2") },
+      pullRequestState: "merged" as const,
+      findings: [F2_REWRITTEN],
+    };
+    expect(PAGE).toContain(textBlock(renderFindingPost(answer)));
+  });
+
   it("shows each fate comment as it renders", () => {
-    for (const finding of [F2_FIXED, F3, F4]) {
+    for (const finding of [F2_FIXED, F3, F4, F2_REWRITTEN, F4_LOST]) {
       const comment = renderFateComment(finding, run.runId);
       expect(comment, finding.id).not.toBeNull();
       expect(PAGE, finding.id).toContain(textBlock(comment as string));

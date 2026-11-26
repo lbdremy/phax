@@ -63,8 +63,8 @@ With `--json` it prints a `finding-list` document, shortened here to one finding
 
 ```json
 {
-  "$schema": "https://docs.phax.run/schemas/finding-list/0.40.0.json",
-  "run": { "namespace": "acme", "shortName": "gate-retry", "runId": "…", "state": "review_open" },
+  "$schema": "https://docs.phax.run/schemas/finding-list/0.44.0.json",
+  "run": { "namespace": "acme", "shortName": "gate-retry", "runId": "…", "state": "review_open", "baseBranch": "main" },
   "records": "read",
   "findings": [
     {
@@ -87,13 +87,14 @@ With `--json` it prints a `finding-list` document, shortened here to one finding
           "by": { "kind": "operator", "name": "Ada Lovelace" },
           "at": "2026-11-18T10:00:00.000Z"
         }
-      ]
+      ],
+      "landed": { "status": "found", "by": "recorded", "commit": "8c1d2e4…", "branch": "main", "recorded": "8c1d2e4…" }
     }
   ]
 }
 ```
 
-`records` is `read`, `off` or `unavailable`, so a reader knows whether earlier reviews could be read. `history` is the finding's fate records, oldest first; it is empty for an open finding. See [Machine answers](json-output.md) for `--json` in general.
+`records` is `read`, `off` or `unavailable`, so a reader knows whether earlier reviews could be read. `history` is the finding's fate records, oldest first; it is empty for an open finding. `landed` says where a fixed finding's latest fix is now, resolved when the list is read, and is `null` for every other fate; `run.baseBranch` is the base branch searched first (see [When the fix commit is rewritten](#when-the-fix-commit-is-rewritten)). See [Machine answers](json-output.md) for `--json` in general.
 
 The command reads local files and git only.
 
@@ -116,7 +117,7 @@ phax finding fix gate-retry F2 -- tests/gate.test.ts
 - Paths resolve as git does: from the current directory when it is inside the worktree, else from the worktree's root. A path that leaves the worktree is refused.
 - The ids come first (`F2 F5`); every operand from the first one not spelled like an id is a path. `--` is the documented spelling, with flags before it. A path spelled like an id must follow another path or be written `./F2`.
 - The subject is `fix(review): F2, F5 of gate-retry`. `-m, --message <subject>` replaces it and `--body <text>` adds a paragraph.
-- The last paragraph holds phax's trailers: `Short-Name: gate-retry`, then one `Finding: <id>` per id, in the order named. There is no `Run-Id`, so release notes fold the commit into its run by `Short-Name`.
+- The last paragraph holds phax's trailers: `Short-Name: gate-retry`, then `Finding-Run: <run id>`, then one `Finding: <id>` per id, in the order named. There is no `Run-Id`, so release notes fold the commit into its run by `Short-Name`. `Finding-Run` names the run, so phax can find the commit again [after a rewrite](#when-the-fix-commit-is-rewritten).
 - `--by operator`, or no `--by` from a terminal, names the operator as git commits. `--by machine:<grant>` records a machine. Without a terminal and without `--by` the call is refused.
 
 The record keeps the set of path classes of the commit, from the paths git reports it changed against its first parent (a rename counts as both its paths). The first rule that matches a path decides:
@@ -136,9 +137,151 @@ The record keeps the set of path classes of the commit, from the paths git repor
 phax finding fix gate-retry F3 --commit 9f8e7d6 --by operator
 ```
 
-`--commit <sha>` records a commit that exists and makes none, so it takes no path, `-m` or `--body`. Use it for a finding fixed before ids existed (an `unrecorded` finding), and as the retry that a failed record prints. The commit must be, or be an ancestor of, the run's final-phase branch while the run is live, or the base branch: `publish.baseBranch`, else `main`, local or remote-tracking. A commit that changes no path is refused. A backfilled commit has no `Finding:` trailer and may hold several fixes, so its classes are coarser.
+`--commit <sha>` records a commit that exists and makes none, so it takes no path, `-m` or `--body`. Use it for a finding fixed before ids existed (an `unrecorded` finding), and as the retry that a failed record prints. It is recorded as named when it is, or is an ancestor of, the run's final-phase branch while the run is live, or the base branch: `publish.baseBranch`, else `main`, local or remote-tracking. A commit on neither branch, or one the repository no longer holds, is followed to its rewrite on the base branch (see [When the fix commit is rewritten](#when-the-fix-commit-is-rewritten)). A commit that changes no path is refused. A backfilled commit has no `Finding:` trailer and may hold several fixes, so its classes are coarser.
 
 Because it writes only a record, `--commit` runs on any run whose records exist, an archived or merged run included. On a merged or closed pull request it then pushes and posts nothing (see [Which pull request](#which-pull-request)).
+
+## When the fix commit is rewritten
+
+A fate record holds the fix commit by its sha, and a sha does not survive a rewrite. Rebasing the run branch during review, amending after a review note, GitHub's Rebase and merge (which recreates every commit, even when a fast-forward was possible) and a squash all give the fix a new sha. The recorded one may then be on no branch of the project.
+
+### The key a fix commit carries
+
+A commit made by `phax finding fix` names its run and its findings in its trailers:
+
+```text
+Short-Name: gate-retry
+Finding-Run: gate-retry-1
+Finding: F2
+```
+
+The pair (run id, finding id), such as `gate-retry-1 F2`, is the finding's fate key. A commit carries it when one paragraph of its message holds both the `Finding-Run: gate-retry-1` line and the `Finding: F2` line. Any paragraph counts, not only the last, so a squash that keeps the commit messages keeps every key. Both lines are matched as phax writes them.
+
+### How phax looks for the fix
+
+Every reader of a fixed fate resolves its latest fix when it reads it. It searches the base branch first (`publish.baseBranch`, else `main`; the local branch, else the remote-tracking one), then the run's branch, when the run is live and the branch resolves. On each branch, in this order:
+
+1. the recorded commit, when the branch reaches it;
+2. the commits carrying the fate key;
+3. the commits with the same patch id (`git patch-id --stable`) as the recorded commit, when the repository still holds it.
+
+The key and the patch id are looked for only among the commits made since the run started, so an older identical diff never matches. The first step that matches decides. When the run's start cannot be read, only the recorded commit is looked for, and `phax finding list` says so on stderr.
+
+Reading writes nothing: no fate record, no file and no ref. It does not fetch and does not call GitHub, so a base branch you have not updated is searched as it stands.
+
+### What it answers
+
+| Answer      | Meaning                                  | What you do                                                              |
+| ----------- | ---------------------------------------- | ------------------------------------------------------------------------ |
+| `found`     | One commit of a branch carries the fix.  | Nothing.                                                                 |
+| `ambiguous` | Several commits of one branch match.     | Name the right one with `phax finding fix <run> <id> --commit <sha>`.    |
+| `not-found` | No branch searched holds the fix.        | Name the commit that carries it with the same `--commit` call.           |
+
+phax never picks one of several matches. A finding fixed twice in one run leaves two commits with its key, so after a rewrite it is `ambiguous`. A squash that keeps only the pull request's description drops every trailer: unless a patch id still matches, the fix is `not-found`, and `--commit <squash sha>` records the squashed commit. In every case the finding stays `fixed`.
+
+### In the list
+
+`phax finding list` shows where the fix landed after the latest fix's commit, unless that commit is itself on the base branch. Here F2's commit was recreated on `main`, and F4, fixed after its deferral, was squashed away:
+
+```bash
+phax finding list gate-retry
+```
+
+```text
+gate-retry (review_open) — 5 findings: 1 open, 3 fixed, 1 dismissed
+
+F1  bug        fixed      src/app/retry.ts:41  The retry count is never reset after a pass
+               8c1d2e4 (code, tests)
+F2  concern    fixed      src/app/retry.ts:77  The backoff has no upper bound
+               3fa91c2 (tests) → 8b04d6e on main, by key
+F3  info       dismissed  docs/retry.md:9      The page still names the old flag
+               Ada Lovelace: the page names it on purpose
+F4  concern    fixed      src/gate.ts:12       The gate reads the config twice
+               5e17c0d (code) → not found on main or phax/gate-retry--phase-03
+C1  deviation  open       phase-02 files       src/gate.ts was edited and not planned
+```
+
+The arrow ends `by key`, `by patch id` or `by recorded sha`, or it reads `→ ambiguous on <branch>: <sha>, <sha>` or `→ not found on <branches>`. Before the run branch is merged, a fix line points at the run branch, by recorded sha.
+
+### In `--json`
+
+Each finding's `landed` is one of these shapes, or `null` for a finding that is not fixed. `recorded` is always the sha the latest fate record names. The shas are shortened here; the real answer gives them in full:
+
+```json
+[
+  { "status": "found", "by": "recorded", "commit": "8c1d2e4…", "branch": "main", "recorded": "8c1d2e4…" },
+  { "status": "found", "by": "key", "commit": "8b04d6e…", "branch": "main", "recorded": "3fa91c2…" },
+  { "status": "found", "by": "patch-id", "commit": "8b04d6e…", "branch": "main", "recorded": "3fa91c2…" },
+  { "status": "ambiguous", "commits": ["8b04d6e…", "c11a0f3…"], "branch": "main", "recorded": "3fa91c2…" },
+  { "status": "not-found", "branches": ["main", "phax/gate-retry--phase-03"], "recorded": "5e17c0d…" },
+  null
+]
+```
+
+`history` is unchanged: it keeps the recorded shas.
+
+### In the comment
+
+The [fate comment](#fate-comments) of a found fix names the commit that carries it, the branch it is on and the fate key, which stays true after a rewrite:
+
+```text
+F2 fixed — `src/app/retry.ts:77` — The backoff has no upper bound
+Fixed by 8b04d6e on main (tests) · gate-retry-1 F2
+```
+
+An ambiguous or not-found fix names the recorded commit and no branch:
+
+```text
+F4 fixed — `src/gate.ts:12` — The gate reads the config twice
+Fixed by 5e17c0d (code) · gate-retry-1 F4
+```
+
+phax does not edit a comment already posted.
+
+### Posting on a merged pull request
+
+On a merged pull request, `phax finding post` pushes nothing. It posts when every fixed finding named is found on the base branch:
+
+```bash
+phax finding post gate-retry F2
+```
+
+```text
+✓ F2: 8b04d6e on main (by key)
+✓ commented F2 on https://github.com/acme/shop/pull/42 (nothing pushed: the pull request is merged)
+```
+
+Otherwise it refuses before any comment, naming each such finding and the retry:
+
+```text
+✗ post refused: F4 of gate-retry is fixed by 5e17c0d, found on neither main nor phax/gate-retry--phase-03: nothing was commented. Record the commit that carries the fix with: phax finding fix gate-retry F4 --commit <sha>
+```
+
+### Recording the rewrite with `--commit`
+
+To record the new sha, give `--commit` the old one:
+
+```bash
+phax finding fix gate-retry F2 --commit 3fa91c2 --by operator
+```
+
+```text
+✓ 3fa91c2 is on neither phax/gate-retry--phase-03 nor main; its rewrite 8b04d6e on main carries gate-retry-1 F2 (by key)
+✓ recorded F2 fixed by 8b04d6e (tests) on phax/records/v1
+○ the pull request is merged: nothing pushed or commented
+```
+
+phax follows a named commit that is on neither the run branch nor the base branch, or that the repository no longer holds (named by 4 to 40 hex characters). It looks on the base branch only, among the commits made since the run started: for each named finding's fate key, then for the named commit's patch id. A commit followed by patch id is reported as `has its patch id (by patch id)`. A rewrite that is only on the run branch is not followed: name the new commit itself. Under `--json`, `commit.followed` is `{ "named", "notOn", "by", "branch" }`, and `null` when the commit was recorded as named.
+
+It records only when every named finding leads to the same single commit. No commit, several, or a different commit per finding is refused before anything is written, naming the candidates found:
+
+```text
+✗ fix refused: 3fa91c2 is on neither phax/gate-retry--phase-03 nor main, and 2 commits of main carry gate-retry-1 F2: 8b04d6e, c11a0f3. Name one with --commit
+```
+
+### Older fix commits
+
+Fix commits made before phax 0.44.0 carry no `Finding-Run` trailer, and phax does not rewrite them. They are found only by their recorded commit or by patch id. For any other, name the commit that carries the fix with `--commit <sha>`.
 
 ## Dismissing and deferring
 
@@ -183,7 +326,7 @@ phax finding post gate-retry F2 F3
 ✓ commented F3 on https://github.com/acme/shop/pull/42
 ```
 
-It refuses an unknown id, a finding that is `open` or `unrecorded`, a run with no pull request in `publication.json`, and a `fixed` finding when the pull request is merged or closed: it then pushes and posts nothing, not even the other findings named. Name only the dismissed and deferred ones to post theirs. It ignores `publish.auto`, because it is an explicit request to post.
+It refuses an unknown id, a finding that is `open` or `unrecorded`, a run with no pull request in `publication.json`, a `fixed` finding when the pull request is closed, and, on a merged pull request, a `fixed` finding whose fix is not found on the base branch (see [Posting on a merged pull request](#posting-on-a-merged-pull-request)). A refused call pushes and posts nothing, not even the other findings named. Name only the dismissed and deferred ones to post theirs. It ignores `publish.auto`, because it is an explicit request to post.
 
 ## On the pull request
 
@@ -242,7 +385,7 @@ F4 deferred — `src/gate.ts:12` — The gate reads the config twice
 Taken over by `NEXT_STEPS.md`
 ```
 
-`@` mentions in a message or reason are rendered as code. A call naming several ids posts several comments.
+A fixed comment names the commit that carries the fix, its branch and the finding's run id and id (see [When the fix commit is rewritten](#when-the-fix-commit-is-rewritten)). `@` mentions in a message or reason are rendered as code. A call naming several ids posts several comments.
 
 ### Which pull request
 
