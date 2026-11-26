@@ -323,7 +323,11 @@ function commitsSinceEffect(
     "--no-color",
     "--date-order",
     "--reverse",
-    `--since=${since}`,
+    // `--since` stops the walk at the first commit older than the instant, so a
+    // newer commit behind an older-dated one (clock skew, a rebase with
+    // `--committer-date-is-author-date`) would be missed; `--since-as-filter`
+    // (git 2.37 or later) visits the whole range and only filters.
+    `--since-as-filter=${since}`,
     "-z",
     "--format=%H%x00%cI%x00%B",
     "--end-of-options",
@@ -339,8 +343,9 @@ function commitsSinceEffect(
 const PATCH_ID_BATCH = 200;
 
 // `diff-tree --stdin` prints, per commit with a non-empty diff, its sha on a
-// line of its own and then its patch against the first parent (`-m
-// --first-parent` for a merge, `--root` for a root commit); `patch-id
+// line of its own and then its patch against the first parent
+// (`--diff-merges=first-parent` for a merge, git 2.31 or later: `-m` would print
+// a merge's diff against every parent; `--root` for a root commit); `patch-id
 // --stable` reads that stream back as `<patch-id> <sha>` lines. The diff is
 // kept as bytes so a non-UTF-8 file hashes as git would hash it.
 function patchIdsEffect(
