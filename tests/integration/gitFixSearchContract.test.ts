@@ -205,6 +205,31 @@ describe.each([
       ]);
     });
 
+    it("lists a newer commit behind an older-dated tip", async () => {
+      const first = world.makeCommit({
+        parents: [],
+        files: { "a.ts": "1\n" },
+        message: "first\n",
+        date: DAY1,
+      });
+      const fix = world.makeCommit({
+        parents: [first],
+        files: { "a.ts": "2\n" },
+        message: "fix\n",
+        date: DAY3,
+      });
+      // Committed after the fix, dated before the instant (a skewed clock).
+      const skewed = world.makeCommit({
+        parents: [fix],
+        files: { "a.ts": "3\n" },
+        message: "skewed\n",
+        date: DAY1,
+      });
+      world.setBranch("main", skewed);
+      const listed = await world.run((g) => g.commitsSince(world.repo, "main", DAY2));
+      expect(listed.map((c) => c.sha)).toEqual([fix]);
+    });
+
     it("lists the whole reachable history when the instant is before it", async () => {
       const first = world.makeCommit({
         parents: [],
