@@ -247,10 +247,22 @@ describe("phax resume gates with the recorded gate profile", { timeout: 120_000 
     const { r, marker, runKey, runPath } = held;
     writeFileSync(join(r.repo, "phax.json"), phaxJson(r, marker, ["standard"]));
     const statusBefore = readFileSync(join(runPath, "run-status.json"), "utf8");
+    const refusal = [
+      'gate profile "light" is not defined in phax.json (defined: standard)',
+      `  the run recorded it when it started; restore it in phax.json, or archive the run with \`phax archive ${runKey} --force\``,
+      "",
+    ].join("\n");
+
+    // The preview promises no resume it cannot make.
+    const preview = await phaxCall(["resume", "foo"]);
+    expect(preview.code).toBe(2);
+    expect(preview.err).toBe(refusal);
+    expect(preview.out).not.toContain("would resume");
 
     const resumed = await phaxCall(["resume", "foo", "--yes"]);
 
     expect(resumed.code).toBe(2);
+    expect(resumed.out).not.toContain("would resume");
     expect(resumed.err).toBe(
       [
         'gate profile "light" is not defined in phax.json (defined: standard)',
