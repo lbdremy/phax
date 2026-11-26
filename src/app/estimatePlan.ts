@@ -22,8 +22,8 @@ import {
   type ConfigValidationError,
   type RegistryCorruptionError,
 } from "../domain/errors.js";
-import { finalizeExtractedPlan } from "../domain/plan/finalize.js";
-import { readPlanDeterministic } from "../domain/plan/parsePlanMarkdown.js";
+import { finalizeDisplayedPlan } from "../domain/plan/finalize.js";
+import { readPlanForDisplay } from "../domain/plan/parsePlanMarkdown.js";
 import { resolveModel } from "../domain/routing/resolve.js";
 import { securityFilterFor } from "../domain/security/capabilities.js";
 import { resolveSecurityPolicy } from "../domain/security/resolvePolicy.js";
@@ -105,11 +105,12 @@ export function readEstimatePlan(
         path: repoRelPath,
         message: `${repoRelPath} cannot be parsed: ${reason}. Run \`phax plans lint ${repoRelPath}\` for every finding.`,
       });
-    // A departing test line is left out and never blocks the estimate.
-    const extracted = readPlanDeterministic(planMd);
+    // A departing test line is left out and never blocks the estimate, and the
+    // gate profile is not read: a plan written before `## Gate profile` is sized.
+    const extracted = readPlanForDisplay(planMd);
     if (Result.isFailure(extracted))
       return yield* Effect.fail(unparseable(extracted.failure.message));
-    const finalized = finalizeExtractedPlan(extracted.success.plan, planMd);
+    const finalized = finalizeDisplayedPlan(extracted.success.plan, planMd);
     if (Result.isFailure(finalized))
       return yield* Effect.fail(unparseable(finalized.failure.message));
 

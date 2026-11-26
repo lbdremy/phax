@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { analyzePlanOverlap } from "../../src/app/analyzePlanOverlap.js";
@@ -285,5 +286,27 @@ describe("analyzePlanOverlap", () => {
     const labels = result.footprints.map((f) => f.label);
     expect(labels).toContain(`my-feature (${planA.path})`);
     expect(labels).toContain(`other-plan (${planB.path})`);
+  });
+});
+
+describe("analyzePlanOverlap of plans written before ## Gate profile", () => {
+  it("compares them, reading neither the cache nor the model", async () => {
+    const example = readFileSync("examples/hello-world/plan.md", "utf8");
+    const undeclared = example.replace(/^## Gate profile\n\n`standard`\n\n/m, "");
+    expect(undeclared).not.toBe(example);
+    const fakeBackend = makeFakeBackend();
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile("/repo/plans/a.md", undeclared);
+    fakeFs.impl.setFile("/repo/plans/b.md", undeclared);
+
+    const result = await Effect.runPromise(
+      analyzePlanOverlap(["/repo/plans/a.md", "/repo/plans/b.md"], {
+        ...BASE_OPTS,
+        noExtract: true,
+      }).pipe(Effect.provide(Layer.mergeAll(fakeBackend.layer, fakeFs.layer))),
+    );
+
+    expect(result.edges.length).toBeGreaterThan(0);
+    expect(result.cleanPairs).toHaveLength(0);
   });
 });

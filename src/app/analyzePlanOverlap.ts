@@ -8,6 +8,8 @@ import {
   computePlanOverlap,
   computeReadjustmentImpact,
 } from "../domain/planOverlap/compute.js";
+import { finalizeDisplayedPlan } from "../domain/plan/finalize.js";
+import { readPlanForDisplay } from "../domain/plan/parsePlanMarkdown.js";
 import { planInputFromPhaxPlan } from "../domain/planOverlap/fromPhaxPlan.js";
 import type {
   LandedInput,
@@ -32,6 +34,35 @@ export interface AnalyzePlanOverlapOptions {
 }
 
 function loadAndMapPlanInput(
+  planMdPath: string,
+  opts: AnalyzePlanOverlapOptions,
+): Effect.Effect<PlanInput, AnalyzePlanOverlapError, Backend | FileSystem> {
+  return Effect.gen(function* () {
+    // A plan read deterministically is compared without its gate profile, so a
+    // plan written before `## Gate profile` existed still compares. Any other
+    // plan takes loadOrExtractPlan's refusals and its model fallback.
+    const fs = yield* FileSystem;
+    const planMd = yield* fs.readText(planMdPath).pipe(
+      Effect.mapError(
+        (e) =>
+          new AnalyzePlanOverlapError({
+            message: `Failed to load "${planMdPath}": ${e.message}`,
+          }),
+      ),
+    );
+    const read = readPlanForDisplay(planMd);
+    if (Result.isSuccess(read) && read.success.departures.length === 0) {
+      const finalized = finalizeDisplayedPlan(read.success.plan, planMd);
+      if (Result.isSuccess(finalized)) {
+        const { plan } = finalized.success;
+        return planInputFromPhaxPlan(plan, planMdPath, `${plan.run.shortName} (${planMdPath})`);
+      }
+    }
+    return yield* loadExtractedPlanInput(planMdPath, opts);
+  });
+}
+
+function loadExtractedPlanInput(
   planMdPath: string,
   opts: AnalyzePlanOverlapOptions,
 ): Effect.Effect<PlanInput, AnalyzePlanOverlapError, Backend | FileSystem> {

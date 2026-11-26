@@ -9,7 +9,11 @@ import type { PlanInput } from "./types.js";
  * the raw plan path). The per-phase file-set projection is the shared part and
  * lives here so both callers stay in sync.
  */
-export function planInputFromPhaxPlan(plan: PhaxPlan, id: string, label: string): PlanInput {
+export function planInputFromPhaxPlan(
+  plan: Pick<PhaxPlan, "phases">,
+  id: string,
+  label: string,
+): PlanInput {
   return {
     id,
     label,
