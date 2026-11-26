@@ -5,7 +5,7 @@ codebase history, and retired artifacts live in `docs/plans/archive/` and
 `docs/specs/archive/`. Tick items off as they land, prune them once they are in the
 history, and delete this file when it is empty.
 
-Last pruned 2026-11-25. Since the previous prune (2026-11-10), these landed and left the queue:
+Last pruned 2026-11-26. Since the previous prune (2026-11-10), these landed and left the queue:
 `artifact-revise` (#229), `plan-path-canonical` (#230, #231), `property-tests` (#232–#236, spec
 completed 2026-11-16), `finding-ids-and-fates` (#239, #242, #244), `code-repository` (#241),
 `vibe-model-flags` (#248), `test-worlds-built-once` (#253), `bounded-test-spawns` (#256),
@@ -14,6 +14,8 @@ completed 2026-11-16), `finding-ids-and-fates` (#239, #242, #244), `code-reposit
 relinking `node_modules`), the lint and knip baselines with their
 first clean-ups (#254, #255), and the gate measure of 2026-11-22 (`pnpm test` is 95 % of a gate
 attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and plan abandoned).
+`plan-gate-profile` (#271: a plan declares its gate profile; the guards and both baselines were lifted for
+the run, #266, #267, #270, and restored, #272).
 
 ## The queue, as of 2026-11-23
 
@@ -104,18 +106,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       a pair no Codex model anchors), which hold back "Provider coverage on record" for 1.0, and
       the Vibe "loose config" case the operator runs once with a key. Before security phase 5,
       which also edits `loadConfig.ts`.
-- [ ] **`plan-gate-profile`** — spec `docs/specs/2611251202-plan-gate-profile.md` Approved 2026-11-25;
-      plan `docs/plans/2611251258-plan-gate-profile-plan.md` decided and lint-clean, Draft (8 phases).
-      A plan declares the gate profile that verifies its run (`## Gate profile`), lint has a
-      `gate-profile` check, `phax run` stops taking the first profile listed, phase records name the
-      profile, and `migrate-documents --gate-profile` brings older plan sidecars forward. Moves four
-      formats (phax-plan, plan-document, phase-record-manifest, plan-lint). `phax plans overlap`
-      with `security-high-fixes`: 15 shared files (`resume.ts`, `run.ts`, `executePlan.ts`, the
-      records), so it runs after that merge; approve then. Before the run the operator lifts
-      `tests/unit/architecturalGuards*.test.ts` from `protectedPaths` (q-closure-guard): before
-      merge, its diff must be exactly four frozen-module paths added to `CLOSURE_SRC_ALLOWLIST`, and
-      the protection comes back after the merge. Start it with `--allow-skill-edits`. `phax-do`
-      reuses it (`--gate <profile>`).
 
 ### Wave 3
 
@@ -184,7 +174,10 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       directory. Shares `finding.ts` and `findingList` with `finding-fix-identity`, so after it.
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12),
       spec to author: the operator lets one phase change a protected path, granted when the phase
-      is resumed and recorded with it. Keep it consistent with `gate-tolerances`.
+      is resumed and recorded with it. Keep it consistent with `gate-tolerances`. A third case on
+      2026-11-26: a phase that removes debt dead-ends on the lint and knip baselines (accepted more
+      than the code has), and their prune is the operator's on a protected file; three PRs on
+      `main` for `plan-gate-profile`. The brief weighs a narrower answer for baselines.
 - [ ] **`watched-paths`** — `docs/briefs/watched-paths.md` (2026-11-25), spec to author: the files
       that matter, declared in `phax.json`; every change a run makes to one is raised at review in a
       section of its own, planned or not. Touches the PR body and the review prompts; if the spec

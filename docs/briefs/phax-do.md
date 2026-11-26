@@ -41,7 +41,7 @@ through the same use case.
    downstream (status, resume, review, records, publish) works unchanged.
 5. **Runs stay autonomous.** `phax do` never stops to ask.
 6. **The caller names the gate profile** (operator, 2026-11-25). A task can say which of the project's gate
-   profiles verifies it (`--gate <profile>`), as a plan declares its own (`docs/briefs/plan-gate-profile.md`):
+   profiles verifies it (`--gate <profile>`), as a plan declares its own (`docs/briefs/archive/plan-gate-profile.md`):
    a docs task under a light profile, a code task under the full one. An unknown profile is refused before the
    worktree is made, and the profile is recorded with the run and its one-phase plan.
 

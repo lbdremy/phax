@@ -1,7 +1,7 @@
 Write the phax plan "Plan gate profile" for the approved spec `docs/specs/2611251202-plan-gate-profile.md`. It is
 the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/plan-gate-profile.md`. These are settled; do not
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/plan-gate-profile.md`. These are settled; do not
 reopen them:
 - the operator's verdicts of 2026-11-25 in §9b: q-scope `per-run`, q-markdown `section`, q-legacy `refuse`,
   q-staleness `removal-only`, q-default `always-declare`, q-verification `extra-checks`, q-records `records-only`;

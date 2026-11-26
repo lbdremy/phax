@@ -34,6 +34,17 @@ rewrote the phase's `base` in `status.json` to that commit, and resumed. The exc
 The case also shows a change a phase cannot foresee: no plan names `knip.json`, so the lint finding below would not
 have seen it.
 
+A third run, `plan-gate-profile` (2026-11-26, eight phases), hit it twice at its sixth phase, each time because the
+phase removed debt. It deleted a function and its tests, as its plan said: `lint-baseline.json` then accepted more
+`no-unsafe-type-assertion` diagnostics than the code had, and `knip-baseline.json` an unused export that no longer
+existed. Both checks fail when the baseline accepts more than the code has ("the baseline only shrinks"), and the
+prune that fixes it (`pnpm lint --prune`, `pnpm knip --prune`) is the operator's, on a protected file. The operator
+lifted each file from `protectedPaths` in a pull request of its own (#267, #270), pruned in the phase's worktree,
+resumed, checked before the merge that each diff only lowered or dropped entries, and restored the protection
+afterwards (#272): three pull requests on `main` for two lines of debt that went away. Unlike the first two cases, the
+change is mechanical and its direction is checkable, so the spec may weigh a narrower answer for baselines (a prune
+that only lowers counts is let through and shown at review) beside the exception.
+
 ## What phax has today, to read first
 
 - `docs/security.md`, "Protected paths"; the archived brief `docs/briefs/archive/protected-paths.md`.
