@@ -102,7 +102,79 @@ describe("renderFindingPost", () => {
   const post = (pullRequest: FindingPostOutput["pullRequest"]): FindingPostOutput => ({
     run: { namespace: "phax", shortName: "gate-retry", runId: "run-1", state: "review_open" },
     pullRequest,
+    pullRequestState: "open",
     findings: [],
+  });
+
+  it("on a merged pull request, prints where each fix was found, then each comment, nothing pushed", () => {
+    const NEW = "8b04d6e0123456789abcdef0123456789abcdef0";
+    type Finding = FindingPostOutput["findings"][number];
+    const at = "2026-01-01T00:00:00.000Z";
+    const finding = (
+      id: string,
+      history: Finding["history"],
+      landed: Finding["landed"],
+    ): Finding => ({
+      id,
+      source: "compliance-review",
+      severity: "concern",
+      phaseId: "phase-01",
+      dimension: "tests",
+      message: "m",
+      fate: history.at(-1)?.fate ?? "open",
+      history,
+      landed,
+    });
+    const fixedFinding = (id: string, by: "key" | "patch-id" | "recorded") =>
+      finding(
+        id,
+        [
+          {
+            fate: "fixed",
+            commit: SHA,
+            pathClasses: ["code"],
+            by: { kind: "operator", name: "Ada" },
+            at,
+          },
+        ],
+        { status: "found", by, commit: NEW, branch: "main", recorded: SHA },
+      );
+    const out = renderFindingPost({
+      ...post({
+        url,
+        pushed: null,
+        comments: [
+          { finding: "F2", url: `${url}#issuecomment-1` },
+          { finding: "F3", url: `${url}#issuecomment-2` },
+          { finding: "F5", url: `${url}#issuecomment-3` },
+        ],
+      }),
+      pullRequestState: "merged",
+      findings: [
+        fixedFinding("F2", "key"),
+        finding(
+          "F3",
+          [
+            {
+              fate: "deferred",
+              to: "NEXT_STEPS.md",
+              why: "later",
+              by: { kind: "operator", name: "Ada" },
+              at,
+            },
+          ],
+          null,
+        ),
+        fixedFinding("F5", "patch-id"),
+      ],
+    });
+    expect(out.split("\n")).toEqual([
+      "✓ F2: 8b04d6e on main (by key)",
+      "✓ F5: 8b04d6e on main (by patch id)",
+      `✓ commented F2 on ${url} (nothing pushed: the pull request is merged)`,
+      `✓ commented F3 on ${url} (nothing pushed: the pull request is merged)`,
+      `✓ commented F5 on ${url} (nothing pushed: the pull request is merged)`,
+    ]);
   });
 
   it("prints the push, then one commented line per comment", () => {
