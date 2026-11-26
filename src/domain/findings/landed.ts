@@ -157,3 +157,109 @@ export function resolveOnBranch(facts: BranchFacts): BranchStep {
 export function notFound(branches: readonly string[], recorded: string): Landed {
   return { status: "not-found", branches, recorded };
 }
+
+/**
+ * One named finding's search on the base branch for `phax finding fix --commit` (spec §5.15):
+ * its key, then the named commit's patch id. `match` is what `resolveOnBranch` answered: one
+ * commit, several, or null when no commit matched.
+ */
+export interface FollowMatch {
+  readonly id: string;
+  readonly match: { readonly by: "key" | "patch-id"; readonly commits: readonly string[] } | null;
+}
+
+/**
+ * What `resolveOnBranch` answered from `facts` (`step`), as a `FollowMatch`'s `match`. An
+ * ambiguous answer came from the key step when the key step alone (no patch-id step) answers it.
+ */
+export function followMatchOf(facts: BranchFacts, step: BranchStep): FollowMatch["match"] {
+  if (step.kind !== "landed") return null;
+  const { landed } = step;
+  if (landed.status === "found") {
+    return landed.by === "recorded" ? null : { by: landed.by, commits: [landed.commit] };
+  }
+  if (landed.status === "ambiguous") {
+    const byKey = resolveOnBranch({ ...facts, recordedHeld: false }).kind === "landed";
+    return { by: byKey ? "key" : "patch-id", commits: landed.commits };
+  }
+  return null;
+}
+
+/** What following a named commit decides: one commit for every named finding, or a refusal. */
+export type FollowDecision =
+  | { readonly kind: "follow"; readonly commit: string; readonly by: "key" | "patch-id" }
+  | { readonly kind: "refused"; readonly message: string };
+
+const short = (sha: string) => sha.slice(0, 7);
+
+/**
+ * What a followed `--commit` value is: `<sha7> is on neither <b1> nor <b2>` for a commit the
+ * repository holds (`notOn` the branches it is on neither of), else `<value> is not in the
+ * repository`.
+ */
+export function followSubject(named: string, notOn: readonly string[] | null): string {
+  return notOn === null
+    ? `${named} is not in the repository`
+    : `${short(named)} is on neither ${notOn.join(" nor ")}`;
+}
+
+/**
+ * Decides a follow (spec §5.15, §5.16): one commit when every named finding resolves to exactly
+ * one commit and it is the same one; otherwise a refusal naming every candidate. `subject` says
+ * what the named commit is (`<sha7> is on neither … nor …`, or `<value> is not in the
+ * repository`), `held` whether the repository holds it (the patch-id step ran only then).
+ */
+export function decideFollow(input: {
+  readonly subject: string;
+  readonly base: string;
+  readonly runId: string;
+  readonly held: boolean;
+  readonly matches: readonly FollowMatch[];
+}): FollowDecision {
+  const { subject, base, runId, matches } = input;
+  const found = matches.flatMap((m) =>
+    m.match !== null && m.match.commits.length === 1
+      ? [{ id: m.id, by: m.match.by, commit: m.match.commits[0] ?? "" }]
+      : [],
+  );
+  const several = matches.flatMap((m) =>
+    m.match !== null && m.match.commits.length > 1 ? [{ id: m.id, ...m.match }] : [],
+  );
+  const none = matches.filter((m) => m.match === null).map((m) => m.id);
+  const distinct = [...new Set(found.map((f) => f.commit))];
+  const [first] = found;
+  if (first !== undefined && found.length === matches.length && distinct.length === 1) {
+    // Every finding names the same commit; by key when any found it by key.
+    const by = found.some((f) => f.by === "key") ? "key" : "patch-id";
+    return { kind: "follow", commit: first.commit, by };
+  }
+
+  const clauses: string[] = [];
+  for (const s of several) {
+    const commits = s.commits.map(short).join(", ");
+    clauses.push(
+      s.by === "key"
+        ? `${s.commits.length} commits of ${base} carry ${runId} ${s.id}: ${commits}`
+        : `${s.commits.length} commits of ${base} have its patch id: ${commits}`,
+    );
+  }
+  if (distinct.length > 1) {
+    clauses.push(
+      `the named findings resolve to different commits of ${base}: ${found.map((f) => `${f.id} → ${short(f.commit)}`).join(", ")}`,
+    );
+  } else if (first !== undefined) {
+    const ids = found.map((f) => f.id).join(", ");
+    clauses.push(`${ids} ${found.length === 1 ? "resolves" : "resolve"} to ${short(first.commit)}`);
+  }
+  if (none.length > 0) {
+    clauses.push(
+      `no commit of ${base} since the run started carries ${runId} ${none.join(", ")}${input.held ? " or has its patch id" : ""}`,
+    );
+  }
+  const unique = [...new Set(clauses)];
+  const ending =
+    found.length === 0 && several.length === 0
+      ? ": name a commit of the run branch or of the base branch with --commit"
+      : ". Name one with --commit";
+  return { kind: "refused", message: `${subject}, and ${unique.join("; ")}${ending}` };
+}

@@ -11,6 +11,7 @@ import type { FindingFateEntry } from "../schemas/findingFateRecord.js";
 import { runKey } from "../domain/runRef.js";
 import type { RegistryCorruptionError } from "../domain/errors.js";
 import { defaultFixSubject, fixCommitBody, splitFixOperands } from "../domain/findings/fixCall.js";
+import { decideFollow, followSubject } from "../domain/findings/landed.js";
 import { type PathClass } from "../schemas/pathClass.js";
 import { classifyPath, pathClassesOf } from "../domain/findings/pathClass.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
@@ -38,7 +39,7 @@ import {
   type PullRequestOutcome,
   pullRequestAfterFates,
 } from "./findingPullRequest.js";
-import { baseBranchOf } from "./findingLanded.js";
+import { baseBranchOf, followOnBase } from "./findingLanded.js";
 import { resolveArbiter } from "./resolveArbiter.js";
 import { gitFailureLine } from "./writeReviewRecord.js";
 
@@ -83,6 +84,8 @@ export interface FindingFixAnswer {
     readonly made: boolean;
     readonly subject: string | null;
     readonly paths: readonly { readonly path: string; readonly pathClass: PathClass }[];
+    /** How `--commit` was followed to `sha`, or null when the commit was recorded as named. */
+    readonly followed: FollowedCommit | null;
   };
   readonly recorded: readonly {
     readonly finding: string;
@@ -112,17 +115,8 @@ const refuse = (message: string) => Effect.fail(new FindingFixRefusedError({ mes
 const gitLine = (error: GitError | FsError): string =>
   gitFailureLine("stderr" in error && error.stderr ? error.stderr : error.message);
 
-/** The sha the call names, resolved to a full commit sha in `repo`, or a refusal. */
-function resolveCommit(repo: string, named: string) {
-  return Effect.gen(function* () {
-    const git = yield* Git;
-    const sha = yield* git.resolveRef(repo, `${named}^{commit}`);
-    if (sha === null) {
-      return yield* refuse(`--commit ${named} names no commit in the run's repository`);
-    }
-    return sha;
-  });
-}
+/** A value `--commit` follows when it names no commit here: 4 to 40 hex characters. */
+const SHA_SPELLING = /^[0-9a-f]{4,40}$/i;
 
 /** Whether `sha` is, or is an ancestor of, the tip `ref`; false when `ref` does not resolve. */
 function reachableFrom(repo: string, sha: string, ref: string) {
@@ -135,8 +129,9 @@ function reachableFrom(repo: string, sha: string, ref: string) {
 }
 
 /**
- * The commit must be on the run's final-phase branch (a live run whose branch resolves) or on the
- * base branch (`publish.baseBranch`, else `main`; the local branch, else the remote-tracking one).
+ * Whether the commit is on the run's final-phase branch (a live run whose branch resolves) or on
+ * the base branch (`publish.baseBranch`, else `main`; the local branch, else the remote-tracking
+ * one): null when it is, else the branches it is on neither of, as a refusal names them.
  */
 function checkReachable(input: {
   readonly repo: string;
@@ -155,24 +150,89 @@ function checkReachable(input: {
         ? input.runBranch
         : null;
     if (named !== null) {
-      if (yield* reachableFrom(repo, sha, named)) return;
+      if (yield* reachableFrom(repo, sha, named)) return null;
       checked.push(named);
     } else if (input.inWorktree) {
       // The branch's name does not resolve here: the worktree's own HEAD is the run's tip.
-      if (yield* reachableFrom(repo, sha, "HEAD")) return;
+      if (yield* reachableFrom(repo, sha, "HEAD")) return null;
       checked.push(input.runBranch ?? "the run branch");
     }
     const base = yield* baseBranchOf(repo, config);
-    if (base.ref !== null && (yield* reachableFrom(repo, sha, base.ref))) return;
-    // The refusal names the local branch by its name, any other by its full remote-tracking ref.
+    if (base.ref !== null && (yield* reachableFrom(repo, sha, base.ref))) return null;
+    // A refusal names the local branch by its name, any other by its full remote-tracking ref.
     checked.push(
       base.ref?.startsWith("refs/heads/") === true
         ? base.label
         : `refs/remotes/${config.publish.remote}/${config.publish.baseBranch ?? "main"}`,
     );
-    return yield* refuse(
-      `--commit ${sha.slice(0, 7)} is on neither ${checked.join(" nor ")}: name a commit of the run branch or of the base branch (publish.baseBranch names it when it is not main)`,
-    );
+    return checked;
+  });
+}
+
+/** How `--commit` was followed to the commit recorded. */
+interface FollowedCommit {
+  /** The named commit's full sha when the repository holds it, else the value as given. */
+  readonly named: string;
+  /** The branches the named commit is on neither of, or null when the repository lacks it. */
+  readonly notOn: readonly string[] | null;
+  readonly by: "key" | "patch-id";
+  /** The base branch's label, where the recorded commit was found. */
+  readonly branch: string;
+}
+
+/**
+ * The commit `--commit` records (spec §5.15, §5.16). A commit on the run branch or the base
+ * branch is recorded as named. One on neither, or a sha-spelled value the repository does not
+ * hold, is followed on the base branch by the findings' fate keys, then by its patch id, and the
+ * one commit found for every finding is recorded; otherwise a refusal names every candidate.
+ * Read-only: every refusal comes before any write.
+ */
+function commitToRecord(input: {
+  readonly repo: string;
+  readonly value: string;
+  readonly run: ResolvedFindingRun;
+  readonly ids: readonly string[];
+  readonly inWorktree: boolean;
+  readonly config: ResolvedConfig;
+}) {
+  return Effect.gen(function* () {
+    const git = yield* Git;
+    const { repo, value, run, config } = input;
+    const resolved = yield* git.resolveRef(repo, `${value}^{commit}`);
+    let notOn: readonly string[] | null = null;
+    if (resolved !== null) {
+      notOn = yield* checkReachable({
+        repo,
+        sha: resolved,
+        runBranch: run.runBranch,
+        inWorktree: input.inWorktree,
+        config,
+      });
+      if (notOn === null) return { sha: resolved, followed: null };
+    } else if (!SHA_SPELLING.test(value)) {
+      return yield* refuse(`--commit ${value} names no commit in the run's repository`);
+    }
+    const named = resolved ?? value;
+    const held = resolved !== null;
+    const search = yield* followOnBase({
+      repo,
+      runId: run.runId,
+      startedAt: run.startedAt,
+      config,
+      named,
+      held,
+      ids: input.ids,
+    });
+    const decision = decideFollow({
+      subject: followSubject(named, notOn),
+      base: search.baseBranch,
+      runId: run.runId,
+      held,
+      matches: search.matches,
+    });
+    if (decision.kind === "refused") return yield* refuse(decision.message);
+    const followed: FollowedCommit = { named, notOn, by: decision.by, branch: search.baseBranch };
+    return { sha: decision.commit, followed };
   });
 }
 
@@ -281,6 +341,7 @@ export function fixFindings(
     // 6 and 7. The commit.
     let sha: string;
     let subject: string | null;
+    let followed: FollowedCommit | null = null;
     if (input.commit === undefined) {
       const named = yield* resolvePaths({ worktree: repo, cwd: input.cwd, paths });
       const unchanged: string[] = [];
@@ -301,8 +362,16 @@ export function fixFindings(
       );
       sha = yield* git.headCommit(repo);
     } else {
-      sha = yield* resolveCommit(repo, input.commit);
-      yield* checkReachable({ repo, sha, runBranch: run.runBranch, inWorktree, config });
+      const chosen = yield* commitToRecord({
+        repo,
+        value: input.commit,
+        run,
+        ids,
+        inWorktree,
+        config,
+      });
+      sha = chosen.sha;
+      followed = chosen.followed;
       subject = null;
     }
 
@@ -379,6 +448,7 @@ export function fixFindings(
         made: input.commit === undefined,
         subject,
         paths: changed.map((path) => ({ path, pathClass: classifyPath(path) })),
+        followed,
       },
       recorded,
       findings: named,
