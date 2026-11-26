@@ -1,7 +1,7 @@
 Write the phax plan "Finding fix identity" for the approved spec `docs/specs/2611220956-finding-fix-identity.md`. It is
 the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/finding-fix-identity.md`. These are settled; do not
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/finding-fix-identity.md`. These are settled; do not
 reopen them:
 - the operator's verdicts of 2026-11-22 in §9b: q-key `finding-run` (`Finding-Run: <run id>`), q-store `read-time`,
   q-ambiguous `list-all`, q-squash-description `hint`, q-phase-commits `follow-up`;

@@ -16,6 +16,8 @@ first clean-ups (#254, #255), and the gate measure of 2026-11-22 (`pnpm test` is
 attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and plan abandoned).
 `plan-gate-profile` (#271: a plan declares its gate profile; the guards and both baselines were lifted for
 the run, #266, #267, #270, and restored, #272).
+`finding-fix-identity` (#275: a fixed finding finds its commit again after a rebase, an amend or a
+squash; the guards and the lint baseline were lifted for the run, #273, #274, and restored, #276).
 
 ## The queue, as of 2026-11-23
 
@@ -66,9 +68,6 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 2 — after the security slice merges
 
-- [ ] **`finding-fix-identity`** — `docs/specs/2611220956-finding-fix-identity.md`, Approved
-      2026-11-22, no open question; plan to author. Its git port gains (ancestry, trailer search,
-      `patch-id`) edit `src/ports/git.ts` and `src/infra/git.ts`, hence after the security slice.
 - [ ] **Small fixes, one batch** — to plan straight from this list, each in its own file:
       - Most `phax resume` hints outside network and handoff still lack `--yes`
         (`src/app/resumeInstructions.ts`), with SEC-30 (literal pathspecs, same file).
@@ -93,8 +92,8 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 - [ ] **`fewer-git-processes`** — `docs/briefs/fewer-git-processes.md` (2026-11-23), spec to author.
       Same records in fewer git processes (one phase is about 15 to start and commit and 23 to
-      write its record), and a test that counts one phase's. After `finding-fix-identity`
-      (`src/infra/git.ts`); meets `run-start-and-base` at the phase start, so not beside it.
+      write its record), and a test that counts one phase's. It meets `run-start-and-base` at the
+      phase start, so not beside it.
 - [ ] **`run-start-and-base`** — `docs/briefs/run-start-and-base.md` (2026-11-20), spec to author.
       `phax run` takes the commit a run starts from and the branch its pull request targets as
       options, records and prints both. After the security slice (`src/app/worktree.ts`).
@@ -150,16 +149,17 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
       silent on a planned edit of a protected path) and the Vibe `agent_paths` one go with SEC-01.
 - [ ] **`approval-baseline-identity`** — `docs/briefs/approval-baseline-identity.md` (2026-11-22),
       spec to author. Plan staleness survives a rewritten approval baseline; the follow-up of
-      `finding-fix-identity`'s `q-phase-commits`, so after it.
+      `finding-fix-identity`'s `q-phase-commits` (landed, #275).
 - [ ] **`deferred-finding-files`** — `docs/briefs/deferred-finding-files.md`, spec to author.
       `phax finding defer` writes and commits one JSON file per deferral into a configured
-      directory. Shares `finding.ts` and `findingList` with `finding-fix-identity`, so after it.
+      directory. Shares `finding.ts` and `findingList` with `finding-fix-identity` (landed, #275).
 - [ ] **`protected-path-exceptions`** — `docs/briefs/protected-path-exceptions.md` (2026-11-12),
       spec to author: the operator lets one phase change a protected path, granted when the phase
       is resumed and recorded with it. Keep it consistent with `gate-tolerances`. A third case on
       2026-11-26: a phase that removes debt dead-ends on the lint and knip baselines (accepted more
       than the code has), and their prune is the operator's on a protected file; three PRs on
-      `main` for `plan-gate-profile`. The brief weighs a narrower answer for baselines.
+      `main` for `plan-gate-profile`, and again for `finding-fix-identity` (#274). The brief weighs
+      a narrower answer for baselines.
 - [ ] **`watched-paths`** — `docs/briefs/watched-paths.md` (2026-11-25), spec to author: the files
       that matter, declared in `phax.json`; every change a run makes to one is raised at review in a
       section of its own, planned or not. Touches the PR body and the review prompts; if the spec
@@ -410,6 +410,14 @@ desktop — none is promised by the announcement.
 
 ## Small follow-ups
 
+- [ ] **A format move's corpus cases, planned with it.** Twice in a row (`plan-gate-profile` #271,
+      `finding-fix-identity` #275) the run PR's CI failed only at the release rehearsal: it reads
+      the moved format's new stamp as its latest release, and no accepted next-shaped case set
+      every path (a nested `by.grant`, `acceptance`, `stop`), no encode case set every variant,
+      and no refused case named the new field's constraints. The local gate cannot see it (the
+      latest release is still the old stamp). Either the planning skill's format-move guidance
+      asks for those cases in the phase that moves the format, or the coverage test also checks
+      the `next` snapshot, so the phase's own gate catches it.
 - [x] **`phax finding fix` after a merge done on GitHub.** Done (#245, 2026-11-19): `fix` asks
       the pull request's state (`gh pr view --json state`) before pushing; merged or closed, it
       pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
