@@ -14,7 +14,9 @@ import {
   DEFAULT_AUTHORING_MODEL,
   DEFAULT_AUTHORING_EFFORT,
   resolveAuthoringSelection,
+  type ResolvedConfig,
 } from "../../src/schemas/phaxConfig.js";
+import { runKey } from "../../src/domain/runRef.js";
 import { effortsFor, entryFor } from "../../src/domain/routing/catalog.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 
@@ -698,6 +700,108 @@ describe("loadConfig protectedPaths", () => {
     const error = loadFailure(repoDir);
     expect(error.message).toBe('"protectedPaths" is accepted only in phax.json');
     expect(error.path).toBe(overlay);
+  });
+});
+
+// The state root, weakest first: the built-in ~/.phax, then PHAX_HOME when set, then an explicit
+// state.root in any layer, read as written with `~` as the user's home.
+describe("loadConfig phax home: state root and global layer", () => {
+  const { state: _state, ...noStateConfig } = baseConfig;
+  let movedHome: string;
+  let savedPhaxHome: string | undefined;
+
+  beforeEach(() => {
+    savedPhaxHome = process.env["PHAX_HOME"];
+    delete process.env["PHAX_HOME"];
+    movedHome = mkdtempSync(join(tmpdir(), "phax-moved-home-"));
+  });
+
+  afterEach(() => {
+    if (savedPhaxHome === undefined) delete process.env["PHAX_HOME"];
+    else process.env["PHAX_HOME"] = savedPhaxHome;
+    rmSync(movedHome, { recursive: true, force: true });
+  });
+
+  function loaded(): ResolvedConfig {
+    const result = loadConfig(repoDir);
+    if (Result.isFailure(result)) throw new Error(result.failure.message);
+    return result.success;
+  }
+
+  type Layer = "project" | "local" | "global";
+  function writeStateRoot(layer: Layer, root: string): void {
+    const state = { state: { root } };
+    if (layer === "project") writePhaxJson({ ...noStateConfig, ...state });
+    if (layer === "local") writeFileSync(join(repoDir, "phax.local.json"), JSON.stringify(state));
+    if (layer === "global") {
+      const globalDir = process.env["PHAX_HOME"] ?? join(home.home, ".phax");
+      writeFileSync(join(globalDir, "config.json"), JSON.stringify(state));
+    }
+  }
+
+  it.each([
+    { phaxHome: false, explicit: undefined, expected: () => join(home.home, ".phax") },
+    { phaxHome: true, explicit: undefined, expected: () => movedHome },
+    ...(["project", "local", "global"] as const).flatMap((layer) => [
+      { phaxHome: false, explicit: layer, expected: () => join(home.home, "elsewhere") },
+      { phaxHome: true, explicit: layer, expected: () => join(home.home, "elsewhere") },
+    ]),
+  ])(
+    "PHAX_HOME set: $phaxHome, explicit state.root in: $explicit",
+    ({ phaxHome, explicit, expected }) => {
+      if (phaxHome) process.env["PHAX_HOME"] = movedHome;
+      writePhaxJson(noStateConfig);
+      if (explicit !== undefined) writeStateRoot(explicit, "~/elsewhere");
+      expect(loaded().stateRoot).toBe(expected());
+    },
+  );
+
+  it("keeps an explicit absolute state.root as written under PHAX_HOME", () => {
+    process.env["PHAX_HOME"] = movedHome;
+    writePhaxJson({ ...noStateConfig, state: { root: "/pinned/state" } });
+    expect(loaded().stateRoot).toBe("/pinned/state");
+  });
+
+  it("derives the run folder under $PHAX_HOME/runs/ when no layer names state.root", () => {
+    process.env["PHAX_HOME"] = movedHome;
+    writePhaxJson(noStateConfig);
+    const config = loaded();
+    const runFolder = join(config.stateRoot, "runs", runKey(config.namespace, "my-run"));
+    expect(runFolder.startsWith(join(movedHome, "runs") + "/")).toBe(true);
+  });
+
+  it("applies PHAX_HOME/config.json and not ~/.phax/config.json, and reports it as the global source", () => {
+    process.env["PHAX_HOME"] = movedHome;
+    writePhaxJson(noStateConfig);
+    const movedGlobal = join(movedHome, "config.json");
+    writeFileSync(movedGlobal, JSON.stringify({ agent: { maxFixAttempts: 3 } }));
+    writeFileSync(
+      join(home.home, ".phax", "config.json"),
+      JSON.stringify({ agent: { maxFixAttempts: 5 } }),
+    );
+
+    expect(loaded().maxFixAttempts).toBe(3);
+    expect(describeConfigSources(repoDir)?.globalOverlay).toBe(movedGlobal);
+  });
+
+  it("reports ~/.phax/config.json as the global source when PHAX_HOME is unset", () => {
+    writePhaxJson(noStateConfig);
+    const defaultGlobal = join(home.home, ".phax", "config.json");
+    writeFileSync(defaultGlobal, JSON.stringify({ agent: { maxFixAttempts: 5 } }));
+
+    expect(loaded().maxFixAttempts).toBe(5);
+    expect(describeConfigSources(repoDir)?.globalOverlay).toBe(defaultGlobal);
+  });
+
+  it("refuses an invalid PHAX_HOME before reading any layer", () => {
+    process.env["PHAX_HOME"] = "relative/home";
+    writePhaxJson(noStateConfig);
+    const error = loadFailure(repoDir);
+    expect(error.path).toBe("PHAX_HOME");
+    expect(error.message).toBe(
+      'PHAX_HOME must be an absolute path to a directory, got "relative/home"',
+    );
+    expect(describeConfigSources(repoDir)?.globalOverlay).toBeUndefined();
   });
 });
 

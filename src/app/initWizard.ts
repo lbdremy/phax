@@ -1,5 +1,4 @@
 import { basename, join } from "node:path";
-import { homedir } from "node:os";
 import { Effect, Result } from "effect";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
@@ -13,14 +12,12 @@ import { detectName, detectPackageManager, suggestGateCommands } from "../domain
 import { buildPhaxConfig, type WizardAnswers } from "../domain/init/buildConfig.js";
 import { askRecordsAnswers } from "./configureRecords.js";
 import { reconcileRecordsSync } from "./recordsSync.js";
+import { effectiveStateRoot } from "./projectContext.js";
 import {
   serializePhaxConfigSchema,
   serializePhaxUserOverlaySchema,
   type InitResult,
 } from "./initProject.js";
-
-/** The default state root when `phax init` hasn't asked about `state.root`. */
-const DEFAULT_STATE_ROOT = join(homedir(), ".phax");
 
 function safeParseJson(text: string): unknown {
   try {
@@ -182,7 +179,8 @@ export function runInitWizard(input: {
     if (answers.records !== undefined) {
       yield* reconcileRecordsSync({
         records: resolveRecordsConfig(answers.records),
-        stateRoot: DEFAULT_STATE_ROOT,
+        // phax init writes no state.root, so the runs live in the phax home resolved now.
+        stateRoot: effectiveStateRoot(undefined),
         namespace: answers.name,
       });
     }

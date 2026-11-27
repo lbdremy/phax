@@ -1,6 +1,7 @@
+import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { homedir } from "node:os";
-import { describe, expect, it } from "vitest";
+import { homedir, tmpdir } from "node:os";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { effectiveStateRoot } from "../../src/app/projectContext.js";
 import {
   resolveAuthoringConfig,
@@ -25,19 +26,46 @@ const minimalConfig = {
   records: resolveRecordsConfig(undefined),
 };
 
+let savedPhaxHome: string | undefined;
+
+beforeEach(() => {
+  savedPhaxHome = process.env["PHAX_HOME"];
+});
+
+afterEach(() => {
+  if (savedPhaxHome === undefined) delete process.env["PHAX_HOME"];
+  else process.env["PHAX_HOME"] = savedPhaxHome;
+});
+
 describe("effectiveStateRoot", () => {
   it("returns the config stateRoot when a config is provided", () => {
     const config: ResolvedConfig = { ...minimalConfig, stateRoot: "/custom/state" };
     expect(effectiveStateRoot(config)).toBe("/custom/state");
   });
 
-  it("returns the default ~/.phax when config is undefined", () => {
-    const expected = join(homedir(), ".phax");
-    expect(effectiveStateRoot(undefined)).toBe(expected);
+  it("returns the default ~/.phax when config is undefined and PHAX_HOME is unset", () => {
+    delete process.env["PHAX_HOME"];
+    expect(effectiveStateRoot(undefined)).toBe(join(homedir(), ".phax"));
   });
 
-  it("returns a tilde-expanded path when stateRoot uses tilde", () => {
-    const config: ResolvedConfig = { ...minimalConfig, stateRoot: join(homedir(), ".phax") };
-    expect(effectiveStateRoot(config)).toBe(join(homedir(), ".phax"));
+  it("returns PHAX_HOME when config is undefined and PHAX_HOME is set", () => {
+    const moved = mkdtempSync(join(tmpdir(), "phax-ctx-home-"));
+    try {
+      process.env["PHAX_HOME"] = moved;
+      expect(effectiveStateRoot(undefined)).toBe(moved);
+    } finally {
+      rmSync(moved, { recursive: true, force: true });
+    }
+  });
+
+  it("falls back to the default ~/.phax when PHAX_HOME is invalid", () => {
+    process.env["PHAX_HOME"] = "relative/home";
+    expect(effectiveStateRoot(undefined)).toBe(join(homedir(), ".phax"));
+  });
+
+  it("returns the config stateRoot over PHAX_HOME", () => {
+    process.env["PHAX_HOME"] = "/somewhere/else";
+    const config: ResolvedConfig = { ...minimalConfig, stateRoot: "/custom/state" };
+    expect(effectiveStateRoot(config)).toBe("/custom/state");
   });
 });

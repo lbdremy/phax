@@ -16,7 +16,9 @@ import { findDuplicateCommand } from "../domain/gate/commandWords.js";
 import { describePartialRefusal, parsePartialCommand } from "../domain/gate/partialCommand.js";
 import { isPhaseWorktree } from "../domain/security/phaseGuard.js";
 import { protectedList, submoduleConflict } from "../domain/security/protectedPaths.js";
+import { phaxHomeFile } from "../domain/phaxHome.js";
 import { PHAX_CONTEXT_DIR } from "./phaxContext.js";
+import { resolvePhaxHome } from "./phaxHome.js";
 import {
   type ResolvedConfig,
   type PhaxUserOverlay,
@@ -378,11 +380,13 @@ export function describeConfigSources(cwd: string = process.cwd()): ConfigSource
   const configPath = findPhaxConfig(cwd, gitRoot);
   if (!configPath) return undefined;
   const localPath = localUserConfigPath(configPath);
-  const globalPath = join(homedir(), ".phax", "config.json");
+  // An invalid home reports no global overlay; the program's guard refuses such a call first.
+  const home = resolvePhaxHome();
+  const globalPath = Result.isSuccess(home) ? phaxHomeFile(home.success, "config.json") : undefined;
   return {
     project: configPath,
     localOverlay: existsSync(localPath) ? localPath : undefined,
-    globalOverlay: existsSync(globalPath) ? globalPath : undefined,
+    globalOverlay: globalPath !== undefined && existsSync(globalPath) ? globalPath : undefined,
   };
 }
 
@@ -449,6 +453,10 @@ export type LoadConfigError = ConfigValidationError;
 export function loadConfig(
   cwd: string = process.cwd(),
 ): Result.Result<ResolvedConfig, LoadConfigError> {
+  const homeResult = resolvePhaxHome();
+  if (Result.isFailure(homeResult)) return Result.fail(homeResult.failure);
+  const home = homeResult.success;
+
   const gitRoot = findGitRoot(cwd);
   if (!gitRoot) {
     return Result.fail(
@@ -503,7 +511,7 @@ export function loadConfig(
 
   const projectConfig = decoded.success;
 
-  const globalUserPath = join(homedir(), ".phax", "config.json");
+  const globalUserPath = phaxHomeFile(home, "config.json");
   const globalUserResult = readUserOverlay(globalUserPath);
   if (Result.isFailure(globalUserResult)) return Result.fail(globalUserResult.failure);
   const globalUser = globalUserResult.success;
@@ -570,7 +578,9 @@ export function loadConfig(
   const resolved: ResolvedConfig = {
     raw: config,
     namespace: config.name,
-    stateRoot: expandTilde(config.state?.root ?? "~/.phax"),
+    // Weakest first: the built-in ~/.phax, then PHAX_HOME (both are `home.path`), then an
+    // explicit state.root in any layer, read as written with `~` as the user's home.
+    stateRoot: config.state?.root !== undefined ? expandTilde(config.state.root) : home.path,
     repoRoot: gitRoot,
     maxFixAttempts: config.agent?.maxFixAttempts ?? 1,
     extractPlanModel: config.agent?.extractPlan?.model ?? DEFAULT_EXTRACT_MODEL,
