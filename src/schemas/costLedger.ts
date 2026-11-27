@@ -6,12 +6,13 @@
 // stream reported. Born with `$schema`; phax reads it through the bridge
 // (`readCostLedgerFile`) and writes it with `withSchemaUrl`.
 import { Schema } from "effect";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/)).pipe(
-  Schema.annotate({ description: "The phase the invocation ran for." }),
-);
+const PhaseIdSchema = Schema.String.check(
+  isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId")),
+).pipe(Schema.annotate({ description: "The phase the invocation ran for." }));
 
 const InstantSchema = Schema.String.check(
   isExportedPattern(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/),

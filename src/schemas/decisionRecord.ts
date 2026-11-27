@@ -6,6 +6,7 @@ import {
   TokenUsageSchema,
   type FrozenTokenUsage,
 } from "./runRecord.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
@@ -75,9 +76,9 @@ export const DecisionRecordModeSchema = Schema.Literals(["interactive", "verdict
 /** Whether the session resumed the artifact's kept authoring session or started a new one. */
 const DecisionRecordSessionSchema = Schema.Literals(["new", "resumed-authoring"]);
 
-const FingerprintSchema = Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
-  Schema.annotate({ description: "The sha256 hex of the source's text." }),
-);
+const FingerprintSchema = Schema.String.check(
+  isExportedPattern(/^[0-9a-f]{64}$/, refusalLabel("Sha256")),
+).pipe(Schema.annotate({ description: "The sha256 hex of the source's text." }));
 
 /** Where the session's doctrine came from: the doctrine skill, then the `--doctrine` file. */
 const DoctrineSourceSchema = Schema.Union([
@@ -107,9 +108,9 @@ const CountSchema = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0));
 const decisionRecordManifestFields = {
   kind: Schema.Literal("decision"),
   /** `<stamp>-<slug>/<NN>`: the record key's tail and the `Decision-Id` trailer. */
-  decisionId: Schema.String.check(isExportedPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
-    Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." }),
-  ),
+  decisionId: Schema.String.check(
+    isExportedPattern(/^[^/\s]+\/\d{2,}$/, refusalLabel("DecisionId")),
+  ).pipe(Schema.annotate({ description: "`<stamp>-<slug>/<NN>`, the Decision-Id trailer." })),
   /** Repo-relative path of the artifact decided. */
   artifact: Schema.NonEmptyString,
   artifactKind: Schema.Literals(["spec", "plan"]),

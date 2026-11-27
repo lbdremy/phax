@@ -832,7 +832,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "commit: Expected a string matching the pattern ^([0-9a-f]{40}|[0-9a-f]{64})$, actual \"not a url\""
+        "refusal": "commit: Expected CommitSha, actual \"not a url\""
       }
     },
     {
@@ -1013,7 +1013,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "by.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"not a url\""
+        "refusal": "by.grant: Expected Grant, actual \"not a url\""
       }
     },
     {

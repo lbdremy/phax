@@ -7,11 +7,12 @@
 // departing one carries a note, is phax's check against the artifact, not
 // this schema's.
 import { Schema } from "effect";
+import { refusalLabel } from "./refusal/adapter.js";
 import { draft07JsonSchema, schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
 // A question or option id, as the §9 format reads it back: no whitespace.
-const IdSchema = Schema.String.check(isExportedPattern(/^\S+$/));
+const IdSchema = Schema.String.check(isExportedPattern(/^\S+$/, refusalLabel("QuestionId")));
 
 const DecideVerdictSchema = Schema.Struct({
   question: IdSchema.annotate({ description: "The id of a question of the artifact." }),

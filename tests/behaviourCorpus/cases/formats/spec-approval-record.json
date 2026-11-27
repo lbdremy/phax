@@ -399,7 +399,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "approvedBy.grant: Expected a string matching the pattern ^[a-z0-9]+(-[a-z0-9]+)*$, actual \"\""
+        "refusal": "approvedBy.grant: Expected Grant, actual \"\""
       }
     },
     {

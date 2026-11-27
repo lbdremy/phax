@@ -1,7 +1,7 @@
 import { Schema, SchemaTransformation, type Types } from "effect";
 import { BranchNameSchema } from "../domain/branded.js";
 import { PhaseModeSchema } from "./phaxPlan.js";
-import { refusalOverride } from "./refusal/adapter.js";
+import { refusalLabel, refusalOverride } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
@@ -50,7 +50,7 @@ const EffortSchema = Schema.Union([
 ]);
 
 const HoldPhasesSchema = Schema.NonEmptyArray(
-  Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
+  Schema.String.check(isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId"))),
 );
 
 /**
@@ -114,7 +114,7 @@ export const encodeRunStatus = Schema.encodeSync(RunStatusFileSchema);
 
 /** A commit's full object name: 40 hex digits (SHA-1) or 64 (SHA-256). */
 export const FullCommitShaSchema = Schema.String.check(
-  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/),
+  isExportedPattern(/^[0-9a-f]{40}([0-9a-f]{24})?$/, refusalLabel("CommitSha")),
 ).pipe(
   Schema.annotate({
     description: "A commit's full object name: 40 lowercase hex digits (SHA-1) or 64 (SHA-256).",

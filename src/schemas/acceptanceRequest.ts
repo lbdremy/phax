@@ -6,11 +6,14 @@
 // src/schemas/history/. phax reads a request back only to finish a stop's
 // close whose commit already landed (`readAcceptanceRequestFile`).
 import { Schema } from "effect";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
 import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(
+  isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId")),
+);
 
 const filesSchema = Schema.NonEmptyArray(Schema.NonEmptyString).annotate({
   description:

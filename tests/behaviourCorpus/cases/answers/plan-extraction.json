@@ -506,7 +506,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "plan.phases[0].id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"phase-1\""
+        "refusal": "plan.phases[0].id: Expected PhaseId, actual \"phase-1\""
       }
     },
     {

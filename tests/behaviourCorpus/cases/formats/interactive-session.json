@@ -970,7 +970,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phaseId: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phaseId: Expected PhaseId, actual \"\""
       }
     },
     {
@@ -2473,7 +2473,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "current.sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
+        "refusal": "current.sessionId: Expected SafeSessionId, actual \"\""
       }
     },
     {
@@ -3470,7 +3470,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "firstTurns.0.sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
+        "refusal": "firstTurns.0.sessionId: Expected SafeSessionId, actual \"\""
       }
     },
     {
@@ -4253,7 +4253,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "history.0.sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
+        "refusal": "history.0.sessionId: Expected SafeSessionId, actual \"\""
       }
     },
     {
@@ -4580,7 +4580,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phaseId: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phaseId: Expected PhaseId, actual \"\""
       }
     },
     {
@@ -5049,7 +5049,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "transcripts.0.sessionId: Expected a string matching the pattern ^[A-Za-z0-9][A-Za-z0-9._-]*$, actual \"\""
+        "refusal": "transcripts.0.sessionId: Expected SafeSessionId, actual \"\""
       }
     },
     {
@@ -5128,7 +5128,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "transcripts.0.sha256: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
+        "refusal": "transcripts.0.sha256: Expected Sha256, actual \"\""
       }
     },
     {
@@ -5772,7 +5772,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "turnInProgress.personHandoffBefore: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
+        "refusal": "turnInProgress.personHandoffBefore: Expected Sha256, actual \"\""
       }
     },
     {

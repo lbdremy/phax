@@ -8,14 +8,16 @@ import { Schema } from "effect";
 import { GRANT_PATTERN } from "./approvedBy.js";
 import { PATH_CLASSES, PathClassSchema } from "./pathClass.js";
 import { TimestampSchema } from "./questions.js";
-import { refusalOverride } from "./refusal/adapter.js";
+import { refusalLabel, refusalOverride } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 const strictKeys = { parseOptions: { onExcessProperty: "error" } } as const;
 
 /** A finding's id: `F<n>` for a code-review finding, `C<n>` for a compliance finding. */
-const FindingIdSchema = Schema.String.check(isExportedPattern(/^[FC][1-9][0-9]*$/)).pipe(
+const FindingIdSchema = Schema.String.check(
+  isExportedPattern(/^[FC][1-9][0-9]*$/, refusalLabel("FindingId")),
+).pipe(
   Schema.annotate({
     description: "A finding id: F<n> (code review) or C<n> (compliance review).",
     ...refusalOverride(
@@ -26,7 +28,7 @@ const FindingIdSchema = Schema.String.check(isExportedPattern(/^[FC][1-9][0-9]*$
 
 /** A git commit sha: lowercase hex, 40 (sha-1) or 64 (sha-256) characters. */
 const CommitShaSchema = Schema.String.check(
-  isExportedPattern(/^([0-9a-f]{40}|[0-9a-f]{64})$/),
+  isExportedPattern(/^([0-9a-f]{40}|[0-9a-f]{64})$/, refusalLabel("CommitSha")),
 ).pipe(Schema.annotate({ description: "A git commit sha, lowercase hex of 40 or 64 characters." }));
 
 const OperatorSchema = Schema.Struct({
@@ -42,7 +44,7 @@ const FixedBySchema = Schema.Union([
   OperatorSchema,
   Schema.Struct({
     kind: Schema.Literal("machine"),
-    grant: Schema.String.check(isExportedPattern(GRANT_PATTERN)).pipe(
+    grant: Schema.String.check(isExportedPattern(GRANT_PATTERN, refusalLabel("Grant"))).pipe(
       Schema.annotate({
         description: "The grant the machine declared with `--by machine:<grant>`.",
       }),

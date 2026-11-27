@@ -380,7 +380,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phase: Expected PhaseId, actual \"\""
       }
     },
     {
@@ -463,7 +463,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        "refusal": "base: Expected CommitSha, actual \"\""
       }
     },
     {
@@ -518,7 +518,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phase: Expected PhaseId, actual \"\""
       }
     },
     {
@@ -610,7 +610,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phases.0.id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phases.0.id: Expected PhaseId, actual \"\""
       }
     },
     {

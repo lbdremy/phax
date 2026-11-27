@@ -2,6 +2,7 @@ import { Schema, type Types } from "effect";
 import { PhaseModeSchema } from "./phaxPlan.js";
 import { ProviderIdSchema, type ProviderId } from "./providerId.js";
 import { schemaUrlField } from "./schemaUrl.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { SafeSessionIdSchema } from "./sessionId.js";
 import { FullCommitShaSchema } from "./status.js";
 import { RecordedSurfaceSchema } from "./surface.js";
@@ -115,7 +116,9 @@ export function liftFrozenTokenUsage(usage: FrozenTokenUsage): TokenUsage {
   return { available: true, usage: recorded };
 }
 
-const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(
+  isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId")),
+);
 
 /**
  * The phase's role in an acceptance pair: null when it is in none;
@@ -143,7 +146,7 @@ const RecordClosedBySchema = Schema.Struct({
 const RecordTranscriptSchema = Schema.Union([
   Schema.Struct({
     status: Schema.Literal("captured"),
-    sha256: Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/)).pipe(
+    sha256: Schema.String.check(isExportedPattern(/^[0-9a-f]{64}$/, refusalLabel("Sha256"))).pipe(
       Schema.annotate({ description: "The sha256 of the transcript copy's bytes." }),
     ),
   }),

@@ -572,7 +572,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "decisions.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "decisions.0.id: Expected QuestionId, actual \"\""
       }
     },
     {
@@ -727,7 +727,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "decisions.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "decisions.0.id: Expected QuestionId, actual \"\""
       }
     },
     {

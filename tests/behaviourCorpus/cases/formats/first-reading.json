@@ -454,7 +454,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "copiedBy.0.phase: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "copiedBy.0.phase: Expected PhaseId, actual \"\""
       }
     },
     {

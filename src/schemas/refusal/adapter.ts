@@ -47,8 +47,19 @@ export function refusalOverride(message: (actual: unknown) => string): {
   return { [REFUSAL_OVERRIDE]: message };
 }
 
+/**
+ * The name a refusal gives a pattern check (`isExportedPattern(re,
+ * refusalLabel("PhaseId"))`) in place of its regular expression: `Expected
+ * PhaseId, actual "phase-1"`, as Effect 3 labelled an identifier-like leaf. Not
+ * Effect's `identifier`, which would name the leaf in the JSON Schema's `$defs`.
+ */
+export function refusalLabel(label: string): { readonly [REFUSAL_LABEL]: string } {
+  return { [REFUSAL_LABEL]: label };
+}
+
 const REFUSAL_MESSAGE = "phaxRefusalMessage";
 const REFUSAL_OVERRIDE = "phaxRefusalOverride";
+const REFUSAL_LABEL = "phaxRefusalLabel";
 
 type ValueKind = "invalid-type" | "invalid-value" | "filter";
 
@@ -631,7 +642,7 @@ function labelOf(ast: SchemaAST.AST, withChecks = true): string {
   if (withChecks && checks !== undefined) {
     for (let i = checks.length - 1; i >= 0; i--) {
       const check = checks[i]!;
-      const label = checkLabel(check, ast) ?? checkIdentifier(check);
+      const label = patternLabel(check) ?? checkLabel(check, ast) ?? checkIdentifier(check);
       if (label !== undefined) return label;
     }
   }
@@ -741,14 +752,24 @@ function checkIdentifier(check: SchemaAST.Check<never>): string | undefined {
   return typeof identifier === "string" ? identifier : undefined;
 }
 
-// A failed check's label: a built-in check from its constraint data, then its
+// A failed check's label: a pattern check's `refusalLabel` (`PhaseId`, not its
+// regular expression), a built-in check from its constraint data, then its
 // identifier, then `{ <checked node> | filter }` for one of phax's own.
 function filterLabel(check: SchemaAST.Filter<never>, owner: SchemaAST.AST | undefined): string {
   return (
+    patternLabel(check) ??
     checkLabel(check, owner) ??
     checkIdentifier(check) ??
     `{ ${owner === undefined ? "unknown" : labelOf(owner, false)} | filter }`
   );
+}
+
+// The `refusalLabel` of a pattern check that carries one. Every other built-in
+// check keeps its constraint label.
+function patternLabel(check: SchemaAST.Check<never>): string | undefined {
+  if (check.annotations?.representation?.id !== "effect/schema/isPattern") return undefined;
+  const label = check.annotations[REFUSAL_LABEL];
+  return typeof label === "string" ? label : undefined;
 }
 
 // A built-in check's label, in the words phax gives each constraint, read

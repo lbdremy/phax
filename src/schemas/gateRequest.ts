@@ -1,9 +1,12 @@
 import { Schema } from "effect";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { FullCommitShaSchema } from "./status.js";
 import { isExportedPattern } from "./strictString.js";
 
-const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(
+  isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId")),
+);
 
 const GateRequestPhaseSchema = Schema.Struct({
   id: PhaseIdSchema.annotate({ description: "The phase's id." }),

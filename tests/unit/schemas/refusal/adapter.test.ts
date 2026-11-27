@@ -1,7 +1,7 @@
 import { Result, Schema, SchemaIssue, SchemaTransformation } from "effect";
 import type { ParseOptions } from "effect/SchemaAST";
 import { describe, expect, it } from "vitest";
-import { firstRefusal, refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
+import { firstRefusal, refusalLabel, refusalsOf } from "../../../../src/schemas/refusal/adapter.js";
 import type { Refusal } from "../../../../src/schemas/refusal/model.js";
 
 // Acceptance tests for the Effect 3 adapter: a decode failure becomes phax's
@@ -169,6 +169,57 @@ const cases: ReadonlyArray<{
         path: [],
         expected: "a string matching the pattern ^[a-z]+$",
         actual: "A1",
+        message: null,
+      },
+    ],
+  },
+  {
+    // Effect 3: `Expected PhaseId, actual "phase-1"`, the label on the pattern check.
+    name: "a pattern filter with a refusal label",
+    error: refused(
+      Schema.String.check(Schema.isPattern(/^phase-\d{2}$/, refusalLabel("PhaseId"))),
+      "phase-1",
+    ),
+    refusals: [{ kind: "filter", path: [], expected: "PhaseId", actual: "phase-1", message: null }],
+  },
+  {
+    // A refusal label names the check; a message on it still decides the text.
+    name: "a pattern filter with a refusal label and a message",
+    error: refused(
+      Schema.String.check(
+        Schema.isPattern(/^\S+$/, { ...refusalLabel("QuestionId"), message: "an id" }),
+      ),
+      "a b",
+    ),
+    refusals: [
+      { kind: "filter", path: [], expected: "QuestionId", actual: "a b", message: "an id" },
+    ],
+  },
+  {
+    // Effect's `identifier` on a pattern check (NonEmptyString's) names a JSON Schema
+    // `$defs` entry, not the refusal: the check keeps its pattern label.
+    name: "a pattern filter with an identifier",
+    error: refused(Schema.String.check(Schema.isPattern(/^[a-z]+$/, { identifier: "Word" })), "A1"),
+    refusals: [
+      {
+        kind: "filter",
+        path: [],
+        expected: "a string matching the pattern ^[a-z]+$",
+        actual: "A1",
+        message: null,
+      },
+    ],
+  },
+  {
+    // A refusal label belongs to a pattern check: any other built-in check keeps its constraint label.
+    name: "a minLength filter with a refusal label",
+    error: refused(Schema.String.check(Schema.isMinLength(2, refusalLabel("Pair"))), "a"),
+    refusals: [
+      {
+        kind: "filter",
+        path: [],
+        expected: "a string at least 2 character(s) long",
+        actual: "a",
         message: null,
       },
     ],

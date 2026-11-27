@@ -2,10 +2,13 @@
 // stop's close and the provider stores' lookups build paths from it.
 import { Schema } from "effect";
 import { SAFE_SESSION_ID } from "../domain/sessionId.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { isExportedPattern } from "./strictString.js";
 
 /** A session id that starts with a letter or digit and holds only letters, digits, `.`, `_` and `-`. */
-export const SafeSessionIdSchema = Schema.String.check(isExportedPattern(SAFE_SESSION_ID)).pipe(
+export const SafeSessionIdSchema = Schema.String.check(
+  isExportedPattern(SAFE_SESSION_ID, refusalLabel("SafeSessionId")),
+).pipe(
   Schema.annotate({
     identifier: "SafeSessionId",
     description:

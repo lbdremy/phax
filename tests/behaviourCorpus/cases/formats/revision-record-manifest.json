@@ -1787,7 +1787,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "revisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
+        "refusal": "revisionId: Expected RevisionId, actual \"\""
       }
     },
     {

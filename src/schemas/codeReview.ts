@@ -12,7 +12,7 @@ import { Result, Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { formatAnswerViolations } from "./formatError.js";
 import { CURRENT_STAMPS } from "./release.js";
-import { refusalOverride } from "./refusal/adapter.js";
+import { refusalLabel, refusalOverride } from "./refusal/adapter.js";
 import { schemaUrl } from "./schemaUrl.js";
 import { isExportedPattern, NonEmptyString } from "./strictString.js";
 
@@ -92,7 +92,7 @@ export type CodeReviewFinding = Schema.Schema.Type<typeof CodeReviewFindingSchem
  * across the reviews of a run. phax gives it; a session never writes one.
  */
 export const CodeReviewFindingIdSchema = Schema.String.check(
-  isExportedPattern(/^F[1-9][0-9]*$/),
+  isExportedPattern(/^F[1-9][0-9]*$/, refusalLabel("FindingId")),
 ).annotate({
   description: "The finding's id in its run: F<n>, n from 1, given by phax.",
   ...refusalOverride(

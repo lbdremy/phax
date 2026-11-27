@@ -1,12 +1,15 @@
 import { Schema, type Types } from "effect";
 import { ApprovedBySchema } from "./approvedBy.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
 const SpecApprovalRecordSchema = Schema.Struct({
   specFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(
+    isExportedPattern(/^[0-9a-f]{40}$/, refusalLabel("CommitSha")),
+  ),
 });
 
 export type SpecApprovalRecord = Schema.Schema.Type<typeof SpecApprovalRecordSchema>;

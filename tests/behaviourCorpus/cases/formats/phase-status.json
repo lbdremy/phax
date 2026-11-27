@@ -623,7 +623,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "base: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        "refusal": "base: Expected CommitSha, actual \"\""
       }
     },
     {
@@ -1498,7 +1498,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "stop.reviewCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        "refusal": "stop.reviewCommit: Expected CommitSha, actual \"\""
       }
     },
     {
