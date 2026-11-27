@@ -418,7 +418,8 @@
       ]
     }
   ],
-  "openQuestions": [
+  "openQuestions": [],
+  "arbitratedQuestions": [
     {
       "id": "q-docs",
       "question": "Is PHAX_HOME documented for users (a second configuration, a CI machine), or kept as a test seam named only in docs/e2e-testing.md?",
@@ -435,7 +436,28 @@
         }
       ],
       "recommendation": "user-facing",
-      "rationale": "The variable changes which routing and config every command reads, so an operator can hit it with or without docs. Undocumented, it is a hidden behavior. The second-configuration need is the same one that caused this spec. Freezing the name costs little, and r-validate already makes the variable observable."
+      "rationale": "The variable changes which routing and config every command reads, so an operator can hit it with or without docs. Undocumented, it is a hidden behavior. The second-configuration need is the same one that caused this spec. Freezing the name costs little, and r-validate already makes the variable observable.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "user-facing",
+        "abandoned": [
+          "test-seam"
+        ],
+        "why": "Operator's choice: PHAX_HOME is supported surface, documented in docs/phax-home.md and the README configuration-layers paragraph.",
+        "advocate": "The strongest case for test-seam: the need that is proven is the e2e one, and keeping the variable a test seam leaves its name and meaning free to change until a user need has shown what shape it should take.",
+        "principles": [
+          "S1",
+          "E0"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-27T09:41:26.846Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-notice",
@@ -458,7 +480,29 @@
         }
       ],
       "recommendation": "stderr-notice",
-      "rationale": "The dangerous case is the silent one: routing and config quietly coming from another home. The notice appears only when the variable is set, so a default user sees nothing new, and the cost lands on CI logs and e2e, which can expect the line."
+      "rationale": "The dangerous case is the silent one: routing and config quietly coming from another home. The notice appears only when the variable is set, so a default user sees nothing new, and the cost lands on CI logs and e2e, which can expect the line.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "stderr-notice",
+        "abandoned": [
+          "validate-only",
+          "verbose-only"
+        ],
+        "why": "Operator's choice: one stderr line when the variable is set, nothing when unset.",
+        "advocate": "The strongest case for validate-only: whoever sets PHAX_HOME did so on purpose, and one command that answers where phax reads from keeps every other command's stderr quiet and stable for scripts.",
+        "principles": [
+          "S1",
+          "E0"
+        ],
+        "reversibility": "cheap",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-27T09:41:26.846Z",
+        "revised": []
+      },
+      "history": []
     },
     {
       "id": "q-explicit-root",
@@ -476,10 +520,31 @@
         }
       ],
       "recommendation": "as-written",
-      "rationale": "A path in phax.json is the project's explicit choice, and special-casing one string makes config unreadable. The e2e helper already overrides state.root, so isolation does not depend on this. An operator who wants a fully separate second configuration can set state.root in their PHAX_HOME's config.json layer."
+      "rationale": "A path in phax.json is the project's explicit choice, and special-casing one string makes config unreadable. The e2e helper already overrides state.root, so isolation does not depend on this. An operator who wants a fully separate second configuration can set state.root in their PHAX_HOME's config.json layer.",
+      "verdict": {
+        "kind": "decided",
+        "chosen": "as-written",
+        "abandoned": [
+          "literal-follows"
+        ],
+        "why": "Operator's choice. The state root resolves in this order, weakest first: the built-in default ~/.phax; PHAX_HOME when set; an explicit state.root in any config layer (project phax.json, local overlay, or the phax home's config.json), which always wins and is read as written. state.root stays optional in every layer, and phax init keeps not writing it, so a new project follows PHAX_HOME.",
+        "advocate": "The strongest case for literal-follows: a repository that writes \"~/.phax\" almost always means phax's home, and following PHAX_HOME would isolate its runs without asking the operator for a second override.",
+        "principles": [
+          "S1",
+          "E0",
+          "C1"
+        ],
+        "reversibility": "costly",
+        "by": {
+          "kind": "operator",
+          "name": "Rémy Loubradou"
+        },
+        "at": "2026-11-27T09:41:26.846Z",
+        "revised": []
+      },
+      "history": []
     }
   ],
-  "arbitratedQuestions": [],
   "planningNote": {
     "settled": [
       "The variable is named PHAX_HOME. Unset, the phax home is ~/.phax and nothing changes for current users.",
