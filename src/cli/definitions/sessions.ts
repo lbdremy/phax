@@ -441,17 +441,17 @@ const OpenOutput = Schema.Struct({
 });
 
 const OPEN_HELP =
-  "Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.";
+  "Opens the final worktree with the system's default opener (`open` on macOS, `xdg-open` elsewhere), as if you ran that opener on the worktree path. For a run in awaiting_review it opens the stopped phase's worktree. To open the worktree in an editor of your choice, run that editor on the path that `phax path <run>` prints.";
 
 export function makeOpenCommand(deps: OpenDeps = {}) {
   return defineCommand({
     name: "open",
-    summary: "Open the final worktree in the configured editor",
+    summary: "Open the final worktree with the system's default opener",
     help: OPEN_HELP,
     examples: ["phax open usage-cli"],
     input: { args: reject(Schema.Tuple([ShortNameArg])) },
     output: reject(OpenOutput),
-    // The configured editor may be a terminal one.
+    // Refused under `--json` as a hand-over, though the detached opener never takes the terminal.
     prompts: () => true,
     unprompted: "phax path <run> --json names the worktree",
     run: ({ input }) =>

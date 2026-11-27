@@ -119,7 +119,7 @@ A command that hands the terminal to a session or prompts a person cannot answer
 | `phax review-code` (without `--headless`) | `phax review-code --headless --json`            |
 | `phax adjust-plan`                       | Run it from a terminal, without `--json`        |
 
-A few commands refuse `--json` only in the mode that prompts, and name the flag that avoids it: `phax artifact decide` without `--verdicts` and `--by`, `phax artifact approve` and `reopen` without `--by`, `phax init` without `--yes`, `phax prune` without `--yes` or `--dry-run`, and `phax records init`. `phax resume` and `phax reset-phase` never wait on a person: without `--yes` they answer their `preview` and exit 0. `phax open --json` is refused even when the configured editor is a graphical one that would have returned at once.
+A few commands refuse `--json` only in the mode that prompts, and name the flag that avoids it: `phax artifact decide` without `--verdicts` and `--by`, `phax artifact approve` and `reopen` without `--by`, `phax init` without `--yes`, `phax prune` without `--yes` or `--dry-run`, and `phax records init`. `phax resume` and `phax reset-phase` never wait on a person: without `--yes` they answer their `preview` and exit 0. `phax open --json` is refused even though the system opener it starts returns at once.
 
 These commands exit with the code of the process they handed the terminal to, whatever it is, 64 and 70 included. That is only seen without `--json`.
 
