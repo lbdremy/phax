@@ -175,6 +175,8 @@ export function defineProgram<const C extends ReadonlyArray<Command<any> | Group
   readonly helpCommand?: true;
   /** Gain (the program's guard): asked on the located command before anything is decoded. */
   readonly guard?: (call: GuardedCall) => GuardRefusal | undefined;
+  /** Gain (the program's notice): one stderr text once the guard lets the call through. */
+  readonly notice?: (call: GuardedCall) => string | undefined;
   readonly exits: ProgramExits;
   readonly commands: C;
   readonly usage?: ProgramUsage;

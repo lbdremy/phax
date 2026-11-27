@@ -20,6 +20,15 @@ vi.mock("../../../src/infra/session.js", () => ({
   makeNodeSessionLayer: vi.fn(),
 }));
 
+// The runs here are fakes with no folder: their recorded home is a fixed one. The record itself
+// is proven by tests/integration/runHome.test.ts.
+vi.mock("../../../src/app/runHome.js", async () => {
+  const effect = await import("effect");
+  return {
+    readRunHome: vi.fn(() => effect.Result.succeed({ path: "/fake-home/.phax", from: "default" })),
+  };
+});
+
 // No test reads ~/.phax: providers.json is the built-in catalog.
 vi.mock("../../../src/app/loadRouting.js", async (importOriginal) => {
   const original = await importOriginal<typeof import("../../../src/app/loadRouting.js")>();

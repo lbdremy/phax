@@ -21,11 +21,10 @@ import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
-import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
+import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { type PhaxHome, phaxHomeFile } from "../../domain/phaxHome.js";
+import { SessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -94,7 +93,7 @@ import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
  * with a config must use. Relative paths crossing the port (`docs/plans`,
  * `docs/plans/approvals/<plan>.json`) then resolve against `config.repoRoot` — matching
  * git's own work-from-anywhere contract — while absolute paths (`stateRoot`,
- * `PHAX_HOME_DIR`) pass through unchanged. The architectural guard in
+ * the phax home) pass through unchanged. The architectural guard in
  * `tests/unit/architecturalGuards.test.ts` forbids a command from reaching for
  * the identity `NodeFileSystemLayer` instead of this helper.
  */
@@ -104,18 +103,22 @@ export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Lay
 
 /**
  * The global telemetry journal (or a no-op when telemetry is disabled), fully
- * provided with its own filesystem. The journal writes under `PHAX_HOME_DIR`,
- * which is absolute, so it is deliberately backed by the identity
- * `NodeFileSystemLayer` rather than a repo-rooted view — encapsulated here so
- * commands never reach for the identity layer directly.
+ * provided with its own filesystem. The phax home is resolved on each call and
+ * the journal writes under it; the path is absolute, so it is deliberately
+ * backed by the identity `NodeFileSystemLayer` rather than a repo-rooted view —
+ * encapsulated here so commands never reach for the identity layer directly.
+ * An invalid PHAX_HOME gives the no-op: the program's guard refuses that call
+ * before it runs.
  */
 export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
+  const home = resolvePhaxHome();
+  if (Result.isFailure(home)) return NoopSystemTelemetryLayer;
+  const telemetryConfig = loadTelemetryConfig(phaxHomeFile(home.success, "telemetry.json"));
   const telemetryEnabled = Result.isSuccess(telemetryConfig)
     ? telemetryConfig.success.enabled
     : true;
   return telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
+    ? makeGlobalTelemetryJournalLayer(home.success.path).pipe(Layer.provide(NodeFileSystemLayer))
     : NoopSystemTelemetryLayer;
 }
 
@@ -126,9 +129,29 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
  * the use case, so transcript capture and record usage read the same stores
  * (vibe has none: its turns are read from their stream and export). Every command that runs a provider or writes a record
  * builds its backend through this.
+ *
+ * Beside it, the phax home every session it spawns is handed as PHAX_HOME (`SessionPhaxHome`):
+ * `runHome`, the recorded home of the existing run the command serves, or else the home
+ * resolved now (for `phax run`, the home its run folder records).
  */
-export function makeProviderBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
-  return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
+export function makeProviderBackendLayer(
+  providerConfig: ProviderConfig,
+  runHome?: PhaxHome,
+): Layer.Layer<Backend> {
+  return makeNodeBackendLayer(providerConfig).pipe(
+    Layer.provideMerge(ProviderStoreRootsLive),
+    Layer.provideMerge(sessionPhaxHomeLayer(runHome)),
+  );
+}
+
+/** `SessionPhaxHome` for this invocation: `runHome`, else the current home. An invalid
+ *  PHAX_HOME gives none: the program's guard refuses that call before it runs. */
+function sessionPhaxHomeLayer(runHome: PhaxHome | undefined): Layer.Layer<never> {
+  return Layer.sync(SessionPhaxHome, (): string | undefined => {
+    if (runHome !== undefined) return runHome.path;
+    const current = resolvePhaxHome();
+    return Result.isSuccess(current) ? current.success.path : undefined;
+  });
 }
 
 /** The layers a test of `phax run` or `phax resume` swaps for fakes; each defaults to the real

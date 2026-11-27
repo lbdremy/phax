@@ -7,8 +7,11 @@ import { withSchemaUrl } from "../schemas/persisted.js";
 import { encodePhaxPlanFile, type PhaxPlan } from "../schemas/phaxPlan.js";
 import { type RunHold, type RunStatus } from "../schemas/status.js";
 import { upsertRun } from "./registry.js";
-import { RegistryCorruptionError } from "../domain/errors.js";
+import type { ConfigValidationError, RegistryCorruptionError } from "../domain/errors.js";
+import { runHomeFile } from "../domain/phaxHome.js";
 import { runKey } from "../domain/runRef.js";
+import type { RunHome } from "../schemas/runHome.js";
+import { resolvePhaxHome } from "./phaxHome.js";
 
 function makeRunId(shortName: ShortName): RunId {
   return `${shortName}-${Date.now()}` as RunId;
@@ -35,7 +38,11 @@ export function createRunFolder(
   allowSkillEdits?: boolean,
   // The hold the fresh-run preflight resolved; recorded so every resume holds the same phases.
   hold: RunHold = { selection: "none" },
-): Effect.Effect<RunFolderResult, FsError | RegistryCorruptionError, FileSystem> {
+): Effect.Effect<
+  RunFolderResult,
+  FsError | RegistryCorruptionError | ConfigValidationError,
+  FileSystem
+> {
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
@@ -43,7 +50,17 @@ export function createRunFolder(
     const namespace = config.namespace;
     const runPath = join(config.stateRoot, "runs", runKey(namespace, shortName));
 
+    // The run's phax home, recorded before anything else of the run so no session of the run
+    // starts without it: its sessions get it as PHAX_HOME, a phax call inside one of its phase
+    // worktrees uses it, and `phax resume` refuses another.
+    const home = yield* Effect.fromResult(resolvePhaxHome());
+
     yield* fs.mkdirp(runPath);
+
+    yield* fs.writeAtomic(
+      runHomeFile(runPath),
+      JSON.stringify({ path: home.path, from: home.from } satisfies RunHome, null, 2),
+    );
 
     yield* fs.writeAtomic(join(runPath, "plan.md"), planMd);
 

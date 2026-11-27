@@ -4,7 +4,7 @@
 import { Data, Effect, Result, Layer } from "effect";
 import * as Schema from "effect/Schema";
 import { loadConfig } from "../../app/loadConfig.js";
-import { PHAX_HOME_DIR } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
 import { report } from "../../app/report.js";
 import { NodeFileSystemLayer } from "../../infra/fs.js";
 import { makeNodeGitHubLayer } from "../../infra/github.js";
@@ -45,6 +45,10 @@ export const reportCommand = defineCommand({
   run: ({ input }) =>
     Effect.gen(function* () {
       const shortName = input.args[0];
+      const home = resolvePhaxHome();
+      if (Result.isFailure(home)) {
+        return yield* Effect.fail(new ReportConfigError({ message: home.failure.message }));
+      }
       let stateRoot: string | undefined;
       if (shortName !== undefined) {
         const configResult = loadConfig(process.cwd());
@@ -59,7 +63,7 @@ export const reportCommand = defineCommand({
         report({
           ...(shortName !== undefined ? { shortName } : {}),
           ...(stateRoot !== undefined ? { stateRoot } : {}),
-          phaxHomeDir: PHAX_HOME_DIR,
+          phaxHomeDir: home.success.path,
           noGist: input.flags.noGist ?? false,
           phaxVersion: readPackageVersion(),
           repo: process.cwd(),

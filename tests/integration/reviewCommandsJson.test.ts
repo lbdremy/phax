@@ -22,6 +22,7 @@ import { isolateGit } from "../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaxPlanJson } from "../helpers/costHistory.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { writeRunHomeRecord } from "../helpers/runHomeFixture.js";
 import { reconciliationResult } from "../helpers/reconciliationFixture.js";
 import { runnerCall } from "../helpers/runnerCall.js";
 import { removeTempDir } from "../helpers/tempGit.js";
@@ -108,6 +109,7 @@ describe("review and publication commands", () => {
     const phaseDir = join(runPath, "phase-01");
     mkdirSync(phaseDir, { recursive: true });
     mkdirSync(worktreePath, { recursive: true });
+    writeRunHomeRecord(runPath);
     writeFileSync(
       join(runPath, "run-status.json"),
       JSON.stringify({

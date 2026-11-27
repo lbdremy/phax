@@ -1377,7 +1377,7 @@
       "kind": "diagnostic",
       "file": "tests/e2e/vibeSecure.test.ts",
       "rule": "typescript/no-unsafe-type-assertion",
-      "count": 14,
+      "count": 13,
       "reason": "debt"
     },
     {

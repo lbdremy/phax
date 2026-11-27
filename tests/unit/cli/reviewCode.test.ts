@@ -21,6 +21,15 @@ vi.mock("../../../src/app/resolveRunRef.js", () => ({
   resolveRunRef: vi.fn(),
 }));
 
+// The runs here are fakes with no folder: their recorded home is a fixed one. The record itself
+// is proven by tests/integration/runHome.test.ts.
+vi.mock("../../../src/app/runHome.js", async () => {
+  const effect = await import("effect");
+  return {
+    readRunHome: vi.fn(() => effect.Result.succeed({ path: "/fake-home/.phax", from: "default" })),
+  };
+});
+
 vi.mock("../../../src/app/reviewCode.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../../src/app/reviewCode.js")>()),
   reviewCodeAndRecord: vi.fn(),

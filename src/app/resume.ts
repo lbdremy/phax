@@ -15,6 +15,25 @@ import { composePhaxState } from "./phaxState.js";
 import type { RunReviewInfo } from "../domain/runReviewInfo.js";
 import { REQUIRED_HANDOFF_SECTIONS } from "./handoffGuidance.js";
 import { committedHandoffIsValid, handoffPath } from "./handoffInjection.js";
+import type { ConfigValidationError, SecurityPreflightError } from "../domain/errors.js";
+import { type PhaxHome, runHomeFile } from "../domain/phaxHome.js";
+import { checkResumeHome } from "./runHome.js";
+import { runHomeWriteSetPreflight } from "./runPreflight.js";
+
+/**
+ * What `phax resume` checks of the run's phax home before it changes anything: the run's record
+ * names the current home (a missing or undecodable record, or another home, is a
+ * ConfigValidationError on path `PHAX_HOME`, exit 2), and no `allowWrite` entry reaches the
+ * record (a SecurityPreflightError, exit 11). Answers the recorded home.
+ */
+export function resumeHomePreflight(
+  runPath: string,
+  allowWrite: readonly string[],
+): Effect.Effect<PhaxHome, ConfigValidationError | SecurityPreflightError> {
+  return Effect.fromResult(checkResumeHome(runPath)).pipe(
+    Effect.tap(() => runHomeWriteSetPreflight(allowWrite, runHomeFile(runPath))),
+  );
+}
 
 export type ResumeRefusalReason =
   | RunStatus["state"]

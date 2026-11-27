@@ -3,13 +3,16 @@ import { glob as globPromise, readFile, watch as watchPromise } from "node:fs/pr
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
-import { PHAX_HOME_DIR, TELEMETRY_CONFIG_PATH } from "../../src/app/loadTelemetryConfig.js";
+import { Result } from "effect";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import {
   assertNoGuardViolations,
+  exportedPhaxHome,
   installPhaxHomeGuard,
   isInsidePhaxHome,
   markCollecting,
+  takeExportedPhaxHome,
   takeGuardViolations,
 } from "../setup/phaxHomeGuard.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
@@ -77,6 +80,80 @@ describe("isInsidePhaxHome", () => {
   ])("%s", (_name, path, exempt, expected) => {
     expect(isInsidePhaxHome(path, [root], exempt, false)).toBe(expected);
   });
+});
+
+describe("takeExportedPhaxHome", () => {
+  it("removes PHAX_HOME from the env it is given and returns its value", () => {
+    const env: NodeJS.ProcessEnv = { PHAX_HOME: "/data/phax", PATH: "/bin" };
+    expect(takeExportedPhaxHome(env)).toBe("/data/phax");
+    expect(env).toEqual({ PATH: "/bin" });
+    expect(Object.hasOwn(env, "PHAX_HOME")).toBe(false);
+  });
+
+  it("removes an empty PHAX_HOME and returns the empty value", () => {
+    const env: NodeJS.ProcessEnv = { PHAX_HOME: "", PATH: "/bin" };
+    expect(takeExportedPhaxHome(env)).toBe("");
+    expect(Object.hasOwn(env, "PHAX_HOME")).toBe(false);
+  });
+
+  it("returns undefined and leaves the env alone when PHAX_HOME is absent", () => {
+    const env: NodeJS.ProcessEnv = { PATH: "/bin" };
+    expect(takeExportedPhaxHome(env)).toBeUndefined();
+    expect(env).toEqual({ PATH: "/bin" });
+  });
+});
+
+describe("isInsidePhaxHome with an exported PHAX_HOME", () => {
+  const realPhax = "/home/dev/.phax";
+  const exported = "/tmp/phax-exported";
+  const exportedReal = "/private/tmp/phax-exported";
+  const roots = [realPhax, exported, exportedReal];
+  const repo = "/tmp/phax-exported/worktrees/phax.x/phase-01";
+
+  it.each([
+    ["the exported home itself", exported, [], true],
+    ["a file inside the exported home", `${exported}/config.json`, [], true],
+    ["a file inside its realpath", `${exportedReal}/runs/a/run.json`, [], true],
+    ["a sibling of the exported home", "/tmp/phax-exported-2/config.json", [], false],
+    ["a sibling of its realpath", "/private/tmp/phax-exportedx/a", [], false],
+    ["the parent of the exported home", "/tmp", [], false],
+    ["the repository under test inside it", `${repo}/package.json`, [repo], false],
+    ["a sibling worktree of the exempted repository", `${exported}/worktrees/x/a`, [repo], true],
+    ["the real ~/.phax, still guarded", `${realPhax}/config.json`, [repo], true],
+  ])("%s", (_name, path, exempt, expected) => {
+    expect(isInsidePhaxHome(path, roots, exempt, false)).toBe(expected);
+  });
+
+  it("guards nothing extra when no absolute PHAX_HOME was exported", () => {
+    expect(isInsidePhaxHome("/tmp/anything", [], [], false)).toBe(false);
+  });
+});
+
+describe("the guard on an exported PHAX_HOME", () => {
+  const exported = exportedPhaxHome();
+
+  it("has removed PHAX_HOME from the test process", () => {
+    expect(process.env["PHAX_HOME"]).toBeUndefined();
+  });
+
+  it.runIf(exported !== undefined && exported.startsWith("/"))(
+    "refuses a call inside the exported PHAX_HOME, naming it",
+    () => {
+      const probe = join(exported ?? "", "guard-probe-does-not-exist");
+      expect(() => readFileSync(probe)).toThrow(
+        expect.objectContaining({
+          code: "EACCES",
+          path: probe,
+          message: expect.stringMatching(
+            /inside the exported PHAX_HOME .*tests\/helpers\/isolatePhaxHome\.ts/,
+          ),
+        }),
+      );
+      expect(takeGuardViolations()).toEqual([
+        { call: "fs.readFileSync", path: probe, during: "test" },
+      ]);
+    },
+  );
 });
 
 describe("the guard on the real ~/.phax", () => {
@@ -300,10 +377,12 @@ describe("isolatePhaxHome", () => {
     expect(readdirSync(join(isolation.home, ".phax"))).toEqual([]);
   });
 
-  it("keeps the import-time constants in the import-time home, outside the real one", () => {
-    for (const constant of [PHAX_HOME_DIR, TELEMETRY_CONFIG_PATH, MODEL_ROUTING_PATH]) {
-      expect(inside(constant, IMPORT_TIME_HOME)).toBe(true);
-      expect(inside(constant, REAL_HOME)).toBe(false);
+  it("resolves the phax home per call in the per-test home, outside the real one", () => {
+    const home = Result.getOrThrow(resolvePhaxHome());
+    for (const path of [home.path, phaxHomeFile(home, "model-routing.json")]) {
+      expect(inside(path, isolation.home)).toBe(true);
+      expect(inside(path, IMPORT_TIME_HOME)).toBe(false);
+      expect(inside(path, REAL_HOME)).toBe(false);
     }
     expect(IMPORT_TIME_HOME).not.toBe(isolation.home);
   });

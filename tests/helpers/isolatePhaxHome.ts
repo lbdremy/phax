@@ -31,6 +31,8 @@ import { removeTempDir } from "./tempGit.js";
 //
 // A spawned phax CLI child is out of the guard's reach (tests/setup/phaxHomeGuard.ts
 // watches the test process only): pass `phaxHomeEnv()` as the child's `env`.
+// PHAX_HOME is cleared by the setup file and never handed to a child, so a test
+// that wants it sets it in the child's env explicitly, after spreading `phaxHomeEnv()`.
 
 // The real `node:os`, loaded without vitest's module graph: this file is
 // imported from inside the `node:os` mock factory, which cannot import the
@@ -126,11 +128,13 @@ export function isolatePhaxHome(): { readonly home: string; readonly restore: ()
 /**
  * The environment for a spawned phax CLI child: `process.env` with HOME in a
  * temporary home. That is the current per-test home when one is active,
- * otherwise a home of its own, removed in `afterAll`.
+ * otherwise a home of its own, removed in `afterAll`. Never carries PHAX_HOME,
+ * even when a test set `process.env.PHAX_HOME` itself.
  */
 export function phaxHomeEnv(): NodeJS.ProcessEnv {
+  const { PHAX_HOME: _dropped, ...env } = process.env;
   const active = testHomes.at(-1);
-  if (active !== undefined) return { ...process.env, HOME: active };
+  if (active !== undefined) return { ...env, HOME: active };
   if (spawnHome === undefined) spawnHome = newHome("phax-spawn-home-");
-  return { ...process.env, HOME: spawnHome };
+  return { ...env, HOME: spawnHome };
 }

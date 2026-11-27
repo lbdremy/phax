@@ -13,6 +13,7 @@ import type {
   TranscriptRequest,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
+import { SessionPhaxHome, withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import {
   AgentInvocationError,
   type AgentSessionFailedError,
@@ -148,6 +149,8 @@ function spawnCodex(
   prompt: string,
   outputJsonlPath: string | undefined,
   cwd: string | undefined,
+  // The session's PHAX_HOME (`SessionPhaxHome`); without one the environment is inherited as is.
+  phaxHome: string | undefined,
 ): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
     const lines: string[] = [];
@@ -162,6 +165,7 @@ function spawnCodex(
     const proc = spawn(entry.executable, [...args], {
       stdio: ["pipe", "pipe", "pipe"],
       ...(cwd !== undefined ? { cwd } : {}),
+      ...(phaxHome !== undefined ? { env: withSessionPhaxHome(process.env, phaxHome) } : {}),
     });
 
     proc.stdin.write(prompt, "utf8");
@@ -299,8 +303,9 @@ function runCodexCompletionWith(
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end, watchdogFailure } = yield* Effect.tryPromise({
-      try: () => spawnCodex(entry, args, prompt, undefined, options.cwd),
+      try: () => spawnCodex(entry, args, prompt, undefined, options.cwd, phaxHome),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
@@ -435,8 +440,9 @@ function runCodexSession(
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end, watchdogFailure } = yield* Effect.tryPromise({
-      try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd),
+      try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd, phaxHome),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
           argv,

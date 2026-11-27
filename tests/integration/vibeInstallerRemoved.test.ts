@@ -1,7 +1,9 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MODEL_ROUTING_PATH, PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
+import { Result } from "effect";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import { makeAgentGroup } from "../../src/cli/definitions/agent.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
@@ -20,7 +22,12 @@ function call(argv: ReadonlyArray<string>) {
 }
 
 beforeEach(() => {
-  for (const path of [PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH]) {
+  // The phax home's files, resolved at call time like phax resolves them.
+  const home = Result.getOrThrow(resolvePhaxHome());
+  for (const path of [
+    phaxHomeFile(home, "providers.json"),
+    phaxHomeFile(home, "model-routing.json"),
+  ]) {
     rmSync(path, { force: true });
     mkdirSync(dirname(path), { recursive: true });
   }

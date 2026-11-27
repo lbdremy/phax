@@ -13,6 +13,7 @@ import { DEFAULT_PROVIDER_CONFIG } from "../../domain/routing/defaults.js";
 import type { Backend } from "../../ports/backend.js";
 import { FileSystem } from "../../ports/fs.js";
 import type { Session } from "../../ports/session.js";
+import { withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import { defineCommand, reject } from "../commandLibrary/contract/index.js";
 import { makeProviderBackendLayer, makeRepoRootedFileSystemLayer } from "../commands/runLayers.js";
@@ -25,6 +26,7 @@ import {
   HandoverRefusedError,
   handoverExits,
   handoverTexts,
+  recordedHomeOf,
   resolveTarget,
 } from "./sessions.js";
 
@@ -120,6 +122,7 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         const { info, qualifiedName, crossProject, stateRoot } = target;
         const notLanded = landedRunRefusal(qualifiedName, info.runState);
         if (notLanded !== null) return yield* Effect.fail(failedFor(target, notLanded));
+        const home = yield* recordedHomeOf(target);
 
         const fsLayer = makeRepoRootedFileSystemLayer(config);
         // Resolved against the invocation directory, not left to the file system's root.
@@ -169,7 +172,7 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         }).pipe(
           Effect.provide(
             Layer.mergeAll(
-              deps.backendLayer ?? makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG),
+              deps.backendLayer ?? makeProviderBackendLayer(DEFAULT_PROVIDER_CONFIG, home),
               fsLayer,
               NoopSystemTelemetryLayer,
             ),
@@ -191,7 +194,7 @@ export function makeAdjustPlanCommand(deps: AdjustPlanDeps = {}) {
         );
         const exit = yield* handOver(
           deps.sessionLayer,
-          { ...invocation, env: {} },
+          { ...invocation, env: withSessionPhaxHome({}, home.path) },
           invocation.executable,
         );
         return {

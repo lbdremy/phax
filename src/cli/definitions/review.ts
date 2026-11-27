@@ -11,6 +11,7 @@ import * as Schema from "effect/Schema";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { readRunHome } from "../../app/runHome.js";
 import {
   prepareCodeReviewSession,
   REVIEW_SKILL_PATH,
@@ -46,6 +47,7 @@ import { FileSystem } from "../../ports/fs.js";
 import type { Git } from "../../ports/git.js";
 import type { GitHub } from "../../ports/github.js";
 import { Session } from "../../ports/session.js";
+import { withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import { NoopSystemTelemetryLayer } from "../../ports/systemTelemetry.js";
 import type { ResolvedCodeReviewConfig, ResolvedConfig } from "../../schemas/phaxConfig.js";
 import { defineCommand, reject, Written } from "../commandLibrary/contract/index.js";
@@ -420,9 +422,11 @@ export function makeReviewComplianceCommand(deps: ReviewDeps = {}) {
           providerConfig,
           () => ({ allowed: true }),
         );
+        const home = readRunHome(info.runPath);
+        if (Result.isFailure(home)) return yield* fail(home.failure.message);
 
         const layer = Layer.mergeAll(
-          deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
+          deps.backendLayer ?? makeProviderBackendLayer(providerConfig, home.success),
           makeRepoRootedFileSystemLayer(config),
           NoopSystemTelemetryLayer,
           deps.gitLayer ?? makeNodeGitLayer({ repoRoot: config.repoRoot }),
@@ -624,6 +628,8 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       providerConfig,
       () => ({ allowed: true }),
     );
+    const home = readRunHome(info.runPath);
+    if (Result.isFailure(home)) return yield* fail(home.failure.message);
 
     const reviewed = yield* Effect.result(
       Effect.gen(function* () {
@@ -642,7 +648,7 @@ function runHeadless(call: HeadlessCall, deps: ReviewDeps) {
       }).pipe(
         Effect.provide(
           Layer.mergeAll(
-            deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
+            deps.backendLayer ?? makeProviderBackendLayer(providerConfig, home.success),
             makeRepoRootedFileSystemLayer(config),
             NoopSystemTelemetryLayer,
             deps.gitLayer ?? makeNodeGitLayer({ repoRoot: config.repoRoot }),
@@ -702,6 +708,8 @@ function runInteractive(
     const { config, effectiveConfig, info, qualifiedName, crossProject } = call;
     const fail = (message: string) =>
       Effect.fail(new ReviewFailedError({ message, qualifiedName, crossProject }));
+    const home = readRunHome(info.runPath);
+    if (Result.isFailure(home)) return yield* fail(home.failure.message);
 
     const prepared = yield* Effect.result(
       Effect.gen(function* () {
@@ -752,7 +760,10 @@ function runInteractive(
     const exit = yield* Effect.result(
       Effect.gen(function* () {
         const session = yield* Session;
-        return yield* session.resume({ ...invocation, env: {} });
+        return yield* session.resume({
+          ...invocation,
+          env: withSessionPhaxHome({}, home.success.path),
+        });
       }).pipe(Effect.provide(deps.sessionLayer ?? makeNodeSessionLayer())),
     );
     if (Result.isFailure(exit)) {

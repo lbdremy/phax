@@ -30,6 +30,7 @@ const SOURCE_FILES = [
   "docs/findings.md",
   "docs/code-repository.md",
   "docs/delegating.md",
+  "docs/phax-home.md",
 ] as const;
 
 /** Directories whose `*.md` files (not recursive) the site renders. */

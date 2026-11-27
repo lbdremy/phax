@@ -166,6 +166,13 @@ export default definePageMap({
         "Revise a Draft headless spec or plan from an amendment with phax artifact revise: one read-only writer session, a checked answer, and one commit.",
     },
     {
+      route: "/guide/phax-home",
+      title: "The phax home",
+      source: "docs/phax-home.md",
+      description:
+        "Move phax's own files with PHAX_HOME for a second configuration or a CI machine: what moves, what stays, where runs go and the home a run keeps.",
+    },
+    {
       route: "/guide/upgrading",
       title: "Upgrading phax",
       source: "docs/upgrading.md",

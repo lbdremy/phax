@@ -15,6 +15,8 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadProviderConfig } from "../../app/loadRouting.js";
 import { effectiveStateRoot } from "../../app/projectContext.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
+import { readRunHome } from "../../app/runHome.js";
+import { withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import type { RunReviewInfo } from "../../app/resolveRunInfo.js";
 import { runKey } from "../../domain/runRef.js";
 import { getSessionAdapter } from "../../domain/session/index.js";
@@ -156,6 +158,16 @@ export const failedFor = (target: ResolvedTarget, message: string) =>
     crossProject: target.crossProject,
   });
 
+/** The phax home the target's run recorded: every session opened for the run is handed it as
+ *  PHAX_HOME. A missing or undecodable record fails the command, naming the file. */
+export const recordedHomeOf = (target: ResolvedTarget) =>
+  Effect.suspend(() => {
+    const home = readRunHome(target.info.runPath);
+    return Result.isSuccess(home)
+      ? Effect.succeed(home.success)
+      : Effect.fail(failedFor(target, home.failure.message));
+  });
+
 /** Hands the terminal to `invocation` through the Session port and answers its exit; a process
  *  that cannot start is `HandoverLaunchError`, `Failed to launch <label>: <message>`. */
 export function handOver(
@@ -229,11 +241,12 @@ export function makeEnterCommand(deps: EnterDeps = {}) {
         if ("unsupported" in invocation) {
           return yield* Effect.fail(failedFor(target, invocation.unsupported));
         }
+        const home = yield* recordedHomeOf(target);
         yield* sayTarget(target, say);
         yield* say(`Entering ${invocation.executable} session in ${invocation.cwd}`);
         const exit = yield* handOver(
           deps.sessionLayer,
-          { ...invocation, env: {} },
+          { ...invocation, env: withSessionPhaxHome({}, home.path) },
           invocation.executable,
         );
         return {
@@ -321,6 +334,7 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
           Effect.provide(fsLayer),
           Effect.mapError((error) => failedFor(target, error.message)),
         );
+        const home = yield* recordedHomeOf(target);
         const planned = yield* enterPhase({
           namespace,
           shortName,
@@ -339,7 +353,7 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
                 (config !== undefined
                   ? makeNodeGitLayer({ repoRoot: config.repoRoot })
                   : NodeGitLayer),
-              deps.backendLayer ?? makeProviderBackendLayer(providerConfig),
+              deps.backendLayer ?? makeProviderBackendLayer(providerConfig, home),
               deps.lockLayer ?? makeNodeLockLayer(stateRoot),
               NoopSystemTelemetryLayer,
             ),
@@ -365,7 +379,7 @@ export function makeEnterPhaseCommand(deps: EnterPhaseDeps = {}) {
             executable: command.executable,
             args: command.args,
             cwd: command.cwd,
-            env: command.env,
+            env: withSessionPhaxHome(command.env, home.path),
           },
           command.executable,
         );
@@ -410,11 +424,17 @@ export function makeShellCommand(deps: EnterDeps = {}) {
           );
         }
         const executable = process.env["SHELL"] ?? "bash";
+        const home = yield* recordedHomeOf(target);
         yield* sayTarget(target, say);
         yield* say(`Opening shell in ${info.worktreePath}`);
         const exit = yield* handOver(
           deps.sessionLayer,
-          { executable, args: [], cwd: info.worktreePath, env: {} },
+          {
+            executable,
+            args: [],
+            cwd: info.worktreePath,
+            env: withSessionPhaxHome({}, home.path),
+          },
           "shell",
         );
         return { qualifiedName, crossProject, executable, cwd: info.worktreePath, exit };

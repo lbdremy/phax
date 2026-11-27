@@ -1,11 +1,18 @@
 import { Effect, Result, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import { providerSetup } from "../../src/app/providerSetup.js";
-import { PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
 import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
+
+// The phax home's files, resolved at call time like phax resolves them.
+const providersPath = (): string =>
+  phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "providers.json");
+const routingPath = (): string =>
+  phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "model-routing.json");
 
 function makeLayer(
   fakeFs: ReturnType<typeof makeFakeFileSystem>,
@@ -45,7 +52,7 @@ describe("providerSetup integration", () => {
     expect(plan.enabled).toContain("mistral-vibe");
     expect(written).toBe(false);
     expect(backupPath).toBeUndefined();
-    expect(fakeFs.impl.getFile(PROVIDER_CONFIG_PATH)).toBeUndefined();
+    expect(fakeFs.impl.getFile(providersPath())).toBeUndefined();
   });
 
   it("--write produces providers.json with expected enabled flags", async () => {
@@ -61,7 +68,7 @@ describe("providerSetup integration", () => {
 
     expect(Result.isSuccess(result)).toBe(true);
 
-    const rawFile = fakeFs.impl.getFile(PROVIDER_CONFIG_PATH);
+    const rawFile = fakeFs.impl.getFile(providersPath());
     expect(rawFile).toBeDefined();
     const parsed = JSON.parse(rawFile!) as {
       providers: Record<string, { enabled: boolean }>;
@@ -84,7 +91,7 @@ describe("providerSetup integration", () => {
         ]),
       ),
     };
-    fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(existing, null, 2));
+    fakeFs.impl.setFile(providersPath(), JSON.stringify(existing, null, 2));
 
     const result = await Effect.runPromise(
       Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
@@ -98,7 +105,7 @@ describe("providerSetup integration", () => {
     expect(plan.disabled).toEqual([]);
     expect(plan.unchanged).toContain("codex-cli");
 
-    const written: unknown = JSON.parse(fakeFs.impl.getFile(PROVIDER_CONFIG_PATH) ?? "null");
+    const written: unknown = JSON.parse(fakeFs.impl.getFile(providersPath()) ?? "null");
     expect(written).toMatchObject({ providers: { "codex-cli": { enabled: false } } });
     expect(written).toEqual(existing);
   });
@@ -137,7 +144,7 @@ describe("providerSetup integration", () => {
         },
       },
     };
-    fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(existing, null, 2));
+    fakeFs.impl.setFile(providersPath(), JSON.stringify(existing, null, 2));
 
     const result = await Effect.runPromise(
       Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
@@ -153,7 +160,7 @@ describe("providerSetup integration", () => {
     ]);
     expect(plan.retiredReplaced).toEqual(["mistral-medium-3.5"]);
 
-    const written: unknown = JSON.parse(fakeFs.impl.getFile(PROVIDER_CONFIG_PATH) ?? "null");
+    const written: unknown = JSON.parse(fakeFs.impl.getFile(providersPath()) ?? "null");
     expect(written).toEqual({
       providers: {
         "claude-code": existing.providers["claude-code"],
@@ -186,7 +193,7 @@ describe("providerSetup integration", () => {
 
     expect(plan.disabled).toContain("claude-code");
 
-    const rawFile = fakeFs.impl.getFile(PROVIDER_CONFIG_PATH);
+    const rawFile = fakeFs.impl.getFile(providersPath());
     expect(rawFile).toBeDefined();
     const parsed = JSON.parse(rawFile!) as {
       providers: Record<string, { enabled: boolean }>;
@@ -208,7 +215,7 @@ describe("providerSetup integration", () => {
     expect(Result.isSuccess(result)).toBe(true);
     const { routingScaffolded } = Result.getOrThrow(result);
     expect(routingScaffolded).toBe(true);
-    expect(fakeFs.impl.getFile(MODEL_ROUTING_PATH)).toBeDefined();
+    expect(fakeFs.impl.getFile(routingPath())).toBeDefined();
   });
 
   it("--with-routing does not overwrite an existing model-routing.json", async () => {
@@ -217,7 +224,7 @@ describe("providerSetup integration", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "1.0", stderr: "" });
 
     const existingRouting = JSON.stringify({ version: 1, custom: true });
-    fakeFs.impl.setFile(MODEL_ROUTING_PATH, existingRouting);
+    fakeFs.impl.setFile(routingPath(), existingRouting);
 
     const result = await Effect.runPromise(
       Effect.result(providerSetup({ write: true, prune: false, withRouting: true })).pipe(
@@ -228,7 +235,7 @@ describe("providerSetup integration", () => {
     expect(Result.isSuccess(result)).toBe(true);
     const { routingScaffolded } = Result.getOrThrow(result);
     expect(routingScaffolded).toBe(false);
-    expect(fakeFs.impl.getFile(MODEL_ROUTING_PATH)).toBe(existingRouting);
+    expect(fakeFs.impl.getFile(routingPath())).toBe(existingRouting);
   });
 
   it("backup is written when overwriting an existing providers.json", async () => {
@@ -237,7 +244,7 @@ describe("providerSetup integration", () => {
     fakeShell.impl.setDefaultResponse({ exitCode: 0, stdout: "1.0", stderr: "" });
 
     const existingContent = JSON.stringify(DEFAULT_PROVIDER_CONFIG, null, 2);
-    fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, existingContent);
+    fakeFs.impl.setFile(providersPath(), existingContent);
 
     const result = await Effect.runPromise(
       Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
@@ -248,7 +255,7 @@ describe("providerSetup integration", () => {
     expect(Result.isSuccess(result)).toBe(true);
     const { backupPath } = Result.getOrThrow(result);
     expect(backupPath).toBeDefined();
-    expect(backupPath!.startsWith(`${PROVIDER_CONFIG_PATH}.phax-backup-`)).toBe(true);
+    expect(backupPath!.startsWith(`${providersPath()}.phax-backup-`)).toBe(true);
     expect(fakeFs.impl.getFile(backupPath!)).toBe(existingContent);
   });
 });

@@ -10,7 +10,10 @@
  * A check that needs the run's folder, registry entry or branch must be
  * declared outside this set, explicitly.
  */
+import { realpathSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { Effect, Result } from "effect";
+import { pathCovers } from "../domain/phaxHome.js";
 import {
   AssignmentPreflightError,
   type ConfigValidationError,
@@ -245,6 +248,55 @@ function locateSections(input: RunPreflightInput): LocatedSections {
       onSuccess: (sections) => Effect.succeed(sections),
     }),
   );
+}
+
+/**
+ * The run's phax home record must stay outside every phase sandbox's write set: a resolved
+ * `security.filesystem.allowWrite` entry that equals or contains `recordPath` refuses the run
+ * (or its resume) before any session, naming the entry and the record. Each entry is compared
+ * as written and through its real path, so a symlink to the state root is caught too. It needs
+ * the run's folder, so it is declared outside RUN_PREFLIGHT_CHECKS: `phax run` calls it once
+ * the run is named, `phax resume` before it changes anything.
+ */
+export function runHomeWriteSetPreflight(
+  allowWrite: readonly string[],
+  recordPath: string,
+): Effect.Effect<void, SecurityPreflightError> {
+  const record = realPathOf(recordPath);
+  const covering = allowWrite.filter(
+    (entry) =>
+      pathCovers(entry, recordPath) ||
+      pathCovers(realPathOf(entry), recordPath) ||
+      pathCovers(realPathOf(entry), record),
+  );
+  if (covering.length === 0) return Effect.void;
+  return Effect.fail(
+    new SecurityPreflightError({
+      message: [
+        `Security preflight failed: security.filesystem.allowWrite would let a phase session write this run's phax home record "${recordPath}".`,
+        `Covering: ${covering.map((entry) => `"${entry}"`).join(", ")}`,
+        `Remove ${covering.length === 1 ? "that entry" : "those entries"} from security.filesystem.allowWrite, or narrow ${covering.length === 1 ? "it" : "them"} so the run folder stays outside.`,
+      ].join("\n"),
+      missing: covering,
+    }),
+  );
+}
+
+/** The real path of `path`: its deepest existing ancestor resolved, the rest appended as
+ *  written. `path` itself when nothing of it resolves. */
+function realPathOf(path: string): string {
+  const rest: string[] = [];
+  let current = path;
+  for (;;) {
+    try {
+      return join(realpathSync(current), ...rest.toReversed());
+    } catch {
+      const parent = dirname(current);
+      if (parent === current) return path;
+      rest.push(basename(current));
+      current = parent;
+    }
+  }
 }
 
 const checks = {

@@ -187,7 +187,7 @@ A `phax.json` looks like this:
 - **`records`** is written by `phax init` or `phax records init` — see [Records](#records).
 - **`protectedPaths`** lists the files whose change is the operator's decision: no phase may create, change, delete or rename them. The `phax.json` phax loads is protected too. It is accepted in `phax.json` only, and `phax validate` lists the protected paths.
 
-**Layers.** `phax.json` is the team's baseline. Two more files can add to it: `~/.phax/config.json` for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
+**Layers.** `phax.json` is the team's baseline. Two more files can add to it: `config.json` in the [phax home](docs/phax-home.md) (`~/.phax/config.json` unless `PHAX_HOME` is set) for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
 
 **Check and upgrade.**
 
@@ -1161,7 +1161,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 
 ## Environment
 
-phax reads no environment variable for its configuration: everything is in `phax.json`, its layers and `~/.phax/`. It reads a few variables for their usual meaning: `GIT_COMMITTER_NAME` (who approves), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (where the providers keep their sessions), `SHELL` (`phax shell`) and `NO_COLOR`. Its own end-to-end tests run only with `PHAX_E2E_RUN=1`.
+phax reads no environment variable for its configuration values: everything is in `phax.json`, its layers and the [phax home](docs/phax-home.md), `~/.phax/` unless `PHAX_HOME` names another directory. It reads a few variables for their usual meaning: `GIT_COMMITTER_NAME` (who approves), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (where the providers keep their sessions), `SHELL` (`phax shell`) and `NO_COLOR`. Its own end-to-end tests run only with `PHAX_E2E_RUN=1`.
 
 ## Troubleshooting
 
@@ -1208,7 +1208,7 @@ Something else? `phax report <run>` opens a GitHub issue with the run's telemetr
 
 Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 
-- `phax validate [--plan <path>] [--json]` — Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
+- `phax validate [--plan <path>] [--json]` — Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json and the phax home's config.json, which is ~/.phax/config.json unless PHAX_HOME is set) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 - `phax unlock [--force] [--json] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax enter [--json] <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-phase [--new-session] [--json] <short-name> <phase-id>` — Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.

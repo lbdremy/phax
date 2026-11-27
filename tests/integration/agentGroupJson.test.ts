@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { dirname, isAbsolute } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MODEL_ROUTING_PATH, PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
+import { Result } from "effect";
 import * as Schema from "effect/Schema";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import {
   makeAgentGroup,
   makeAgentResolveCommand,
@@ -74,8 +76,12 @@ function removeBackups(path: string): void {
   }
 }
 
+// The phax home's files, resolved at call time like phax resolves them.
+const homeFile = (name: "providers.json" | "model-routing.json"): string =>
+  phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), name);
+
 beforeEach(() => {
-  for (const path of [PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH]) {
+  for (const path of [homeFile("providers.json"), homeFile("model-routing.json")]) {
     rmSync(path, { force: true });
     mkdirSync(dirname(path), { recursive: true });
     removeBackups(path);
@@ -201,14 +207,14 @@ describe("agent setup written files", () => {
       backupPath: string | null;
     };
     expect(firstValue.backupPath).toBeNull();
-    expect(firstValue.written.map((file) => file.path)).toEqual([PROVIDER_CONFIG_PATH]);
+    expect(firstValue.written.map((file) => file.path)).toEqual([homeFile("providers.json")]);
 
     const second = await call(["setup", "providers", "--write", "--with-routing", "--json"]);
     const value = JSON.parse(second.out) as { written: WrittenFile[]; backupPath: string };
     expect(value.written.map((file) => file.path)).toEqual([
-      PROVIDER_CONFIG_PATH,
+      homeFile("providers.json"),
       value.backupPath,
-      MODEL_ROUTING_PATH,
+      homeFile("model-routing.json"),
     ]);
     for (const file of value.written) {
       expect(isAbsolute(file.path)).toBe(true);

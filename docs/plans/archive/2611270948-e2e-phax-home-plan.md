@@ -1,5 +1,5 @@
 ---
-status: Approved
+status: Completed
 source-spec: docs/specs/2611261455-e2e-phax-home.md
 completes-spec: true
 approved:

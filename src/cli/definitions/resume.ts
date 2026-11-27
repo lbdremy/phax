@@ -18,10 +18,12 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { phaxHomeFile } from "../../domain/phaxHome.js";
 import { withRunLock } from "../../app/lock.js";
 import { resolvePlanLink } from "../../app/planLink.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
-import { inspectResumeOfRun } from "../../app/resume.js";
+import { inspectResumeOfRun, resumeHomePreflight } from "../../app/resume.js";
 import { decodeRunId, decodeShortName, type RunId } from "../../domain/branded.js";
 import { AwaitingReviewStopError, StopCloseRefusedError } from "../../domain/errors.js";
 import {
@@ -52,6 +54,7 @@ import { readBundledReviewSkillForRun } from "../commands/bundledReviewSkill.js"
 import { configErrorText } from "../commands/reportConfigError.js";
 import {
   buildSystemTelemetryLayer,
+  exitCodeForError,
   makeRepoRootedFileSystemLayer,
   provideRunLayers,
 } from "../commands/runLayers.js";
@@ -140,7 +143,9 @@ function runResumeCommand(
     const config = configResult.success;
     const { stateRoot } = config;
 
-    const telemetryConfigResult = loadTelemetryConfig();
+    const telemetryConfigResult = Result.flatMap(resolvePhaxHome(), (home) =>
+      loadTelemetryConfig(phaxHomeFile(home, "telemetry.json")),
+    );
     if (Result.isFailure(telemetryConfigResult)) {
       return yield* refuse(1, configErrorText(telemetryConfigResult.failure));
     }
@@ -166,6 +171,15 @@ function runResumeCommand(
     }
 
     const runPath = join(stateRoot, "runs", runKey(namespace, shortName));
+    // Before anything changes: the run keeps the phax home it started with, and no phase
+    // session may write its record.
+    const homeResult = yield* Effect.result(
+      resumeHomePreflight(runPath, config.security.filesystem.allowWrite),
+    );
+    if (Result.isFailure(homeResult)) {
+      const err = homeResult.failure;
+      return yield* refuse(exitCodeForError(err), err.message.split("\n"));
+    }
     // Read before the decision: the run's recorded hold names a held phase
     // whose stop is still owed.
     const runStatusPath = join(runPath, "run-status.json");

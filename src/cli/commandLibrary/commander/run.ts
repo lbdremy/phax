@@ -18,6 +18,7 @@ import {
   type ErrorText,
   type ExitCode,
   type FlagShape,
+  type GuardedCall,
   type Grouping,
   type Inputs,
   type Io,
@@ -1318,10 +1319,10 @@ function givenOptions(words: Words, command: Command<unknown>): Readonly<Record<
   return given;
 }
 
-/** Gain (the program's guard): the located command, run through the program's guard, then
- *  `next`. A refusal is written and exited with; nothing after it runs. Help and the contracts
- *  run nothing, so the guard is never asked for them, nor for anything but a command. A guard
- *  that throws is a defect. */
+/** Gain (the program's guard): the located command, run through the program's guard, then its
+ *  notice, then `next`. A refusal is written and exited with; nothing after it runs. Help and
+ *  the contracts run nothing, so neither the guard nor the notice is asked for them, nor for
+ *  anything but a command. A guard or a notice that throws is a defect. */
 function guarded<R>(
   program: Program<R>,
   io: Io,
@@ -1329,18 +1330,34 @@ function guarded<R>(
   json: boolean,
   next: () => Effect.Effect<ExitCode, never, R>,
 ): Effect.Effect<ExitCode, never, R> {
-  const guard = program.guard;
-  if (guard === undefined || located.tag !== "Command") return next();
+  const { guard, notice } = program;
+  if ((guard === undefined && notice === undefined) || located.tag !== "Command") return next();
   const end = located.rest.indexOf(END_OF_OPTIONS);
   const options = end === -1 ? located.rest : located.rest.slice(0, end);
   if (options.some((word) => HELP.includes(word))) return next();
-  return Effect.try(() =>
-    guard({ words: located.path, options: givenOptions(io.argv, located.command) }),
-  ).pipe(
+  const asked: GuardedCall = {
+    words: located.path,
+    options: givenOptions(io.argv, located.command),
+  };
+  // Gain (the program's notice): once the guard lets the call through, on stderr, then `next`.
+  const noticed = (): Effect.Effect<ExitCode, never, R> =>
+    notice === undefined
+      ? next()
+      : Effect.try(() => notice(asked)).pipe(
+          Effect.matchCauseEffect({
+            onFailure: (cause) => defectOut(io, program, json, describe(cause)),
+            onSuccess: (text) =>
+              text === undefined || text === ""
+                ? next()
+                : io.err(json ? noteLines(text) : line(text)).pipe(Effect.flatMap(next)),
+          }),
+        );
+  if (guard === undefined) return noticed();
+  return Effect.try(() => guard(asked)).pipe(
     Effect.matchCauseEffect({
       onFailure: (cause) => defectOut(io, program, json, describe(cause)),
       onSuccess: (refused) => {
-        if (refused === undefined) return next();
+        if (refused === undefined) return noticed();
         const text = json
           ? refusedLine(
               {

@@ -2,8 +2,11 @@
 // codes, its usage flag and header, the options every command takes and the phase guard.
 // main.ts hands every call but `--usage` to the runner over this program. A file under
 // src/cli/definitions/ never imports `commander`.
+import { Result } from "effect";
 import * as Schema from "effect/Schema";
 import { isInPhaseWorktree } from "../../app/loadConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { phaxHomeNotice } from "../../domain/phaxHome.js";
 import { phaseGuardRefusal } from "../../domain/security/phaseGuard.js";
 import { PHAX_RELEASE } from "../../schemas/release.js";
 import {
@@ -65,6 +68,36 @@ const phaxProgramOptions = reject(
 /** The licence the usage spec declares: package.json's, which a test keeps it equal to. */
 export const PHAX_LICENSE = "Apache-2.0";
 
+/** The commands that neither check nor announce the phax home: a shell sourcing completions
+ *  starts cleanly whatever PHAX_HOME holds. */
+const HOME_FREE = new Set(["completions"]);
+
+/** The home guard: every located command but `completions` refuses an invalid PHAX_HOME with
+ *  exit 2 (config validation) before anything is decoded or read. */
+function homeGuard(call: GuardedCall): GuardRefusal | undefined {
+  if (HOME_FREE.has(call.words.join(" "))) return undefined;
+  const home = resolvePhaxHome();
+  return Result.isSuccess(home)
+    ? undefined
+    : {
+        text: home.failure.message,
+        exit: 2,
+        expected: "PHAX_HOME: an absolute path to a directory",
+      };
+}
+
+/** The program's guard: the home guard first, then the phase guard. */
+function phaxGuard(call: GuardedCall): GuardRefusal | undefined {
+  return homeGuard(call) ?? phaseGuard(call);
+}
+
+/** The program's notice: the moved home, once on stderr, for a command the guard let through. */
+function homeNotice(call: GuardedCall): string | undefined {
+  if (HOME_FREE.has(call.words.join(" "))) return undefined;
+  const home = resolvePhaxHome();
+  return Result.isSuccess(home) ? phaxHomeNotice(home.success) : undefined;
+}
+
 /** The phase guard: inside a phase worktree, a command that acts on phax state or an artifact's
  *  lifecycle is refused with exit 1 before anything is decoded. */
 function phaseGuard(call: GuardedCall): GuardRefusal | undefined {
@@ -85,7 +118,8 @@ export const phaxProgram = defineProgram({
   license: PHAX_LICENSE,
   versionAlias: "V",
   helpCommand: true,
-  guard: phaseGuard,
+  guard: phaxGuard,
+  notice: homeNotice,
   exits: { refused: 64, defect: 70 },
   usage: {
     flag: "usage",

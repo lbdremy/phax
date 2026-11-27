@@ -5,10 +5,13 @@ import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
 import { E2E_CLI_BOUND_MS, runCli } from "./helpers/runCli.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { E2E_PROVIDERS, expectedSelectedProvider, probeProvider } from "./helpers/providers.js";
+import { snapshotOperatorPhaxHome } from "./helpers/operatorPhaxHome.js";
+import { dailyJournalFileName } from "../../src/domain/telemetry/journal.js";
 
 // Explicit opt-in (PHAX_E2E_RUN=1) so the suite never fires accidentally in CI
 // without auth. Each provider additionally gates on its executable being
-// reachable, so an operator only runs the providers they have installed.
+// reachable, so an operator only runs the providers they have installed. phax runs in a
+// temporary phax home enabling the suite's provider, whatever the operator's providers.json holds.
 const E2E_ENABLED = process.env["PHAX_E2E_RUN"] === "1";
 
 for (const provider of E2E_PROVIDERS) {
@@ -19,13 +22,31 @@ for (const provider of E2E_PROVIDERS) {
     let env: TempEnv;
     let shortName: string;
     let failed = false;
+    // The claude-code suite also proves the operator's ~/.phax is left untouched.
+    const checksOperatorHome = provider.id === "claude-code";
+    let operatorBefore: readonly string[] = [];
+    let startedAt = new Date();
 
     beforeAll(() => {
-      env = createTempEnv();
+      startedAt = new Date();
+      if (checksOperatorHome) operatorBefore = snapshotOperatorPhaxHome();
+      env = createTempEnv({ enable: [provider.id] });
     });
 
     afterAll(() => {
       if (!env) return;
+      if (checksOperatorHome) {
+        expect(snapshotOperatorPhaxHome(), "the operator's ~/.phax should be untouched").toEqual(
+          operatorBefore,
+        );
+        const journals = [startedAt, new Date()].map((day) =>
+          join(env.phaxHome, dailyJournalFileName(day)),
+        );
+        expect(
+          journals.some((journal) => existsSync(journal)),
+          `today's telemetry journal should be under the temporary phax home: ${journals.join(" or ")}`,
+        ).toBe(true);
+      }
       if (failed) {
         printArtifacts({ repoDir: env.repoDir, phaxHome: env.phaxHome, shortName }, "tests failed");
       } else {
@@ -49,7 +70,7 @@ for (const provider of E2E_PROVIDERS) {
             "--verbose",
             "--trace",
           ],
-          env.repoDir,
+          env,
           { boundMs: 590_000 }, // a real provider call: its old timeout
         );
 
@@ -139,7 +160,7 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("session-info reports review_open state and a session ID", () => {
-      const result = runCli(["session-info", shortName], env.repoDir, {
+      const result = runCli(["session-info", shortName], env, {
         boundMs: E2E_CLI_BOUND_MS,
       });
 
@@ -152,7 +173,7 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("ls lists the run", () => {
-      const result = runCli(["ls"], env.repoDir, { boundMs: E2E_CLI_BOUND_MS });
+      const result = runCli(["ls"], env, { boundMs: E2E_CLI_BOUND_MS });
 
       if (result.exitCode !== 0) {
         failed = true;
@@ -163,7 +184,7 @@ for (const provider of E2E_PROVIDERS) {
     });
 
     it("archive transitions run state to archived", () => {
-      const result = runCli(["archive", shortName], env.repoDir, { boundMs: E2E_CLI_BOUND_MS });
+      const result = runCli(["archive", shortName], env, { boundMs: E2E_CLI_BOUND_MS });
 
       if (result.exitCode !== 0) {
         failed = true;

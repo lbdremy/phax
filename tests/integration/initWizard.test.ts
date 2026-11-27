@@ -1,5 +1,8 @@
 import { Effect, Result, Layer } from "effect";
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { runInitWizard } from "../../src/app/initWizard.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeGit } from "../../src/infra/fakes/git.js";
@@ -28,9 +31,9 @@ async function runWizard(
   fakeFs: ReturnType<typeof makeFakeFileSystem>,
   fakePrompt: ReturnType<typeof makeFakePrompt>,
   opts: { force?: boolean; interactive: boolean },
+  fakeGit = makeFakeGit(),
+  fakeGitHub = makeFakeGitHub(),
 ) {
-  const fakeGit = makeFakeGit();
-  const fakeGitHub = makeFakeGitHub();
   return Effect.runPromise(
     Effect.result(
       runInitWizard({ cwd: CWD, ...opts }).pipe(
@@ -392,5 +395,51 @@ describe("runInitWizard — existing config, interactive reconfigure", () => {
     expect(result.success.kind).toBe("created");
     const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
     expect(config.name).toBe("new-name");
+  });
+});
+
+describe("runInitWizard — state root under PHAX_HOME", () => {
+  let movedHome: string;
+  let savedPhaxHome: string | undefined;
+
+  beforeEach(() => {
+    savedPhaxHome = process.env["PHAX_HOME"];
+    movedHome = mkdtempSync(join(tmpdir(), "phax-init-home-"));
+    process.env["PHAX_HOME"] = movedHome;
+  });
+
+  afterEach(() => {
+    if (savedPhaxHome === undefined) delete process.env["PHAX_HOME"];
+    else process.env["PHAX_HOME"] = savedPhaxHome;
+    rmSync(movedHome, { recursive: true, force: true });
+  });
+
+  it("uses PHAX_HOME as the state root for the records clone and writes no state key", async () => {
+    const fakeFs = makeFakeFileSystem();
+    fakeFs.impl.setFile(PKG_PATH, PKG_WITH_SCRIPTS);
+    const fakeGit = makeFakeGit();
+    const fakeGitHub = makeFakeGitHub();
+    fakeGitHub.impl.setVisibility("public");
+    const remote = "https://example.com/org/records.git";
+    const fakePrompt = makeFakePrompt([
+      "my-lib",
+      ["pnpm typecheck"],
+      false, // compliance
+      false, // publish
+      true, // records enabled
+      true, // transcript
+      remote, // records remote (the repo is public)
+      true, // autoPush
+    ]);
+
+    const result = await runWizard(fakeFs, fakePrompt, { interactive: true }, fakeGit, fakeGitHub);
+
+    expect(Result.isSuccess(result)).toBe(true);
+    const clones = fakeGit.impl.calls.filter((c) => c.method === "cloneRepo");
+    expect(clones).toEqual([
+      { method: "cloneRepo", remote, path: join(movedHome, "records", "my-lib") },
+    ]);
+    const config = JSON.parse(fakeFs.impl.getFile(CONFIG_PATH)!);
+    expect(config).not.toHaveProperty("state");
   });
 });

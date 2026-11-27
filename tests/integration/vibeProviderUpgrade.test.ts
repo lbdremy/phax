@@ -2,12 +2,10 @@ import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "nod
 import { dirname } from "node:path";
 import * as Effect from "effect/Effect";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  loadModelRouting,
-  loadProviderConfig,
-  MODEL_ROUTING_PATH,
-  PROVIDER_CONFIG_PATH,
-} from "../../src/app/loadRouting.js";
+import * as Result from "effect/Result";
+import { loadModelRouting, loadProviderConfig } from "../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import { makeAgentGroup } from "../../src/cli/definitions/agent.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -25,6 +23,12 @@ vi.mock("node:os", async (importOriginal) =>
 // providers`, over a real file system rooted in the temporary PHAX home and a fake Shell.
 //   ac-env-refused, ac-successor, ac-one-command and ac-routing-file.
 // Only names are asserted (the field path, the ids, the command): the sentences are open.
+
+// The phax home's files, resolved at call time like phax resolves them.
+const providersPath = (): string =>
+  phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "providers.json");
+const routingPath = (): string =>
+  phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "model-routing.json");
 
 const RETIRED_OFF = "phax-mistral-medium-3.5-off";
 const RETIRED_HIGH = "phax-mistral-medium-3.5-high";
@@ -64,11 +68,11 @@ function writeProviders(vibe: object): void {
       "mistral-vibe": vibe,
     },
   };
-  writeFileSync(PROVIDER_CONFIG_PATH, `${JSON.stringify(file, null, 2)}\n`);
+  writeFileSync(providersPath(), `${JSON.stringify(file, null, 2)}\n`);
 }
 
 function readProviders(): { providers: Record<string, Record<string, unknown>> } {
-  return JSON.parse(readFileSync(PROVIDER_CONFIG_PATH, "utf8")) as {
+  return JSON.parse(readFileSync(providersPath(), "utf8")) as {
     providers: Record<string, Record<string, unknown>>;
   };
 }
@@ -102,7 +106,7 @@ function removeBackups(path: string): void {
 }
 
 beforeEach(() => {
-  for (const path of [PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH]) {
+  for (const path of [providersPath(), routingPath()]) {
     rmSync(path, { force: true });
     mkdirSync(dirname(path), { recursive: true });
     removeBackups(path);
@@ -137,7 +141,7 @@ describe("pre-upgrade providers.json", () => {
     expect(text).toContain(RETIRED_HIGH);
     expect(text.split(RETIRED_OFF).join("").split(RETIRED_HIGH).join("")).toContain(SUCCESSOR);
 
-    const names = readdirSync(dirname(PROVIDER_CONFIG_PATH));
+    const names = readdirSync(dirname(providersPath()));
     expect(names.some((name) => name.startsWith("providers.json.phax-backup-"))).toBe(true);
   });
 
@@ -176,7 +180,7 @@ describe("pre-upgrade model-routing.json", () => {
         },
       },
     };
-    writeFileSync(MODEL_ROUTING_PATH, `${JSON.stringify(file, null, 2)}\n`);
+    writeFileSync(routingPath(), `${JSON.stringify(file, null, 2)}\n`);
     const error = await Effect.runPromise(
       Effect.flip(loadModelRouting().pipe(Effect.provide(NodeFileSystemLayer))),
     );

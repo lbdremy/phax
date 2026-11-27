@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Result } from "effect";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { writeRunHomeRecord } from "../helpers/runHomeFixture.js";
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 // Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
@@ -115,6 +116,7 @@ async function buildFakeRunFolder(
   await mkdir(worktreePath, { recursive: true });
 
   const now = "2026-06-26T10:00:00.000Z";
+  writeRunHomeRecord(runPath);
   await writeFile(
     join(runPath, "run-status.json"),
     JSON.stringify({

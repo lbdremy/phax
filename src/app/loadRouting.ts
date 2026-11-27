@@ -1,8 +1,8 @@
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { Effect, Result } from "effect";
 import { FileSystem, FsError } from "../ports/fs.js";
 import { ConfigValidationError } from "../domain/errors.js";
+import { phaxHomeFile } from "../domain/phaxHome.js";
+import { resolvePhaxHome } from "./phaxHome.js";
 import { type ModelRouting, decodeModelRouting } from "../schemas/modelRouting.js";
 import { type ProviderConfig, decodeProviderConfig } from "../schemas/providerConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
@@ -21,8 +21,12 @@ import {
   withoutObsoleteProviderFields,
 } from "../domain/routing/providerSetup.js";
 
-export const MODEL_ROUTING_PATH = join(homedir(), ".phax", "model-routing.json");
-export const PROVIDER_CONFIG_PATH = join(homedir(), ".phax", "providers.json");
+/** The path of `name` in this call's phax home; an invalid PHAX_HOME is refused. */
+export function phaxHomeFilePath(
+  name: "providers.json" | "model-routing.json",
+): Effect.Effect<string, ConfigValidationError> {
+  return Effect.map(Effect.fromResult(resolvePhaxHome()), (home) => phaxHomeFile(home, name));
+}
 
 function fileExists(path: string): Effect.Effect<boolean, ConfigValidationError, FileSystem> {
   return Effect.gen(function* () {
@@ -74,22 +78,23 @@ function retiredKeyFix(key: RetiredEquivalenceKey): string {
 }
 
 /**
- * The routing table: ~/.phax/model-routing.json, else the built-in one. A file with an
+ * The routing table: model-routing.json in the phax home, else the built-in one. A file with an
  * equivalence key on a retired id is refused, naming each key and what to do with its edges: move
  * those at a level the successor offers into one successor key, delete the others.
  */
 export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidationError, FileSystem> {
   return Effect.gen(function* () {
-    if (!(yield* fileExists(MODEL_ROUTING_PATH))) return DEFAULT_MODEL_ROUTING;
+    const routingPath = yield* phaxHomeFilePath("model-routing.json");
+    if (!(yield* fileExists(routingPath))) return DEFAULT_MODEL_ROUTING;
 
-    const raw = yield* readJsonFile(MODEL_ROUTING_PATH);
+    const raw = yield* readJsonFile(routingPath);
 
     const decoded = decodeModelRouting(raw);
     if (Result.isFailure(decoded)) {
       return yield* Effect.fail(
         new ConfigValidationError({
-          message: `Invalid model-routing.json at "${MODEL_ROUTING_PATH}":\n${formatParseError(decoded.failure)}`,
-          path: MODEL_ROUTING_PATH,
+          message: `Invalid model-routing.json at "${routingPath}":\n${formatParseError(decoded.failure)}`,
+          path: routingPath,
         }),
       );
     }
@@ -112,9 +117,9 @@ export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidation
       return yield* Effect.fail(
         new ConfigValidationError({
           message:
-            `"${MODEL_ROUTING_PATH}" keys equivalence edges on models phax no longer routes to:\n${lines}\n` +
+            `"${routingPath}" keys equivalence edges on models phax no longer routes to:\n${lines}\n` +
             closing,
-          path: MODEL_ROUTING_PATH,
+          path: routingPath,
         }),
       );
     }
@@ -123,13 +128,16 @@ export function loadModelRouting(): Effect.Effect<ModelRouting, ConfigValidation
   });
 }
 
-function decodeProviderFile(raw: unknown): Effect.Effect<ProviderConfig, ConfigValidationError> {
+function decodeProviderFile(
+  raw: unknown,
+  providersPath: string,
+): Effect.Effect<ProviderConfig, ConfigValidationError> {
   const decoded = decodeProviderConfig(raw);
   if (Result.isFailure(decoded)) {
     return Effect.fail(
       new ConfigValidationError({
-        message: `Invalid providers.json at "${PROVIDER_CONFIG_PATH}":\n${formatParseError(decoded.failure)}`,
-        path: PROVIDER_CONFIG_PATH,
+        message: `Invalid providers.json at "${providersPath}":\n${formatParseError(decoded.failure)}`,
+        path: providersPath,
       }),
     );
   }
@@ -137,7 +145,7 @@ function decodeProviderFile(raw: unknown): Effect.Effect<ProviderConfig, ConfigV
 }
 
 /**
- * The provider catalog: ~/.phax/providers.json, else the built-in one. A file that carries a
+ * The provider catalog: providers.json in the phax home, else the built-in one. A file that carries a
  * field phax no longer reads, or still lists an id phax no longer routes to, is refused, naming
  * each and `phax agent setup providers --write`, which drops them. The fields are checked on
  * the raw JSON first, then the file is decoded strictly, then its ids are checked.
@@ -148,9 +156,10 @@ export function loadProviderConfig(): Effect.Effect<
   FileSystem
 > {
   return Effect.gen(function* () {
-    if (!(yield* fileExists(PROVIDER_CONFIG_PATH))) return DEFAULT_PROVIDER_CONFIG;
+    const providersPath = yield* phaxHomeFilePath("providers.json");
+    if (!(yield* fileExists(providersPath))) return DEFAULT_PROVIDER_CONFIG;
 
-    const raw = yield* readJsonFile(PROVIDER_CONFIG_PATH);
+    const raw = yield* readJsonFile(providersPath);
 
     const obsolete = obsoleteProviderFields(raw);
     if (obsolete.length > 0) {
@@ -158,23 +167,23 @@ export function loadProviderConfig(): Effect.Effect<
       return yield* Effect.fail(
         new ConfigValidationError({
           message:
-            `"${PROVIDER_CONFIG_PATH}" carries fields phax no longer reads:\n${lines}\n` +
+            `"${providersPath}" carries fields phax no longer reads:\n${lines}\n` +
             "Run `phax agent setup providers --write` to drop them, or delete them from the file.",
-          path: PROVIDER_CONFIG_PATH,
+          path: providersPath,
         }),
       );
     }
 
-    const config = yield* decodeProviderFile(raw);
+    const config = yield* decodeProviderFile(raw, providersPath);
     const retired = retiredModelIds(config);
     if (retired.length > 0) {
       const lines = retired.map((id) => `  - ${id}: ${RETIRED_MODEL_IDS[id]}`).join("\n");
       return yield* Effect.fail(
         new ConfigValidationError({
           message:
-            `"${PROVIDER_CONFIG_PATH}" lists models phax no longer routes to:\n${lines}\n` +
+            `"${providersPath}" lists models phax no longer routes to:\n${lines}\n` +
             "Run `phax agent setup providers --write` to drop them, or delete them from the file.",
-          path: PROVIDER_CONFIG_PATH,
+          path: providersPath,
         }),
       );
     }
@@ -183,7 +192,7 @@ export function loadProviderConfig(): Effect.Effect<
 }
 
 /**
- * ~/.phax/providers.json decoded as it is, retired ids included and obsolete fields stripped
+ * providers.json in the phax home, decoded as it is, retired ids included and obsolete fields stripped
  * (and returned), else the built-in catalog; `source` says which. Only `phax agent setup
  * providers` reads it this way, to rewrite the file without them.
  */
@@ -197,11 +206,12 @@ export function readProviderConfigFile(): Effect.Effect<
   FileSystem
 > {
   return Effect.gen(function* () {
-    if (!(yield* fileExists(PROVIDER_CONFIG_PATH))) {
+    const providersPath = yield* phaxHomeFilePath("providers.json");
+    if (!(yield* fileExists(providersPath))) {
       return { source: "built-in", config: DEFAULT_PROVIDER_CONFIG, fieldsDropped: [] };
     }
-    const raw = yield* readJsonFile(PROVIDER_CONFIG_PATH);
-    const config = yield* decodeProviderFile(withoutObsoleteProviderFields(raw));
+    const raw = yield* readJsonFile(providersPath);
+    const config = yield* decodeProviderFile(withoutObsoleteProviderFields(raw), providersPath);
     return { source: "file", config, fieldsDropped: obsoleteProviderFields(raw) };
   });
 }

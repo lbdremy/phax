@@ -22,52 +22,57 @@ Without `PHAX_E2E_RUN=1`, the suite skips every test immediately with a clear me
 
 ## Isolation model
 
-Each test run:
+The suites that spawn phax (`realFlow`, `headlessAuthoring` and the `phax run` cases of `vibeSecure`) run it in a temporary [phax home](phax-home.md).
 
-1. Copies `tests/e2e/fixtures/minimal-repo/` into a fresh `os.tmpdir()` directory.
-2. Runs `git init` + initial commit so phax sees a clean working tree.
-3. Points `phax.json`'s `state.root` at a second temp directory (`PHAX_HOME`) so the run folder, worktrees, and locks never touch your real `~/.phax`.
-4. Spawns the phax CLI as a child process (via `tsx`) against the temp repo.
-5. On success: cleans up both temp directories.
-6. On failure: **keeps** both temp directories and prints the failure-artifact block (see below).
+`createTempEnv({ enable, routing })` (`tests/e2e/helpers/tempEnv.ts`):
 
-The real `~/.phax` is never read or written.
+1. Copies `tests/e2e/fixtures/minimal-repo/` into a fresh `os.tmpdir()` directory, then runs `git init` and an initial commit.
+2. Creates a second temporary directory, the phax home, with a `providers.json` that enables `claude-code` plus the providers the suite lists in `enable`, and a `model-routing.json` holding the suite's `routing` or the built-in table. Both are built from the checked-out branch's own types and checked by its decoders, so they are in the branch's format.
+3. Sets the fixture's explicit `state.root` to that temporary home, so run folders, worktrees and locks go there.
+
+`runCli(args, env, opts)` takes that environment, not a directory, and refuses to spawn without it. It runs the branch's CLI from source in the temporary repository with `PHAX_HOME` set to the temporary home. `HOME` is unchanged, so the provider CLIs keep their sign-ins, and no credential is written into the temporary home.
+
+The operator's `~/.phax` is left untouched: the spawned phax reads its config, providers, routing and telemetry from the temporary home and writes its telemetry journal there. Whether a suite runs never depends on the operator's `providers.json`. The `claude-code` flow of `realFlow` and `headlessAuthoring` check this by comparing, before and after, the files directly under `~/.phax` and the entry names under its `runs/` and `worktrees/`; `vibeSecure` compares `~/.phax/providers.json`.
+
+The other suites spawn a provider CLI directly, or run phax in process with injected routing and a temporary state root.
+
+On success, both temporary directories are removed. On failure they are **kept** and the failure-artifact block is printed.
 
 ## Reading the failure-artifact block
 
 When a test fails, the helper prints a block like:
 
 ```
-=== phax E2E failure artifacts ===
-Repo path  : /var/folders/.../phax-e2e-XXXX
-PHAX_HOME  : /var/folders/.../phax-home-XXXX
-Run path   : /var/folders/.../phax-home-XXXX/runs/some-name
-Run state  : {"status":"failed", ...}
-Last log   : /var/folders/.../phase-01/claude-session.log
----
-To inspect:
-  cat /var/folders/.../phase-01/claude-session.log
-  phax session-info some-name
-  PHAX_STATE_ROOT=/var/folders/.../phax-home-XXXX phax resume some-name
-  PHAX_STATE_ROOT=/var/folders/.../phax-home-XXXX phax enter some-name
-===
+=== phax E2E FAILURE ARTIFACTS ===
+Note: tests failed
+Temp repo:      /var/folders/.../phax-e2e-repo-XXXX
+Temp PHAX_HOME: /var/folders/.../phax-e2e-home-XXXX
+Run path:       /var/folders/.../phax-e2e-home-XXXX/runs/<short-name>
+...
+Resume cmd:     phax resume <short-name> --yes
+Enter cmd:      phax enter <short-name>
+Session info:   phax session-info <short-name>
+Temp dirs kept for debugging (skipping cleanup).
+===================================
 ```
 
-The suggested commands use `PHAX_STATE_ROOT` to target the isolated PHAX_HOME, so you can resume or enter without touching your own state.
+The lines from `Run path` to `Session info` appear only when the suite knows the run's short name. The printed commands name neither directory, so run them as shown below.
 
 ## Manually resuming a failed E2E run
 
-If the run stopped mid-phase (rate limit, gate failure, network error):
+If the run stopped mid-phase (rate limit, gate failure, network error), work from the temporary repository and name the temporary home:
 
 ```bash
-# Resume from the failed phase
-PHAX_STATE_ROOT=<PHAX_HOME from artifact block> phax resume <short-name>
+cd <Temp repo from the block>
 
-# Enter the Claude session for the current phase
-PHAX_STATE_ROOT=<PHAX_HOME from artifact block> phax enter-phase <short-name> <phase-id>
+# Resume from the failed phase
+PHAX_HOME=<Temp PHAX_HOME from the block> phax resume <short-name> --yes
+
+# Enter the agent session of a phase
+PHAX_HOME=<Temp PHAX_HOME from the block> phax enter-phase <short-name> <phase-id>
 ```
 
-See the main README for `phax resume` and `phax enter-phase` usage.
+Here `phax` must be the phax under test, not an installed release: the temporary home is in the branch's format. A run keeps the home it started with, so `phax resume` refuses any other. See the main README for `phax resume` and `phax enter-phase` usage.
 
 ## What the fixture tests
 

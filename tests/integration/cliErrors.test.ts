@@ -38,7 +38,9 @@ describe("CLI error messages", { timeout: 30_000 }, () => {
   });
 
   it("unknown flag on a subcommand: exit 64, readable message, no stack trace", () => {
-    const result = runCli(["ls", "--notaflag"]);
+    // A located command is guarded, and the runner checks the guard before it parses: inside
+    // one of a run's phase worktrees the guard reads the run's phax home.
+    const result = runCli(["ls", "--notaflag"], realpathSync(tmpdir()));
     expect(result.status).toBe(64);
     const combined = (result.stderr ?? "") + (result.stdout ?? "");
     expect(combined).toMatch(/unknown option/i);
