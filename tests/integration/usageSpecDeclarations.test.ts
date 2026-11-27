@@ -152,6 +152,8 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["records sync", 'help "'],
   // small-fixes-wave-2: the summary of `open` names the system's default opener.
   ["open", 'help "'],
+  // small-fixes-wave-2: `agent setup providers --write` enables only on a first write.
+  ["agent setup providers", 'help "'],
   // plan-gate-profile (q-older-sidecar): migrate-documents names the profile an older plan
   // sidecar declares once migrated.
   ["artifact migrate-documents", "flag --gate-profile "],
@@ -195,6 +197,7 @@ const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ["records sync", 'help "'],
   ["open", 'help "'],
+  ["agent setup providers", 'help "'],
 ];
 
 function difference(
