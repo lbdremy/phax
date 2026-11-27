@@ -418,6 +418,13 @@ desktop — none is promised by the announcement.
       latest release is still the old stamp). Either the planning skill's format-move guidance
       asks for those cases in the phase that moves the format, or the coverage test also checks
       the `next` snapshot, so the phase's own gate catches it.
+- [ ] **A nullable identifier leaf refuses as `Expected null`.** Found by `small-fixes-wave-2`'s
+      review (F4, #277): a current cost ledger with a bad `entries[].phase` renders
+      `entries.0.phase: Expected null, actual ""`, because the refusal adapter labels a failed
+      nullable union by its null member, so the leaf's `refusalLabel("PhaseId")` never shows.
+      The adapter should name the non-null member's label when the value is not null
+      (`Expected PhaseId | null`, or `Expected PhaseId`); the corpus cases at
+      `tests/behaviourCorpus/cases/formats/cost-ledger.json` change with it.
 - [x] **`phax finding fix` after a merge done on GitHub.** Done (#245, 2026-11-19): `fix` asks
       the pull request's state (`gh pr view --json state`) before pushing; merged or closed, it
       pushes and posts nothing and answers `not-posted` (`pull-request-merged` /
