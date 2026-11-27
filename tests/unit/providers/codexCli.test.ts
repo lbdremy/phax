@@ -11,7 +11,7 @@ import {
   runCodexCompletion,
 } from "../../../src/infra/providers/codexCli.js";
 import { makeFakeProviderCli, type FakeProviderCli } from "../../helpers/fakeProviderCli.js";
-import { SecurityEnforcementError } from "../../../src/domain/errors.js";
+import { AgentSessionFailedError, SecurityEnforcementError } from "../../../src/domain/errors.js";
 import type { AgentRunOptions, CompletionOptions } from "../../../src/ports/backend.js";
 import type { SecurityPolicy } from "../../../src/domain/security/types.js";
 import { readCodexOutcome } from "../../../src/domain/session/outcome.js";
@@ -414,6 +414,105 @@ describe("the answer schema file", () => {
     );
     expect(cli.invocations()[0]?.argv).not.toContain("--output-schema");
     expect(cli.invocations()[0]?.outputSchema).toBeUndefined();
+  });
+});
+
+describe("the network watchdog", () => {
+  let root: string;
+  let cli: FakeProviderCli;
+  const SESSION = "019a2f6e-0000-4000-8000-0000000000cc";
+  const LAST = "Reconnecting... waiting for network (Connection failed: dns error)";
+  const networkErrors = (n: number): unknown[] =>
+    Array.from({ length: n }, (_, i) => ({
+      type: "error",
+      message: i < 5 ? `Reconnecting... ${i + 1}/5 (stream disconnected before completion)` : LAST,
+    }));
+  const hangingStream = {
+    sessionId: SESSION,
+    finalText: "",
+    stream: [
+      { type: "thread.started", thread_id: SESSION },
+      { type: "turn.started" },
+      ...networkErrors(8),
+    ],
+    keepAlive: true,
+  };
+
+  beforeEach(() => {
+    root = realpathSync(mkdtempSync(join(tmpdir(), "phax-codex-watchdog-")));
+    cli = makeFakeProviderCli(join(root, "cli"));
+    vi.stubEnv("PHAX_FAKE_CLI_LOG", cli.env["PHAX_FAKE_CLI_LOG"] ?? "");
+    vi.stubEnv("PHAX_FAKE_CLI_SCRIPT", cli.env["PHAX_FAKE_CLI_SCRIPT"] ?? "");
+    vi.stubEnv("HOME", cli.env["HOME"] ?? "");
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  const entry = () => ({ ...baseEntry, executable: cli.codexPath });
+  const expectNetworkFailure = (failed: Result.Result<unknown, unknown>): void => {
+    expect(Result.isFailure(failed)).toBe(true);
+    const error = Result.isFailure(failed) ? failed.failure : undefined;
+    expect(error).toBeInstanceOf(AgentSessionFailedError);
+    expect(error instanceof AgentSessionFailedError ? error.failure : error).toEqual({
+      provider: "codex-cli",
+      kind: "network",
+      message: LAST,
+      sessionId: SESSION,
+      resetAt: null,
+    });
+  };
+
+  it("ends an agent run that only reconnects as a network failure", async () => {
+    cli.setScript(hangingStream);
+    const phaseFolderPath = join(root, "phase");
+    const outputJsonlPath = join(phaseFolderPath, "session.jsonl");
+    const failed = await Effect.runPromise(
+      Effect.result(
+        runCodexAgent(
+          "ask",
+          { ...baseOptions(unsafePolicy), cwd: root, phaseFolderPath, outputJsonlPath },
+          entry(),
+        ),
+      ),
+    );
+    expectNetworkFailure(failed);
+    expect(readFileSync(join(phaseFolderPath, "agent-error.log"), "utf8")).toContain(
+      "failure: network",
+    );
+    expect(readFileSync(outputJsonlPath, "utf8")).toContain(LAST);
+  });
+
+  it("ends a completion that only reconnects as a network failure", async () => {
+    cli.setScript(hangingStream);
+    const failed = await Effect.runPromise(
+      Effect.result(runCodexCompletion("ask", { ...completionOptions(), cwd: root }, entry())),
+    );
+    expectNetworkFailure(failed);
+  });
+
+  it("answers a session that reconnects fewer than 8 times and then completes", async () => {
+    cli.setScript({
+      sessionId: SESSION,
+      finalText: "",
+      stream: [
+        { type: "thread.started", thread_id: SESSION },
+        { type: "turn.started" },
+        ...networkErrors(7),
+        { type: "item.completed", item: { id: "item_0", type: "agent_message", text: "done" } },
+        { type: "turn.completed", usage: { input_tokens: 1, output_tokens: 1 } },
+      ],
+    });
+    const answer = await Effect.runPromise(
+      runCodexAgent("ask", { ...baseOptions(unsafePolicy), cwd: root }, entry()),
+    );
+    expect(answer.finalText).toBe("done");
+    const completion = await Effect.runPromise(
+      runCodexCompletion("ask", { ...completionOptions(), cwd: root }, entry()),
+    );
+    expect(completion.finalText).toBe("done");
   });
 });
 

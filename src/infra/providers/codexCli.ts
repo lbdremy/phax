@@ -25,8 +25,18 @@ import {
   codexModelId,
   mapReasoningEffort,
 } from "../../domain/session/codexFlags.js";
+import {
+  CODEX_NETWORK_WATCH_START,
+  type CodexNetworkWatch,
+  codexNetworkFailure,
+  stepCodexNetworkWatch,
+} from "../../domain/session/codexNetworkWatch.js";
 import { sessionFailureError } from "../../domain/session/failureError.js";
-import { readCodexOutcome, type SessionEnd } from "../../domain/session/outcome.js";
+import {
+  readCodexOutcome,
+  type SessionEnd,
+  type SessionFailure,
+} from "../../domain/session/outcome.js";
 import type { AnswerSchemaRequest } from "../../domain/session/structuredCalls.js";
 import type { ProviderConfig } from "../../schemas/providerConfig.js";
 import { persistSessionId } from "./sessionWriter.js";
@@ -47,7 +57,16 @@ interface SpawnResult {
   readonly stderr: string;
   /** How the process ended: its exit code, or the signal that stopped it. */
   readonly end: SessionEnd;
+  /**
+   * The `network` failure when the network watchdog ended the process, which
+   * decides the session in place of the stream's outcome; else null.
+   */
+  readonly watchdogFailure: SessionFailure | null;
 }
+
+// Grace between asking a process the watchdog ended to stop and forcing it,
+// so a process that ignores SIGTERM never outlives the CLI.
+const SIGKILL_GRACE_MS = 5_000;
 
 // A read-only turn (phax's own turns at a stop): codex's read-only sandbox and
 // no approvals, whatever the phase's policy, unsafe included. It grants no
@@ -148,15 +167,43 @@ function spawnCodex(
     proc.stdin.write(prompt, "utf8");
     proc.stdin.end();
 
+    let watch: CodexNetworkWatch = CODEX_NETWORK_WATCH_START;
+    let stoppedByWatchdog = false;
+
+    // The watchdog tripped: end the process as a timed-out Claude probe is
+    // ended (SIGTERM, then SIGKILL after the grace) and resolve once the
+    // transcript is flushed, without waiting on a child that ignores the
+    // signal. Its later output and `close` are ignored.
+    const stopForNetwork = (): void => {
+      stoppedByWatchdog = true;
+      proc.kill("SIGTERM");
+      setTimeout(() => proc.kill("SIGKILL"), SIGKILL_GRACE_MS).unref();
+      const result: SpawnResult = {
+        lines,
+        stderr: stderrBuf,
+        end: { kind: "signalled", signal: "SIGTERM" },
+        watchdogFailure: codexNetworkFailure(watch),
+      };
+      if (writeStream === undefined) resolve(result);
+      else writeStream.end(() => resolve(result));
+    };
+
     let stdoutBuf = "";
     proc.stdout.on("data", (chunk: Buffer) => {
+      if (stoppedByWatchdog) return;
       const text = chunk.toString("utf8");
       writeStream?.write(text);
       stdoutBuf += text;
       const parts = stdoutBuf.split("\n");
       stdoutBuf = parts.pop() ?? "";
       for (const line of parts) {
-        if (line.trim()) lines.push(line);
+        if (!line.trim()) continue;
+        lines.push(line);
+        watch = stepCodexNetworkWatch(watch, line);
+        if (watch.tripped) {
+          stopForNetwork();
+          return;
+        }
       }
     });
 
@@ -165,14 +212,21 @@ function spawnCodex(
     });
 
     proc.on("close", (code, signal) => {
+      if (stoppedByWatchdog) return;
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
-      const result = { lines, stderr: stderrBuf, end: sessionEndOf(code, signal) };
+      const result: SpawnResult = {
+        lines,
+        stderr: stderrBuf,
+        end: sessionEndOf(code, signal),
+        watchdogFailure: null,
+      };
       // Resolve once the stream is flushed: the cost ledger reads it next.
       if (writeStream === undefined) resolve(result);
       else writeStream.end(() => resolve(result));
     });
 
     proc.on("error", (err) => {
+      if (stoppedByWatchdog) return;
       writeStream?.end();
       reject(err);
     });
@@ -235,7 +289,7 @@ function runCodexCompletionWith(
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
-    const { lines, stderr, end } = yield* Effect.tryPromise({
+    const { lines, stderr, end, watchdogFailure } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, undefined, options.cwd),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
@@ -244,6 +298,11 @@ function runCodexCompletionWith(
         }),
     });
 
+    if (watchdogFailure !== null) {
+      return yield* Effect.fail(
+        sessionFailureError(watchdogFailure, { agentErrorLog: null, transcript: null }),
+      );
+    }
     const outcome = readCodexOutcome({ lines, stderr, end });
     if (outcome.kind === "failure") {
       return yield* Effect.fail(
@@ -366,7 +425,7 @@ function runCodexSession(
   const argv = [entry.executable, ...args];
 
   return Effect.gen(function* () {
-    const { lines, stderr, end } = yield* Effect.tryPromise({
+    const { lines, stderr, end, watchdogFailure } = yield* Effect.tryPromise({
       try: () => spawnCodex(entry, args, prompt, options.outputJsonlPath, options.cwd),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {
@@ -388,6 +447,9 @@ function runCodexSession(
       phaseFolderPath: options.phaseFolderPath,
       transcript: options.outputJsonlPath,
     };
+    if (watchdogFailure !== null) {
+      return yield* Effect.fail(failSession(watchdogFailure, failed));
+    }
     const outcome = readCodexOutcome({ lines, stderr, end });
     if (outcome.kind === "failure") {
       return yield* Effect.fail(failSession(outcome.failure, failed));
