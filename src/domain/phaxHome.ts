@@ -16,6 +16,11 @@ export function phaxHomeFile(home: PhaxHome, name: PhaxHomeFileName): string {
   return join(home.path, name);
 }
 
+/** The line a command says on stderr when PHAX_HOME moved the home; nothing for the default. */
+export function phaxHomeNotice(home: PhaxHome): string | undefined {
+  return home.from === "PHAX_HOME" ? `phax home: ${home.path} (PHAX_HOME)` : undefined;
+}
+
 /** The refusal of a PHAX_HOME that is not an absolute path to a directory. */
 export function invalidPhaxHomeMessage(value: string): string {
   return `PHAX_HOME must be an absolute path to a directory, got "${value}"`;

@@ -355,6 +355,12 @@ export interface Program<R> {
    *  its code. Never asked for `--help`, `-h` or `--json-schema`, for a group, or for the root's
    *  own options. */
   readonly guard?: (call: GuardedCall) => GuardRefusal | undefined;
+  /** Gain carried for upstream (the program's notice): asked on the same call once the guard lets
+   *  it through (or there is no guard), before anything is decoded. Its text is written on stderr
+   *  before the command runs: as a line without `--json`, as `note` lines with it; never on
+   *  stdout. Never asked when the guard refuses, nor for anything the guard is never asked
+   *  about. A notice that throws is a defect. */
+  readonly notice?: (call: GuardedCall) => string | undefined;
   readonly exits: ProgramExits;
   /** Every command, in the order declared; a command of a group carries its `group`. */
   readonly commands: ReadonlyArray<Command<R>>;
