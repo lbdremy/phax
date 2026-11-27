@@ -28,9 +28,10 @@ export function providerSetup(
   return Effect.gen(function* () {
     const fs = yield* FileSystem;
 
-    const { config: current, fieldsDropped } = yield* readProviderConfigFile();
+    const { source, config: current, fieldsDropped } = yield* readProviderConfigFile();
     const probes = yield* probeProviders(current);
     const plan = planProviderConfig(current, probes, {
+      source,
       prune: options.prune,
       fieldsDropped: fieldsDropped.map((field) => field.path),
     });

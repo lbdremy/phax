@@ -5,6 +5,7 @@ import { PROVIDER_CONFIG_PATH, MODEL_ROUTING_PATH } from "../../src/app/loadRout
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
+import type { ProviderConfig } from "../../src/schemas/providerConfig.js";
 
 function makeLayer(
   fakeFs: ReturnType<typeof makeFakeFileSystem>,
@@ -68,6 +69,105 @@ describe("providerSetup integration", () => {
     expect(parsed.providers["claude-code"]!.enabled).toBe(true);
     expect(parsed.providers["mistral-vibe"]!.enabled).toBe(true);
     expect(parsed.providers["codex-cli"]!.enabled).toBe(false);
+  });
+
+  it("--write over a providers.json that disables codex-cli keeps it disabled while codex is installed", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    setupProbes(fakeShell.impl, { claude: true, vibe: false, codex: true });
+
+    const existing: ProviderConfig = {
+      providers: Object.fromEntries(
+        Object.entries(DEFAULT_PROVIDER_CONFIG.providers).map(([key, entry]) => [
+          key,
+          key === "codex-cli" ? { ...entry, enabled: false } : entry,
+        ]),
+      ),
+    };
+    fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(existing, null, 2));
+
+    const result = await Effect.runPromise(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
+        Effect.provide(makeLayer(fakeFs, fakeShell)),
+      ),
+    );
+
+    expect(Result.isSuccess(result)).toBe(true);
+    const { plan } = Result.getOrThrow(result);
+    expect(plan.enabled).toEqual([]);
+    expect(plan.disabled).toEqual([]);
+    expect(plan.unchanged).toContain("codex-cli");
+
+    const written: unknown = JSON.parse(fakeFs.impl.getFile(PROVIDER_CONFIG_PATH) ?? "null");
+    expect(written).toMatchObject({ providers: { "codex-cli": { enabled: false } } });
+    expect(written).toEqual(existing);
+  });
+
+  it("--write over a providers.json listing a subset of models writes back exactly that subset, retired ids replaced", async () => {
+    const fakeFs = makeFakeFileSystem();
+    const fakeShell = makeFakeShell();
+    setupProbes(fakeShell.impl, { claude: true, vibe: true, codex: true });
+
+    const opus = { id: "claude-opus-5-5", efforts: ["low", "high"], status: "active" } as const;
+    const gpt = { id: "gpt-5.5", efforts: ["low", "medium"], status: "active" } as const;
+    const existing: ProviderConfig = {
+      providers: {
+        "claude-code": {
+          enabled: true,
+          executable: "claude",
+          families: { "claude-opus": { models: [opus] } },
+        },
+        "mistral-vibe": {
+          enabled: true,
+          executable: "vibe",
+          defaultAgent: "auto-approve",
+          families: {
+            "mistral-medium": {
+              models: [
+                { id: "phax-mistral-medium-3.5-off", efforts: ["none"], status: "active" },
+                { id: "phax-mistral-medium-3.5-high", efforts: ["high"], status: "active" },
+              ],
+            },
+          },
+        },
+        "codex-cli": {
+          enabled: false,
+          executable: "codex",
+          families: { "openai-gpt": { models: [gpt] } },
+        },
+      },
+    };
+    fakeFs.impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(existing, null, 2));
+
+    const result = await Effect.runPromise(
+      Effect.result(providerSetup({ write: true, prune: false, withRouting: false })).pipe(
+        Effect.provide(makeLayer(fakeFs, fakeShell)),
+      ),
+    );
+
+    expect(Result.isSuccess(result)).toBe(true);
+    const { plan } = Result.getOrThrow(result);
+    expect(plan.retiredRemoved).toEqual([
+      "phax-mistral-medium-3.5-off",
+      "phax-mistral-medium-3.5-high",
+    ]);
+    expect(plan.retiredReplaced).toEqual(["mistral-medium-3.5"]);
+
+    const written: unknown = JSON.parse(fakeFs.impl.getFile(PROVIDER_CONFIG_PATH) ?? "null");
+    expect(written).toEqual({
+      providers: {
+        "claude-code": existing.providers["claude-code"],
+        "mistral-vibe": {
+          ...existing.providers["mistral-vibe"],
+          families: {
+            "mistral-medium": {
+              models: [{ id: "mistral-medium-3.5", efforts: ["off", "high"], status: "active" }],
+            },
+          },
+        },
+        "codex-cli": existing.providers["codex-cli"],
+      },
+    });
   });
 
   it("--prune disables an enabled provider whose probe is unavailable", async () => {
