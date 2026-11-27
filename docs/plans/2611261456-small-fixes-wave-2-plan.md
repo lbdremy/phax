@@ -1,6 +1,9 @@
 ---
-status: Draft
+status: Approved
 source-spec: null
+approved:
+  date: 2026-11-27
+  baseline: d5bd57b
 ---
 # Small fixes, wave 2
 
