@@ -1,7 +1,7 @@
 Write the phax plan "Security high fixes" for the approved spec `docs/specs/2611231049-security-high-fixes.md`.
 It is the spec's only plan: it carries `completes-spec: true`.
 
-Read the spec in full, sidecar included, and its brief `docs/briefs/security-high-fixes.md`. These are settled; do
+Read the spec in full, sidecar included, and its brief `docs/briefs/archive/security-high-fixes.md`. These are settled; do
 not reopen them:
 - the operator's verdicts of 2026-11-24 in §9b: q-skeleton-logs `logs-out`, q-abs-paths `keep-paths`, q-hooks-off
   `hookspath-all`, q-hooks-change `leave-to-sec01`, q-git-pointer `other` (the pointer check plus

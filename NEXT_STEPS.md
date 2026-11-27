@@ -20,7 +20,8 @@ the run, #266, #267, #270, and restored, #272).
 squash; the guards and the lint baseline were lifted for the run, #273, #274, and restored, #276).
 `small-fixes-wave-2` (#277: resume hints print `--yes` and restore commands read paths literally,
 `phax open`'s help, two skill texts, a Codex network watchdog, `setup providers --write` keeping a
-disabled provider off, identifier labels in refusals).
+disabled provider off, identifier labels in refusals; SEC-30).
+`security-high-fixes` (#265: SEC-02, SEC-06/07, SEC-08 with SEC-23, SEC-09; spec and plan completed).
 
 ## The queue, as of 2026-11-23
 
@@ -44,32 +45,7 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 (security phase 2, `agent-cli-ergonomics`, `next-steps-as-data`, `phase-handoff-answered`);
 `loadConfig.ts` (SEC-03, `e2e-phax-home`, security phase 5).
 
-### Wave 1 — now
-
-- [ ] **`security-high-fixes`** — spec `docs/specs/2611231049-security-high-fixes.md` and its only plan
-      `docs/plans/2611241432-security-high-fixes-plan.md` (five phases), both Approved 2026-11-24; to
-      run. q-git-pointer adds `-c core.fsmonitor=false` to the pointer check and names the residual
-      (the OS sandbox item, wave 2); the plan drops transcript-class files on the `records.transcript`
-      toggle, not on the record's shape. `phax plans overlap` with `launcher-release-fixes`: only
-      `docs/security.md` (two separate sections, merged by hand). The four High findings of
-      §"Security roadmap" phase 1 that are each a small change in a file of its own:
-      - SEC-02: skeleton records still publish transcripts. A record allowlist with the
-        transcript-class files (`fix-attempt-*.jsonl`, handoff streams, gate logs,
-        `agent-error.log`); today `src/domain/records/assemble.ts` counts only `output.jsonl` as a
-        transcript. Weigh an advisory for public repositories.
-      - SEC-06/07: worktree git hardened in the one process helper of `src/infra/git.ts`
-        (`-c core.fsmonitor=false`, `-c core.hooksPath=/dev/null`, `--no-verify` commits); nothing
-        in `src/` sets them today. Explicit `GIT_DIR`/`GIT_WORK_TREE` per worktree is the larger
-        part and may wait.
-      - SEC-09: the review skill read from the base commit or the bundled copy, never the phase
-        worktree (`src/app/reviewCode.ts`).
-      - SEC-08: `lstat` `.phax-context` and refuse a symlink (`src/app/worktree.ts`,
-        `pushedBrief.ts`, `interactiveFiles.ts`, `pullBrief.ts`), with SEC-23 (decode
-        `brief-NN.json`) and the Small follow-up "a phase agent commits phax's own `.gitignore`
-        line" (write the rule to the worktree's `.git/info/exclude`), same function.
-      Disjoint from `gate-step-times` but for the regenerated files.
-
-### Wave 2 — after the security slice merges
+### Wave 2 — now (the security slice merged, #265)
 
 - [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19); spec approved 2026-11-27, plan drafted. One
       resolution point for phax's home, a variable to move it, and each real-provider e2e in a
@@ -263,28 +239,38 @@ that phax or a provider later trusts (`.claude/**` settings and hooks, tracked g
 worktree `.git` pointer, a `.phax-context` symlink, the review skill, `phax brief`'s config
 discovery), skeleton records that still publish transcripts, and a resume that re-reads the
 security mode from the current config. The phases, as the cross-validation orders them; the queue
-above places their slices.
+above places their slices. This section is managed from the roadmap session since 2026-11-27.
+
+Landed so far: SEC-26, SEC-28, SEC-29 (`launcher-release-fixes`, #261, #262); SEC-02, SEC-06/07,
+SEC-08, SEC-09 and SEC-23 (`security-high-fixes`, #265); SEC-30 (`small-fixes-wave-2`, #277).
 
 - **Phase 1 — stop trusting agent-written files.** Implicit protected set (`.claude/**`,
   `CLAUDE.md`, `.codex/**`, `.vibe/**`, `.agents/**`, `.mcp.json`, `**/phax*.json`, the hooks
   directory, the `.git` pointer); hardened worktree git (explicit `GIT_DIR`/`GIT_WORK_TREE`,
   `core.fsmonitor=false`, `--no-verify` commits); `lstat` `.phax-context` and refuse symlinks;
   review skill and brief config read from the base commit or the main root (`PHAX_MAIN_ROOT`),
-  never the phase worktree. (SEC-01, SEC-03, SEC-06, SEC-07, SEC-08, SEC-09.) Quick slice in
-  wave 1, the rest later.
+  never the phase worktree. (SEC-01, SEC-03, SEC-06, SEC-07, SEC-08, SEC-09.) The quick slice
+  landed (#265): every worktree git call runs with `core.fsmonitor=false` and
+  `core.hooksPath=/dev/null` behind a checked `.git` pointer, commits skip hooks, `.phax-context`
+  is a real directory phax owns, and the review skill comes from a copy the agent could not
+  write. Left: SEC-01 (the implicit protected set, with `phax.local.json`), SEC-03 (the brief's
+  config root), explicit `GIT_DIR`/`GIT_WORK_TREE`, and the residual #265 names: config planted in
+  the common `.git/config` by gate code, closed only by an OS sandbox (wave 2's "allowed shell
+  commands run unconfined").
 - **Phase 2 — run state tells the truth.** Persist the effective security mode in
   `run-status.json` and rebuild it on resume (warn on drift, unsafe banner on resume too); enforce
   or honestly mark Codex MCP (`-c mcp_servers={}` or `mcp-unenforced`); record enforcement
   assumptions in `security.json`. (SEC-04, SEC-05, SEC-36.) Wave 3.
 - **Phase 3 — records privacy and publish hardening.** Record allowlist with transcript-class
   files; PR adoption checks owner and head SHA; model text rendered as plain text in PR bodies and
-  comments; `phax report` previews and redacts. (SEC-02, SEC-10, SEC-11, SEC-21.) SEC-02 in wave 1,
-  the rest in wave 3.
+  comments; `phax report` previews and redacts. (SEC-02, SEC-10, SEC-11, SEC-21.) SEC-02 landed
+  (#265); the rest in wave 3.
 - **Phase 4 — supply chain and release pipeline.** The npm package embeds the binary digests and
   the launcher re-verifies the cache on every run (`mkdtemp`, bounded redirects, timeouts,
   immutable releases); release split into a read-only build job and a minimal attest/publish job,
   protected environment for deploys, tag ruleset and ancestry check. (SEC-13, SEC-14, SEC-26,
-  SEC-27, SEC-28, SEC-29.) Small pieces in wave 1's outside lane, the split later.
+  SEC-27, SEC-28, SEC-29.) SEC-26, SEC-28 and SEC-29 landed (#261, #262); SEC-13, SEC-14 and
+  SEC-27, the release split, later.
 - **Phase 5 — trust gate for repo-supplied security config.** Per-repo confirmation for
   project-layer `security` keys; project `allowWrite` scoped inside the repo root; no project
   downgrade of `security.profile`; `mcp.allow` from operator-owned paths only; gate and setup
