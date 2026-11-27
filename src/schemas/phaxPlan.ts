@@ -1,5 +1,6 @@
 import { Schema, type Types } from "effect";
 import { PlanPath, PlanPathFromWritten } from "./planPath.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { NonEmptyString, isExportedPattern } from "./strictString.js";
 import { TestLineSchema } from "./testLine.js";
@@ -20,7 +21,9 @@ export const PlanEffortSchema = Schema.Literals([
 /** How a phase runs: headless, or kept open for a person (interactive-phases). */
 export const PhaseModeSchema = Schema.Literals(["headless", "interactive"]);
 
-const PhaseIdSchema = Schema.String.check(isExportedPattern(/^phase-\d{2}$/));
+const PhaseIdSchema = Schema.String.check(
+  isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId")),
+);
 
 /**
  * A phase's acceptance tests (acceptance-tests): the phase that passes them and

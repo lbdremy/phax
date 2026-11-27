@@ -8550,7 +8550,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "arbitratedQuestions.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "arbitratedQuestions.0.id: Expected QuestionId, actual \"\""
       }
     },
     {
@@ -9509,7 +9509,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "arbitratedQuestions.0.options.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "arbitratedQuestions.0.options.0.id: Expected QuestionId, actual \"\""
       }
     },
     {
@@ -17469,7 +17469,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "openQuestions.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "openQuestions.0.id: Expected QuestionId, actual \"\""
       }
     },
     {
@@ -18014,7 +18014,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "openQuestions.0.options.0.id: Expected a string matching the pattern ^\\S+$, actual \"\""
+        "refusal": "openQuestions.0.options.0.id: Expected QuestionId, actual \"\""
       }
     },
     {

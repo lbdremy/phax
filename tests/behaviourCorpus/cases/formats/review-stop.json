@@ -6850,7 +6850,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phase.id: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "phase.id: Expected PhaseId, actual \"\""
       }
     },
     {
@@ -7476,7 +7476,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "phaseCommit: Expected a string matching the pattern ^[0-9a-f]{40}([0-9a-f]{24})?$, actual \"\""
+        "refusal": "phaseCommit: Expected CommitSha, actual \"\""
       }
     },
     {

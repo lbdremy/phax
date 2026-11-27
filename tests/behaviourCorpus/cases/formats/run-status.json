@@ -698,7 +698,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "hold.phases.0: Expected a string matching the pattern ^phase-\\d{2}$, actual \"\""
+        "refusal": "hold.phases.0: Expected PhaseId, actual \"\""
       }
     },
     {

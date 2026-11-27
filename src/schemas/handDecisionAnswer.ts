@@ -14,12 +14,13 @@
 import { Schema } from "effect";
 import { answerSchemaUrlField } from "./answerStamp.js";
 import { PlanDecidedVerdictSchema, SpecDecidedVerdictSchema } from "./questions.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // A question id, as the §9 format reads it back: no whitespace.
-const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
-  Schema.annotate({ description: "A question id of the artifact: no whitespace." }),
-);
+const QuestionIdSchema = Schema.String.check(
+  isExportedPattern(/^\S+$/, refusalLabel("QuestionId")),
+).pipe(Schema.annotate({ description: "A question id of the artifact: no whitespace." }));
 
 const MarkdownSchema = NonEmptyString.annotate({
   description:

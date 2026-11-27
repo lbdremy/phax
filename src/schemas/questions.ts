@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { refusalLabel } from "./refusal/adapter.js";
 import { NonEmptyString, isExportedPattern } from "./strictString.js";
 
 // The questions a spec or plan document carries, in two states: open, or
@@ -12,9 +13,9 @@ import { NonEmptyString, isExportedPattern } from "./strictString.js";
 // A question or option id: a run of characters without whitespace, so the §9
 // format's `### <id> — …`, `- <id> — …`, Recommendation and Decision lines
 // read it back.
-const QuestionIdSchema = Schema.String.check(isExportedPattern(/^\S+$/)).pipe(
-  Schema.annotate({ description: "An id: a run of characters without whitespace." }),
-);
+const QuestionIdSchema = Schema.String.check(
+  isExportedPattern(/^\S+$/, refusalLabel("QuestionId")),
+).pipe(Schema.annotate({ description: "An id: a run of characters without whitespace." }));
 
 const QuestionOptionSchema = Schema.Struct({
   id: QuestionIdSchema,
@@ -75,7 +76,7 @@ export const SpecDecidedVerdictSchema = Schema.Struct(decidedVerdictFields);
 /** A plan question decided by the operator: a spec's decided verdict, plus the phase it bears on. */
 export const PlanDecidedVerdictSchema = Schema.Struct({
   ...decidedVerdictFields,
-  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/)),
+  phase: Schema.String.check(isExportedPattern(/^phase-\d{2}$/, refusalLabel("PhaseId"))),
 });
 
 const SpecVerdictSchema = Schema.Union([SpecDecidedVerdictSchema, LiftedVerdictSchema]);

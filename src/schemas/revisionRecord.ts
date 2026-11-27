@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 import { ProviderIdSchema } from "./providerId.js";
 import { RecordShapeSchema, TokenUsageSchema } from "./runRecord.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
@@ -57,9 +58,9 @@ const RevisionRequesterSchema = Schema.Union([
 const revisionRecordManifestFields = {
   kind: Schema.Literal("revision"),
   /** `<authoringId>/<NN>`: the record key's tail and the `Revision-Id` trailer. */
-  revisionId: Schema.String.check(isExportedPattern(/^[^/\s]+\/\d{2,}$/)).pipe(
-    Schema.annotate({ description: "`<authoringId>/<NN>`, the Revision-Id trailer." }),
-  ),
+  revisionId: Schema.String.check(
+    isExportedPattern(/^[^/\s]+\/\d{2,}$/, refusalLabel("RevisionId")),
+  ).pipe(Schema.annotate({ description: "`<authoringId>/<NN>`, the Revision-Id trailer." })),
   /** Repo-relative path of the artifact revised. */
   artifact: Schema.NonEmptyString,
   artifactKind: Schema.Literals(["spec", "plan"]),

@@ -1,5 +1,6 @@
 import { Schema, type Types } from "effect";
 import { ApprovedBySchema } from "./approvedBy.js";
+import { refusalLabel } from "./refusal/adapter.js";
 import { schemaUrlField } from "./schemaUrl.js";
 import { isExportedPattern } from "./strictString.js";
 
@@ -15,7 +16,9 @@ const SourceSpecBindingSchema = Schema.Struct({
  */
 const CodeBaselineSchema = Schema.Struct({
   root: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(
+    isExportedPattern(/^[0-9a-f]{40}$/, refusalLabel("CommitSha")),
+  ),
 });
 
 export type CodeBaseline = Schema.Schema.Type<typeof CodeBaselineSchema>;
@@ -23,7 +26,9 @@ export type CodeBaseline = Schema.Schema.Type<typeof CodeBaselineSchema>;
 const ApprovalRecordSchema = Schema.Struct({
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(
+    isExportedPattern(/^[0-9a-f]{40}$/, refusalLabel("CommitSha")),
+  ),
   sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
 });
 
@@ -64,7 +69,9 @@ const planRecordFields = {
   artifact: Schema.NonEmptyString,
   planFingerprint: Schema.NonEmptyString,
   approvedAt: Schema.NonEmptyString,
-  baseline: Schema.NonEmptyString.check(isExportedPattern(/^[0-9a-f]{40}$/)),
+  baseline: Schema.NonEmptyString.check(
+    isExportedPattern(/^[0-9a-f]{40}$/, refusalLabel("CommitSha")),
+  ),
   code: Schema.NullOr(CodeBaselineSchema),
   sourceSpec: Schema.NullOr(SourceSpecBindingSchema),
   approvedBy: ApprovedBySchema,

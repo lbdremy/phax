@@ -894,7 +894,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
+        "refusal": "decisionId: Expected DecisionId, actual \"\""
       }
     },
     {
@@ -1614,7 +1614,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "decisionId: Expected a string matching the pattern ^[^/\\s]+\\/\\d{2,}$, actual \"\""
+        "refusal": "decisionId: Expected DecisionId, actual \"\""
       }
     },
     {
@@ -1779,7 +1779,7 @@
       },
       "expected": {
         "ok": false,
-        "refusal": "doctrine.0.fingerprint: Expected a string matching the pattern ^[0-9a-f]{64}$, actual \"\""
+        "refusal": "doctrine.0.fingerprint: Expected Sha256, actual \"\""
       }
     },
     {
