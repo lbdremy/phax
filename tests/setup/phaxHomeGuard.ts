@@ -24,6 +24,11 @@
 // The repository under test is exempt: phase worktrees live under
 // `~/.phax/worktrees/`, so the gate's `pnpm test` runs inside `~/.phax`, and a
 // guard without the exemption would refuse every read of the repository itself.
+//
+// A PHAX_HOME exported by the developer is removed from the test process when
+// this file first loads in a worker, so no suite is steered by it, and recorded
+// in the guard's state. When it is an absolute path, it is guarded like
+// `~/.phax`, at its path and its realpath, with the same exemption.
 import { EventEmitter } from "node:events";
 import fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
@@ -44,6 +49,10 @@ interface GuardState {
   readonly violations: GuardViolation[];
   readonly originals: Map<string, unknown>;
   collecting: boolean;
+  /** The PHAX_HOME exported when this file first loaded in the worker, if any. */
+  exportedPhaxHome: string | undefined;
+  /** The exported PHAX_HOME at its path and realpath when it is absolute, else empty. */
+  exportedRoots: readonly string[];
 }
 
 const STATE_KEY = Symbol.for("phax.phaxHomeGuard");
@@ -169,7 +178,13 @@ function state(): GuardState {
   const holder = globalThis as unknown as Record<symbol, GuardState | undefined>;
   let existing = holder[STATE_KEY];
   if (existing === undefined) {
-    existing = { violations: [], originals: new Map(), collecting: true };
+    existing = {
+      violations: [],
+      originals: new Map(),
+      collecting: true,
+      exportedPhaxHome: undefined,
+      exportedRoots: [],
+    };
     holder[STATE_KEY] = existing;
   }
   return existing;
@@ -196,6 +211,31 @@ const FOLD_CASE = process.platform === "darwin";
 const REPO_ROOT = resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const EXEMPT_ROOTS: readonly string[] = [...new Set([REPO_ROOT, realOrSelf(REPO_ROOT)])];
 
+/**
+ * Remove PHAX_HOME from `env` and return its value, even an empty one, or
+ * undefined when the key is absent.
+ */
+export function takeExportedPhaxHome(env: NodeJS.ProcessEnv): string | undefined {
+  if (!Object.hasOwn(env, "PHAX_HOME")) return undefined;
+  const value = env["PHAX_HOME"];
+  delete env["PHAX_HOME"];
+  return value;
+}
+
+// Only the first value per worker is kept: this file loads again for every
+// test file, after the exported variable is already gone.
+function recordExportedPhaxHome(value: string | undefined): void {
+  const current = state();
+  if (value === undefined || current.exportedPhaxHome !== undefined) return;
+  current.exportedPhaxHome = value;
+  current.exportedRoots = isAbsolute(value) ? [...new Set([value, realOrSelf(value)])] : [];
+}
+
+/** The PHAX_HOME the developer exported, as recorded when the guard first loaded. */
+export function exportedPhaxHome(): string | undefined {
+  return state().exportedPhaxHome;
+}
+
 /** The absolute path an argument names, or undefined for a file descriptor or anything else. */
 function resolveArg(arg: unknown): string | undefined {
   if (typeof arg === "string") return isAbsolute(arg) ? arg : resolve(process.cwd(), arg);
@@ -210,21 +250,33 @@ function resolveArg(arg: unknown): string | undefined {
   return undefined;
 }
 
-/** The guarded path among a call's path arguments, if any. */
-function guardedPath(args: readonly unknown[], entry: Entry): string | undefined {
+interface Guarded {
+  readonly path: string;
+  /** What the path is inside: the real `~/.phax`, or the exported PHAX_HOME. */
+  readonly root: string;
+}
+
+/** The guarded path among a call's path arguments, if any, with the root it is inside. */
+function guardedPath(args: readonly unknown[], entry: Entry): Guarded | undefined {
+  const { exportedPhaxHome: exported, exportedRoots } = state();
   for (const arg of entry.pathsOf(args)) {
     const path = resolveArg(arg);
-    if (path !== undefined && isInsidePhaxHome(path, PHAX_ROOTS, EXEMPT_ROOTS, FOLD_CASE)) {
-      return path;
+    if (path === undefined) continue;
+    if (isInsidePhaxHome(path, PHAX_ROOTS, EXEMPT_ROOTS, FOLD_CASE)) {
+      return { path, root: "the real ~/.phax" };
+    }
+    // exportedRoots is empty unless an absolute PHAX_HOME was recorded.
+    if (isInsidePhaxHome(path, exportedRoots, EXEMPT_ROOTS, FOLD_CASE)) {
+      return { path, root: `the exported PHAX_HOME ${exported ?? ""}` };
     }
   }
   return undefined;
 }
 
-function refusal(call: string, path: string): Error {
+function refusal(call: string, { path, root }: Guarded): Error {
   const { violations, collecting } = state();
   violations.push({ call, path, during: collecting ? "collection" : "test" });
-  return Object.assign(new Error(`EACCES: ${call} ${path} is inside the real ~/.phax. ${REMEDY}`), {
+  return Object.assign(new Error(`EACCES: ${call} ${path} is inside ${root}. ${REMEDY}`), {
     code: "EACCES",
     syscall: call,
     path,
@@ -238,9 +290,9 @@ function wrap(
   label: string,
 ): (...args: unknown[]) => unknown {
   const wrapped = function (this: unknown, ...args: unknown[]): unknown {
-    const path = guardedPath(args, entry);
-    if (path === undefined) return original.apply(this, args);
-    const error = refusal(label, path);
+    const guarded = guardedPath(args, entry);
+    if (guarded === undefined) return original.apply(this, args);
+    const error = refusal(label, guarded);
     switch (style) {
       case "sync":
         throw error;
@@ -354,13 +406,19 @@ export function markCollecting(collecting: boolean): void {
 export function assertNoGuardViolations(): void {
   const violations = takeGuardViolations();
   if (violations.length === 0) return;
+  const exported = state().exportedRoots.length > 0 ? state().exportedPhaxHome : undefined;
+  const roots =
+    exported === undefined
+      ? "the real ~/.phax"
+      : `the real ~/.phax or the exported PHAX_HOME ${exported}`;
   throw new Error(
-    `The test touched the real ~/.phax:\n${violations
+    `The test touched ${roots}:\n${violations
       .map((v) => `  ${v.call} ${v.path}${v.during === "collection" ? " (during collection)" : ""}`)
       .join("\n")}\n${REMEDY}`,
   );
 }
 
+recordExportedPhaxHome(takeExportedPhaxHome(process.env));
 installPhaxHomeGuard();
 markCollecting(true);
 
