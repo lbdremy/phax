@@ -1,7 +1,10 @@
 ---
-status: Draft
+status: Approved
 source-spec: docs/specs/2611261455-e2e-phax-home.md
 completes-spec: true
+approved:
+  date: 2026-11-27
+  baseline: e9146b0
 ---
 # E2e phax home
 

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.phax.run/schemas/plan-approval-record/0.40.0.json",
+  "artifact": "docs/plans/2611270948-e2e-phax-home-plan.md",
+  "planFingerprint": "1479b3e6d433a76a08b6383426e07287b682d8ffacde0cc4fa45e7a3b159147c",
+  "approvedAt": "2026-11-27T13:48:36.963Z",
+  "baseline": "e9146b036bf010521c8761f3fc70fcf86d19449e",
+  "code": null,
+  "sourceSpec": {
+    "path": "docs/specs/2611261455-e2e-phax-home.md",
+    "fingerprint": "453720858d7ee28f00b7a9f8f54041ded6e659cca9ccff0795a3430a75f52668"
+  },
+  "approvedBy": {
+    "kind": "operator",
+    "name": "Rémy Loubradou"
+  }
+}
