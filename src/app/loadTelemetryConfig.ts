@@ -1,21 +1,21 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { homedir } from "node:os";
+import { dirname } from "node:path";
 import { Result } from "effect";
 import { ConfigValidationError } from "../domain/errors.js";
 import { decodeTelemetryConfig, type TelemetryConfig } from "../schemas/telemetryConfig.js";
 import { formatParseError } from "../schemas/formatError.js";
-
-export const PHAX_HOME_DIR = join(homedir(), ".phax");
-export const TELEMETRY_CONFIG_PATH = join(PHAX_HOME_DIR, "telemetry.json");
 
 const DEFAULT_TELEMETRY_CONFIG: TelemetryConfig = { enabled: true };
 const DEFAULT_TELEMETRY_CONFIG_JSON = JSON.stringify(DEFAULT_TELEMETRY_CONFIG, null, 2) + "\n";
 
 export type LoadTelemetryConfigError = ConfigValidationError;
 
+/**
+ * The telemetry config at `configPath` (telemetry.json in the phax home). A missing file is
+ * scaffolded there, enabled, creating its directory.
+ */
 export function loadTelemetryConfig(
-  configPath: string = TELEMETRY_CONFIG_PATH,
+  configPath: string,
 ): Result.Result<TelemetryConfig, LoadTelemetryConfigError> {
   if (!existsSync(configPath)) {
     try {

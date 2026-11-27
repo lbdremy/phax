@@ -18,6 +18,8 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadModelRouting, loadProviderConfig } from "../../app/loadRouting.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { phaxHomeFile } from "../../domain/phaxHome.js";
 import { withRunLock } from "../../app/lock.js";
 import { resolvePlanLink } from "../../app/planLink.js";
 import { resolveRunRef } from "../../app/resolveRunRef.js";
@@ -140,7 +142,9 @@ function runResumeCommand(
     const config = configResult.success;
     const { stateRoot } = config;
 
-    const telemetryConfigResult = loadTelemetryConfig();
+    const telemetryConfigResult = Result.flatMap(resolvePhaxHome(), (home) =>
+      loadTelemetryConfig(phaxHomeFile(home, "telemetry.json")),
+    );
     if (Result.isFailure(telemetryConfigResult)) {
       return yield* refuse(1, configErrorText(telemetryConfigResult.failure));
     }

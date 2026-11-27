@@ -3,8 +3,9 @@ import { glob as globPromise, readFile, watch as watchPromise } from "node:fs/pr
 import { homedir, tmpdir, userInfo } from "node:os";
 import { join, relative } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
-import { PHAX_HOME_DIR, TELEMETRY_CONFIG_PATH } from "../../src/app/loadTelemetryConfig.js";
+import { Result } from "effect";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import {
   assertNoGuardViolations,
   exportedPhaxHome,
@@ -376,10 +377,12 @@ describe("isolatePhaxHome", () => {
     expect(readdirSync(join(isolation.home, ".phax"))).toEqual([]);
   });
 
-  it("keeps the import-time constants in the import-time home, outside the real one", () => {
-    for (const constant of [PHAX_HOME_DIR, TELEMETRY_CONFIG_PATH, MODEL_ROUTING_PATH]) {
-      expect(inside(constant, IMPORT_TIME_HOME)).toBe(true);
-      expect(inside(constant, REAL_HOME)).toBe(false);
+  it("resolves the phax home per call in the per-test home, outside the real one", () => {
+    const home = Result.getOrThrow(resolvePhaxHome());
+    for (const path of [home.path, phaxHomeFile(home, "model-routing.json")]) {
+      expect(inside(path, isolation.home)).toBe(true);
+      expect(inside(path, IMPORT_TIME_HOME)).toBe(false);
+      expect(inside(path, REAL_HOME)).toBe(false);
     }
     expect(IMPORT_TIME_HOME).not.toBe(isolation.home);
   });

@@ -1,10 +1,8 @@
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
-import {
-  loadModelRouting,
-  loadProviderConfig,
-  PROVIDER_CONFIG_PATH,
-} from "../../../src/app/loadRouting.js";
+import { loadModelRouting, loadProviderConfig } from "../../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../../src/domain/phaxHome.js";
 import { ConfigValidationError } from "../../../src/domain/errors.js";
 import {
   DEFAULT_MODEL_ROUTING,
@@ -82,6 +80,10 @@ describe("Vibe catalog: mistral-medium-3.5 (acceptance)", () => {
         },
       },
     };
+    const PROVIDER_CONFIG_PATH = phaxHomeFile(
+      Result.getOrThrow(resolvePhaxHome()),
+      "providers.json",
+    );
     impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(file));
     const err = await Effect.runPromise(
       Effect.flip(loadProviderConfig().pipe(Effect.provide(layer))),

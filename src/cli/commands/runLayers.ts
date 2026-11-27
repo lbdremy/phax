@@ -21,11 +21,9 @@ import { Lock } from "../../ports/lock.js";
 import { Shell } from "../../ports/shell.js";
 import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
-import {
-  loadTelemetryConfig,
-  TELEMETRY_CONFIG_PATH,
-  PHAX_HOME_DIR,
-} from "../../app/loadTelemetryConfig.js";
+import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { phaxHomeFile } from "../../domain/phaxHome.js";
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -94,7 +92,7 @@ import type { ResolvedConfig } from "../../schemas/phaxConfig.js";
  * with a config must use. Relative paths crossing the port (`docs/plans`,
  * `docs/plans/approvals/<plan>.json`) then resolve against `config.repoRoot` — matching
  * git's own work-from-anywhere contract — while absolute paths (`stateRoot`,
- * `PHAX_HOME_DIR`) pass through unchanged. The architectural guard in
+ * the phax home) pass through unchanged. The architectural guard in
  * `tests/unit/architecturalGuards.test.ts` forbids a command from reaching for
  * the identity `NodeFileSystemLayer` instead of this helper.
  */
@@ -104,18 +102,22 @@ export function makeRepoRootedFileSystemLayer(config: ResolvedConfig): Layer.Lay
 
 /**
  * The global telemetry journal (or a no-op when telemetry is disabled), fully
- * provided with its own filesystem. The journal writes under `PHAX_HOME_DIR`,
- * which is absolute, so it is deliberately backed by the identity
- * `NodeFileSystemLayer` rather than a repo-rooted view — encapsulated here so
- * commands never reach for the identity layer directly.
+ * provided with its own filesystem. The phax home is resolved on each call and
+ * the journal writes under it; the path is absolute, so it is deliberately
+ * backed by the identity `NodeFileSystemLayer` rather than a repo-rooted view —
+ * encapsulated here so commands never reach for the identity layer directly.
+ * An invalid PHAX_HOME gives the no-op: the program's guard refuses that call
+ * before it runs.
  */
 export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelemetry> {
-  const telemetryConfig = loadTelemetryConfig(TELEMETRY_CONFIG_PATH);
+  const home = resolvePhaxHome();
+  if (Result.isFailure(home)) return NoopSystemTelemetryLayer;
+  const telemetryConfig = loadTelemetryConfig(phaxHomeFile(home.success, "telemetry.json"));
   const telemetryEnabled = Result.isSuccess(telemetryConfig)
     ? telemetryConfig.success.enabled
     : true;
   return telemetryEnabled
-    ? makeGlobalTelemetryJournalLayer(PHAX_HOME_DIR).pipe(Layer.provide(NodeFileSystemLayer))
+    ? makeGlobalTelemetryJournalLayer(home.success.path).pipe(Layer.provide(NodeFileSystemLayer))
     : NoopSystemTelemetryLayer;
 }
 

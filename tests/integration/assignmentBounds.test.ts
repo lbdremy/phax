@@ -1,11 +1,12 @@
-import { Effect } from "effect";
+import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   assignmentBoundFindings,
   invalidBoundMessages,
   resolveBoundParts,
 } from "../../src/app/assignmentBounds.js";
-import { PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import { DEFAULT_PROVIDER_CONFIG } from "../../src/domain/routing/defaults.js";
 import { makeFakeFileSystem } from "../../src/infra/fakes/fs.js";
 import { makeFakeShell } from "../../src/infra/fakes/shell.js";
@@ -183,7 +184,7 @@ describe("invalidBoundMessages", () => {
   it("reads the catalog a run reads", async () => {
     const fs = makeFakeFileSystem();
     fs.impl.setFile(
-      PROVIDER_CONFIG_PATH,
+      phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "providers.json"),
       JSON.stringify({ ...DEFAULT_PROVIDER_CONFIG, providers: {} }),
     );
     expect(await invalid(config([GLOBS_BOUND]), fs)).toEqual([

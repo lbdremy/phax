@@ -1,9 +1,11 @@
-import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Result } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadTelemetryConfig } from "../../src/app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 
 let tmpDir: string;
 let configPath: string;
@@ -78,5 +80,36 @@ describe("loadTelemetryConfig", () => {
     if (Result.isFailure(result)) {
       expect(result.failure.message).toContain("Failed to read or parse");
     }
+  });
+});
+
+describe("telemetry.json in the phax home", () => {
+  afterEach(() => {
+    delete process.env["PHAX_HOME"];
+  });
+
+  it("ac-moves: with PHAX_HOME naming a home that does not exist yet, the scaffold creates it there", () => {
+    const home = join(tmpDir, "moved-home");
+    process.env["PHAX_HOME"] = home;
+    const resolved = Result.getOrThrow(resolvePhaxHome());
+    expect(resolved).toEqual({ path: home, from: "PHAX_HOME" });
+
+    const result = loadTelemetryConfig(phaxHomeFile(resolved, "telemetry.json"));
+
+    expect(result).toEqual(Result.succeed({ enabled: true }));
+    expect(readFileSync(join(home, "telemetry.json"), "utf8")).toBe('{\n  "enabled": true\n}\n');
+  });
+
+  it("reads the moved home's file, not another one", () => {
+    const home = join(tmpDir, "moved-home");
+    mkdirSync(home);
+    writeFileSync(join(home, "telemetry.json"), JSON.stringify({ enabled: false }));
+    process.env["PHAX_HOME"] = home;
+
+    const result = loadTelemetryConfig(
+      phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "telemetry.json"),
+    );
+
+    expect(result).toEqual(Result.succeed({ enabled: false }));
   });
 });

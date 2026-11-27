@@ -1,6 +1,7 @@
 import { Effect, Result } from "effect";
 import { describe, expect, it } from "vitest";
-import { MODEL_ROUTING_PATH } from "../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import {
   freshRunPreflight,
   RUN_PREFLIGHT_CHECKS,
@@ -761,7 +762,10 @@ async function runFresh(
 
 function fsWithBrokenRouting() {
   const fs = makeFakeFileSystem();
-  fs.impl.setFile(MODEL_ROUTING_PATH, "{ not json");
+  fs.impl.setFile(
+    phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "model-routing.json"),
+    "{ not json",
+  );
   return fs;
 }
 

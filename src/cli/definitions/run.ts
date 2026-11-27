@@ -21,6 +21,8 @@ import { executePlan } from "../../app/executePlan.js";
 import { loadConfig } from "../../app/loadConfig.js";
 import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
+import { phaxHomeFile } from "../../domain/phaxHome.js";
 import { withRunLock } from "../../app/lock.js";
 import { resolveCodeLink } from "../../app/codeLink.js";
 import { type PlanLink, resolvePlanLink } from "../../app/planLink.js";
@@ -272,7 +274,9 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
       return yield* refuse(2, configErrorText(configResult.failure));
     const config = configResult.success;
 
-    const telemetryConfigResult = loadTelemetryConfig();
+    const telemetryConfigResult = Result.flatMap(resolvePhaxHome(), (home) =>
+      loadTelemetryConfig(phaxHomeFile(home, "telemetry.json")),
+    );
     if (Result.isFailure(telemetryConfigResult)) {
       return yield* refuse(2, configErrorText(telemetryConfigResult.failure));
     }

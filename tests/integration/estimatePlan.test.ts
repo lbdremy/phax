@@ -2,10 +2,11 @@
 // plan and a generated history: no model reads the plan, --no-probe calls no
 // Backend method, artifact validation refuses an off-grammar name, a codex
 // phase is not estimated, and no Claude Code credential path is ever touched.
-import { Cause, Effect, Exit, Layer, Option } from "effect";
+import { Cause, Effect, Exit, Layer, Option, Result } from "effect";
 import { describe, expect, it } from "vitest";
 import { estimatePlanCost, readEstimatePlan } from "../../src/app/estimatePlan.js";
-import { PROVIDER_CONFIG_PATH } from "../../src/app/loadRouting.js";
+import { resolvePhaxHome } from "../../src/app/phaxHome.js";
+import { phaxHomeFile } from "../../src/domain/phaxHome.js";
 import { renderEstimate } from "../../src/domain/cost/estimateRender.js";
 import { PROBE_PROMPT } from "../../src/domain/cost/probe.js";
 import { ArtifactValidationError, PlanUnparseableError } from "../../src/domain/errors.js";
@@ -175,7 +176,7 @@ function setup(
   fs.impl.setFile(`${REPO}/src/a.ts`, "x".repeat(2048));
   if (options.codexEnabled === true) {
     fs.impl.setFile(
-      PROVIDER_CONFIG_PATH,
+      phaxHomeFile(Result.getOrThrow(resolvePhaxHome()), "providers.json"),
       JSON.stringify({
         providers: {
           ...DEFAULT_PROVIDER_CONFIG.providers,
