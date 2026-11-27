@@ -5,6 +5,7 @@ import { Effect } from "effect";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { installSkill } from "../../src/app/skills/installSkill.js";
 import { NodeFileSystemLayer } from "../../src/infra/fs.js";
+import { RESERVED_CRITERIA } from "../../src/schemas/testLine.js";
 
 const REPO_ROOT = join(import.meta.dirname, "../..");
 const SKILLS_DIR = join(REPO_ROOT, ".claude/skills");
@@ -123,6 +124,11 @@ describe("phax-decide-review and phax-review skills", () => {
     expect(content).toContain("no acceptance test files (`R4`)");
   });
 
+  it("decide-review names no `phax review-plan` command", () => {
+    const content = readFileSync(join(SKILLS_DIR, "phax-decide-review/SKILL.md"), "utf-8");
+    expect(flat(content)).not.toContain("phax review-plan");
+  });
+
   it("review says acceptance pairs and keeps the wrong-oracle escape", () => {
     const content = readFileSync(join(SKILLS_DIR, "phax-review/SKILL.md"), "utf-8");
     expect(content).toContain("**the acceptance pairs**");
@@ -132,6 +138,22 @@ describe("phax-decide-review and phax-review skills", () => {
       "A frozen acceptance test whose oracle is wrong passes the whole run.",
     );
     expect(content).toContain("Review the acceptance tests first.");
+  });
+});
+
+describe("phax-spec skill — reserved criterion ids", () => {
+  it("names exactly the words the test-line schema reserves", () => {
+    const content = readFileSync(join(SKILLS_DIR, "phax-spec/SKILL.md"), "utf-8");
+    const criteria = section(content, "## Acceptance criteria and traceability");
+    const bullet = criteria
+      .split(/\n(?=- )|\n\n/)
+      .find((b) => b.includes("criterion id cannot be"));
+    expect(bullet).toBeDefined();
+    // A criterion id holds no whitespace, so `phax plans lint` is not one of the words.
+    const words = [...flat(bullet ?? "").matchAll(/`([^`]+)`/g)]
+      .map((match) => match[1] ?? "")
+      .filter((word) => !/\s/.test(word));
+    expect(words.toSorted()).toEqual(RESERVED_CRITERIA.toSorted());
   });
 });
 

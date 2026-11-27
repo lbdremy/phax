@@ -342,6 +342,13 @@ export const ALLOWLIST: readonly AllowEntry[] = [
     ],
   },
 
+  {
+    id: "criterion-reserved-spec-skill",
+    reason: "old-name refusal",
+    file: ".claude/skills/phax-spec/SKILL.md",
+    lines: [/retired `oracle`/],
+  },
+
   // ── The test line's fourth field.
   {
     id: "field-test-line-schema",
