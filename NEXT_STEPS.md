@@ -18,6 +18,9 @@ attempt). `tests-that-drive-a-run` stopped after its measure (#259, spec and pla
 the run, #266, #267, #270, and restored, #272).
 `finding-fix-identity` (#275: a fixed finding finds its commit again after a rebase, an amend or a
 squash; the guards and the lint baseline were lifted for the run, #273, #274, and restored, #276).
+`small-fixes-wave-2` (#277: resume hints print `--yes` and restore commands read paths literally,
+`phax open`'s help, two skill texts, a Codex network watchdog, `setup providers --write` keeping a
+disabled provider off, identifier labels in refusals).
 
 ## The queue, as of 2026-11-23
 
@@ -68,18 +71,7 @@ The files where items collide, which set the order below: `src/infra/git.ts` and
 
 ### Wave 2 — after the security slice merges
 
-- [ ] **Small fixes, one batch** — to plan straight from this list, each in its own file:
-      - Most `phax resume` hints outside network and handoff still lack `--yes`
-        (`src/app/resumeInstructions.ts`), with SEC-30 (literal pathspecs, same file).
-      - `phax open` claims an `$EDITOR` fallback it does not have
-        (`src/cli/definitions/sessions.ts`).
-      - `phax-decide-review` points at a command that does not exist, and teach the reserved
-        test-line words in `phax-spec` (skill text, `--allow-skill-edits`).
-      - Codex never ends a session on network loss: a watchdog in `src/infra/providers/codexCli.ts`.
-      - `phax agent setup providers --write` re-enables every installed provider
-        (`src/app/providerSetup.ts`).
-      - Refusal labels of identifier-like leaves (`src/schemas/`).
-- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19), spec to author. One
+- [ ] **`e2e-phax-home`** — `docs/briefs/e2e-phax-home.md` (2026-11-19); spec approved 2026-11-27, plan drafted. One
       resolution point for phax's home, a variable to move it, and each real-provider e2e in a
       temporary phax home; the provider CLIs' sign-ins stay in the real `HOME`. With it, the two
       Small follow-ups that are one fix ("the codex e2e suite checks a provider the router no
@@ -451,12 +443,6 @@ desktop — none is promised by the announcement.
 - [ ] **Vibe's helper processes outlive a hung `vibe-rs`.** Seen once in the `vibe-model-flags`
       e2e (2026-11-19): `vibe-app-server` and `vibe-background` kept running after the 240 s kill.
       Check them against #247's process-group kill.
-- [ ] **`phax-decide-review` points at a command that does not exist.** Found 2026-11-22 in the
-      README pass: the skill's description says `phax review-plan` follows it, and no such command is in
-      `phax.usage.kdl`. Either the command lands or the skill says what uses it today.
-- [ ] **`phax open` claims an `$EDITOR` fallback it does not have.** Found 2026-11-22 in the README pass:
-      its help (`src/cli/definitions/sessions.ts`) says it falls back to `EDITOR`; `src/infra/editor.ts`
-      reads no environment variable. Fix the help or the adapter.
 - [ ] **`approve` ignores a `code` key in `phax.local.json`.** Since #241 a plan approval reads only
       the project phax.json's `code` (so an unrelated overlay error never blocks it); `validate`
       and `run` refuse `code` outside the project layer, `approve` just does not see it. Decide
@@ -469,11 +455,6 @@ desktop — none is promised by the announcement.
       manifest fix shipped unannounced. Folding stays right for a feature run's review fixes of
       its own new code; what is missing is a way for a fix of code that predates the run to reach
       "Fixes". Decide the rule first (a trailer, or a fix outside the run's planned files).
-- [ ] **Teach the reserved test-line words.** Left from `acceptance-tests` (0.33.0): no skill says
-      that a spec's criterion ids cannot be the loop words `acceptance` or `in-phase` (nor the
-      retired `oracle`); only the schemas refuse them. One line in phax-spec's acceptance-criteria
-      rules. (The other leftover, stale user copies of the skills, is done: `~/.claude/skills`
-      matches the repository's, checked 2026-11-10.)
 - [ ] **A phase whose agent is blocked commits nothing and is then skipped.** Found 2026-11-10 on
       `remove-the-effect-4-migration-tooling`. The phase-02 agent could not run `git rm` (not a
       granted command), stopped and asked for approval. phax paused the run as "produced no
@@ -491,8 +472,6 @@ desktop — none is promised by the announcement.
       had a non-finite string in a `Schema.Number` field or `null` in an optional key. #198 fixed
       the generator; add such refused cases, with a way to write their expectation now that no
       capture script remains (#199).
-- [ ] **Refusal labels of identifier-like leaves.** From #198: a leaf such as `decisionId` prints
-      its regex in a refusal instead of a label; restore an identifier annotation.
 - [ ] **Security: allowed shell commands run unconfined on Claude Code and Vibe.** Placed in wave 2
       (the OS sandbox item, 2026-11-24). Found 2026-10-30
       reviewing #176. Only Codex runs a session in an OS sandbox. On Claude Code and Vibe the filesystem
@@ -510,12 +489,6 @@ desktop — none is promised by the announcement.
       `src/domain/routing/defaults.ts` any more, so a forced codex-cli resolves to claude-code, while
       `expectedSelectedProvider` (`tests/e2e/helpers/providers.ts`) assumes the forced provider wins.
       Give the codex suite a phase model it serves, or make the helper follow `resolveModel`.
-- [ ] **Codex never ends a session on network loss.** Codex 0.165, its API unreachable, emits
-      `Reconnecting... N/5`, then `Reconnecting... waiting for network` every ~50 s without end and no
-      `turn.failed` (2026-10-28, real e2e of `provider-failures`). A Codex phase hangs with nothing on
-      the terminal. A watchdog in the Codex adapter: after N consecutive network `error` events, end
-      the process and report `network` (exit 14). Its cost: a session Codex would have recovered after
-      a short outage.
 - [ ] **Nothing shows while a provider retries.** Claude Code retries a lost API for ~3 min, Vibe
       ~4.5 min, before failing; phax prints nothing meanwhile. A line such as `provider unreachable,
       retrying (3/10)` from Claude's `api_retry` events.
@@ -525,9 +498,6 @@ desktop — none is promised by the announcement.
 - [ ] **A run does not keep its `--provider-priority`.** A resume without it routes by
       `providers.json`: on 2026-10-28 a Claude run resumed on Vibe. The hints now repeat the flag;
       persisting it with the run would make the plain resume right.
-- [ ] **Most `phax resume` hints outside network and handoff still lack `--yes`.** The
-      awaiting-review, hold-point and stop-record sections of `resume-instructions.md` and the reducer
-      trace details print `phax resume <run>`, which only previews.
 - [ ] **Codex with a ChatGPT login accepts only `gpt-6-luna`.** Probed 2026-10-30 (codex-cli 0.165.0):
       `gpt-6-sol`, the config default, and `gpt-5.5` fail the turn with "model is not supported when
       using Codex with a ChatGPT account". phax's routing catalog offers both for Codex, so a phase routed
@@ -554,11 +524,6 @@ desktop — none is promised by the announcement.
       on 2026-10-28. Run it once with a key. Asked upstream on 2026-10-29 for an isolated mode that
       ignores user and project config but keeps the sign-in, which would let this case run without a
       key: https://github.com/mistralai/mistral-vibe/discussions/1364
-- [ ] **`phax agent setup providers --write` re-enables every installed provider.** On 2026-10-28
-      it turned Codex on for an operator who wanted only Claude Code and Vibe, and it had written
-      every catalog model into `providers.json`, so the three retired Mistral ids later had to be
-      removed by hand. Let it enable only the providers named, or keep a provider the person
-      disabled disabled.
 - [ ] **A Vibe `accept-edits` profile reached through `agent_paths` is caught only after the
       turn.** #170 refuses `$VIBE_HOME/agents/accept-edits.toml` before spawning, but a profile in a
       directory named by Vibe's `agent_paths` setting is caught only by the post-turn config check,
