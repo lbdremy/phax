@@ -67,7 +67,7 @@ export function reviewStop(overrides: Partial<DeclaredReviewStop> = {}): Declare
         argv: ["phax", "enter-phase", "invoice-export", "phase-03"],
         env: {},
       },
-      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export"], env: {} },
+      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export", "--yes"], env: {} },
       reset: {
         cwd: "/example/repo",
         argv: ["phax", "reset-phase", "invoice-export", "phase-03"],
@@ -118,7 +118,7 @@ export function heldReviewStop(overrides: Partial<HeldReviewStop> = {}): HeldRev
         argv: ["phax", "enter-phase", "invoice-export", "phase-02"],
         env: {},
       },
-      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export"], env: {} },
+      close: { cwd: "/example/repo", argv: ["phax", "resume", "invoice-export", "--yes"], env: {} },
       reset: {
         cwd: "/example/repo",
         argv: ["phax", "reset-phase", "invoice-export", "phase-02"],

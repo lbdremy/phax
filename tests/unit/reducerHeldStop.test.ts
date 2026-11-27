@@ -389,7 +389,7 @@ describe("a failed hold point", () => {
         name: "resume.available",
         status: "info",
         boundary: "resume-instructions.md",
-        details: { resumeCommand: "phax resume invoice-export" },
+        details: { resumeCommand: "phax resume invoice-export --yes" },
       },
     ]);
   });
@@ -441,7 +441,7 @@ describe("a refused record of a closed stop, declared or held", () => {
           name: "resume.available",
           status: "info",
           boundary: "resume-instructions.md",
-          details: { resumeCommand: "phax resume invoice-export" },
+          details: { resumeCommand: "phax resume invoice-export --yes" },
         },
       ]);
     },

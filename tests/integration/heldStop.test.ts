@@ -147,7 +147,7 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
     expect(lines).toContain(
       `    or: phax enter-phase ${SHORT} phase-02   (add --new-session for a fresh read-only look)`,
     );
-    expect(lines).toContain(`    phax resume ${SHORT}`);
+    expect(lines).toContain(`    phax resume ${SHORT} --yes`);
     expect(lines).toContain(`  Stop: ${reviewStopPath}`);
   });
 
@@ -173,7 +173,7 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
       closeBase: null,
     });
     expect(stop.commands.continue?.argv.slice(0, 3)).toEqual(["codex", "resume", "X0"]);
-    expect(stop.commands.close.argv).toEqual(["phax", "resume", SHORT]);
+    expect(stop.commands.close.argv).toEqual(["phax", "resume", SHORT, "--yes"]);
   });
 
   it("writes the held seed twice, holding all the person needs", async () => {
@@ -203,7 +203,7 @@ describe("a run holding phase-02", { timeout: 30_000 }, () => {
       expect(inWorktree).toContain(`### ${later} — `);
     }
     expect(inWorktree).toContain("## Gate\npnpm typecheck\n");
-    expect(inWorktree).toContain(`  phax resume ${SHORT}\n`);
+    expect(inWorktree).toContain(`  phax resume ${SHORT} --yes\n`);
   });
 
   it("records no current session and prints the fresh start when the builder left no session id", async () => {

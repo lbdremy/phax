@@ -89,7 +89,7 @@ const qualifiedName = (input: EnterPhaseInput): string => runKey(input.namespace
 const closeInProgress = (input: EnterPhaseInput): EnterPhaseResult =>
   refused(
     `Phase "${input.phaseId}" of run "${qualifiedName(input)}" is being closed: the close of its stop is in progress. ` +
-      `Wait for it to end, or run \`phax resume ${input.shortName}\` to take it up again.`,
+      `Wait for it to end, or run \`phax resume ${input.shortName} --yes\` to take it up again.`,
   );
 
 const notStopped = (input: EnterPhaseInput, phase: PhaseStatus): EnterPhaseResult =>

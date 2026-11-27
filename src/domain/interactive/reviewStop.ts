@@ -101,7 +101,7 @@ function stopSessionAndCommands<Origin extends string>(input: {
           : null,
       freshStart: input.freshStart,
       enterPhase: phaxCommand(mainCheckout, "phax", "enter-phase", run, phaseId),
-      close: phaxCommand(mainCheckout, "phax", "resume", run),
+      close: phaxCommand(mainCheckout, "phax", "resume", run, "--yes"),
       reset: phaxCommand(mainCheckout, "phax", "reset-phase", run, phaseId),
     },
   };

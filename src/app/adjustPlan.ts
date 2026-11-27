@@ -49,7 +49,7 @@ export function landedRunRefusal(runKey: string, runState: string): string | nul
   if (runState !== "awaiting_review") return null;
   return (
     `Cannot adjust a plan against run "${runKey}": it is awaiting_review, stopped at an interactive phase, ` +
-    `so it has not landed. Close the stop with \`phax resume ${runKey}\` and let the run finish first.`
+    `so it has not landed. Close the stop with \`phax resume ${runKey} --yes\` and let the run finish first.`
   );
 }
 

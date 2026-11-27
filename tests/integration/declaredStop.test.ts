@@ -376,7 +376,7 @@ describe("stopAtDeclaredPhase — a valid first turn", () => {
       argv: ["phax", "enter-phase", "invoice-export", "phase-03"],
       env: {},
     });
-    expect(reviewStop.commands.close.argv).toEqual(["phax", "resume", "invoice-export"]);
+    expect(reviewStop.commands.close.argv).toEqual(["phax", "resume", "invoice-export", "--yes"]);
     expect(reviewStop.commands.reset.argv).toEqual([
       "phax",
       "reset-phase",

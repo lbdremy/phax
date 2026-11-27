@@ -179,7 +179,7 @@ function renderSessionInfo(value: Output): string {
   lines.push(
     `Suggested resume: ${
       value.canResume
-        ? `phax resume ${value.qualifiedName}`
+        ? `phax resume ${value.qualifiedName} --yes`
         : "(run is not resumable from this state)"
     }`,
   );

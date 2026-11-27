@@ -73,7 +73,7 @@ describe("buildDeclaredReviewStop", () => {
     });
     expect(commands.close).toEqual({
       cwd: main,
-      argv: ["phax", "resume", "acme.invoice-export"],
+      argv: ["phax", "resume", "acme.invoice-export", "--yes"],
       env: {},
     });
     expect(commands.reset).toEqual({
@@ -205,7 +205,7 @@ describe("buildHeldReviewStop", () => {
         },
         close: {
           cwd: "/Users/ada/code/acme",
-          argv: ["phax", "resume", "acme.invoice-export"],
+          argv: ["phax", "resume", "acme.invoice-export", "--yes"],
           env: {},
         },
         reset: {

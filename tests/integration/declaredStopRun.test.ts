@@ -540,7 +540,7 @@ describe("phax run on a plan with a declared interactive phase", { timeout: 30_0
     expect(lines).toContain("  Continue the session phax started:");
     expect(lines.some((l) => l.includes("'claude' '--resume'"))).toBe(true);
     expect(lines).toContain(`    or: phax enter-phase ${SHORT} phase-03`);
-    expect(lines).toContain(`    phax resume ${SHORT}`);
+    expect(lines).toContain(`    phax resume ${SHORT} --yes`);
     expect(lines).toContain(`  Stop: ${join(harness.runPath, "review-stop.json")}`);
     expect(lines.some((l) => l.includes("The InvoiceRow column order"))).toBe(true);
     expect(harness.lock.impl.statuses.get(`${NAMESPACE}.${SHORT}`)).toEqual({ kind: "none" });
