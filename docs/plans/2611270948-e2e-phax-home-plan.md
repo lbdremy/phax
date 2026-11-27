@@ -5,9 +5,9 @@ completes-spec: true
 ---
 # E2e phax home
 
-phax resolves its own home (config.json, providers.json, model-routing.json, telemetry.json, the daily telemetry journals and the default state root) in exactly one place, `src/app/phaxHome.ts`, once per call and never as a constant frozen at module load. The PHAX_HOME environment variable moves that home. The user's home, which holds the provider CLIs' stores and sign-ins, the user-scope skills install and the `~` written in a PR body, never moves. Every real-provider e2e that spawns phax then runs it in a temporary phax home built from the branch's own provider and routing defaults.
+phax resolves its own home (config.json, providers.json, model-routing.json, telemetry.json, the daily telemetry journals and the default state root) in exactly one place, `src/app/phaxHome.ts`, once per call and never as a constant frozen at module load. The PHAX_HOME environment variable moves that home. The user's home, which holds the provider CLIs' stores and sign-ins, the user-scope skills install and the `~` written in a PR body, never moves. A run keeps one home: it is fixed when `phax run` starts, recorded in the run's folder, handed to the sessions the run spawns and used by every phax command inside its phase worktrees. Every real-provider e2e that spawns phax then runs it in a temporary phax home built from the branch's own provider and routing defaults.
 
-The phases go inside-out. phase-01 keeps an exported PHAX_HOME out of the unit and integration tests before anything reads the variable. phase-02 adds the resolution point and moves routing, providers.json, telemetry.json, the journal and `phax report` onto it. phase-03 moves the global config layer and the default state root (loadConfig, projectContext, init). phase-04 adds the invalid-home refusal and the stderr notice. phase-05 makes `phax validate` name the home in text and JSON. phase-06 builds the e2e temporary home and moves the three e2e files that spawn phax onto it. phase-07 documents the phax home (docs/phax-home.md wired into the site, the README configuration-layers paragraph) and corrects docs/e2e-testing.md.
+The phases go inside-out. phase-01 keeps an exported PHAX_HOME out of the unit and integration tests before anything reads the variable. phase-02 adds the resolution point and moves routing, providers.json, telemetry.json, the journal and `phax report` onto it. phase-03 moves the global config layer and the default state root (loadConfig, projectContext, init). phase-04 adds the invalid-home refusal and the stderr notice. phase-05 makes `phax validate` name the home in text and JSON. phase-06 builds the e2e temporary home and moves the three e2e files that spawn phax onto it. phase-07 pins the home to the run. phase-08 documents the phax home (docs/phax-home.md wired into the site, the README configuration-layers paragraph) and corrects docs/e2e-testing.md.
 
 **The real e2e does not run at the gate.** PHAX_E2E_RUN=1 is opt-in and `pnpm check:full` never runs it. phase-06 is checked by `pnpm test:type` and by integration tests of the e2e helpers that need no provider: the temporary home's files decode, a bare directory is refused, the child's HOME and PHAX_HOME are right, and `phax validate` is spawned through the helper. Before merging, the operator runs `PHAX_E2E_RUN=1 pnpm test:e2e:real` on the run's branch for tests/e2e/realFlow.test.ts, tests/e2e/headlessAuthoring.test.ts and tests/e2e/vibeSecure.test.ts. That run is what proves ac-e2e-vibe-runs, ac-e2e-realflow and ac-e2e-untouched.
 
@@ -42,8 +42,9 @@ Every command above is already in `security.agentCommands`: `pnpm test:unit` and
 - E2e helper shapes: `createTempEnv({ enable?, routing? })` writes the temporary home's providers.json from DEFAULT_PROVIDER_CONFIG with exactly the declared providers plus claude-code enabled. It writes model-routing.json from the suite's ModelRouting, or DEFAULT_MODEL_ROUTING when none is given. Both are typed by the branch's own ProviderConfig and ModelRouting and decoded by its decoders before they are written. It still overrides the fixture's explicit state.root with the temporary home. `runCli(args, env: TempEnv, opts)` takes the test environment instead of a directory. TempEnv carries a unique-symbol brand that only createTempEnv sets, so a string does not compile, and runCli also refuses at run time, before spawning, an argument without the brand or whose phax home is gone. The child's environment is process.env plus `opts.env`, then `PHAX_HOME` set to the temporary home. HOME is never changed, and an `opts.env` carrying HOME or PHAX_HOME is refused. Loss accepted: every e2e call site of runCli changes, and no suite can spawn phax against a hand-made directory, even for a deliberate experiment.
 - q-explicit-root as written (operator's verdict): the state root resolves weakest first as the built-in ~/.phax, then PHAX_HOME when set, then an explicit state.root in any config layer (phax.json, phax.local.json, the phax home's config.json), which always wins and expands `~` against the user's home. `phax init` keeps not writing state.root. Loss accepted, as decided: a repository that pins "~/.phax" keeps its runs in the real ~/.phax under a moved home.
 - ac-e2e-untouched's oracle reads the operator's real ~/.phax read-only, through `os.userInfo().homedir`, not HOME. The snapshot is the sha256 of every regular file directly under it (the four home files, the daily journals, registry and ledgers) plus the entry names directly under `runs/` and `worktrees/`; the repository under test is skipped. Loss accepted: a change deep inside an existing run folder is not caught. Hashing every run's tree would make the e2e slow, and it would be flaky while the operator's own runs are active.
+- The home is pinned to the run (q-phase-worktree-home, operator's verdict). `phax run` records `{ path, from }` in `<stateRoot>/runs/<run>/phax-home.json`. The sessions of the run get PHAX_HOME set to that path. A phax command whose cwd is inside one of the run's phase worktrees uses the recorded home and refuses a PHAX_HOME that differs. `phax resume` refuses a current home that differs, naming the recorded one. The record must be outside every phase sandbox's write set, so `phax run` and `phax resume` refuse a `security.filesystem.allowWrite` entry that covers it. A phase worktree is recognised from its location (`<stateRoot>/worktrees/<run>/<phase>` beside `<stateRoot>/runs/<run>/`), not from `.phax-context/`, which a session can delete. A run with no record started before this change and is held to the default ~/.phax. Limits of the pin: a phax call made from a directory outside every phase worktree honours the PHAX_HOME it is given; a state root inside a directory the provider's sandbox always lets a session write, such as a temporary directory, leaves the record writable. With the default state root, `phax resume` under another home does not find the run at all, so the refusal naming the recorded home is reached only when state.root is explicit.
 
-## Open questions
+## Arbitrated questions
 
 ### q-phase-worktree-home — Inside a phase worktree, does phax honour a PHAX_HOME the agent session sets itself?
 
@@ -51,6 +52,13 @@ Every command above is already in `security.agentCommands`: `pnpm test:unit` and
 - refuse-in-worktree — phax removes PHAX_HOME from the environment of the agent sessions it spawns, and inside a phase worktree every phax command refuses when PHAX_HOME is set — abandons: A run under a moved home gives its sessions the wrong global layer. A session's `phax brief`, `phax architecture` and `phax plans lint` read the operator's ~/.phax config layer (or none), not the run's home. In the real e2e, an in-session phax call would read, and write its telemetry journal into, the operator's real ~/.phax, against ac-e2e-untouched.
 
 Recommendation: honour — The session's phax child runs inside the session's sandbox, so a command named by a planted config.json runs in that same sandbox. The worktree's own phax.local.json is not a protected path (only phax.json is) and is already read as a config layer next to the worktree's phax.json, so a session can already name the same commands there. PHAX_HOME adds a second route to a reach the session already has, not a new reach. Removing the variable from sessions instead breaks second-configuration runs and the e2e isolation this spec exists for. The phases below are written for `honour`. Choosing `refuse-in-worktree` adds the environment strip to the provider adapters and a phase-guard rule in phase-04.
+
+Decision: other — by operator (Rémy Loubradou), 2026-11-27
+Why: Pinned to the run. The phax home is fixed when phax run starts and serves the whole run: phax records it in the run's folder under the state root, outside every phase sandbox's write set; the sessions it spawns get that home explicitly; a phax command inside a phase worktree uses the recorded home and refuses a PHAX_HOME that differs from it; phax resume refuses when the current home differs, naming the recorded one. Accepted loss: one more phase than honour. Neither listed option keeps one home per run: honour lets an in-session phax call read another home, refuse-in-worktree sends it to the operator's ~/.phax. Advocate: The strongest case for honour: a session can already name the same provider commands in its worktree's phax.local.json, so pinning the home closes only a second route, while honour needs no new persisted record, no extra phase and no change to the provider adapters. Principles: E0, C2, C4. Reversibility: costly. Revised: preamble.summary, preamble.technicalArbitrations, phase-04, phase-05, phase-06, phase-07, phase-08. Phase: phase-07.
+
+## Decision log
+
+- 2026-11-27 q-phase-worktree-home decided other — operator (Rémy Loubradou) — revised 7 sections
 
 ---
 
@@ -328,7 +336,7 @@ Every phax command refuses an empty, relative or non-directory PHAX_HOME before 
 - Add one example to the conformance cases (`src/cli/commandLibrary/contract/conformance/cases.ts`) only if the library's conformance suite is where program-level behaviour like the guard is pinned. Otherwise test the hook in `tests/unit/cli/runnerNotice.test.ts` against the library's memory io.
 - In `src/domain/phaxHome.ts`, add `phaxHomeNotice(home)`, which returns `phax home: <path> (PHAX_HOME)` for a home from PHAX_HOME and undefined for the default.
 - In `src/cli/definitions/program.ts`: a `homeGuard(call)` that lets `completions` through and otherwise calls `resolvePhaxHome()`. On failure it returns `{ text: <the error message>, exit: 2, expected: "PHAX_HOME: an absolute path to a directory" }`. The program's guard runs `homeGuard` first, then the existing `phaseGuard`. The program's `notice` returns `phaxHomeNotice` of the resolved home, and undefined for `completions` or an invalid home. Import only from app/ and domain/; program.ts may not import node: modules or infra logic.
-- Inside a phase worktree, PHAX_HOME is honoured like anywhere else, as the open question q-phase-worktree-home recommends. If the operator decides `refuse-in-worktree`, the plan is revised before this phase runs.
+- In this phase PHAX_HOME is read inside a phase worktree like anywhere else. phase-07 then pins a phase worktree to its run's recorded home through the same resolution point, so this guard and notice follow it without a second check: add no phase-worktree rule here.
 - Integration tests in a new `tests/integration/phaxHomeEnv.test.ts`. Spawn the CLI through `tests/helpers/boundedSpawn.ts` with `{ ...phaxHomeEnv(), PHAX_HOME: <value> }` in a temporary repository (isolatePhaxHome and isolateGit), with the four invalid values: empty, `~/phax-ci`, `relative/dir`, and an existing regular file. Assert exit 2, stderr naming PHAX_HOME and the value, and that the isolated home's `.phax` gained no telemetry.json or journal and no `relative/dir` was created. Also assert the notice: exactly one stderr line `phax home: <dir> (PHAX_HOME)` with a valid PHAX_HOME, none when unset, none on stdout, and a `{"kind":"note","text":"phax home: …"}` line under `--json`. Finally assert that `phax --help`, `phax --version`, `phax --usage` and `phax completions zsh` still exit 0 with an invalid PHAX_HOME.
 - Existing integration tests do not see the notice: phase-01 clears PHAX_HOME in every unit and integration test. Change no existing exact-stderr assertion.
 
@@ -374,7 +382,7 @@ The program definition (consumer) needs two things from the command library (pro
 
 - phax validate's home line (phase-05).
 - A notice in --verbose only or validate only: the operator chose the stderr notice (q-notice).
-- Stripping PHAX_HOME from agent sessions (only if the operator decides refuse-in-worktree on q-phase-worktree-home).
+- Pinning the home to the run, inside phase worktrees and on resume (phase-07).
 
 ### Verification
 
@@ -452,7 +460,7 @@ The program's guard refuses every located command, except completions, when PHAX
 
 - A `phax doctor` command (spec non-goal).
 - Help text of other commands that mention ~/.phax.
-- README's configuration-layers paragraph and docs pages (phase-07); only the README's generated block changes here.
+- README's configuration-layers paragraph and docs pages (phase-08); only the README's generated block changes here.
 
 ### Verification
 
@@ -537,7 +545,7 @@ The e2e suites (consumers) declare which providers they need, and optionally a r
 - Converting the in-process e2e suites (semanticTrace*, gateExhaustionResume, resetPhase) to spawn the CLI (spec non-goal).
 - Copying or moving any provider sign-in or home (spec non-goal).
 - Running the real e2e tier at the gate: the operator runs the three files on the branch before merging.
-- docs/e2e-testing.md (phase-07).
+- docs/e2e-testing.md (phase-08).
 
 ### Verification
 
@@ -557,7 +565,108 @@ createTempEnv writes a temporary phax home holding providers.json and model-rout
 
 ---
 
-## phase-07 — Document the phax home and correct the e2e testing guide {#phase-07-docs}
+## phase-07 — Pin the phax home to the run {#phase-07-pin-run-home}
+
+**Recommended model:** claude-opus-5-5
+**Recommended effort:** high
+**Assignment reason:** This phase designs a new persisted record, a recognition rule that is security-relevant and a session environment contract across every provider adapter, which no code shows yet; it takes claude-opus-5-5 at high rather than the default claude-sonnet-5-5 at medium.
+
+A run keeps the phax home it started with. `phax run` records it in the run's folder, the run's sessions get it explicitly, a phax command inside one of the run's phase worktrees uses it and refuses a differing PHAX_HOME, and `phax resume` refuses a differing current home, naming the recorded one.
+
+### Detailed instructions
+
+- The record: `<stateRoot>/runs/<run key>/phax-home.json`, holding `{ path, from }` with both fields required. `createRunFolder` (`src/app/runFolder.ts`) writes it from `resolvePhaxHome()` before the first session of the run can start. Decode it through a schema in `src/schemas/runHome.ts`. Read the persisted-format and file-decoder guards in tests/unit/architecturalGuards*.test.ts before shaping that module, follow them, and never edit them; if the record cannot be added without a guard change, stop and report it.
+- Recognising a run's phase worktree (`src/app/runHome.ts`): walk the real path of the cwd and its ancestors for a directory `<root>/worktrees/<key>/<phase>` whose `<root>/runs/<key>/run-status.json` exists. Take the outermost match, so a look-alike tree built inside a worktree cannot override the real one. Use only the location: not git, not `.phax-context/` (a session can delete it), and not the loaded config (the state root itself depends on the home).
+- The recorded home of such a worktree is the record's `{ path, from }`. A run with no record started before this change: its home is the default `<user home>/.phax`, from `default`, obtained through `resolvePhaxHome({})`. A record that does not decode is a refusal naming the file, never a fallback.
+- Pinning: `src/app/runHome.ts` exports `pinRunHome(cwd, env)`, and `src/cli/main.ts` calls it once before handing the call to the runner. It sets the pin on the resolution point in `src/app/phaxHome.ts`: from then on `resolvePhaxHome()` returns the recorded home. When the env's PHAX_HOME is set and its normalised path differs from the recorded path, `resolvePhaxHome()` fails with a ConfigValidationError, `path: "PHAX_HOME"`, message `PHAX_HOME "<value>" differs from this run's phax home "<recorded>"`, so phase-04's guard refuses the call with exit 2. Only phaxHome.ts reads the variable. Help, `--version`, `--usage` and `completions` stay unaffected.
+- The pin is set only at the process entry, never inside the program definition or a use case: in-process tests run from the repository's own cwd, which is itself a phase worktree under the real ~/.phax during a phax run, and must not read it. `pnpm test` has to pass from inside this phase's worktree.
+- The notice and validate follow the recorded `from`: a run on the default home prints no notice even though its sessions carry PHAX_HOME.
+- Sessions: add `src/ports/sessionPhaxHome.ts`, a Context.Reference in the manner of `src/ports/providerStores.ts`, provided beside the backend in `makeProviderBackendLayer` (`src/cli/commands/runLayers.ts`). The Claude Code, Codex and Vibe adapters set PHAX_HOME to it in every session they spawn, on top of the environment they build today (including Claude's project-only environment). Interactive sessions (`phax enter`, `enter-phase`, `shell`, interactive stops, review and adjust-plan sessions) pass it through their invocation's env. For a command that targets an existing run, the value is that run's recorded home, not the current one. Nothing but PHAX_HOME is added to a session's environment.
+- `phax resume`: before it changes anything, compare the run's recorded home (the default when there is no record) with the current resolved home. When they differ, refuse with a ConfigValidationError, `path: "PHAX_HOME"`, exit 2, message `this run's phax home is "<recorded>", but the current phax home is "<current>"`, followed by how to fix it: set PHAX_HOME to the recorded path, or unset it when the record is from `default`.
+- Write set: `phax run` and `phax resume` refuse, in the security preflight (`src/app/runPreflight.ts`, SecurityPreflightError, exit 11), a resolved `security.filesystem.allowWrite` entry that equals or contains the run's record path, naming the entry and the record. This repository's phax.json declares no allowWrite.
+- Tests in `tests/integration/runHome.test.ts`, on temporary state roots with isolatePhaxHome and isolateGit, spawning through boundedSpawn where the process entry matters. Cover: the record written by createRunFolder; the worktree table (record present, record absent, corrupt record, `.phax-context` removed, nested look-alike tree, a directory outside any run worktree) against PHAX_HOME unset, equal and differing; resume with an equal and a differing home; the allowWrite refusal; and the PHAX_HOME each provider adapter hands its spawn, using the fake executables or fakes the adapter tests already use.
+
+### Planned files to create
+
+- `src/schemas/runHome.ts`
+- `src/app/runHome.ts`
+- `src/ports/sessionPhaxHome.ts`
+- `tests/integration/runHome.test.ts`
+
+### Planned files to edit
+
+- `src/app/phaxHome.ts`
+- `src/app/runFolder.ts`
+- `src/app/resume.ts`
+- `src/app/runPreflight.ts`
+- `src/cli/main.ts`
+- `src/cli/commands/runLayers.ts`
+- `src/cli/definitions/resume.ts`
+- `src/cli/definitions/sessions.ts`
+- `src/cli/definitions/review.ts`
+- `src/cli/definitions/adjustPlan.ts`
+- `src/infra/providers/claudeCode.ts`
+- `src/infra/providers/codexCli.ts`
+- `src/infra/providers/mistralVibe.ts`
+- `src/app/enterPhase.ts`
+- `src/app/interactiveStop.ts`
+- `src/app/closeStop.ts`
+- `src/app/reviewCode.ts`
+- `src/app/adjustPlan.ts`
+
+### Optional files that may be edited
+
+- `src/infra/session.ts`
+- `src/domain/phaxHome.ts`
+- `src/cli/definitions/run.ts`
+
+### Boundary contracts
+
+The run (producer) states its home once, in the record under its run folder, outside the phase sandboxes' write set. Phase-worktree phax commands and `phax resume` (consumers) need that home and must not take another from their environment. The provider adapters and interactive session launchers (consumers) need the home to hand to a session; the CLI edge provides it through the SessionPhaxHome reference. `resolvePhaxHome` keeps its signature and result type, so every reader moved in phase-02 and phase-03 follows the pin unchanged.
+
+### Test strategy
+
+- a call from a run's phase worktree uses the recorded home with PHAX_HOME unset or equal, refuses a differing one, holds a run with no record to the default home, refuses a corrupt record, and is not misled by a removed .phax-context or a nested look-alike tree — medium · table · the resolved home or the refusal message per (worktree, record, PHAX_HOME) row · in-phase
+- phax run records the home it started with in the run folder, with its source — medium · example · the decoded phax-home.json against the environment the run folder was created under · in-phase
+- phax resume under a differing home is refused before anything changes, naming the recorded home, and proceeds under the same home — medium · example · exit code, message, and the run folder's unchanged hashes on refusal · in-phase
+- every provider adapter and interactive launcher hands its session PHAX_HOME set to the run's home, and adds nothing else — medium · table · the captured spawn environment per provider against the environment built before this phase plus PHAX_HOME · in-phase
+- an allowWrite entry that equals or contains the record path stops run and resume before any session, and an unrelated entry does not — small · boundary · the SecurityPreflightError naming the entry, or its absence · in-phase
+
+### Implementation order
+
+1. the record's schema and its write in createRunFolder
+2. worktree recognition and the pin in runHome and phaxHome, with the table test
+3. main.ts pins at the process entry
+4. resume refusal and the write-set preflight
+5. the session reference, provider adapters and interactive launchers
+
+### Excluded scope
+
+- Removing PHAX_HOME from sessions, or refusing every set PHAX_HOME inside a phase worktree: rejected by the operator.
+- Pinning a call made from outside every phase worktree.
+- Changing the phase guard's classification or detection rule.
+- Moving or rewriting the home of an existing run, or a flag that overrides the recorded home (spec non-goal on migration).
+- The docs page (phase-08).
+
+### Verification
+
+On a temporary state root holding a run with a recorded home A: from its phase worktree, `PHAX_HOME=<B>` with `phax validate` (run through the integration test's launcher) exits 2 naming both paths, and without PHAX_HOME it reports A. `pnpm test` passes from inside the phase worktree with no refusal from the real-home guard.
+
+### Expected handoff content
+
+The record's path, shape and schema module. The recognition rule and where the pin is set. The exact refusal texts and exit codes for the worktree, resume and allowWrite cases. Every spawn site that now sets PHAX_HOME. The limits that remain (a call from outside every phase worktree; a state root in a sandbox's temporary directory), for the docs phase. Any deviation from the planned files, with its reason.
+
+### Commit subject
+
+`feat(home): pin the phax home to the run`
+
+### Commit body
+
+phax run records its phax home in the run folder. The run's sessions get PHAX_HOME set to it, a phax command inside one of the run's phase worktrees uses it and refuses a differing PHAX_HOME, and phax resume refuses a differing current home, naming the recorded one. run and resume refuse an allowWrite entry that would let a session write the record. A run with no record is held to the default home.
+
+---
+
+## phase-08 — Document the phax home and correct the e2e testing guide {#phase-08-docs}
 
 **Recommended model:** claude-sonnet-5-5
 **Recommended effort:** medium
@@ -567,10 +676,11 @@ Operators learn from a docs page and the README that PHAX_HOME moves phax's own 
 ### Detailed instructions
 
 - Create `docs/phax-home.md` for the reader §11 of the spec names: an operator who wants a second phax configuration beside the daily one (a release candidate, a branch under test), or a CI machine whose phax files live outside the CI user's home. Cover: what the phax home holds (config.json, providers.json, model-routing.json, telemetry.json, the daily telemetry journals, runs/ and worktrees/ when no layer names state.root); what never moves (~/.claude, ~/.codex, Vibe's home, the user-scope skills install, the ~ in a PR body); the rules for the variable (an absolute path to a directory, created on first write; empty, relative, `~/…` unexpanded or a non-directory is refused with exit 2); no fallback to ~/.phax and no migration; the stderr notice `phax home: <path> (PHAX_HOME)` and the `home:` line of `phax validate` (text and --json); and the state-root order, weakest first: built-in ~/.phax, then PHAX_HOME, then an explicit state.root in any layer, which wins and is read as written. Use the spec's §11 example verbatim as the worked example.
+- In the same page, cover the run's pinned home: `phax run` records it in the run folder, the run's sessions get it, a phax command inside the run's phase worktrees uses it and refuses a differing PHAX_HOME, `phax resume` refuses a differing home (with the default state root it does not find the run at all), a run started before this change is held to ~/.phax, and an allowWrite entry covering the record is refused. State the limits phase-07's handoff records.
 - Wire the page into the site: add its entry to `site/pages.ts`, following the neighbouring entries' fields, and its source to `site/build/sources.ts`.
 - README.md: in the configuration-layers paragraph (the **Layers.** paragraph), name the global layer as the phax home's config.json (`~/.phax/config.json` unless PHAX_HOME is set) and link docs/phax-home.md. Do not touch the README's generated CLI block.
 - docs/e2e-testing.md: remove the claim that the real ~/.phax is never read or written, and every `PHAX_STATE_ROOT` command (phax does not read that variable). Describe what the helpers now do: createTempEnv({ enable, routing }) writes a temporary phax home in the branch's format, runCli takes that environment and sets PHAX_HOME, HOME is unchanged so the provider CLIs keep their sign-ins, and the operator's ~/.phax is left untouched. Replace the resume and enter suggestions with `PHAX_HOME=<temporary home> phax resume <short-name>` (and enter-phase), run in the temporary repository.
-- Read the source files you describe (src/app/phaxHome.ts, src/domain/phaxHome.ts, tests/e2e/helpers/tempEnv.ts, tests/e2e/helpers/runCli.ts) so every sentence matches the code.
+- Read the source files you describe (src/app/phaxHome.ts, src/app/runHome.ts, src/domain/phaxHome.ts, tests/e2e/helpers/tempEnv.ts, tests/e2e/helpers/runCli.ts) so every sentence matches the code.
 
 ### Planned files to create
 
@@ -619,4 +729,4 @@ The new page's path and its site entry. The README sentence as changed. The sect
 
 ### Commit body
 
-Add docs/phax-home.md for operators running a second phax configuration or a CI machine: what the phax home holds, what PHAX_HOME never moves, how an invalid value is refused, the stderr notice, validate's home line and the state-root order. Wire it into the site and link it from the README's configuration-layers paragraph (q-docs user-facing). docs/e2e-testing.md drops the false claim that ~/.phax is never read and the PHAX_STATE_ROOT commands, and describes the temporary phax home.
+Add docs/phax-home.md for operators running a second phax configuration or a CI machine: what the phax home holds, what PHAX_HOME never moves, how an invalid value is refused, the stderr notice, validate's home line, the state-root order and the home a run keeps. Wire it into the site and link it from the README's configuration-layers paragraph (q-docs user-facing). docs/e2e-testing.md drops the false claim that ~/.phax is never read and the PHAX_STATE_ROOT commands, and describes the temporary phax home.
