@@ -696,7 +696,7 @@ phax can run a phase with Claude Code, OpenAI Codex or Mistral Vibe. A plan asks
 phax agent models                                    # the routing table and the provider priority
 phax agent resolve --model claude-sonnet-5 --effort medium   # where a request would go
 phax agent probe                                     # which provider CLIs are installed
-phax agent setup providers --write                   # enable the providers that are installed
+phax agent setup providers --write                   # write providers.json; a first write enables the installed providers
 ```
 
 [`docs/model-routing.md`](docs/model-routing.md) explains how a request is resolved, and the [model catalog](docs/model-catalog.md) lists the models phax knows.
@@ -1245,7 +1245,7 @@ Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 - `phax agent resolve <FLAGS>` — Show how a model+effort request resolves to a provider and concrete model
 - `phax agent probe [--json]` — Check which provider executables are available on PATH; never throws on an unavailable provider
 - `phax agent setup <SUBCOMMAND>` — Set up provider integrations
-- `phax agent setup providers [FLAGS]` — Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)
+- `phax agent setup providers [FLAGS]` — Write ~/.phax/providers.json from live executable probes; a first write enables the installed providers, an existing file keeps its flags (dry-run by default)
 - `phax security <SUBCOMMAND>` — Security-related commands
 - `phax security status [--json]` — Show provider security capabilities and availability
 - `phax skills <SUBCOMMAND>` — Manage PHAX skills

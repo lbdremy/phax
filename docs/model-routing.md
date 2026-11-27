@@ -253,7 +253,7 @@ With `allowDowngrade: false` the `downgrade` edge is skipped and the request fal
 
 **To enable Mistral Vibe** as first priority:
 
-1. Run `uv tool upgrade mistral-vibe` (phax needs Vibe 3.1.3 or later) and `phax agent setup providers --write`. The second command enables `mistral-vibe`, lists `mistral-medium-3.5` (efforts `off` and `high`, the two reasoning levels the Mistral API serves for it), and drops `modelEnvVar` and the old `phax-mistral-medium-3.5-*` ids from an older `providers.json`.
+1. Run `uv tool upgrade mistral-vibe` (phax needs Vibe 3.1.3 or later) and `phax agent setup providers --write`. The second command lists `mistral-medium-3.5` (efforts `off` and `high`, the two reasoning levels the Mistral API serves for it), and drops `modelEnvVar` and the old `phax-mistral-medium-3.5-*` ids from an older `providers.json`. It turns `mistral-vibe` on only when it writes `providers.json` for the first time: in an existing file, an entry with `"enabled": false` stays off, so set it to `true` by hand.
 2. Set `providerPriority: ["mistral-vibe", "claude-code"]` in `~/.phax/model-routing.json`.
 
 phax picks the model and level with Vibe's own flags. Each new session runs:
@@ -300,5 +300,5 @@ The flag replaces `routing.providerPriority` in memory for that invocation only.
 phax agent models                             # print catalog + provider priority + equivalence table
 phax agent resolve --model claude-sonnet-4-6 --effort medium [--json]
 phax agent probe                              # check provider executable availability
-phax agent setup providers [--write]          # enable the installed providers
+phax agent setup providers [--write]          # write providers.json; a first write enables the installed providers
 ```

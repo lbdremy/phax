@@ -1219,7 +1219,7 @@ Set up provider integrations
 
 - **Usage**: `phax agent setup providers [FLAGS]`
 
-Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)
+Write ~/.phax/providers.json from live executable probes; a first write enables the installed providers, an existing file keeps its flags (dry-run by default)
 
 ### Flags
 

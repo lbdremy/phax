@@ -256,7 +256,7 @@ cmd agent help="Inspect and manage model routing and provider configuration" {
         flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     }
     cmd setup help="Set up provider integrations" {
-        cmd providers help="Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)" {
+        cmd providers help="Write ~/.phax/providers.json from live executable probes; a first write enables the installed providers, an existing file keeps its flags (dry-run by default)" {
             flag --write help="Persist the reconciled config (writes a timestamped backup first)"
             flag --prune help="Also disable providers whose executable is unavailable"
             flag --with-routing help="Scaffold ~/.phax/model-routing.json from defaults when absent (never overwrites)"
