@@ -16,8 +16,10 @@ import { Result, Schema } from "effect";
  *   {"type":"error","message":"Reconnecting... 2/5 (stream disconnected before completion: …)"}
  * up to 5/5, then repeats
  *   {"type":"error","message":"Reconnecting... waiting for network (Connection failed: …)"}
- * for as long as it runs, with no `turn.failed`. Only an interrupt ends it; the
- * session is then read from the last `error` event.
+ * for as long as it runs, with no `turn.failed`. phax's watchdog
+ * (`src/domain/session/codexNetworkWatch.ts`) ends it after a run of such
+ * events and reports a `network` failure; an interrupt before that ends it too,
+ * and the session is then read from the last `error` event.
  */
 
 const CodexThreadStartedEventSchema = Schema.Struct({
@@ -96,6 +98,27 @@ interface CodexOutcomeEvents {
   readonly turnEnd: CodexTurnEnd | undefined;
   /** The last `error` event's message. */
   readonly errorMessage: string | undefined;
+}
+
+/**
+ * One live stdout line as the network watchdog reads it: the thread it
+ * started, an `error` event's message, or anything else (another event, or a
+ * line that does not decode).
+ */
+type CodexStreamLine =
+  | { readonly kind: "thread-started"; readonly threadId: string }
+  | { readonly kind: "error"; readonly message: string }
+  | { readonly kind: "other" };
+
+export function decodeCodexStreamLine(line: string): CodexStreamLine {
+  const parsed = parseLine(line);
+  if (parsed === undefined) return { kind: "other" };
+  const started = decodeThreadStarted(parsed);
+  if (Result.isSuccess(started))
+    return { kind: "thread-started", threadId: started.success.thread_id };
+  const error = decodeCodexErrorEvent(parsed);
+  if (Result.isSuccess(error)) return { kind: "error", message: error.success.message };
+  return { kind: "other" };
 }
 
 export function scanCodexOutcomeEvents(lines: readonly string[]): CodexOutcomeEvents {

@@ -15,7 +15,7 @@ import { join } from "node:path";
  *   item and turn events) carrying the script's final text and session id,
  *   or reports a rate limit and exits 1, or replays the script's raw
  *   `stream`; then writes its `stderr` and ends on its `signal` or
- *   `exitCode`;
+ *   `exitCode`, or, with `keepAlive`, stays alive until it is signalled;
  * - appends the lines it printed to its session store under `$HOME`, as the
  *   real CLI keeps its transcript: Claude to
  *   `.claude/projects/<slug of its cwd>/<id>.jsonl`, codex to
@@ -83,6 +83,13 @@ interface FakeCliScript {
   readonly exitCode?: number;
   /** A signal the CLI sends itself once the stream is printed, ending on it (e.g. `SIGTERM`). */
   readonly signal?: string;
+  /**
+   * True keeps the CLI alive once the stream (and `stderr`) is printed, until
+   * it is signalled, as a provider that never ends its turn would; `exitCode`
+   * and `signal` are then ignored. Unsignalled, it exits 1 after 30 s, so a
+   * failing test leaves no process behind. False by default.
+   */
+  readonly keepAlive?: boolean;
 }
 
 interface FakeCliInvocation {
@@ -163,6 +170,13 @@ function answer(stream) {
     stream();
   }
   if (script.stderr !== undefined) process.stderr.write(script.stderr);
+  if (script.keepAlive === true) {
+    // Hang until signalled: the default SIGTERM handling ends the process. A
+    // test that never signals it (a broken watchdog) leaves no process behind
+    // past this bound.
+    setTimeout(() => process.exit(1), 30_000);
+    return;
+  }
   if (script.signal !== undefined) {
     process.stdout.write("", () => process.kill(process.pid, script.signal));
     return;
