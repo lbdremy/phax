@@ -1,14 +1,15 @@
 /**
  * Real-CLI proof of Mistral Vibe 3 in secure mode. Run by `pnpm test:e2e:real`
- * with PHAX_E2E_RUN=1, Vibe 3.1.3 or later on $PATH, the mistral-vibe provider
- * enabled in `~/.phax/providers.json` (`phax agent setup providers --write`),
- * and Vibe signed in (its own login, or MISTRAL_API_KEY in the environment).
- * phax chooses the model and thinking level with Vibe's own `--model` and
- * `--thinking` flags, using Vibe's built-in `mistral-medium-3.5` alias, so no
- * PHAX alias is needed in Vibe's home. Without the provider enabled, routing
- * would fall back to Claude Code, so the cases that go through `phax run` skip
- * and say so; the model and level cases call the Vibe adapter directly, read
- * nothing under `~/.phax`, and need only Vibe and MISTRAL_API_KEY. A Vibe that
+ * with PHAX_E2E_RUN=1, Vibe 3.1.3 or later on $PATH, and Vibe signed in (its
+ * own login, or MISTRAL_API_KEY in the environment). The cases that go through
+ * `phax run` spawn phax in a temporary phax home (PHAX_HOME) whose
+ * providers.json enables mistral-vibe, so they run whatever the operator's
+ * `~/.phax/providers.json` holds, and leave that file byte-identical. Vibe
+ * keeps the real HOME and its sign-in. phax chooses the model and thinking
+ * level with Vibe's own `--model` and `--thinking` flags, using Vibe's built-in
+ * `mistral-medium-3.5` alias, so no PHAX alias is needed in Vibe's home. The
+ * model and level cases call the Vibe adapter directly, read nothing under
+ * `~/.phax`, and need only Vibe and MISTRAL_API_KEY. A Vibe that
  * cannot sign in fails the cases with its own authentication error. The cases
  * that run in a temporary VIBE_HOME have no sign-in there and need
  * MISTRAL_API_KEY: without it they are skipped, with their reason.
@@ -53,7 +54,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { boundedSpawn, GIT_BOUND_MS } from "../helpers/boundedSpawn.js";
 import { parsePartialCommand } from "../../src/domain/gate/partialCommand.js";
@@ -67,6 +68,7 @@ import { removeTempDir } from "../helpers/tempGit.js";
 import { printArtifacts } from "./helpers/artifacts.js";
 import { runCli } from "./helpers/runCli.js";
 import { createTempEnv, type TempEnv } from "./helpers/tempEnv.js";
+import { operatorProvidersHash } from "./helpers/operatorPhaxHome.js";
 import { expectedSelectedProvider, probeProvider, providerVersion } from "./helpers/providers.js";
 
 function vibeVersionAtLeast313(): boolean {
@@ -79,21 +81,11 @@ function vibeVersionAtLeast313(): boolean {
   return v.patch >= 3;
 }
 
-/** Whether `~/.phax/providers.json` enables mistral-vibe: without it, routing falls back to Claude Code. */
-function vibeProviderEnabled(): boolean {
-  const file = join(homedir(), ".phax", "providers.json");
-  if (!existsSync(file)) return false;
-  try {
-    const config = JSON.parse(readFileSync(file, "utf8")) as {
-      providers?: Record<string, { enabled?: unknown }>;
-    };
-    return config.providers?.["mistral-vibe"]?.enabled === true;
-  } catch {
-    return false;
-  }
-}
-
-/** Why the real Vibe CLI cannot be driven at all, or undefined when it can. */
+/**
+ * Why the real Vibe CLI cannot be driven at all, or undefined when it can. The
+ * cases that go through `phax run` skip on nothing else: their temporary phax
+ * home enables mistral-vibe.
+ */
 function vibeSkipReason(): string | undefined {
   if (process.env["PHAX_E2E_RUN"] !== "1") return "PHAX_E2E_RUN=1 is not set";
   if (!probeProvider("vibe")) return "the vibe executable is not on $PATH";
@@ -101,22 +93,8 @@ function vibeSkipReason(): string | undefined {
   return undefined;
 }
 
-/**
- * Why the cases that go through `phax run` are skipped. They route through the
- * operator's `~/.phax/providers.json`; the direct `runVibeAgent` cases below do
- * not, so they run whatever that file holds.
- */
-function skipReason(): string | undefined {
-  const vibe = vibeSkipReason();
-  if (vibe !== undefined) return vibe;
-  if (!vibeProviderEnabled()) {
-    return "mistral-vibe is not enabled in ~/.phax/providers.json (phax agent setup providers --write); routing would run Claude Code instead";
-  }
-  return undefined;
-}
-
 const VIBE_SKIP = vibeSkipReason();
-const SKIP = skipReason();
+const SKIP = VIBE_SKIP;
 if (SKIP !== undefined) console.info(`vibeSecure e2e: the phax run cases are skipped: ${SKIP}`);
 else if (!process.env["MISTRAL_API_KEY"]) {
   console.info(
@@ -376,7 +354,7 @@ function runPhase(
       "--verbose",
       ...extraArgs,
     ],
-    env.repoDir,
+    env,
     { boundMs: 590_000, env: extraEnv }, // a real provider call: its old timeout
   );
 }
@@ -412,17 +390,24 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
   const scratch: string[] = [];
   let failed = false;
 
+  // The operator's providers.json is neither read for routing nor written.
+  let providersBefore: string | undefined;
+
   function newEnv(): TempEnv {
-    const env = createTempEnv();
+    const env = createTempEnv({ enable: ["mistral-vibe"] });
     envs.push(env);
     return env;
   }
 
   beforeAll(() => {
+    providersBefore = operatorProvidersHash();
     restoreGit = isolateGit();
   });
 
   afterAll(() => {
+    expect(operatorProvidersHash(), "~/.phax/providers.json should be byte-identical").toBe(
+      providersBefore,
+    );
     for (const env of envs) {
       if (failed) printArtifacts({ repoDir: env.repoDir, phaxHome: env.phaxHome }, "tests failed");
       else env.cleanup();
@@ -632,7 +617,7 @@ describe.skipIf(SKIP !== undefined)("Mistral Vibe 3 in secure mode (real CLI)", 
       writeFileSync(join(worktreeOf(env), "review-note.txt"), "checked by a person\n");
 
       const shortName = (runDir(env).split("/").pop() as string).split(".").slice(1).join(".");
-      const resumed = runCli(["resume", shortName, "--yes", "--verbose"], env.repoDir, {
+      const resumed = runCli(["resume", shortName, "--yes", "--verbose"], env, {
         boundMs: 590_000, // a real provider call: its old timeout
       });
       failed ||= resumed.exitCode !== 0;
