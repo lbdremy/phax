@@ -361,7 +361,7 @@ function makeAgentSetupProvidersCommand(layers: AgentLayers) {
   return defineCommand({
     name: "providers",
     summary:
-      "Reconcile ~/.phax/providers.json enabled flags from live executable probes (dry-run by default)",
+      "Write ~/.phax/providers.json from live executable probes; a first write enables the installed providers, an existing file keeps its flags (dry-run by default)",
     input: {
       flags: reject(
         Schema.Struct({

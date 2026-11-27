@@ -40,7 +40,7 @@ Global options (on all commands): `--verbose`, `--trace`
 | `agent resolve` | — | `--model <id>` (required), `--effort <level>` (required), `--json` | Show how a model+effort request resolves to a provider and concrete model |
 | `agent probe` | — | — | Check which provider executables are available on PATH |
 | `agent setup` | — | — | Set up provider integrations (has subcommands) |
-| `agent setup providers` | — | `--write`, `--prune`, `--with-routing` | Reconcile ~/.phax/providers.json enabled flags from live executable probes |
+| `agent setup providers` | — | `--write`, `--prune`, `--with-routing` | Write ~/.phax/providers.json from live executable probes; a first write enables the installed providers, an existing file keeps its flags |
 
 ### `security`
 
