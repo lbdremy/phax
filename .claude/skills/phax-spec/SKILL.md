@@ -327,6 +327,9 @@ E2E tests** the plan will write.
 - Every criterion **traces back** to a §5 requirement with a `(refs §5.N)` citation. Every §5
   requirement should be covered by at least one criterion — an uncovered requirement is either
   untestable (rewrite it) or unowned (add a criterion).
+- A criterion id cannot be `acceptance` or `in-phase` (the test-line loop words) nor the
+  retired `oracle`: a plan's test line names the criterion in the same position, and
+  `phax plans lint`, extraction and the plan-document schema refuse such an id.
 - The plan that consumes this spec **cites these criteria and §5 requirements** in its phases
   (`refs spec §5.2, AC "…"`), and the agents turn the criteria into E2E tests. This is the
   chain that lets the spec be archived safely: the behavior now lives in tests, and a spec
