@@ -69,7 +69,8 @@ const probe = (provider: string, available: boolean): ProviderProbeResult => ({
   available,
 });
 
-const noFields = { fieldsDropped: [] } as const;
+/** Options for a config read from the person's providers.json, with no field dropped. */
+const noFields = { source: "file", fieldsDropped: [] } as const;
 
 /** BASE_CONFIG with the Vibe family replaced by `models`. */
 function withVibeModels(models: ProviderConfig["providers"][string]["families"]): ProviderConfig {
@@ -84,16 +85,67 @@ function withVibeModels(models: ProviderConfig["providers"][string]["families"])
 const SUCCESSOR_ENTRY = { id: "mistral-medium-3.5", efforts: ["off", "high"], status: "active" };
 
 describe("planProviderConfig", () => {
-  it("enables an available-but-disabled provider", () => {
+  it("with no file (the built-in catalog), enables an available-but-disabled provider", () => {
     const plan = planProviderConfig(BASE_CONFIG, [probe("mistral-vibe", true)], {
       prune: false,
       ...noFields,
+      source: "built-in",
     });
 
     expect(plan.enabled).toEqual(["mistral-vibe"]);
     expect(plan.disabled).toEqual([]);
     expect(plan.config.providers["mistral-vibe"]!.enabled).toBe(true);
   });
+
+  it("with a providers.json, keeps an available provider the file disables disabled and reports it unchanged", () => {
+    const plan = planProviderConfig(
+      BASE_CONFIG,
+      [probe("claude-code", true), probe("codex-cli", true), probe("mistral-vibe", true)],
+      { prune: false, ...noFields },
+    );
+
+    expect(plan.enabled).toEqual([]);
+    expect(plan.disabled).toEqual([]);
+    expect(plan.unchanged).toEqual(["claude-code", "mistral-vibe", "codex-cli"]);
+    expect(plan.config).toEqual(BASE_CONFIG);
+  });
+
+  // source × enabled × available × prune → the provider's new flag, and the list it lands in.
+  it.each([
+    ["file", true, true, false, true, "unchanged"],
+    ["file", true, true, true, true, "unchanged"],
+    ["file", true, false, false, true, "unchanged"],
+    ["file", true, false, true, false, "disabled"],
+    ["file", false, true, false, false, "unchanged"],
+    ["file", false, true, true, false, "unchanged"],
+    ["file", false, false, false, false, "unchanged"],
+    ["file", false, false, true, false, "unchanged"],
+    ["built-in", true, true, false, true, "unchanged"],
+    ["built-in", true, true, true, true, "unchanged"],
+    ["built-in", true, false, false, true, "unchanged"],
+    ["built-in", true, false, true, false, "disabled"],
+    ["built-in", false, true, false, true, "enabled"],
+    ["built-in", false, true, true, true, "enabled"],
+    ["built-in", false, false, false, false, "unchanged"],
+    ["built-in", false, false, true, false, "unchanged"],
+  ] as const)(
+    "source %s, enabled %s, available %s, prune %s → enabled %s (%s)",
+    (source, enabled, available, prune, nextEnabled, list) => {
+      const config: ProviderConfig = {
+        providers: { "codex-cli": { enabled, executable: "codex" } },
+      };
+      const plan = planProviderConfig(config, [probe("codex-cli", available)], {
+        source,
+        prune,
+        fieldsDropped: [],
+      });
+
+      expect(plan.config.providers["codex-cli"]?.enabled).toBe(nextEnabled);
+      expect(plan.enabled).toEqual(list === "enabled" ? ["codex-cli"] : []);
+      expect(plan.disabled).toEqual(list === "disabled" ? ["codex-cli"] : []);
+      expect(plan.unchanged).toEqual(list === "unchanged" ? ["codex-cli"] : []);
+    },
+  );
 
   it("with prune: true, disables an enabled-but-unavailable provider", () => {
     const plan = planProviderConfig(BASE_CONFIG, [probe("claude-code", false)], {
@@ -136,6 +188,7 @@ describe("planProviderConfig", () => {
     const plan = planProviderConfig(customConfig, [probe("mistral-vibe", true)], {
       prune: false,
       ...noFields,
+      source: "built-in",
     });
 
     const entry = plan.config.providers["mistral-vibe"]!;
@@ -149,22 +202,30 @@ describe("planProviderConfig", () => {
     });
   });
 
-  it("is idempotent — running the plan's config back through yields no changes", () => {
-    const probes: ProviderProbeResult[] = [
-      probe("claude-code", true),
-      probe("mistral-vibe", true),
-      probe("codex-cli", false),
-    ];
+  it.each(["file", "built-in"] as const)(
+    "is idempotent (first source %s) — running the plan's config back through as the file yields no changes",
+    (source) => {
+      const probes: ProviderProbeResult[] = [
+        probe("claude-code", true),
+        probe("mistral-vibe", true),
+        probe("codex-cli", false),
+      ];
 
-    const first = planProviderConfig(BASE_CONFIG, probes, { prune: false, ...noFields });
-    const second = planProviderConfig(first.config, probes, { prune: false, ...noFields });
+      const first = planProviderConfig(BASE_CONFIG, probes, {
+        prune: false,
+        ...noFields,
+        source,
+      });
+      const second = planProviderConfig(first.config, probes, { prune: false, ...noFields });
 
-    expect(second.enabled).toEqual([]);
-    expect(second.disabled).toEqual([]);
-    expect(second.unchanged).toContain("claude-code");
-    expect(second.unchanged).toContain("mistral-vibe");
-    expect(second.unchanged).toContain("codex-cli");
-  });
+      expect(second.enabled).toEqual([]);
+      expect(second.disabled).toEqual([]);
+      expect(second.unchanged).toContain("claude-code");
+      expect(second.unchanged).toContain("mistral-vibe");
+      expect(second.unchanged).toContain("codex-cli");
+      expect(second.config).toEqual(first.config);
+    },
+  );
 
   it("reports a provider with no probe result as unchanged", () => {
     const plan = planProviderConfig(BASE_CONFIG, [probe("mistral-vibe", true)], {
@@ -200,6 +261,7 @@ describe("planProviderConfig", () => {
 
   it("carries the dropped field paths it is given", () => {
     const plan = planProviderConfig(BASE_CONFIG, [], {
+      source: "file",
       prune: false,
       fieldsDropped: ["providers.mistral-vibe.modelEnvVar"],
     });

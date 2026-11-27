@@ -153,10 +153,22 @@ function withoutRetiredModels(
   return { entry: { ...entry, families }, replaced };
 }
 
+/** Where setup's starting config came from: the person's providers.json, or the built-in catalog (no file). */
+export type ProviderConfigSource = "file" | "built-in";
+
+/**
+ * Each provider's flag from the probes. Only a config from the built-in catalog (no file yet) has
+ * its installed providers turned on: an `enabled: false` in the person's file is their choice and
+ * stays. `prune` turns off an enabled provider whose executable is unavailable, whatever the source.
+ */
 export function planProviderConfig(
   current: ProviderConfig,
   probes: readonly ProviderProbeResult[],
-  opts: { readonly prune: boolean; readonly fieldsDropped: readonly string[] },
+  opts: {
+    readonly source: ProviderConfigSource;
+    readonly prune: boolean;
+    readonly fieldsDropped: readonly string[];
+  },
 ): ProviderConfigPlan {
   const probeMap = new Map(probes.map((p) => [p.provider, p.available]));
 
@@ -171,7 +183,7 @@ export function planProviderConfig(
     const { entry, replaced } = withoutRetiredModels(key, listed);
     for (const id of replaced) retiredReplaced.add(id);
 
-    if (available === true && !entry.enabled) {
+    if (available === true && !entry.enabled && opts.source === "built-in") {
       newProviders[key] = { ...entry, enabled: true };
       enabled.push(key);
     } else if (available === false && entry.enabled && opts.prune) {

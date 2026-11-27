@@ -13,6 +13,7 @@ import {
 } from "../domain/routing/defaults.js";
 import {
   type ObsoleteProviderField,
+  type ProviderConfigSource,
   type RetiredEquivalenceKey,
   obsoleteProviderFields,
   retiredEquivalenceKeys,
@@ -172,8 +173,7 @@ export function loadProviderConfig(): Effect.Effect<
         new ConfigValidationError({
           message:
             `"${PROVIDER_CONFIG_PATH}" lists models phax no longer routes to:\n${lines}\n` +
-            "Run `phax agent setup providers --write` to drop them (it also enables every " +
-            "installed provider), or delete them from the file.",
+            "Run `phax agent setup providers --write` to drop them, or delete them from the file.",
           path: PROVIDER_CONFIG_PATH,
         }),
       );
@@ -184,11 +184,12 @@ export function loadProviderConfig(): Effect.Effect<
 
 /**
  * ~/.phax/providers.json decoded as it is, retired ids included and obsolete fields stripped
- * (and returned), else the built-in catalog. Only `phax agent setup providers` reads it this
- * way, to rewrite the file without them.
+ * (and returned), else the built-in catalog; `source` says which. Only `phax agent setup
+ * providers` reads it this way, to rewrite the file without them.
  */
 export function readProviderConfigFile(): Effect.Effect<
   {
+    readonly source: ProviderConfigSource;
     readonly config: ProviderConfig;
     readonly fieldsDropped: readonly ObsoleteProviderField[];
   },
@@ -197,10 +198,10 @@ export function readProviderConfigFile(): Effect.Effect<
 > {
   return Effect.gen(function* () {
     if (!(yield* fileExists(PROVIDER_CONFIG_PATH))) {
-      return { config: DEFAULT_PROVIDER_CONFIG, fieldsDropped: [] };
+      return { source: "built-in", config: DEFAULT_PROVIDER_CONFIG, fieldsDropped: [] };
     }
     const raw = yield* readJsonFile(PROVIDER_CONFIG_PATH);
     const config = yield* decodeProviderFile(withoutObsoleteProviderFields(raw));
-    return { config, fieldsDropped: obsoleteProviderFields(raw) };
+    return { source: "file", config, fieldsDropped: obsoleteProviderFields(raw) };
   });
 }

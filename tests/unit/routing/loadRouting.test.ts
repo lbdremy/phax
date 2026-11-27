@@ -143,7 +143,17 @@ describe("path constants", () => {
     const listed = withRetiredMistralAliases();
     impl.setFile(PROVIDER_CONFIG_PATH, JSON.stringify(listed));
     const result = await run(readProviderConfigFile().pipe(Effect.provide(layer)));
-    expect(result).toEqual({ config: listed, fieldsDropped: [] });
+    expect(result).toEqual({ source: "file", config: listed, fieldsDropped: [] });
+  });
+
+  it("readProviderConfigFile answers the built-in catalog, said to be built-in, when no file exists", async () => {
+    const { layer } = makeFakeFileSystem();
+    const result = await run(readProviderConfigFile().pipe(Effect.provide(layer)));
+    expect(result).toEqual({
+      source: "built-in",
+      config: DEFAULT_PROVIDER_CONFIG,
+      fieldsDropped: [],
+    });
   });
 
   it("refuses a providers.json carrying modelEnvVar by its field path, why, and the setup command", async () => {
