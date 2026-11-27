@@ -21,6 +21,7 @@ import { encodeSecurityPosture } from "../../src/schemas/securityPosture.js";
 import { isolateGit } from "./isolateGit.js";
 import { phaseStatusFile } from "./phaseStatusFixture.js";
 import { runStatus } from "./runStatusFixture.js";
+import { writeRunHomeRecord } from "./runHomeFixture.js";
 import { disableGitAutoMaintenance, removeTempDir } from "./tempGit.js";
 import { boundedOutput, GIT_BOUND_MS } from "./boundedSpawn.js";
 
@@ -160,6 +161,7 @@ export async function stopRun(world: World, options: StopRunOptions = {}): Promi
   mkdirSync(join(worktree, ".phax-context"), { recursive: true });
   writeFileSync(join(worktree, ".phax-context", "plan.md"), "# Invoice export\n");
 
+  writeRunHomeRecord(runPath);
   writeJson(
     join(runPath, "run-status.json"),
     withSchemaUrl(

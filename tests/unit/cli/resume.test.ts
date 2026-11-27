@@ -16,7 +16,16 @@ import { phaxCall } from "../../helpers/runnerCall.js";
 vi.mock("../../../src/app/loadConfig.js", () => ({ loadConfig: vi.fn() }));
 vi.mock("../../../src/app/loadTelemetryConfig.js", () => ({ loadTelemetryConfig: vi.fn() }));
 vi.mock("../../../src/app/resolveRunRef.js", () => ({ resolveRunRef: vi.fn() }));
-vi.mock("../../../src/app/resume.js", () => ({ inspectResumeOfRun: vi.fn() }));
+// The run's home check is proven by tests/integration/runHome.test.ts; here it always passes.
+vi.mock("../../../src/app/resume.js", async () => {
+  const effect = await import("effect");
+  return {
+    inspectResumeOfRun: vi.fn(),
+    resumeHomePreflight: vi.fn(() =>
+      effect.Effect.succeed({ path: "/fake-home/.phax", from: "default" }),
+    ),
+  };
+});
 vi.mock("../../../src/app/executePlan.js", () => ({ executePlan: vi.fn() }));
 vi.mock("../../../src/app/loadPlan.js", () => ({ loadPlan: vi.fn() }));
 vi.mock("../../../src/app/lock.js", () => ({

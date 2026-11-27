@@ -22,13 +22,13 @@ import { loadConfig } from "../../app/loadConfig.js";
 import { loadOrExtractPlan } from "../../app/loadOrExtractPlan.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { resolvePhaxHome } from "../../app/phaxHome.js";
-import { phaxHomeFile } from "../../domain/phaxHome.js";
+import { phaxHomeFile, runHomeFile } from "../../domain/phaxHome.js";
 import { withRunLock } from "../../app/lock.js";
 import { resolveCodeLink } from "../../app/codeLink.js";
 import { type PlanLink, resolvePlanLink } from "../../app/planLink.js";
 import { computeStalenessForPlan } from "../../app/planStaleness.js";
 import { createRunFolder } from "../../app/runFolder.js";
-import { freshRunPreflight } from "../../app/runPreflight.js";
+import { freshRunPreflight, runHomeWriteSetPreflight } from "../../app/runPreflight.js";
 import { classifyArtifactPath } from "../../domain/artifact/document.js";
 import { decodeShortName, type RunId, type ShortName } from "../../domain/branded.js";
 import {
@@ -533,6 +533,16 @@ function runRunCommand(call: RunCall, deps: RunDeps): Effect.Effect<RunAnswer, R
     yield* call.say(`Run: ${qualifiedName}`);
 
     const runFolder = join(config.stateRoot, "runs", qualifiedName);
+    // Before anything of the run is written: no phase session may write the run's home record.
+    const writeSetResult = yield* Effect.result(
+      runHomeWriteSetPreflight(config.security.filesystem.allowWrite, runHomeFile(runFolder)),
+    );
+    if (Result.isFailure(writeSetResult)) {
+      return yield* refuse(
+        exitCodeForError(writeSetResult.failure),
+        writeSetResult.failure.message,
+      );
+    }
     const telemetryLayer = telemetryEnabled
       ? buildSystemTelemetryLayer(
           telemetryOptions,

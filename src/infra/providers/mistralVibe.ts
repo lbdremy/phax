@@ -13,6 +13,7 @@ import type {
   TranscriptRequest,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
+import { SessionPhaxHome, withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import {
   AgentInvocationError,
   type AgentSessionFailedError,
@@ -430,8 +431,10 @@ export function runVibeCompletion(
   const argv = [entry.executable, ...args];
   return Effect.gen(function* () {
     yield* requireSupportedVibe(entry.executable, undefined);
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, undefined, options.cwd, flags.env),
+      try: () =>
+        spawnVibe(entry, args, undefined, options.cwd, withSessionPhaxHome(flags.env, phaxHome)),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
           message: err instanceof Error ? err.message : String(err),
@@ -520,8 +523,16 @@ export function runVibeAgent(
       catch: wrapFsError,
     });
 
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end } = yield* Effect.tryPromise({
-      try: () => spawnVibe(entry, args, transcriptPath, options.cwd, envAdditions),
+      try: () =>
+        spawnVibe(
+          entry,
+          args,
+          transcriptPath,
+          options.cwd,
+          withSessionPhaxHome(envAdditions, phaxHome),
+        ),
       catch: (err): AgentInvocationError =>
         failInvocation(err instanceof Error ? err.message : String(err)),
     });

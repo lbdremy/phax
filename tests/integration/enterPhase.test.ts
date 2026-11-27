@@ -8,6 +8,10 @@ import { resolvePhaseInfo } from "../../src/app/resolveRunInfo.js";
 import type { ResolvedConfig } from "../../src/schemas/phaxConfig.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { writeRunHomeRecord } from "../helpers/runHomeFixture.js";
+
+// The home the run recorded, unlike the current one: the session is handed this as PHAX_HOME.
+const RUN_HOME = { path: "/run-recorded-home/.phax", from: "PHAX_HOME" } as const;
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 // Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
@@ -48,6 +52,7 @@ async function buildFakeRunFolder(
 ): Promise<string> {
   const runPath = join(stateRoot, "runs", "test.my-run");
   await mkdir(runPath, { recursive: true });
+  writeRunHomeRecord(runPath, RUN_HOME);
 
   await writeFile(
     join(runPath, "run-status.json"),
@@ -282,7 +287,7 @@ describe("runEnterPhase", () => {
     expect(spawnSyncMock).toHaveBeenCalledWith(
       "claude",
       expect.arrayContaining(["--resume", "sess-xyz", "--permission-mode", "acceptEdits"]),
-      { cwd: worktreePath, stdio: "inherit" },
+      { cwd: worktreePath, stdio: "inherit", env: { ...process.env, PHAX_HOME: RUN_HOME.path } },
     );
     const args = vi.mocked(spawnSyncMock).mock.calls[0]![1] as string[];
     expect(args.slice(0, 6)).toEqual([
@@ -317,7 +322,7 @@ describe("runEnterPhase", () => {
     expect(spawnSyncMock).toHaveBeenCalledWith(
       "codex",
       expect.arrayContaining(["resume", "sess-codex", 'approval_policy="on-request"']),
-      { cwd: worktreePath, stdio: "inherit" },
+      { cwd: worktreePath, stdio: "inherit", env: { ...process.env, PHAX_HOME: RUN_HOME.path } },
     );
   });
 

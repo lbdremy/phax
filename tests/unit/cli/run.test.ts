@@ -40,6 +40,7 @@ vi.mock("../../../src/app/runPreflight.js", async () => {
         providerConfig: DEFAULT_PROVIDER_CONFIG,
       }),
     ),
+    runHomeWriteSetPreflight: vi.fn(() => effect.Effect.void),
   };
 });
 vi.mock("../../../src/cli/commands/runLayers.js", async () => {

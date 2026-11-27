@@ -15,6 +15,7 @@ import type {
   TranscriptRequest,
 } from "../../ports/backend.js";
 import { FsError } from "../../ports/fs.js";
+import { SessionPhaxHome, withSessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import {
   AgentInvocationError,
   type AgentSessionFailedError,
@@ -338,6 +339,7 @@ export function runClaudeCompletion(
   const args = buildCompletionArgs(options, table);
   const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () =>
         spawnClaude(
@@ -345,7 +347,7 @@ export function runClaudeCompletion(
           promptFor(prompt, schema),
           undefined,
           options.cwd,
-          projectOnlyEnvironment(process.env),
+          withSessionPhaxHome(projectOnlyEnvironment(process.env), phaxHome),
         ),
       catch: (err): AgentInvocationError =>
         new AgentInvocationError({
@@ -478,6 +480,7 @@ export function runClaudeAgent(
   const argv = ["claude", ...args];
   const schema = nativeSchemaOf(options.answerSchema, table);
   return Effect.gen(function* () {
+    const phaxHome = yield* SessionPhaxHome;
     const { lines, stderr, end } = yield* Effect.tryPromise({
       try: () =>
         spawnClaude(
@@ -485,7 +488,7 @@ export function runClaudeAgent(
           promptFor(prompt, schema),
           options.outputJsonlPath,
           options.cwd,
-          projectOnlyEnvironment(process.env),
+          withSessionPhaxHome(projectOnlyEnvironment(process.env), phaxHome),
         ),
       catch: (err): AgentInvocationError => {
         writeAgentErrorLog(options.phaseFolderPath, {

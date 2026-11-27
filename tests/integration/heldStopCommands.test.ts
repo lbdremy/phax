@@ -33,6 +33,7 @@ import {
 import { patchJson, stopRun } from "../helpers/stoppedRunFixture.js";
 import { childEnvUnder } from "../helpers/providerStoreRoots.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { recordedRunHome } from "../helpers/runHomeFixture.js";
 import { CLI_BOUND_MS, CLI_LAUNCHER, boundedSpawn, cliArgs } from "../helpers/boundedSpawn.js";
 
 // The commands that act on a run waiting at a held stop: the made-up
@@ -228,7 +229,12 @@ describe("phax path, shell and open on a held run", () => {
 
     expect((await phaxCall(["shell", SHORT])).code).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([
-      { executable: script, args: [], cwd: tree(), env: {} },
+      {
+        executable: script,
+        args: [],
+        cwd: tree(),
+        env: { PHAX_HOME: recordedRunHome(run.runPath) },
+      },
     ]);
 
     expect((await phaxCall(["open", SHORT])).code).toBe(0);
@@ -243,7 +249,11 @@ describe("phax enter-phase at a held stop", () => {
 
     expect(call.err).toBe("");
     const spawned = only(fakeSession.impl.invocations);
-    expect(spawned).toMatchObject({ executable: "codex", cwd: tree(), env: {} });
+    expect(spawned).toMatchObject({
+      executable: "codex",
+      cwd: tree(),
+      env: { PHAX_HOME: recordedRunHome(run.runPath) },
+    });
     expect(spawned.args.slice(0, 2)).toEqual(["resume", "X0"]);
     expect(spawned.args.slice(2, 4)).toEqual(["-m", expect.stringContaining("gpt-6")]);
     expect(spawned.args).toContain('model_reasoning_effort="medium"');

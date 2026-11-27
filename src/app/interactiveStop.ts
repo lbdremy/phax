@@ -50,6 +50,7 @@ import type {
 import { Backend, type AgentRunOptions, type AgentRunResult } from "../ports/backend.js";
 import { FileSystem, type FsError } from "../ports/fs.js";
 import { Git, type GitError } from "../ports/git.js";
+import { SessionPhaxHome, withSessionPhaxHome } from "../ports/sessionPhaxHome.js";
 import type { Shell, ShellError } from "../ports/shell.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
 import { answerJsonSchema } from "../schemas/answerSchemas.js";
@@ -549,8 +550,19 @@ export function detailedInstructionsOf(section: string): string {
   return (end === -1 ? rest : rest.slice(0, end)).join("\n").trim();
 }
 
-export function asReviewStopCommand(command: StopCommand): ReviewStopCommand {
-  return { cwd: command.cwd, argv: [command.executable, ...command.args], env: { ...command.env } };
+/**
+ * The stop's form of a session command. `phaxHome` is the run's home (`SessionPhaxHome`): the
+ * printed command hands it to the session as PHAX_HOME, on top of the adapter's environment.
+ */
+export function asReviewStopCommand(
+  command: StopCommand,
+  phaxHome: string | undefined,
+): ReviewStopCommand {
+  return {
+    cwd: command.cwd,
+    argv: [command.executable, ...command.args],
+    env: withSessionPhaxHome({ ...command.env }, phaxHome),
+  };
 }
 
 const builtCommand = (result: StopCommandResult): StopCommand | null =>
@@ -583,6 +595,7 @@ function buildStopCommands(input: {
   readonly sessionId: string | null;
 }): Effect.Effect<StopCommands> {
   return Effect.gen(function* () {
+    const phaxHome = yield* SessionPhaxHome;
     const adapter = getSessionAdapter(input.provider);
     const commandModel =
       input.provider === "codex-cli" && input.providerEntry !== undefined
@@ -611,8 +624,9 @@ function buildStopCommands(input: {
     }
     return {
       interactiveResume: adapter.interactiveResume,
-      continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
-      freshStart: asReviewStopCommand(freshStart),
+      continueCommand:
+        continueCommand === null ? null : asReviewStopCommand(continueCommand, phaxHome),
+      freshStart: asReviewStopCommand(freshStart, phaxHome),
       freshStartNote: adapter.freshStartNote({ model: input.model, effort: input.effort }),
     };
   });

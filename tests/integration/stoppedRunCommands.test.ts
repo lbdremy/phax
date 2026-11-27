@@ -24,6 +24,7 @@ import {
   type World,
 } from "../helpers/stoppedRunFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { recordedRunHome } from "../helpers/runHomeFixture.js";
 import {
   CLI_BOUND_MS,
   CLI_LAUNCHER,
@@ -186,7 +187,12 @@ describe("phax path, shell and open on a waiting run", () => {
 
     expect((await phaxCall(["shell", run.shortName])).code).toBe(0);
     expect(fakeSession.impl.invocations).toEqual([
-      { executable: script, args: [], cwd: run.worktree, env: {} },
+      {
+        executable: script,
+        args: [],
+        cwd: run.worktree,
+        env: { PHAX_HOME: recordedRunHome(run.runPath) },
+      },
     ]);
 
     expect((await phaxCall(["open", run.shortName])).code).toBe(0);

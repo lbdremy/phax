@@ -23,7 +23,8 @@ import type { OutputPort } from "../../ports/output.js";
 import { NoopSystemTelemetryLayer, SystemTelemetry } from "../../ports/systemTelemetry.js";
 import { loadTelemetryConfig } from "../../app/loadTelemetryConfig.js";
 import { resolvePhaxHome } from "../../app/phaxHome.js";
-import { phaxHomeFile } from "../../domain/phaxHome.js";
+import { type PhaxHome, phaxHomeFile } from "../../domain/phaxHome.js";
+import { SessionPhaxHome } from "../../ports/sessionPhaxHome.js";
 import type { RunId } from "../../domain/branded.js";
 import {
   ArchiveBlockedByDirtyWorktreeError,
@@ -128,9 +129,29 @@ export function makeGlobalTelemetryJournalLayerOrNoop(): Layer.Layer<SystemTelem
  * the use case, so transcript capture and record usage read the same stores
  * (vibe has none: its turns are read from their stream and export). Every command that runs a provider or writes a record
  * builds its backend through this.
+ *
+ * Beside it, the phax home every session it spawns is handed as PHAX_HOME (`SessionPhaxHome`):
+ * `runHome`, the recorded home of the existing run the command serves, or else the home
+ * resolved now (for `phax run`, the home its run folder records).
  */
-export function makeProviderBackendLayer(providerConfig: ProviderConfig): Layer.Layer<Backend> {
-  return makeNodeBackendLayer(providerConfig).pipe(Layer.provideMerge(ProviderStoreRootsLive));
+export function makeProviderBackendLayer(
+  providerConfig: ProviderConfig,
+  runHome?: PhaxHome,
+): Layer.Layer<Backend> {
+  return makeNodeBackendLayer(providerConfig).pipe(
+    Layer.provideMerge(ProviderStoreRootsLive),
+    Layer.provideMerge(sessionPhaxHomeLayer(runHome)),
+  );
+}
+
+/** `SessionPhaxHome` for this invocation: `runHome`, else the current home. An invalid
+ *  PHAX_HOME gives none: the program's guard refuses that call before it runs. */
+function sessionPhaxHomeLayer(runHome: PhaxHome | undefined): Layer.Layer<never> {
+  return Layer.sync(SessionPhaxHome, (): string | undefined => {
+    if (runHome !== undefined) return runHome.path;
+    const current = resolvePhaxHome();
+    return Result.isSuccess(current) ? current.success.path : undefined;
+  });
 }
 
 /** The layers a test of `phax run` or `phax resume` swaps for fakes; each defaults to the real

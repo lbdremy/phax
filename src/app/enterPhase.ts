@@ -29,6 +29,7 @@ import type { Backend } from "../ports/backend.js";
 import type { FileSystem, FsError } from "../ports/fs.js";
 import type { Git, GitError } from "../ports/git.js";
 import type { Lock } from "../ports/lock.js";
+import { SessionPhaxHome } from "../ports/sessionPhaxHome.js";
 import type { SystemTelemetry } from "../ports/systemTelemetry.js";
 import type { InteractiveSession } from "../schemas/interactiveSession.js";
 import type { ProviderId } from "../schemas/providerId.js";
@@ -430,6 +431,8 @@ function runNewSessionTurn(
     if (result.turn.outcome === "answered" && result.session.current !== null) {
       const { current } = result.session;
       const adapter = getSessionAdapter(provider);
+      // The run's home: the commands the stop prints hand it to the session as PHAX_HOME.
+      const phaxHome = yield* SessionPhaxHome;
       const commands = sessionCommands(
         {
           phaseId: input.phaseId,
@@ -460,7 +463,7 @@ function runNewSessionTurn(
             ...existing.commands,
             continue:
               continueCommand !== null && adapter.interactiveResume === "verified"
-                ? asReviewStopCommand(continueCommand)
+                ? asReviewStopCommand(continueCommand, phaxHome)
                 : null,
           },
         });
@@ -479,8 +482,9 @@ function runNewSessionTurn(
             origin: declaredSessionOrigin(current.origin),
           },
           interactiveResume: adapter.interactiveResume,
-          continueCommand: continueCommand === null ? null : asReviewStopCommand(continueCommand),
-          freshStart: asReviewStopCommand(freshStart),
+          continueCommand:
+            continueCommand === null ? null : asReviewStopCommand(continueCommand, phaxHome),
+          freshStart: asReviewStopCommand(freshStart, phaxHome),
           lastClose: existing.lastClose,
         });
         yield* refreshReviewStop(fresh.runPath, { ...rebuilt, closeBase: existing.closeBase });

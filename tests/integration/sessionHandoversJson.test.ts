@@ -16,6 +16,7 @@ import { makeFakeSession } from "../../src/infra/fakes/session.js";
 import { isolateGit } from "../helpers/isolateGit.js";
 import { isolatePhaxHome } from "../helpers/isolatePhaxHome.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
+import { recordedRunHome, writeRunHomeRecord } from "../helpers/runHomeFixture.js";
 import { runnerCall } from "../helpers/runnerCall.js";
 import { removeTempDir } from "../helpers/tempGit.js";
 
@@ -94,6 +95,7 @@ describe("commands that hand over the terminal", () => {
   function seedRun(options: { worktree: boolean } = { worktree: true }): void {
     const phaseDir = join(runPath, "phase-01");
     mkdirSync(phaseDir, { recursive: true });
+    writeRunHomeRecord(runPath);
     writeFileSync(
       join(runPath, "run-status.json"),
       JSON.stringify({
@@ -226,7 +228,12 @@ describe("commands that hand over the terminal", () => {
       expect(result.outLines).toEqual([`Entering claude session in ${worktreePath}`]);
       expect(result.err).toBe("");
       expect(t.session.impl.invocations).toEqual([
-        { executable: "claude", args: ["--resume", "sess-hand"], cwd: worktreePath, env: {} },
+        {
+          executable: "claude",
+          args: ["--resume", "sess-hand"],
+          cwd: worktreePath,
+          env: { PHAX_HOME: recordedRunHome(runPath) },
+        },
       ]);
     });
 
@@ -265,7 +272,7 @@ describe("commands that hand over the terminal", () => {
   });
 
   describe("shell", () => {
-    it("hands $SHELL to the session in the run's worktree with an empty env", async () => {
+    it("hands $SHELL to the session in the run's worktree, its env only the run's PHAX_HOME", async () => {
       seedRun();
       process.env["SHELL"] = "/bin/fake-sh";
       const t = fakes(2);
@@ -278,7 +285,12 @@ describe("commands that hand over the terminal", () => {
       expect(result.code).toBe(2);
       expect(result.outLines).toEqual([`Opening shell in ${worktreePath}`]);
       expect(t.session.impl.invocations).toEqual([
-        { executable: "/bin/fake-sh", args: [], cwd: worktreePath, env: {} },
+        {
+          executable: "/bin/fake-sh",
+          args: [],
+          cwd: worktreePath,
+          env: { PHAX_HOME: recordedRunHome(runPath) },
+        },
       ]);
     });
 

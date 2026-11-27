@@ -7,6 +7,7 @@ import { EXTRACTOR_VERSION, planCacheKey } from "../../src/domain/planCache/key.
 import { planMdSha256, cacheEntryPath } from "../../src/app/planCacheStore.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { writeRunHomeRecord } from "../helpers/runHomeFixture.js";
 
 /** `phax adjust-plan <plan> --landed <run> …` through the runner. */
 function runAdjustPlan(
@@ -95,6 +96,7 @@ async function buildFakeRun(
   await mkdir(phaseDir, { recursive: true });
 
   const now = "2026-06-29T10:00:00.000Z";
+  writeRunHomeRecord(runPath);
   await writeFile(
     join(runPath, "run-status.json"),
     JSON.stringify({

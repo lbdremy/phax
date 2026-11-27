@@ -12,6 +12,10 @@ import {
 import { resolveRecordsConfig } from "../../src/schemas/recordsConfig.js";
 import { phaseStatusFile } from "../helpers/phaseStatusFixture.js";
 import { phaxCall } from "../helpers/runnerCall.js";
+import { writeRunHomeRecord } from "../helpers/runHomeFixture.js";
+
+// The home the run recorded, unlike the current one: the session is handed this as PHAX_HOME.
+const RUN_HOME = { path: "/run-recorded-home/.phax", from: "PHAX_HOME" } as const;
 import type { PhaseStatus } from "../../src/schemas/status.js";
 
 // Made by vi.hoisted so a test reads the mock by name and never imports node:child_process.
@@ -43,6 +47,7 @@ async function buildFakeRunFolder(
 ): Promise<string> {
   const runPath = join(stateRoot, "runs", "test.my-run");
   await mkdir(runPath, { recursive: true });
+  writeRunHomeRecord(runPath, RUN_HOME);
 
   await writeFile(
     join(runPath, "run-status.json"),
@@ -184,6 +189,7 @@ describe("runEnter", () => {
     expect(spawnSyncMock).toHaveBeenCalledWith("claude", ["--resume", "sess-enter"], {
       cwd: worktreePath,
       stdio: "inherit",
+      env: { ...process.env, PHAX_HOME: RUN_HOME.path },
     });
   });
 

@@ -374,8 +374,10 @@ setInterval(() => {}, 1000);
   });
 
   it("returns a refused CLI call's exit 64 and a child's exact bytes unchanged (ac-normal-exit)", () => {
+    // From a temporary cwd: inside one of a run's phase worktrees the guard reads the run's home.
     const refused = boundedSpawn(CLI_LAUNCHER, cliArgs("ls", "--no-such-option"), {
       boundMs: CLI_BOUND_MS,
+      cwd: work,
       env: phaxHomeEnv(),
     });
     expect(refused.status).toBe(64);
