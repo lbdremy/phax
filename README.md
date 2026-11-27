@@ -187,7 +187,7 @@ A `phax.json` looks like this:
 - **`records`** is written by `phax init` or `phax records init` — see [Records](#records).
 - **`protectedPaths`** lists the files whose change is the operator's decision: no phase may create, change, delete or rename them. The `phax.json` phax loads is protected too. It is accepted in `phax.json` only, and `phax validate` lists the protected paths.
 
-**Layers.** `phax.json` is the team's baseline. Two more files can add to it: `~/.phax/config.json` for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
+**Layers.** `phax.json` is the team's baseline. Two more files can add to it: `config.json` in the [phax home](docs/phax-home.md) (`~/.phax/config.json` unless `PHAX_HOME` is set) for your machine, and `phax.local.json` (gitignored) for you in this repository. A scalar takes the most personal value. An allowlist (`security.filesystem.allowRead|allowWrite`, `security.agentCommands`, `security.mcp.allow`) is the union of all layers, so a personal layer can add to the project's security baseline but never remove from it. Gate profiles merge by name.
 
 **Check and upgrade.**
 
@@ -1161,7 +1161,7 @@ Each commit on `phax/records/v1` holds only its own record, so `git show phax/re
 
 ## Environment
 
-phax reads no environment variable for its configuration: everything is in `phax.json`, its layers and `~/.phax/`. It reads a few variables for their usual meaning: `GIT_COMMITTER_NAME` (who approves), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (where the providers keep their sessions), `SHELL` (`phax shell`) and `NO_COLOR`. Its own end-to-end tests run only with `PHAX_E2E_RUN=1`.
+phax reads no environment variable for its configuration values: everything is in `phax.json`, its layers and the [phax home](docs/phax-home.md), `~/.phax/` unless `PHAX_HOME` names another directory. It reads a few variables for their usual meaning: `GIT_COMMITTER_NAME` (who approves), `CLAUDE_CONFIG_DIR` and `CODEX_HOME` (where the providers keep their sessions), `SHELL` (`phax shell`) and `NO_COLOR`. Its own end-to-end tests run only with `PHAX_E2E_RUN=1`.
 
 ## Troubleshooting
 
