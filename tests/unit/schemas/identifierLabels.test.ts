@@ -12,6 +12,7 @@ import { parseCorpusFile } from "../../behaviourCorpus/corpus.js";
 import { replay } from "../../behaviourCorpus/subjects.js";
 import { CodeReviewFindingIdSchema } from "../../../src/schemas/codeReview.js";
 import { ComplianceFindingIdSchema } from "../../../src/schemas/complianceReview.js";
+import { decodeFindingFateRecordManifestFile } from "../../../src/schemas/findingFateRecord.js";
 import { decodePhaseAgentBinding } from "../../../src/schemas/phaseAgentBinding.js";
 import { firstRefusal } from "../../../src/schemas/refusal/adapter.js";
 import { CURRENT_STAMPS } from "../../../src/schemas/release.js";
@@ -246,6 +247,24 @@ describe("identifier-like leaves name their label in a refusal", () => {
     expect(Result.isFailure(decoded)).toBe(true);
     if (Result.isFailure(decoded)) {
       expect(firstRefusal(decoded.failure)).toMatchObject({ expected: "FindingId", actual: BAD });
+    }
+  });
+
+  it("a finding fate record's finding is labelled FindingId", () => {
+    const document = documentWithBadLeaf(
+      "finding-fate-record-manifest",
+      "accepts a fix by an operator",
+      ["finding"],
+      BAD,
+    );
+    const decoded = decodeFindingFateRecordManifestFile(document);
+    expect(Result.isFailure(decoded)).toBe(true);
+    if (Result.isFailure(decoded)) {
+      expect(firstRefusal(decoded.failure)).toMatchObject({
+        path: ["finding"],
+        expected: "FindingId",
+        actual: BAD,
+      });
     }
   });
 });
