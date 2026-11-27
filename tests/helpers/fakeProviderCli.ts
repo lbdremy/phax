@@ -90,6 +90,12 @@ interface FakeCliScript {
    * failing test leaves no process behind. False by default.
    */
   readonly keepAlive?: boolean;
+  /**
+   * True makes the CLI ignore SIGTERM, as a provider stuck in its own retry
+   * loop may: only SIGKILL (or the 30 s bound of `keepAlive`) ends it. False
+   * by default.
+   */
+  readonly ignoreSigterm?: boolean;
 }
 
 interface FakeCliInvocation {
@@ -170,6 +176,7 @@ function answer(stream) {
     stream();
   }
   if (script.stderr !== undefined) process.stderr.write(script.stderr);
+  if (script.ignoreSigterm === true) process.on("SIGTERM", () => {});
   if (script.keepAlive === true) {
     // Hang until signalled: the default SIGTERM handling ends the process. A
     // test that never signals it (a broken watchdog) leaves no process behind

@@ -173,11 +173,19 @@ function spawnCodex(
     // The watchdog tripped: end the process as a timed-out Claude probe is
     // ended (SIGTERM, then SIGKILL after the grace) and resolve once the
     // transcript is flushed, without waiting on a child that ignores the
-    // signal. Its later output and `close` are ignored.
+    // signal. Its later output is ignored. The grace timer is unref'd, and the
+    // run pauses and phax exits at once after a network failure, so the timer
+    // alone rarely fires: the `exit` hook kills the child then, or a codex that
+    // ignores SIGTERM would outlive phax and could still write to the worktree
+    // a resumed session is handed.
+    const forceKill = (): void => {
+      proc.kill("SIGKILL");
+    };
     const stopForNetwork = (): void => {
       stoppedByWatchdog = true;
       proc.kill("SIGTERM");
-      setTimeout(() => proc.kill("SIGKILL"), SIGKILL_GRACE_MS).unref();
+      process.once("exit", forceKill);
+      setTimeout(forceKill, SIGKILL_GRACE_MS).unref();
       const result: SpawnResult = {
         lines,
         stderr: stderrBuf,
@@ -212,6 +220,7 @@ function spawnCodex(
     });
 
     proc.on("close", (code, signal) => {
+      process.off("exit", forceKill);
       if (stoppedByWatchdog) return;
       if (stdoutBuf.trim()) lines.push(stdoutBuf);
       const result: SpawnResult = {
@@ -226,6 +235,7 @@ function spawnCodex(
     });
 
     proc.on("error", (err) => {
+      process.off("exit", forceKill);
       if (stoppedByWatchdog) return;
       writeStream?.end();
       reject(err);
