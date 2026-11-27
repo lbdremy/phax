@@ -114,6 +114,8 @@ const REWORDED_JSON: ReadonlyArray<string> = [
  *  decoder, the same documents as the published one, no longer its bytes (Effect 4). */
 const REWORDED_LONG_HELP: ReadonlyArray<string> = [
   "ls",
+  // small-fixes-wave-2: `open` says it uses the system's default opener.
+  "open",
   // code-repository: a plan approval also records the code baseline of a linked project.
   "artifact approve",
   "artifact decide",
@@ -148,6 +150,8 @@ const ALLOWED_ADDITIONS: ReadonlyArray<readonly [string, string]> = [
   ["records sync", "flag --replay "],
   // records-branch-tip: the summary says sync now also brings the local records branch level.
   ["records sync", 'help "'],
+  // small-fixes-wave-2: the summary of `open` names the system's default opener.
+  ["open", 'help "'],
   // plan-gate-profile (q-older-sidecar): migrate-documents names the profile an older plan
   // sidecar declares once migrated.
   ["artifact migrate-documents", "flag --gate-profile "],
@@ -190,6 +194,7 @@ const ALLOWED_REWORDINGS: ReadonlyArray<readonly [string, string]> = [
   ...CHOICES_DECLARED.map((path) => [path, "arg <kind> "] as const),
   ...REWORDED_LONG_HELP.map((path) => [path, "long_help "] as const),
   ["records sync", 'help "'],
+  ["open", 'help "'],
 ];
 
 function difference(

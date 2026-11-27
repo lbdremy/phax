@@ -56,7 +56,7 @@ cmd path help="Print the final worktree path (script-friendly, one line)" long_h
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     arg <short-name> help="Run short name, e.g. usage-cli"
 }
-cmd open help="Open the final worktree in the configured editor" long_help="Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree." {
+cmd open help="Open the final worktree with the system's default opener" long_help="Opens the final worktree with the system's default opener (`open` on macOS, `xdg-open` elsewhere), as if you ran that opener on the worktree path. For a run in awaiting_review it opens the stopped phase's worktree. To open the worktree in an editor of your choice, run that editor on the path that `phax path <run>` prints." {
     example "phax open usage-cli"
     flag --json help="Answer in JSON: the output on stdout, messages as JSON lines on stderr"
     arg <short-name> help="Run short name, e.g. usage-cli"

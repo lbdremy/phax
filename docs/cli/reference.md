@@ -241,7 +241,7 @@ cd $(phax path usage-cli)
 
 - **Usage**: `phax open [--json] <short-name>`
 
-Opens the final worktree in the editor configured in phax.json (or the EDITOR environment variable). Equivalent to running your editor with the worktree path as an argument. For a run in awaiting_review it opens the stopped phase's worktree.
+Opens the final worktree with the system's default opener (`open` on macOS, `xdg-open` elsewhere), as if you ran that opener on the worktree path. For a run in awaiting_review it opens the stopped phase's worktree. To open the worktree in an editor of your choice, run that editor on the path that `phax path <run>` prints.
 
 ### Arguments
 

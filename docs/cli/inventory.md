@@ -13,7 +13,7 @@ Commander surface as of phase-01. Used as authoritative source for authoring `ph
 | `session-info` | `<short-name>` | `--debug` | Print session diagnostics for a run |
 | `shell` | `<short-name>` | — | Open a shell in the final worktree |
 | `path` | `<short-name>` | — | Print the final worktree path (script-friendly, one line) |
-| `open` | `<short-name>` | — | Open the final worktree in the configured editor |
+| `open` | `<short-name>` | — | Open the final worktree with the system's default opener |
 | `ls` | — | `--active`, `--failed`, `--review-open`, `--archived`, `--json` | List runs from the registry |
 | `archive` | `<short-name>` | `--force` | Archive a completed or review_open run |
 | `run` | `[short-name]` | `--plan <path>` (required), `--allow-dirty`, `--provider-priority <list>`, `--dry-run`, `--security <mode>` | Extract a plan from plan.md and run all phases, or preview with --dry-run |
