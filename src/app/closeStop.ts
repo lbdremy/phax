@@ -410,7 +410,7 @@ function trailerValue(message: string, key: string): string | null {
  * commit's changes in the worktree, and resume.
  */
 function ownCommitRemedy(input: CloseStopInput, base: string): string {
-  return `run git -C ${shellQuote(input.worktree)} reset --soft ${base} to keep its changes uncommitted, then phax resume ${input.shortName}`;
+  return `run git -C ${shellQuote(input.worktree)} reset --soft ${base} to keep its changes uncommitted, then phax resume ${input.shortName} --yes`;
 }
 
 /**
@@ -1231,7 +1231,7 @@ function closeSteps(
         closeError(
           "commit",
           new Error(
-            `no git identity in ${input.mainCheckout}: set user.name and user.email, then run phax resume ${input.shortName} again`,
+            `no git identity in ${input.mainCheckout}: set user.name and user.email, then run phax resume ${input.shortName} --yes again`,
           ),
         ),
       );

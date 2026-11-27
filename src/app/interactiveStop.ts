@@ -697,7 +697,7 @@ export function stopAtDeclaredPhase(
 > {
   return Effect.gen(function* () {
     const { phase, phases, phaseIndex } = input;
-    const closeCommand = `phax resume ${input.shortName}`;
+    const closeCommand = `phax resume ${input.shortName} --yes`;
     const sectionOf = (id: string): string => input.planSections.get(id) ?? "";
 
     const seeds = seedPaths(input.worktree, input.phaseFolder);
@@ -859,7 +859,7 @@ export function stopAtHeldPhase(
           .slice(phaseIndex + 1)
           .map((p) => ({ id: p.id, title: p.title, text: sectionOf(p.id) })),
         gateCommands: input.gateCommands,
-        closeCommand: `phax resume ${input.shortName}`,
+        closeCommand: `phax resume ${input.shortName} --yes`,
       }),
     );
 

@@ -702,7 +702,9 @@ describe("a protected file the agent leaves changed at every attempt", () => {
       // The phase base by its hash, and the command putting the file back to it.
       const { base } = readJson(join(observed.phaseFolder, "status.json")) as { base: string };
       expect(instructions).toContain(`Compared with the phase base, commit ${base}:`);
-      expect(instructions).toContain(`git checkout ${base} -- '${BASELINE_RUST}'`);
+      expect(instructions).toContain(
+        `git --literal-pathspecs checkout ${base} -- '${BASELINE_RUST}'`,
+      );
       expect(observed.prompts[1]).toContain(`to its content at base commit ${base}`);
       expect(instructions).toContain("phax resume invoice-export --yes");
       expect(instructions).toContain("make it on the base branch yourself and start a new run");

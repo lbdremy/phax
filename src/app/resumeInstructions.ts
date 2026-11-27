@@ -79,10 +79,13 @@ export interface ProtectedRestore {
  * rename, so it is checked out when `commit` holds it and removed otherwise.
  * A symbolic link or a nested repository is removed, link or directory, and
  * what `commit` holds at its path is checked out.
+ * The checkout reads the path literally (`--literal-pathspecs`): quoting stops
+ * the shell, not git, so a file named `:(exclude)x` would otherwise be read as
+ * pathspec magic and check out the whole tree over the phase's work.
  */
 function restoreCommand(change: ProtectedChange, commit: string): string {
   const path = shellQuote(change.path);
-  const checkout = `git checkout ${commit} -- ${path}`;
+  const checkout = `git --literal-pathspecs checkout ${commit} -- ${path}`;
   const atCommit = `git cat-file -e ${shellQuote(`${commit}:${change.path}`)} 2>/dev/null`;
   switch (change.kind) {
     case "edited":
@@ -435,7 +438,7 @@ function buildHoldPointFailedInstructions(input: ResumeInstructionsInput): strin
     "## Resume",
     "",
     "```bash",
-    `phax resume ${input.shortName}`,
+    `phax resume ${input.shortName} --yes`,
     "```",
     "",
   ];
@@ -461,7 +464,7 @@ function buildStopRecordRefusedInstructions(input: ResumeInstructionsInput): str
     "## Resume",
     "",
     "```bash",
-    `phax resume ${input.shortName}`,
+    `phax resume ${input.shortName} --yes`,
     "```",
     "",
   ];
@@ -528,7 +531,7 @@ function buildAwaitingReviewInstructions(input: ResumeInstructionsInput): string
     "## Close the stop (from the main checkout)",
     "",
     "```bash",
-    `phax resume ${input.shortName}`,
+    `phax resume ${input.shortName} --yes`,
     "```",
     "",
     "## Start the phase over",

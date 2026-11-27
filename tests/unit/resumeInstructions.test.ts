@@ -217,10 +217,10 @@ describe("buildResumeInstructions — protected paths", () => {
         "To put each path back to its content at the phase base, run in the phase worktree:",
         "",
         "```bash",
-        `git checkout ${commit} -- 'packages/a/steme.baseline.json'`,
+        `git --literal-pathspecs checkout ${commit} -- 'packages/a/steme.baseline.json'`,
         `rm -- 'packages/b/it'\\''s.json'`,
-        `git checkout ${commit} -- 'packages/c/steme.baseline.json'`,
-        `if git cat-file -e '${commit}:packages/d/steme.baseline.json' 2>/dev/null; then git checkout ${commit} -- 'packages/d/steme.baseline.json'; else rm -- 'packages/d/steme.baseline.json'; fi`,
+        `git --literal-pathspecs checkout ${commit} -- 'packages/c/steme.baseline.json'`,
+        `if git cat-file -e '${commit}:packages/d/steme.baseline.json' 2>/dev/null; then git --literal-pathspecs checkout ${commit} -- 'packages/d/steme.baseline.json'; else rm -- 'packages/d/steme.baseline.json'; fi`,
         "```",
       ].join("\n"),
     );
@@ -237,7 +237,7 @@ describe("buildResumeInstructions — protected paths", () => {
       protectedRestore: { commit, name: "phase base" },
     });
     expect(md).toContain(
-      `rm -rf -- 'packages/e'; if git cat-file -e '${commit}:packages/e' 2>/dev/null; then git checkout ${commit} -- 'packages/e'; fi`,
+      `rm -rf -- 'packages/e'; if git cat-file -e '${commit}:packages/e' 2>/dev/null; then git --literal-pathspecs checkout ${commit} -- 'packages/e'; fi`,
     );
     expect(md).toContain(
       "- vendor/n — nested-repository (protectedPaths[0] **/steme.baseline.json)",
@@ -255,7 +255,9 @@ describe("buildResumeInstructions — protected paths", () => {
       protectedRestore: { commit, name: "phase commit" },
     });
     expect(md).toContain(`Compared with the phase commit, commit ${commit}:`);
-    expect(md).toContain(`git checkout ${commit} -- 'packages/a/steme.baseline.json'`);
+    expect(md).toContain(
+      `git --literal-pathspecs checkout ${commit} -- 'packages/a/steme.baseline.json'`,
+    );
   });
 
   it("is today's instructions with no change", () => {
@@ -269,6 +271,18 @@ describe("buildResumeInstructions — protected paths", () => {
     });
     expect(md).not.toContain("Protected paths");
     expect(md).toContain("phax reset-phase my-run phase-02");
+  });
+});
+
+describe("buildResumeInstructions — resume command blocks", () => {
+  it.each([
+    ["awaiting_review", "## Close the stop (from the main checkout)"],
+    ["hold_point_failed", "## Resume"],
+    ["stop_record_refused", "## Resume"],
+    ["network_failure", "## Resume"],
+  ])("%s prints a command that resumes the run under %s", (kind, heading) => {
+    const md = buildResumeInstructions({ ...BASE, kind, phaseId: "phase-02" });
+    expect(md).toContain([heading, "", "```bash", "phax resume my-run --yes", "```"].join("\n"));
   });
 });
 

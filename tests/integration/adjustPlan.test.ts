@@ -334,7 +334,7 @@ describe("prepareAdjustPlanSession", () => {
 describe("landedRunRefusal", () => {
   it("refuses a run awaiting review, naming its state and how to close the stop", () => {
     expect(landedRunRefusal("example.invoice-export", "awaiting_review")).toBe(
-      'Cannot adjust a plan against run "example.invoice-export": it is awaiting_review, stopped at an interactive phase, so it has not landed. Close the stop with `phax resume example.invoice-export` and let the run finish first.',
+      'Cannot adjust a plan against run "example.invoice-export": it is awaiting_review, stopped at an interactive phase, so it has not landed. Close the stop with `phax resume example.invoice-export --yes` and let the run finish first.',
     );
   });
 

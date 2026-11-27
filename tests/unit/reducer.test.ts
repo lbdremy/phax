@@ -778,6 +778,45 @@ describe("interpret — phase lifecycle within running", () => {
   });
 });
 
+describe("interpret — resume.available", () => {
+  it("every pausing transition names a command that resumes the run, not a preview", () => {
+    const states: readonly PhaxState[] = [
+      ...runStateNames.map((r) => representativeState[r]),
+      ...Object.values(runningStateFor),
+      { run: "running", phase: { state: "gates_failed", attempt: 3 } },
+    ];
+    const emitting = new Set<PhaxEventType>();
+    for (const type of eventTypeNames) {
+      const event = sampleEvents[type];
+      for (const state of states) {
+        const d = interpret(state, event);
+        if (d.kind !== "Handled") continue;
+        for (const effect of d.effects) {
+          if (effect.type !== "EmitTrace" || effect.name !== "resume.available") continue;
+          emitting.add(type);
+          expect(effect.details, type).toEqual({
+            resumeCommand: `phax resume ${"run" in event ? String(event.run) : ""} --yes`,
+          });
+        }
+      }
+    }
+    expect([...emitting].toSorted()).toMatchInlineSnapshot(`
+      [
+        "ArtifactCompletionFailed",
+        "CleanupFailed",
+        "CommitFailed",
+        "FixAttemptsExhausted",
+        "GateStepRefused",
+        "HoldPointFailed",
+        "NetworkFailureDetected",
+        "PhaseHadNoChanges",
+        "RateLimitDetected",
+        "StopRecordRefused",
+      ]
+    `);
+  });
+});
+
 describe("interpret — rate limit handling", () => {
   it("running + phase=running × RateLimitDetected → rate_limited / rate_limited", () => {
     const d = interpret(representativeState.running, sampleEvents.RateLimitDetected);

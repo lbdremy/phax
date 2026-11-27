@@ -561,7 +561,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   name: "resume.available",
                   status: "info",
                   boundary: "resume-instructions.md",
-                  details: { resumeCommand: `phax resume ${event.run}` },
+                  details: { resumeCommand: `phax resume ${event.run} --yes` },
                 },
               ],
             );
@@ -642,7 +642,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   name: "resume.available",
                   status: "info",
                   boundary: "resume-instructions.md",
-                  details: { resumeCommand: `phax resume ${event.run}` },
+                  details: { resumeCommand: `phax resume ${event.run} --yes` },
                 },
               ],
             );
@@ -936,7 +936,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 name: "resume.available",
                 status: "info",
                 boundary: "resume-instructions.md",
-                details: { resumeCommand: `phax resume ${event.run}` },
+                details: { resumeCommand: `phax resume ${event.run} --yes` },
               },
             ]);
           }
@@ -993,7 +993,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 name: "resume.available",
                 status: "info",
                 boundary: "resume-instructions.md",
-                details: { resumeCommand: `phax resume ${event.run}` },
+                details: { resumeCommand: `phax resume ${event.run} --yes` },
               },
             ]);
           }
@@ -1052,7 +1052,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   name: "resume.available",
                   status: "info",
                   boundary: "resume-instructions.md",
-                  details: { resumeCommand: `phax resume ${event.run}` },
+                  details: { resumeCommand: `phax resume ${event.run} --yes` },
                 },
               ],
             );
@@ -1169,7 +1169,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 name: "resume.available",
                 status: "info",
                 boundary: "resume-instructions.md",
-                details: { resumeCommand: `phax resume ${event.run}` },
+                details: { resumeCommand: `phax resume ${event.run} --yes` },
               },
             ]);
           }
@@ -1235,7 +1235,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 name: "resume.available",
                 status: "info",
                 boundary: "resume-instructions.md",
-                details: { resumeCommand: `phax resume ${event.run}` },
+                details: { resumeCommand: `phax resume ${event.run} --yes` },
               },
             ]);
           }
@@ -1300,7 +1300,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                 name: "resume.available",
                 status: "info",
                 boundary: "resume-instructions.md",
-                details: { resumeCommand: `phax resume ${event.run}` },
+                details: { resumeCommand: `phax resume ${event.run} --yes` },
               },
             ]);
           }
@@ -1617,7 +1617,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   name: "resume.available",
                   status: "info",
                   boundary: "resume-instructions.md",
-                  details: { resumeCommand: `phax resume ${event.run}` },
+                  details: { resumeCommand: `phax resume ${event.run} --yes` },
                 },
               ],
             );
@@ -1680,7 +1680,7 @@ export function interpret(state: PhaxState, event: PhaxEvent): Disposition<PhaxS
                   name: "resume.available",
                   status: "info",
                   boundary: "resume-instructions.md",
-                  details: { resumeCommand: `phax resume ${event.run}` },
+                  details: { resumeCommand: `phax resume ${event.run} --yes` },
                 },
               ],
             );
