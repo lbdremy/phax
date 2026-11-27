@@ -1208,7 +1208,7 @@ Something else? `phax report <run>` opens a GitHub issue with the run's telemetr
 
 Full CLI reference: [`docs/cli/reference.md`](docs/cli/reference.md).
 
-- `phax validate [--plan <path>] [--json]` — Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
+- `phax validate [--plan <path>] [--json]` — Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json and the phax home's config.json, which is ~/.phax/config.json unless PHAX_HOME is set) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.
 - `phax unlock [--force] [--json] <short-name>` — Remove a stale run lock; use --force to remove any lock
 - `phax enter [--json] <short-name>` — Attaches to the kept-open agent session in the final worktree, so you can review the agent's work, ask follow-up questions, or apply manual fixes interactively.
 - `phax enter-phase [--new-session] [--json] <short-name> <phase-id>` — Continues a phase's agent session interactively in the phase's worktree: claude-code with `claude --resume` and codex with `codex resume`; mistral-vibe has no verified interactive resume. The session carries the phase's own filesystem, network and MCP posture, rebuilt from its security.json; a phase whose security.json cannot be read is refused rather than opened unconfined. Useful for inspecting intermediate state or debugging a phase that has not yet been committed to main.

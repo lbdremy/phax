@@ -7,6 +7,7 @@ import * as Schema from "effect/Schema";
 import { invalidBoundMessages } from "../../app/assignmentBounds.js";
 import { resolveCodeLink } from "../../app/codeLink.js";
 import { describeConfigSources, loadConfig } from "../../app/loadConfig.js";
+import { resolvePhaxHome } from "../../app/phaxHome.js";
 import { makeNodeGitLayer } from "../../infra/git.js";
 import { loadPlan } from "../../app/loadPlan.js";
 import { ConfigValidationError } from "../../domain/errors.js";
@@ -42,8 +43,15 @@ const Sources = Schema.Struct({
   global: Schema.NullOr(Schema.String),
 });
 
+/** The phax home in use, and whether PHAX_HOME or the default chose it. */
+const Home = Schema.Struct({
+  path: Schema.String,
+  from: Schema.Literals(["PHAX_HOME", "default"]),
+});
+
 const ValidateOutput = Schema.Struct({
   namespace: Schema.String,
+  home: Home,
   sources: Schema.NullOr(Sources),
   protectedPaths: Schema.NullOr(Schema.Array(Schema.String)),
   partialPrefixes: Schema.Array(
@@ -75,13 +83,20 @@ export const validateCommand = defineCommand({
   name: "validate",
   summary:
     "Validate phax.json and its user overlays without any side effects; pass --plan to also validate a phax-plan.json",
-  help: 'Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json, ~/.phax/config.json) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json\'s "protectedPaths" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or ~/.phax/config.json is refused, because it is accepted only in phax.json.\n\nThe prefixes that gate steps\' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound\'s model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command\'s, lint\'s and the run preflight\'s.\n\nA process repository may link its code repository with "code": { "root": "<dir>" }, accepted only in phax.json. The root must be written as a relative path inside the repository, and four checks run: the directory exists, it is exactly the top level of a git repository, this repository ignores it, and this repository does not track it (no gitlink and no file under it in the index, which an ignore rule does not remove). A refusal exits 2 naming code.root and the reason.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.',
+  help: "Checks that the configuration decodes and, with --plan, that the given phax-plan.json decodes. The config layers (phax.json, phax.local.json and the phax home's config.json, which is ~/.phax/config.json unless PHAX_HOME is set) are merged and decoded; a user overlay that carries assignments is refused, because assignments is accepted only in phax.json.\n\nThe protected paths are listed: the globs of phax.json's \"protectedPaths\" in order, then the phax.json phax loaded, which is protected too, by its repo-relative path. A malformed glob exits 2 naming protectedPaths[N], and protectedPaths in phax.local.json or the phax home's config.json is refused, because it is accepted only in phax.json.\n\nThe prefixes that gate steps' partial commands allow a secure session to start are listed per gate profile that declares any: the words of each pipe segment before its first placeholder, each one a command the agent may run with any further arguments.\n\nThe assignment bounds of phax.json are checked against the routing catalog: each bound's model must be in the catalog, its min and max efforts must be efforts that model offers, and min may not come after max. A bad bound exits 2 naming assignments[N] and the field. The shape of a bound is checked at decode time by every command; the catalog check is this command's, lint's and the run preflight's.\n\nA process repository may link its code repository with \"code\": { \"root\": \"<dir>\" }, accepted only in phax.json. The root must be written as a relative path inside the repository, and four checks run: the directory exists, it is exactly the top level of a git repository, this repository ignores it, and this repository does not track it (no gitlink and no file under it in the index, which an ignore rule does not remove). A refusal exits 2 naming code.root and the reason.\n\nThe phax home in use is printed on the line after the success line with its source: (PHAX_HOME) when the variable chose it, (default) for ~/.phax. --json carries it as home: { path, from }.\n\nExits 0 when everything is valid, 2 otherwise.\n\nSide effects: none.",
   examples: ["phax validate", "phax validate --plan phax-plan.json"],
   input: { flags: reject(ValidateFlags) },
   output: reject(ValidateOutput),
   run: ({ input }) =>
     Effect.gen(function* () {
       const cwd = process.cwd();
+      // The program's guard normally refuses an invalid PHAX_HOME before the command runs.
+      const home = resolvePhaxHome();
+      if (Result.isFailure(home)) {
+        return yield* Effect.fail(
+          new ConfigInvalidError({ message: home.failure.message, path: home.failure.path }),
+        );
+      }
       const loaded = loadConfig(cwd);
       if (Result.isFailure(loaded)) {
         return yield* Effect.fail(
@@ -135,6 +150,7 @@ export const validateCommand = defineCommand({
 
       const validated = {
         namespace: config.namespace,
+        home: { path: home.success.path, from: home.success.from },
         sources:
           sources === undefined
             ? null
@@ -209,7 +225,10 @@ export const validateCommand = defineCommand({
 
 /** The config's lines, then the plan's when it was validated. */
 function renderValidated(value: typeof ValidateOutput.Type): string {
-  const lines = [`✓ config is valid (project: ${value.namespace})`];
+  const lines = [
+    `✓ config is valid (project: ${value.namespace})`,
+    `  home:    ${value.home.path} (${value.home.from})`,
+  ];
   if (value.sources !== null) {
     lines.push(`  project: ${value.sources.project}`);
     lines.push(`  local:   ${value.sources.local ?? "(none)"}`);

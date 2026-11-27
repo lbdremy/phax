@@ -1,6 +1,6 @@
 import { boundedOutput, GIT_BOUND_MS } from "../../helpers/boundedSpawn.js";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { Result } from "effect";
@@ -134,6 +134,50 @@ describe("runValidate", () => {
     expect(lines.some((l) => l.includes("/repo/phax.local.json"))).toBe(true);
     expect(lines.some((l) => l.includes("(none)"))).toBe(true);
     expect(loadPlan).not.toHaveBeenCalled();
+  });
+
+  it("keeps its lines and order, with the home line right after the success line", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    loadConfig.mockReturnValue(
+      Result.succeed({
+        ...makeConfig(),
+        protectedPaths: [{ glob: "phax.json", entry: "phax.json" }],
+      }),
+    );
+    describeConfigSources.mockReturnValue({
+      project: "/repo/phax.json",
+      localOverlay: "/repo/phax.local.json",
+      globalOverlay: undefined,
+    });
+
+    const { code, outLines: lines, errLines: errors } = await phaxCall(["validate"]);
+
+    expect(errors).toEqual([]);
+    expect(code).toBe(0);
+    expect(lines).toEqual([
+      "✓ config is valid (project: myproject)",
+      `  home:    ${join(homedir(), ".phax")} (default)`,
+      "  project: /repo/phax.json",
+      "  local:   /repo/phax.local.json",
+      "  global:  (none)",
+      "  protected paths: phax.json",
+    ]);
+  });
+
+  it("answers the home and its source in --json", async () => {
+    const { loadConfig, describeConfigSources } = vi.mocked(
+      await import("../../../src/app/loadConfig.js"),
+    );
+    loadConfig.mockReturnValue(Result.succeed(makeConfig()));
+    describeConfigSources.mockReturnValue(undefined);
+
+    const { code, outLines: lines } = await phaxCall(["validate", "--json"]);
+
+    expect(code).toBe(0);
+    const answer: unknown = JSON.parse(lines.join("\n"));
+    expect(answer).toHaveProperty("home", { path: join(homedir(), ".phax"), from: "default" });
   });
 
   it("lists the protected paths, the loaded phax.json included, right after the global line", async () => {
@@ -273,7 +317,10 @@ describe("runValidate", () => {
 
     expect(code).toBe(2);
     // The config's success line stays on stdout before the plan's error, as before the runner.
-    expect(lines).toEqual(["✓ config is valid (project: myproject)"]);
+    expect(lines).toEqual([
+      "✓ config is valid (project: myproject)",
+      `  home:    ${join(homedir(), ".phax")} (default)`,
+    ]);
     expect(errors.some((e) => e.includes("Plan validation failed"))).toBe(true);
     expect(errors.some((e) => e.includes("phax-plan.json"))).toBe(true);
   });

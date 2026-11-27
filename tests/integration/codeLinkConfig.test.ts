@@ -71,6 +71,7 @@ describe("phax validate with a code link", () => {
     expect(result.code).toBe(0);
     expect(result.outLines).toEqual([
       "✓ config is valid (project: process-repo)",
+      `  home:    ${join(base, "home", ".phax")} (default)`,
       `  project: ${join(processRepo, "phax.json")}`,
       "  local:   (none)",
       "  global:  (none)",
