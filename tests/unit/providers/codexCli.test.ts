@@ -493,6 +493,23 @@ describe("the network watchdog", () => {
     expectNetworkFailure(failed);
   });
 
+  it("kills a codex that ignores SIGTERM when phax exits, and drops that hook once it closes", async () => {
+    cli.setScript({ ...hangingStream, ignoreSigterm: true });
+    const before = new Set(process.listeners("exit"));
+    const added = (): NodeJS.ExitListener[] =>
+      process.listeners("exit").filter((listener) => !before.has(listener));
+    const failed = await Effect.runPromise(
+      Effect.result(runCodexCompletion("ask", { ...completionOptions(), cwd: root }, entry())),
+    );
+    expectNetworkFailure(failed);
+    // The run paused on a network failure and phax is about to exit: the hook
+    // is what ends a child still alive after SIGTERM.
+    expect(added()).toHaveLength(1);
+    for (const listener of added()) listener(0);
+    // Killed by the hook, well before the 5 s grace timer: its close drops the hook.
+    await vi.waitFor(() => expect(added()).toHaveLength(0), { timeout: 3_000 });
+  });
+
   it("answers a session that reconnects fewer than 8 times and then completes", async () => {
     cli.setScript({
       sessionId: SESSION,
