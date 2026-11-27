@@ -49,7 +49,7 @@ Every command above is already an exact entry of `security.agentCommands` in `ph
 - Provider setup (phase-05): when `~/.phax/providers.json` exists, `--write` never turns an `enabled: false` entry back on (`--prune` can still turn an entry off). With no file, setup starts from the built-in catalog and enables the installed providers, as it does today. For models, `--write` keeps writing the file's own models: retired ids are dropped and their successors listed. It writes the built-in catalog only when no file exists. Writing fewer models on the first write would need a new meaning for an entry with no `families`, which today serves no model: that is a change to the routing format, not a small fix. Loss accepted: a provider installed after the file exists is never turned on by `--write`, so the person flips its `enabled` flag by hand. A first write still copies the built-in catalog into the file, and the retired-id refusal already names `--write` as the remedy.
 - Refusal-label scope (phase-06): the identifier-like leaves are phase ids, decision and revision ids, finding ids, question and verdict ids, commit SHAs, SHA-256 digests, grants and the safe session id. Leaves that already carry a message or an identifier on their check keep it. Timestamps, dates, URLs, schema URLs and free-text patterns keep their pattern label. Schemas under `src/schemas/history/` are frozen and stay untouched. Loss accepted: a refused timestamp still prints its regular expression.
 
-## Open questions
+## Arbitrated questions
 
 ### refusal-label-site — Where does the label of an identifier-like leaf live: on the leaf's pattern check, or on the leaf's schema node as Effect 3 had it?
 
@@ -57,6 +57,13 @@ Every command above is already an exact entry of `security.agentCommands` in `ph
 - node-identifier — An `identifier` annotation on each leaf's schema node, with the adapter preferring the owner node's identifier for a filter refusal — abandons: an unchanged published format: a node identifier becomes a `$defs` entry and a `$ref` in every format that carries the leaf, so each of about twenty formats records a `next` snapshot under `packages/schemas/snapshots/` and its published JSON Schema changes shape
 
 Recommendation: check-annotation — A refusal text is phax's own wording, while the JSON Schemas are a published contract. Putting the label on the check restores the label without changing any format, which keeps this fix small. Losing the label on a wrong-type refusal costs little: the type there is still named (`string`).
+
+Decision: check-annotation — by operator (Rémy Loubradou), 2026-11-27
+Why: Operator's choice: the label goes on the pattern check; no published JSON Schema changes and no next snapshot is recorded. Advocate: The strongest case for node-identifier: it puts the label on the type itself, as Effect 3 did, so a wrong-type refusal (a number where the id belongs) names the expected id too, not just `string`, and the published JSON Schemas would name each identifier-like leaf in `$defs` for the tools that read them. Principles: C1, C5. Reversibility: cheap. Revised: none. Phase: phase-06.
+
+## Decision log
+
+- 2026-11-27 refusal-label-site decided check-annotation — operator (Rémy Loubradou)
 
 ---
 
